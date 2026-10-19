@@ -6,8 +6,6 @@
   },
   "probe": "empty runtime HTTP and startup-tree smoke observation",
   "normalization": {
-    "/version.gitBranch": "runtime checkout branch varies by clone/deployment",
-    "/version.commitDate": "runtime checkout date varies with source checkout state",
     "data/cookie-secret.txt": "generated secret value is omitted; path and size are retained",
     "data/_storage/**": "account store can contain generated timestamps; paths and sizes are retained",
     "data/_webpack/** except output/lib.js": "Webpack cache artifacts are runtime-generated; paths are retained while size and contents are omitted",
@@ -38,8 +36,8 @@
           "agent": "SillyTavern:1.19.0:Cohee#1207",
           "pkgVersion": "1.19.0",
           "gitRevision": "06bde939f",
-          "gitBranch": "<runtime branch>",
-          "commitDate": "<runtime commit date>",
+          "gitBranch": "release",
+          "commitDate": "2026-09-14 21:01:34 +0200",
           "isLatest": true
         }
       },

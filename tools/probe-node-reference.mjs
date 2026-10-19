@@ -138,11 +138,7 @@ try {
                 versionObservation = {
                     status: response.status,
                     contentType: response.headers.get('content-type'),
-                    body: {
-                        ...version,
-                        gitBranch: '<runtime branch>',
-                        commitDate: '<runtime commit date>',
-                    },
+                    body: version,
                 };
                 break;
             }
@@ -168,8 +164,6 @@ try {
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
         probe: 'empty runtime HTTP and startup-tree smoke observation',
         normalization: {
-            '/version.gitBranch': 'runtime checkout branch varies by clone/deployment',
-            '/version.commitDate': 'runtime checkout date varies with source checkout state',
             'data/cookie-secret.txt': 'generated secret value is omitted; path and size are retained',
             'data/_storage/**': 'account store can contain generated timestamps; paths and sizes are retained',
             'data/_webpack/** except output/lib.js': 'Webpack cache artifacts are runtime-generated; paths are retained while size and contents are omitted',

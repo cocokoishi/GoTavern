@@ -75,7 +75,10 @@ const outputPath = path.join(repositoryRoot, 'upstream', 'generated', 'lib.js');
 
 try {
     run('git', ['clone', '--shared', '--no-checkout', upstreamRoot, buildRoot], repositoryRoot);
-    run('git', ['checkout', '--detach', PINNED_COMMIT], buildRoot);
+    // Give the isolated runtime probe a stable branch name. The checkout is
+    // still pinned to the exact commit, but /version's branch field is now a
+    // real and reproducible observation instead of a machine-dependent value.
+    run('git', ['checkout', '--force', '-B', 'release', PINNED_COMMIT], buildRoot);
     runNpm(['ci', '--no-audit', '--no-fund'], buildRoot);
 
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');

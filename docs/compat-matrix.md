@@ -6,12 +6,12 @@ Status meanings follow `ARCHITECTURE.md`: `compatible` means no known material d
 
 | Area | Status | Evidence | Remaining work |
 |---|---|---|---|
-| Pinned upstream `public/**` source bytes | partial | Vendored from the pinned Git tree; `upstream/manifests/public.sha256` records each file. | Go HTTP static serving, MIME/cache/header behavior, and extension ABI tests. |
+| Pinned upstream `public/**` source bytes | partial | Vendored from the pinned Git tree; `upstream/manifests/public.sha256` records each file. The embedded handler serves the root page and static assets. | MIME/cache/header parity, per-user CSS, middleware/auth behavior, and extension ABI tests. |
 | Pinned upstream `default/**` files | partial | Vendored from the pinned Git tree; `upstream/manifests/default.sha256` records each file. | Fresh-install seeding, precedence, backups, and Node-vs-Go filesystem comparison. |
-| Generated frontend `lib.js` | partial | Built with pinned upstream Webpack in an isolated checkout; `upstream/generated/build-info.json` records the toolchain and output digest. | Serve from Go and compare browser behavior with the Node baseline. |
+| Generated frontend `lib.js` | partial | Built with pinned upstream Webpack in an isolated checkout and served from the embedded handler; its HTTP body digest matches the pinned fresh-start oracle. | Match remaining middleware headers/cache behavior and compare browser behavior with the Node baseline. |
 | Build identity CLI | partial | `gotavern version` reports GoTavern identity and the pinned SillyTavern baseline. | Release version injection and build metadata/report integration. |
 | Asset manifest verification | partial | `gotavern assets verify` and Go tests verify embedded file hashes and tree membership. | CI enforcement and release-archive verification. |
-| Pinned Node fresh-start oracle | partial | `tests/oracle/sillytavern-1.19.0-fresh-start.json` captures Node `/`, `/version`, `/lib.js`, and the fresh data-tree shape. | Run the same fixture against Go; compare normalized HTTP and filesystem observations. Browser events and provider wire are not part of this startup-only probe. |
+| Pinned Node fresh-start oracle | partial | Go tests compare `/`, `/version`, and `/lib.js` status, content type, and response body against `tests/oracle/sillytavern-1.19.0-fresh-start.json`. | Compare remaining HTTP headers and startup filesystem state. Browser events and provider wire are not part of this startup-only probe. |
 | HTTP routes, auth, CSRF, middleware, redirects, error responses | not implemented | Source inventory generated in `docs/api-inventory.md`. | Implement and differentially probe each route and middleware contract. |
 | Startup, config, account state, default seeding | not implemented | Source inventories in `docs/startup-inventory.md`, `docs/config-inventory.md`, and `docs/data-layout.md`. | Node reference fixtures, ordered Go startup chain, side-effect comparisons. |
 | Persistent data read/write compatibility | not implemented | Path templates inventoried in `docs/data-layout.md`; upstream assets are pinned. | Storage modules, atomic writes, and Node→Go→Node round trips. |

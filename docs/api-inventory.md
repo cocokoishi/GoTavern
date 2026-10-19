@@ -2,7 +2,7 @@
 
 Baseline: SillyTavern 1.19.0 at `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Generated from `src/server-main.js`, `src/server-startup.js`, `src/users.js`, and `src/endpoints/**`.
 
-This inventory records route declarations and router mounts from the pinned source. It does not claim GoTavern behavior; every route remains `not implemented` until a Node-reference differential case and implementation pass.
+This inventory records route declarations and router mounts from the pinned source. A `partial` route has only the explicitly listed observer coverage; it does not establish middleware or end-to-end parity.
 
 Route registrations found: **339**. Method/path values that depend on computed expressions remain visible in the table for manual source tracing.
 
@@ -346,7 +346,7 @@ Route registrations found: **339**. Method/path values that depend on computed e
 | GET | `/csrf-token` | [src/server-main.js:205](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L205) | not implemented |
 | GET | `/login` | [src/server-main.js:236](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L236) | not implemented |
 | GET | `/thumbnail/<computed: Identifier>` | [src/endpoints/thumbnails.js:249](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/endpoints/thumbnails.js#L249) | not implemented |
-| GET | `/version` | [src/server-main.js:272](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L272) | not implemented |
+| GET | `/version` | [src/server-main.js:272](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L272) | partial: response body/status/content type match the fresh-start oracle; shared middleware remains unimplemented |
 
 ## Deprecated redirects
 
@@ -408,8 +408,8 @@ The pinned server installs these with `app.use` and sends HTTP 308, preserving t
 ## Non-router HTTP surface
 
 - `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.
-- `express.static(public)`, Webpack `lib.js`, user CSS, user-data routes, and the final custom 404 are ordered middleware, not finite API routes.
-- `/version` is the SillyTavern compatibility endpoint and must keep the upstream response shape.
+- Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.
+- `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.
 - Exact authentication, CSRF, content-type, status, redirects, and error semantics are unimplemented and require separate reference probes.
 
 ## Coverage boundaries

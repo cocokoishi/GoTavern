@@ -4,7 +4,7 @@ GoTavern is a work-in-progress **standalone Go reimplementation of the SillyTave
 
 ## Status
 
-**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** Phase 0 is in progress: the pinned frontend/default assets, generated Webpack library, source inventories, and a small metadata/asset-verification CLI are being established. No HTTP server behavior is implemented yet.
+**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** The Phase 0 asset/oracle foundation is in place and the first Phase 1 HTTP slice is underway. An internal Go handler serves the pinned root page, generated `lib.js`, and `/version` response captured by the Node oracle. It is not wired into the CLI; startup/configuration, authentication, and the application API remain unimplemented.
 
 The initial compatibility baseline is:
 
