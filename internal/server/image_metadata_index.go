@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -257,10 +258,20 @@ func (value orderedNodeJSON) entries() ([]orderedNodeJSONEntry, bool) {
 			entries[index] = orderedNodeJSONEntry{key: strconv.Itoa(index), value: item}
 		}
 		return entries, true
+	case 's':
+		text := value.scalar.(string)
+		units := utf16.Encode([]rune(text))
+		entries := make([]orderedNodeJSONEntry, len(units))
+		for index, unit := range units {
+			child := orderedNodeJSON{kind: 's', scalar: string(rune(unit))}
+			if unit >= 0xd800 && unit <= 0xdfff {
+				child = orderedNodeJSON{kind: 'h', scalar: unit}
+			}
+			entries[index] = orderedNodeJSONEntry{key: strconv.Itoa(index), value: child}
+		}
+		return entries, true
 	case 'n':
 		return nil, false
-	case 's':
-		return nil, true // String entries cannot have an array-valued folderIds property.
 	default:
 		return nil, true
 	}
@@ -285,6 +296,8 @@ func (value orderedNodeJSON) truthy() bool {
 		return value.scalar == true
 	case 's':
 		return value.scalar.(string) != ""
+	case 'h':
+		return true
 	case 'v':
 		return value.scalar.(float64) != 0
 	default:
@@ -343,12 +356,61 @@ func marshalOrderedNodeJSON(value orderedNodeJSON) ([]byte, error) {
 		body.WriteByte(']')
 	case 's':
 		return marshalNodeJSONString(value.scalar.(string))
+	case 'h':
+		unit := value.scalar.(uint16)
+		hex := strconv.FormatUint(uint64(unit), 16)
+		return []byte(`"\u` + strings.Repeat("0", 4-len(hex)) + hex + `"`), nil
 	case 'v':
 		return marshalECMAScriptNumber(value.scalar.(float64))
 	default:
 		return marshalNodeJSON(value.scalar)
 	}
 	return body.Bytes(), nil
+}
+
+func (value orderedNodeJSON) javascriptString() (string, error) {
+	switch value.kind {
+	case 'n':
+		return "null", nil
+	case 's':
+		return value.scalar.(string), nil
+	case 'h':
+		return string(utf16.Decode([]uint16{value.scalar.(uint16)})), nil
+	case 'b':
+		return strconv.FormatBool(value.scalar.(bool)), nil
+	case 'v':
+		number := value.scalar.(float64)
+		if math.IsInf(number, 1) {
+			return "Infinity", nil
+		}
+		if math.IsInf(number, -1) {
+			return "-Infinity", nil
+		}
+		if math.IsNaN(number) {
+			return "NaN", nil
+		}
+		return javascriptNumberString(number), nil
+	case 'a':
+		parts := make([]string, len(value.array))
+		for index, item := range value.array {
+			if item.kind == 'n' {
+				continue
+			}
+			part, err := item.javascriptString()
+			if err != nil {
+				return "", err
+			}
+			parts[index] = part
+		}
+		return strings.Join(parts, ","), nil
+	case 'o':
+		if _, exists := value.member("toString"); exists {
+			return "", io.ErrUnexpectedEOF
+		}
+		return "[object Object]", nil
+	default:
+		return "", io.ErrUnexpectedEOF
+	}
 }
 
 func marshalNodeJSONString(value string) ([]byte, error) {

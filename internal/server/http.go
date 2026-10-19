@@ -314,6 +314,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		accounts.serveImageMetadataFoldersGet(w, r)
 	})
+	mux.HandleFunc("/api/image-metadata/all", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveImageMetadataAll(w, r)
+	})
 	mux.HandleFunc("GET /api/sprites/get", accounts.serveSpritesGet)
 	mux.HandleFunc("POST /api/sprites/delete", accounts.serveSpritesDelete)
 	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {

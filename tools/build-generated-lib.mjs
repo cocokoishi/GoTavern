@@ -483,16 +483,16 @@ try {
         throw new Error('sprite-list oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
-    const backgroundsFoldersProbe = path.join(buildRoot, '.gotavern-probe-backgrounds-folders.mjs');
-    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-backgrounds-folders.mjs'), backgroundsFoldersProbe);
-    const backgroundsFoldersFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-folders.json');
-    run(process.execPath, [backgroundsFoldersProbe, buildRoot, repositoryRoot], buildRoot);
-    const firstBackgroundsFoldersProbe = readFileSync(backgroundsFoldersFixturePath);
-    run(process.execPath, [backgroundsFoldersProbe, buildRoot, repositoryRoot], buildRoot);
-    const secondBackgroundsFoldersProbe = readFileSync(backgroundsFoldersFixturePath);
-    if (!firstBackgroundsFoldersProbe.equals(secondBackgroundsFoldersProbe)) {
-        const paths = changedJSONPaths(JSON.parse(firstBackgroundsFoldersProbe), JSON.parse(secondBackgroundsFoldersProbe));
-        throw new Error('background-folders oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    const imageMetadataIndexProbe = path.join(buildRoot, '.gotavern-probe-image-metadata-index-reads.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-image-metadata-index-reads.mjs'), imageMetadataIndexProbe);
+    const imageMetadataIndexFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-image-metadata-index-reads.json');
+    run(process.execPath, [imageMetadataIndexProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstImageMetadataIndexProbe = readFileSync(imageMetadataIndexFixturePath);
+    run(process.execPath, [imageMetadataIndexProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondImageMetadataIndexProbe = readFileSync(imageMetadataIndexFixturePath);
+    if (!firstImageMetadataIndexProbe.equals(secondImageMetadataIndexProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstImageMetadataIndexProbe), JSON.parse(secondImageMetadataIndexProbe));
+        throw new Error('image-metadata index oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
     const spritesDeleteProbe = path.join(buildRoot, '.gotavern-probe-sprites-delete.mjs');

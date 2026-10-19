@@ -20,19 +20,27 @@ type backgroundsFoldersFixture struct {
 		Commit  string `json:"commit"`
 	} `json:"baseline"`
 	Inputs struct {
-		CookieSecret string                     `json:"cookieSecret"`
-		Indexes      map[string]json.RawMessage `json:"indexes"`
+		CookieSecret             string                                  `json:"cookieSecret"`
+		Indexes                  map[string]json.RawMessage              `json:"indexes"`
+		ImageMetadataAllRequests map[string]imageMetadataAllRequestInput `json:"imageMetadataAllRequests"`
 	} `json:"inputs"`
 	Responses                        map[string]accountMutationResponseFixture `json:"responses"`
 	ImageMetadataFoldersGetResponses map[string]accountMutationResponseFixture `json:"imageMetadataFoldersGetResponses"`
+	ImageMetadataAllResponses        map[string]accountMutationResponseFixture `json:"imageMetadataAllResponses"`
 	State                            struct {
-		IndexUnchanged         map[string]bool `json:"indexUnchanged"`
-		AccountRecordUnchanged bool            `json:"accountRecordUnchanged"`
+		IndexUnchanged                 map[string]bool `json:"indexUnchanged"`
+		ImageMetadataAllIndexUnchanged map[string]bool `json:"imageMetadataAllIndexUnchanged"`
+		AccountRecordUnchanged         bool            `json:"accountRecordUnchanged"`
 	} `json:"state"`
 }
 
-func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
-	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-backgrounds-folders.json"))
+type imageMetadataAllRequestInput struct {
+	Index string          `json:"index"`
+	Body  json.RawMessage `json:"body"`
+}
+
+func TestPinnedNodeImageMetadataIndexReadRoutes(t *testing.T) {
+	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-image-metadata-index-reads.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,10 +49,10 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
-		t.Fatalf("background-folders oracle baseline = %+v", fixture.Baseline)
+		t.Fatalf("image-metadata index oracle baseline = %+v", fixture.Baseline)
 	}
-	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Responses) == 0 {
-		t.Fatal("background-folders oracle is missing required inputs")
+	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Responses) == 0 || len(fixture.ImageMetadataAllResponses) == 0 {
+		t.Fatal("image-metadata index oracle is missing required inputs")
 	}
 
 	dataRoot := t.TempDir()
@@ -137,6 +145,12 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 		"wrongMethod":     serve(http.MethodGet, "/api/image-metadata/folders/get", sessionCookie, "", nil),
 		"wrongMethodHead": serve(http.MethodHead, "/api/image-metadata/folders/get", sessionCookie, "", nil),
 	}
+	imageMetadataAllResponses := map[string]*httptest.ResponseRecorder{
+		"unauthorized":    serve(http.MethodPost, "/api/image-metadata/all", csrfCookie, csrf.Token, []byte(`{}`)),
+		"invalidCSRF":     serve(http.MethodPost, "/api/image-metadata/all", sessionCookie, "", []byte(`{}`)),
+		"wrongMethod":     serve(http.MethodGet, "/api/image-metadata/all", sessionCookie, "", nil),
+		"wrongMethodHead": serve(http.MethodHead, "/api/image-metadata/all", sessionCookie, "", nil),
+	}
 	indexUnchanged := make(map[string]bool, len(fixture.Inputs.Indexes))
 	for label, rawContent := range fixture.Inputs.Indexes {
 		if bytes.Equal(bytes.TrimSpace(rawContent), []byte("null")) {
@@ -171,6 +185,43 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 			t.Fatalf("metadata index %q changed during read: got unchanged=%v, pinned=%v", label, indexUnchanged[label], want)
 		}
 	}
+	imageMetadataAllIndexUnchanged := make(map[string]bool, len(fixture.Inputs.ImageMetadataAllRequests))
+	for label, probeRequest := range fixture.Inputs.ImageMetadataAllRequests {
+		rawContent, exists := fixture.Inputs.Indexes[probeRequest.Index]
+		if !exists {
+			t.Fatalf("image-metadata all request %q references missing index %q", label, probeRequest.Index)
+		}
+		if bytes.Equal(bytes.TrimSpace(rawContent), []byte("null")) {
+			if err := os.Remove(indexPath); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+		} else {
+			var content string
+			if err := json.Unmarshal(rawContent, &content); err != nil {
+				t.Fatalf("decode %s metadata index fixture: %v", label, err)
+			}
+			if err := os.WriteFile(indexPath, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		before, beforeErr := os.ReadFile(indexPath)
+		if os.IsNotExist(beforeErr) {
+			before = nil
+		} else if beforeErr != nil {
+			t.Fatal(beforeErr)
+		}
+		imageMetadataAllResponses[label] = serve(http.MethodPost, "/api/image-metadata/all", sessionCookie, csrf.Token, probeRequest.Body)
+		after, afterErr := os.ReadFile(indexPath)
+		if os.IsNotExist(afterErr) {
+			after = nil
+		} else if afterErr != nil {
+			t.Fatal(afterErr)
+		}
+		imageMetadataAllIndexUnchanged[label] = (before == nil && after == nil) || (before != nil && after != nil && bytes.Equal(before, after))
+		if want, exists := fixture.State.ImageMetadataAllIndexUnchanged[label]; !exists || !want || !imageMetadataAllIndexUnchanged[label] {
+			t.Fatalf("metadata index %q changed during /all read: got unchanged=%v, pinned=%v", label, imageMetadataAllIndexUnchanged[label], want)
+		}
+	}
 	accountRecordAfter, err := os.ReadFile(accountRecordPath)
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +232,7 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 	for label, got := range responses {
 		want, exists := fixture.Responses[label]
 		if !exists {
-			t.Fatalf("background-folders fixture has no response %q", label)
+			t.Fatalf("background-folder fixture has no response %q", label)
 		}
 		assertAvatarResponse(t, "background folders "+label, got, want)
 	}
@@ -191,6 +242,16 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 			t.Fatalf("image-metadata folder-list fixture has no response %q", label)
 		}
 		assertAvatarResponse(t, "image-metadata folders get "+label, got, want)
+	}
+	for label, got := range imageMetadataAllResponses {
+		want, exists := fixture.ImageMetadataAllResponses[label]
+		if !exists {
+			t.Fatalf("image-metadata all fixture has no response %q", label)
+		}
+		assertAvatarResponse(t, "image-metadata all "+label, got, want)
+	}
+	if !reflect.DeepEqual(imageMetadataAllIndexUnchanged, fixture.State.ImageMetadataAllIndexUnchanged) {
+		t.Fatalf("image-metadata all index state = %#v; pinned Node has %#v", imageMetadataAllIndexUnchanged, fixture.State.ImageMetadataAllIndexUnchanged)
 	}
 	if !reflect.DeepEqual(indexUnchanged, fixture.State.IndexUnchanged) {
 		t.Fatalf("index state = %#v; pinned Node has %#v", indexUnchanged, fixture.State.IndexUnchanged)

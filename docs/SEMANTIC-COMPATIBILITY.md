@@ -394,6 +394,8 @@ The Expressions sprite-list oracle covers authenticated GET /api/sprites/get req
 
 The background-folder oracle covers authenticated/CSRF-protected POST /api/backgrounds/folders reads of the pinned `image-metadata.json` format and GET/HEAD wrong-method 404 responses. It compares folder passthrough, filename-only assignment keys (including basename collisions and trailing slashes), omitted empty assignments, malformed-file fallback, falsey folder fallback, array-valued `images`, missing/null `images` errors, and unchanged metadata/account files. The same Node fixture covers authenticated/CSRF-protected POST /api/image-metadata/folders/get, GET/HEAD wrong-method 404s, and the route's folder-value passthrough/fallback/error behavior for each index shape. The Go handlers follow JavaScript property enumeration and JSON number/string serialization. The full browser organizer flow, thumbnail assignment writes, static background rendering, OPTIONS/CORS behavior, and filesystem permission/race failures remain unprobed.
 
+The same metadata-index oracle covers authenticated/CSRF-protected POST /api/image-metadata/all plus GET/HEAD wrong-method 404s. It compares the full index passthrough and prefix filtering, including JavaScript coercion for falsey, numeric, array, object, and shadowed-`toString` prefixes; JavaScript ordering/serialization; null and malformed index behavior; and unchanged index/account files. URL-encoded, missing-content-type, malformed/primitive JSON, and oversized body handling remain gaps.
+
 ---
 
 ## 10. Character/card suite

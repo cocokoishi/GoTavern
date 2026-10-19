@@ -11,18 +11,18 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
-const COOKIE_SECRET = 'gotavern-pinned-backgrounds-folders-cookie-secret';
+const COOKIE_SECRET = 'gotavern-pinned-image-metadata-index-reads-cookie-secret';
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
-    console.error('usage: node tools/probe-backgrounds-folders.mjs <pinned-source-clone> <gotavern-root>');
+    console.error('usage: node tools/probe-image-metadata-index-reads.mjs <pinned-source-clone> <gotavern-root>');
     process.exit(2);
 }
 if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim() !== PINNED_COMMIT) {
     throw new Error('upstream checkout is not pinned at ' + PINNED_COMMIT);
 }
 
-const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-backgrounds-folders-oracle-'));
+const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-image-metadata-index-reads-oracle-'));
 const dataRoot = path.join(runtimeRoot, 'data');
 const configPath = path.join(runtimeRoot, 'config.yaml');
 const logs = [];
@@ -36,7 +36,7 @@ function safeCleanup() {
     const resolved = path.resolve(runtimeRoot);
     const parent = path.resolve(os.tmpdir());
     if (path.dirname(resolved).toLowerCase() !== parent.toLowerCase()
-        || !path.basename(resolved).startsWith('gotavern-backgrounds-folders-oracle-')) {
+        || !path.basename(resolved).startsWith('gotavern-image-metadata-index-reads-oracle-')) {
         throw new Error('refusing to remove unexpected runtime path: ' + resolved);
     }
     rmSync(resolved, { recursive: true, force: true });
@@ -139,6 +139,30 @@ const indexes = {
     nullRoot: 'null',
 };
 
+const imageMetadataAllRequests = {
+    missing: { index: 'missing', body: {} },
+    malformed: { index: 'malformed', body: {} },
+    populated: { index: 'populated', body: {} },
+    backgroundPrefix: { index: 'populated', body: { prefix: 'backgrounds/' } },
+    otherPrefix: { index: 'populated', body: { prefix: 'other/' } },
+    falseyPrefix: { index: 'populated', body: { prefix: 0 } },
+    numericPrefix: { index: 'serializeEdges', body: { prefix: 2 } },
+    arrayPrefix: { index: 'populated', body: { prefix: ['backgrounds/'] } },
+    emptyArrayPrefix: { index: 'populated', body: { prefix: [] } },
+    objectPrefix: { index: 'populated', body: { prefix: {} } },
+    objectToStringError: { index: 'populated', body: { prefix: { toString: 'shadowed' } } },
+    arrayBody: { index: 'populated', body: [{ prefix: 'backgrounds/' }] },
+    missingImages: { index: 'missingImages', body: {} },
+    missingImagesPrefix: { index: 'missingImages', body: { prefix: 'backgrounds/' } },
+    nullImages: { index: 'nullImages', body: {} },
+    nullImagesPrefix: { index: 'nullImages', body: { prefix: 'backgrounds/' } },
+    stringImagesPrefix: { index: 'stringImages', body: { prefix: '1' } },
+    arrayImagesPrefix: { index: 'arrayImages', body: { prefix: '0' } },
+    serializedIndex: { index: 'serializeEdges', body: {} },
+    nullRoot: { index: 'nullRoot', body: {} },
+    nullRootPrefix: { index: 'nullRoot', body: { prefix: 'x' } },
+};
+
 try {
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
     writeFileSync(path.join(dataRoot, 'cookie-secret.txt'), COOKIE_SECRET);
@@ -216,6 +240,19 @@ try {
         wrongMethod: capture(await request(origin + '/api/image-metadata/folders/get', 'GET', { Cookie: sessionCookie })),
         wrongMethodHead: capture(await request(origin + '/api/image-metadata/folders/get', 'HEAD', { Cookie: sessionCookie })),
     };
+    const imageMetadataAllResponses = {
+        unauthorized: capture(await request(origin + '/api/image-metadata/all', 'POST', {
+            Cookie: csrfCookie,
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+        }, '{}')),
+        invalidCSRF: capture(await request(origin + '/api/image-metadata/all', 'POST', {
+            Cookie: sessionCookie,
+            'Content-Type': 'application/json',
+        }, '{}')),
+        wrongMethod: capture(await request(origin + '/api/image-metadata/all', 'GET', { Cookie: sessionCookie })),
+        wrongMethodHead: capture(await request(origin + '/api/image-metadata/all', 'HEAD', { Cookie: sessionCookie })),
+    };
     const indexUnchanged = {};
     for (const [name, content] of Object.entries(indexes)) {
         if (content === null) {
@@ -237,21 +274,39 @@ try {
         const after = existsSync(indexPath) ? readFileSync(indexPath) : null;
         indexUnchanged[name] = before === null ? after === null : after !== null && before.equals(after);
     }
+    const imageMetadataAllIndexUnchanged = {};
+    for (const [name, probeRequest] of Object.entries(imageMetadataAllRequests)) {
+        const content = indexes[probeRequest.index];
+        if (content === null) {
+            rmSync(indexPath, { force: true });
+        } else {
+            writeFileSync(indexPath, content);
+        }
+        const before = existsSync(indexPath) ? readFileSync(indexPath) : null;
+        imageMetadataAllResponses[name] = capture(await request(origin + '/api/image-metadata/all', 'POST', {
+            Cookie: sessionCookie,
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+        }, JSON.stringify(probeRequest.body)));
+        const after = existsSync(indexPath) ? readFileSync(indexPath) : null;
+        imageMetadataAllIndexUnchanged[name] = before === null ? after === null : after !== null && before.equals(after);
+    }
     const accountRecordUnchanged = accountRecordBefore.equals(readFileSync(accountRecordPath));
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned background and image-metadata folder-list routes read virtual folders and image assignments with authenticated read-only behavior',
-        inputs: { cookieSecret: COOKIE_SECRET, indexes },
+        probe: 'pinned background and image-metadata index read routes preserve folder, image, prefix, authentication, and read-only behavior',
+        inputs: { cookieSecret: COOKIE_SECRET, indexes, imageMetadataAllRequests },
         responses,
         imageMetadataFoldersGetResponses,
-        state: { indexUnchanged, accountRecordUnchanged },
+        imageMetadataAllResponses,
+        state: { indexUnchanged, imageMetadataAllIndexUnchanged, accountRecordUnchanged },
     };
     await stopServer();
-    const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-folders.json');
+    const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-image-metadata-index-reads.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });
     writeFileSync(outputFile, JSON.stringify(fixture, null, 2) + '\n');
-    console.log('Wrote tests/oracle/sillytavern-1.19.0-backgrounds-folders.json from pinned background-folder behavior');
+    console.log('Wrote tests/oracle/sillytavern-1.19.0-image-metadata-index-reads.json from pinned image-metadata behavior');
 } catch (error) {
     console.error(error);
     process.exitCode = 1;
