@@ -119,6 +119,19 @@ function startupDirectories(userDirectoryTemplate, publicDirectories) {
     return { user, public: publicPaths };
 }
 
+function seededContentEntries(entries) {
+    return entries.filter(entry => {
+        const relative = entry.path;
+        if (relative === 'content.log' || relative === 'default-user/content.log') return true;
+        if (relative === '_css' || relative.startsWith('_css/') || relative === '_errors' || relative.startsWith('_errors/')) return true;
+        if (!relative.startsWith('default-user/')) return false;
+        return relative !== 'default-user/stats.json'
+            && relative !== 'default-user/backups'
+            && !relative.startsWith('default-user/backups/')
+            && !relative.endsWith('/.migrated');
+    }).sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+}
+
 async function stopServer() {
     if (!child || child.exitCode !== null) return;
     child.kill('SIGINT');
@@ -193,6 +206,7 @@ try {
 
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
+    const dataRootTree = snapshotTree(dataRoot);
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -236,7 +250,8 @@ try {
                 bytes: statSync(configPath).size,
                 sha256: sha256(readFileSync(configPath)),
             },
-            dataRoot: snapshotTree(dataRoot),
+            dataRoot: dataRootTree,
+            seededContent: seededContentEntries(dataRootTree),
             userStore: {
                 observed: true,
                 implementation: 'node-persist@4.0.4; SHA-256 key filenames; ttl disabled',

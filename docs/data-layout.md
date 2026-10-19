@@ -64,8 +64,8 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record and the public/per-user directory template. The component is covered by the fresh-start Node fixture, but the CLI does not yet invoke it; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, and fresh-install default content/log seeding. The component is covered by the fresh-start Node fixture, but the CLI does not yet invoke it; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
-- Exact default seeding, settings aggregation, cache files, backup policy, migration behavior, and unknown-field preservation.
+- Content-log skip/force/update cases, settings aggregation, cache files, backup policy, migration behavior, and unknown-field preservation.
 - Node-written → Go-read/write → Node-read round trips for every persistent mutation family.

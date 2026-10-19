@@ -1490,6 +1490,1324 @@
         "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd"
       }
     ],
+    "seededContent": [
+      {
+        "path": "_css",
+        "type": "directory"
+      },
+      {
+        "path": "_css/user.css",
+        "type": "file",
+        "bytes": 31,
+        "sha256": "1f7de5d083b051cd0ab1ec8ead1f3bdda256e28fdaa103e40b8f4b40310fc345"
+      },
+      {
+        "path": "_errors",
+        "type": "directory"
+      },
+      {
+        "path": "_errors/forbidden-by-whitelist.html",
+        "type": "file",
+        "bytes": 494,
+        "sha256": "123b84855ce2104be082c58438641532a92b71fb17848ac828000c1b88f0ede0"
+      },
+      {
+        "path": "_errors/host-not-allowed.html",
+        "type": "file",
+        "bytes": 509,
+        "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb"
+      },
+      {
+        "path": "_errors/unauthorized.html",
+        "type": "file",
+        "bytes": 358,
+        "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8"
+      },
+      {
+        "path": "_errors/url-not-found.html",
+        "type": "file",
+        "bytes": 204,
+        "sha256": "3c9c01243df0eb3beaa4cd0b55c8b1caa30b54fd30348bca1e8452f91a101cbe"
+      },
+      {
+        "path": "content.log",
+        "type": "file",
+        "bytes": 123,
+        "sha256": "4a625e2e59869e868ed444536d577dd97090246513bf6ec2be61813aab6ac56c"
+      },
+      {
+        "path": "default-user/KoboldAI Settings",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/Deterministic.json",
+        "type": "file",
+        "bytes": 436,
+        "sha256": "af73c5ca66820e68064c2159c6e1af3f558c958009f85d2c37d2ca1b244b9c56"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/Neutral.json",
+        "type": "file",
+        "bytes": 436,
+        "sha256": "ecf0d5696b7df61cb1174d07af06f8134f373e7addf307ab8abc75c8930fe953"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/RecoveredRuins.json",
+        "type": "file",
+        "bytes": 446,
+        "sha256": "c23d970bcb603ba970e32b2c774452c77e3c52a933a59bca473ac7fbafb36dce"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/Universal-Creative.json",
+        "type": "file",
+        "bytes": 440,
+        "sha256": "f58925de79f2e0bde707450eeb17d61da39405f3489cb45cd7273b93c26e19c6"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/Universal-Light.json",
+        "type": "file",
+        "bytes": 441,
+        "sha256": "8726b4b94e1a5d33105ac08c0643a5927ed65a8460454533fabefbd7c22e4e55"
+      },
+      {
+        "path": "default-user/KoboldAI Settings/Universal-Super-Creative.json",
+        "type": "file",
+        "bytes": 438,
+        "sha256": "8c342c8ca0cddcf869c16395711fb5f3a4fd9d4277cdb88798bbe0cc57e50020"
+      },
+      {
+        "path": "default-user/NovelAI Settings",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Asper-Kayra.json",
+        "type": "file",
+        "bytes": 572,
+        "sha256": "1145a9d57f9e4cea88e2b8943270af30fc467013b9bc4712d6f3cfef1f2ea255"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Blended-Coffee-Kayra.json",
+        "type": "file",
+        "bytes": 521,
+        "sha256": "d40b947863c65f77ef616f7c3676a68c33ba69224c182568a93718692895f842"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Blook-Kayra.json",
+        "type": "file",
+        "bytes": 564,
+        "sha256": "e858660ec349f200f68e57d5486877a12c1ee83a67f48cbeefb1f4f5243b42ea"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Carefree-Kayra.json",
+        "type": "file",
+        "bytes": 590,
+        "sha256": "78753a8ce0457e5c9cae80b55024d5f904d1205e74e08dbeb51816b43e51b52d"
+      },
+      {
+        "path": "default-user/NovelAI Settings/CosmicCube-Kayra.json",
+        "type": "file",
+        "bytes": 556,
+        "sha256": "6bcf8cc5cf4047bb763f545e7f333fca8a2678c744591f895e6c0ef185a4330f"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Edgewise-Clio.json",
+        "type": "file",
+        "bytes": 605,
+        "sha256": "4cf251d551c84b3823fc02f89c95f726e947aa957a294a2f6f3feb9209f1cedd"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Erato-Dragonfruit.json",
+        "type": "file",
+        "bytes": 689,
+        "sha256": "897d99f8441b86d567e8236ffd0d753d492b34b2c5a871f3472c725e4ea62ad8"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Erato-Golden Arrow.json",
+        "type": "file",
+        "bytes": 623,
+        "sha256": "32da5acfa22ab856b47977c25f249105d71294c19e0e8fe7d06fe22f294093fb"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Erato-Shosetsu.json",
+        "type": "file",
+        "bytes": 643,
+        "sha256": "4c36f8d4f44e052ec8ade2ed9e43f770676030b6f8f652bf7fa40f969aa3b199"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Erato-Wilder.json",
+        "type": "file",
+        "bytes": 645,
+        "sha256": "b35819dacf8c790c8fdab49e9e3ff2a1737f3d46d84adbeeb9d97a5d7cdd4e7f"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Erato-Zany Scribe.json",
+        "type": "file",
+        "bytes": 630,
+        "sha256": "c84b2fffb79856a15930236ea951d4746a1f6a6c4e783cb7c9ebae1de81dd484"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Fresh-Coffee-Clio.json",
+        "type": "file",
+        "bytes": 602,
+        "sha256": "35a6dc4dda6ae2c689b5ec6fcb8b8cd476210391d3b27c29c19d555e3c833b3a"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Fresh-Coffee-Kayra.json",
+        "type": "file",
+        "bytes": 559,
+        "sha256": "68275b77712a4e0eb1e7e099ba7a73a0e7d06a7c5529166a92ac92d990a14aab"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Green-Active-Writer-Kayra.json",
+        "type": "file",
+        "bytes": 566,
+        "sha256": "df11db66ca13f65d7c9b40e44879bee57190b8d5d76272e93d24c285fc14036e"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Keelback-Clio.json",
+        "type": "file",
+        "bytes": 602,
+        "sha256": "151554dcf0fc64e178cd0ca2f37b137d2c0c5c44bebd24dccee49206bdcb4222"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Long-Press-Clio.json",
+        "type": "file",
+        "bytes": 617,
+        "sha256": "4ddb3cee1584a863ef6d844f6b8ae843c0c6a2f42bb11d1f49d6ed29c23c2d2e"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Pilotfish-Kayra.json",
+        "type": "file",
+        "bytes": 617,
+        "sha256": "e327ae13ecbdd0eee66f537cb6279d8f11c2a72d364dacb22f75e0c87b840cac"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Pro_Writer-Kayra.json",
+        "type": "file",
+        "bytes": 572,
+        "sha256": "3c0a75649905330f3f5c99ad2ccbaad2bafeef4f6c212484a04c644d3f610fec"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Stelenes-Kayra.json",
+        "type": "file",
+        "bytes": 509,
+        "sha256": "9c32001589440de12af7054f2920e17c8af5b5440feac18ddaeccb658c13f4b9"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Talker-Chat-Clio.json",
+        "type": "file",
+        "bytes": 618,
+        "sha256": "f96d2dd4a51a32182b564a36f1fc06dbb5b1aa25f1ab5a32237b6c9ced64cafa"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Tea_Time-Kayra.json",
+        "type": "file",
+        "bytes": 535,
+        "sha256": "f5332ff1e6c3e8cfab2a15151175608eb337370066fc5396edab48caa01ec7ee"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Tesseract-Kayra.json",
+        "type": "file",
+        "bytes": 514,
+        "sha256": "30a9350f46cef1795e9b74b7cb952234bd172b0559dd58f43bbe6aa412eb774e"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Vingt-Un-Clio.json",
+        "type": "file",
+        "bytes": 613,
+        "sha256": "511ea577103858993268176b0685a5299bff82f08d76e9e50e0d6f17ba335577"
+      },
+      {
+        "path": "default-user/NovelAI Settings/Writers-Daemon-Kayra.json",
+        "type": "file",
+        "bytes": 611,
+        "sha256": "312924b363dc2886140a1c83f1eb649456336a76daff3dbd8aba43af60749386"
+      },
+      {
+        "path": "default-user/OpenAI Settings",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/OpenAI Settings/Default.json",
+        "type": "file",
+        "bytes": 8004,
+        "sha256": "3d375226d9cbb69bfa1fca6fb9a5a4bf33a54223edd7a969755c17f87661a00e"
+      },
+      {
+        "path": "default-user/QuickReplies",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/QuickReplies/Default.json",
+        "type": "file",
+        "bytes": 509,
+        "sha256": "16d1d8a45efe3d5955866ffdf49388a7472e6855825e96b8fcdd366e9b415c03"
+      },
+      {
+        "path": "default-user/TextGen Settings",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/TextGen Settings/Default.json",
+        "type": "file",
+        "bytes": 2689,
+        "sha256": "88b29cac684d8827b62f005befb1f52a087baca0cf6c1fc6064026ceaaa27164"
+      },
+      {
+        "path": "default-user/TextGen Settings/Deterministic.json",
+        "type": "file",
+        "bytes": 2682,
+        "sha256": "803ad89598b854b928eaedacc4428c5d7013ec74e6622ad9633ae2477fa34a6b"
+      },
+      {
+        "path": "default-user/TextGen Settings/Neutral.json",
+        "type": "file",
+        "bytes": 2681,
+        "sha256": "d6ef1c9f2dbcf5ad7acaf96bf7b530e220ca30d28a4c73b8199cade502d28a5d"
+      },
+      {
+        "path": "default-user/TextGen Settings/Universal-Creative.json",
+        "type": "file",
+        "bytes": 2686,
+        "sha256": "459870d3e3063a8edce4340c8fa0f845b03fcd02ad4c220753f678fd934bb98b"
+      },
+      {
+        "path": "default-user/TextGen Settings/Universal-Light.json",
+        "type": "file",
+        "bytes": 2687,
+        "sha256": "c7ccafee0db9183c5aafe69ef4d2a849e7c6b55f8669cf65b55f676e7ee9d2de"
+      },
+      {
+        "path": "default-user/TextGen Settings/Universal-Super-Creative.json",
+        "type": "file",
+        "bytes": 2684,
+        "sha256": "116688520173d57a2949e04faac751afd18f3aee3421ef82d410b183a1c34c61"
+      },
+      {
+        "path": "default-user/User Avatars",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/User Avatars/user-default.png",
+        "type": "file",
+        "bytes": 51868,
+        "sha256": "ddf571f53289685b253d455a05f92b5ba1c11683314db2c1350a8542a5f83a0f"
+      },
+      {
+        "path": "default-user/assets",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/backgrounds",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/backgrounds/__transparent.png",
+        "type": "file",
+        "bytes": 68,
+        "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
+      },
+      {
+        "path": "default-user/backgrounds/_black.jpg",
+        "type": "file",
+        "bytes": 8261,
+        "sha256": "c562543a0eea1a5fb6a7b54030b37db44abf864fccebd17cf662b5e8c401fd2a"
+      },
+      {
+        "path": "default-user/backgrounds/_white.jpg",
+        "type": "file",
+        "bytes": 8261,
+        "sha256": "2dddd545d6efa2456a7386bea8226940dff8f028d4579d5b042a26f29d1b9db3"
+      },
+      {
+        "path": "default-user/backgrounds/bedroom clean.jpg",
+        "type": "file",
+        "bytes": 393633,
+        "sha256": "c138b51f38b9e9fafec8ab7ffdbe04eb900953167797953411353da052c9d3bc"
+      },
+      {
+        "path": "default-user/backgrounds/bedroom cyberpunk.jpg",
+        "type": "file",
+        "bytes": 498741,
+        "sha256": "12237000a0723c5e4eac98ae4d7da6d2b4fc5ac1b0e3affdaa6ef9175c2d4ff2"
+      },
+      {
+        "path": "default-user/backgrounds/bedroom red.jpg",
+        "type": "file",
+        "bytes": 313945,
+        "sha256": "9dbebe979d952981d9cb77f1dec004051e224ba7b35236684a0747d23b87bfb3"
+      },
+      {
+        "path": "default-user/backgrounds/bedroom tatami.jpg",
+        "type": "file",
+        "bytes": 325166,
+        "sha256": "6ec34e76d9556a5f93d907c9a9a8fac0665364e34d2e711c61fb41e66d5dcd3e"
+      },
+      {
+        "path": "default-user/backgrounds/cityscape medieval market.jpg",
+        "type": "file",
+        "bytes": 595167,
+        "sha256": "63caa77149191b9be99b569087e6c2ce82f27724841e48dcf1aca34edcdd1e6b"
+      },
+      {
+        "path": "default-user/backgrounds/cityscape medieval night.jpg",
+        "type": "file",
+        "bytes": 574543,
+        "sha256": "c863561cd0178a3401fa6d32688e3719988e85f57e8d131761a54c4728331275"
+      },
+      {
+        "path": "default-user/backgrounds/cityscape postapoc.jpg",
+        "type": "file",
+        "bytes": 517341,
+        "sha256": "9df377f4802cbe3386bcfd6d77f1f1482015a18aab1f4ba78010928096927efe"
+      },
+      {
+        "path": "default-user/backgrounds/forest treehouse fireworks air baloons (by kallmeflocc).jpg",
+        "type": "file",
+        "bytes": 512935,
+        "sha256": "96f558bb26810b4e4b65001ade84ba992136a58af70ba49dc929141166ce88d5"
+      },
+      {
+        "path": "default-user/backgrounds/japan classroom side.jpg",
+        "type": "file",
+        "bytes": 453933,
+        "sha256": "a97cf945acb14a3fba023fa4f39a5a314f14e55315707c37f13bf712958b11ca"
+      },
+      {
+        "path": "default-user/backgrounds/japan classroom.jpg",
+        "type": "file",
+        "bytes": 491978,
+        "sha256": "0f3cf5732faf8a7a386b3a29427ff76b91447caf94c65a77453aaefa866787c2"
+      },
+      {
+        "path": "default-user/backgrounds/japan path cherry blossom.jpg",
+        "type": "file",
+        "bytes": 676265,
+        "sha256": "6e79fd32ef735be509ff76aaa2a9a7adf5c818baf9c133ab18f97ddbde939dbd"
+      },
+      {
+        "path": "default-user/backgrounds/japan university.jpg",
+        "type": "file",
+        "bytes": 379574,
+        "sha256": "284ad60047a8ad833fd21cdd57a96a17f111adff4b08ab8b23387c74a74661fe"
+      },
+      {
+        "path": "default-user/backgrounds/landscape autumn great tree.jpg",
+        "type": "file",
+        "bytes": 631212,
+        "sha256": "36d6d7910bededd0cf5d1151f25b394de63e6b1589e55081a799ebf29a141611"
+      },
+      {
+        "path": "default-user/backgrounds/landscape beach day.png",
+        "type": "file",
+        "bytes": 2322272,
+        "sha256": "8966f84d35ddbd81d4d6df179cbe216fd2df74841d6af9a1fc9e259fc55bf601"
+      },
+      {
+        "path": "default-user/backgrounds/landscape beach night.jpg",
+        "type": "file",
+        "bytes": 311911,
+        "sha256": "3589c70337e208eab0c2ec0033771f4d0f2950b399dd12a92c4b41651c34833e"
+      },
+      {
+        "path": "default-user/backgrounds/landscape mountain lake.jpg",
+        "type": "file",
+        "bytes": 446919,
+        "sha256": "f8704b2da19b14538887edb51b2f85eafd63333e1d7be034dd17c68e103af41b"
+      },
+      {
+        "path": "default-user/backgrounds/landscape postapoc.jpg",
+        "type": "file",
+        "bytes": 436589,
+        "sha256": "f15f2ed31ebcc2bd291a916feb6a9b726a5c1d615d67c9dc5fefb6ffe275d34f"
+      },
+      {
+        "path": "default-user/backgrounds/landscape winter lake house.jpg",
+        "type": "file",
+        "bytes": 643693,
+        "sha256": "309e451eb98641b2fff7035e4cd50cf2123491289fe629a9ca7e708fff9583cb"
+      },
+      {
+        "path": "default-user/backgrounds/royal.jpg",
+        "type": "file",
+        "bytes": 671849,
+        "sha256": "01c5bd746c86792340aa0a1039e750872bacfeab4c1a22a0e068c35083b5a959"
+      },
+      {
+        "path": "default-user/backgrounds/tavern day.jpg",
+        "type": "file",
+        "bytes": 540791,
+        "sha256": "5b9400b20ec88e42a043d30101c520de938cc9b817519070f44eec5f96ad6426"
+      },
+      {
+        "path": "default-user/characters",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/characters/Seraphina",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/characters/Seraphina/admiration.png",
+        "type": "file",
+        "bytes": 129463,
+        "sha256": "e451994487b3a5b7c72d6e6025c8cbe6bbcfbf01a490042b8b581522e6ba4f96"
+      },
+      {
+        "path": "default-user/characters/Seraphina/amusement.png",
+        "type": "file",
+        "bytes": 129953,
+        "sha256": "1cedaee06fb1c740c5c8c52de8973f733789d51fe9b23fcb633635e755ae6e6f"
+      },
+      {
+        "path": "default-user/characters/Seraphina/anger.png",
+        "type": "file",
+        "bytes": 128993,
+        "sha256": "d657d77b1bce609dd6006582cf687691871411eb041f9f4c41da4765b12ea069"
+      },
+      {
+        "path": "default-user/characters/Seraphina/annoyance.png",
+        "type": "file",
+        "bytes": 129722,
+        "sha256": "ee268f03244c8194abcc18664bde83f4488630a6a9095717eead8cfdb36048fe"
+      },
+      {
+        "path": "default-user/characters/Seraphina/approval.png",
+        "type": "file",
+        "bytes": 128429,
+        "sha256": "9ae62282e0b1dfd5b0ea0874f89b59814de4b031919ed44ed4cc3f848d5bf5ed"
+      },
+      {
+        "path": "default-user/characters/Seraphina/caring.png",
+        "type": "file",
+        "bytes": 131044,
+        "sha256": "3f0a3dd0c795b1a05660f55a3fd54219b2408e740354e8a15970d8e00ac0b1f2"
+      },
+      {
+        "path": "default-user/characters/Seraphina/confusion.png",
+        "type": "file",
+        "bytes": 129276,
+        "sha256": "d731ca04495b13e14e7df5c5b304a93c63769387131c995b1cbef6fdda39105b"
+      },
+      {
+        "path": "default-user/characters/Seraphina/curiosity.png",
+        "type": "file",
+        "bytes": 128696,
+        "sha256": "31275000dbcf06e6deca10971e8e48bb1605ab5aa26c177d836f5be4c9c0879e"
+      },
+      {
+        "path": "default-user/characters/Seraphina/desire.png",
+        "type": "file",
+        "bytes": 129234,
+        "sha256": "f77e1b8b6c2684011e81262c0ad5a28437da4ea1fef05ba8d073bec0988b725b"
+      },
+      {
+        "path": "default-user/characters/Seraphina/disappointment.png",
+        "type": "file",
+        "bytes": 129739,
+        "sha256": "e9a5e328ebaf3d36c8a69653f5c65b408cfbb4f65d4f24dee935e5eb2aa21c15"
+      },
+      {
+        "path": "default-user/characters/Seraphina/disapproval.png",
+        "type": "file",
+        "bytes": 129007,
+        "sha256": "690600866c8f31ad6acfc9db22769eede7a5b6a65b56e2706c6af868da2b38d5"
+      },
+      {
+        "path": "default-user/characters/Seraphina/disgust.png",
+        "type": "file",
+        "bytes": 130140,
+        "sha256": "a7717a440287608b12d1e4be0011b067554339b39803ea85a555c50b0502dd35"
+      },
+      {
+        "path": "default-user/characters/Seraphina/embarrassment.png",
+        "type": "file",
+        "bytes": 130046,
+        "sha256": "8400d251049220134cecd5dba6dc94268348db04bbf801e5d1b8a62b6d1ea441"
+      },
+      {
+        "path": "default-user/characters/Seraphina/excitement.png",
+        "type": "file",
+        "bytes": 129913,
+        "sha256": "1b82905f656458a2acff10c23b2cd4348c10e60f677f1dbd69be82b773b7d745"
+      },
+      {
+        "path": "default-user/characters/Seraphina/fear.png",
+        "type": "file",
+        "bytes": 129869,
+        "sha256": "baa30eebddb5913a006e322137d9b24b90a2ab99f8d2c2dbcf641b923df5cb76"
+      },
+      {
+        "path": "default-user/characters/Seraphina/gratitude.png",
+        "type": "file",
+        "bytes": 130638,
+        "sha256": "1693052da628f5a63e5de0dee18a67d8e1014e8680247eaede612a6edef18d63"
+      },
+      {
+        "path": "default-user/characters/Seraphina/grief.png",
+        "type": "file",
+        "bytes": 130009,
+        "sha256": "cbab6c5a10edbf20ed04350dbec06dc6177719904ab7b01ce30e65ac51d0638a"
+      },
+      {
+        "path": "default-user/characters/Seraphina/joy.png",
+        "type": "file",
+        "bytes": 130086,
+        "sha256": "b8da43db84d73a795a5f6044971bae9dfcc163684ab7078673b71ff2138ef716"
+      },
+      {
+        "path": "default-user/characters/Seraphina/love.png",
+        "type": "file",
+        "bytes": 128856,
+        "sha256": "830f0fffb386d4a152386fde6f49440b79daef40bbb7a4d1c164de560a03f95e"
+      },
+      {
+        "path": "default-user/characters/Seraphina/nervousness.png",
+        "type": "file",
+        "bytes": 129908,
+        "sha256": "abce8853dc1b75af7a9eca1d3cbd36e40a4830d3ed10cce52c0005cfd57c000c"
+      },
+      {
+        "path": "default-user/characters/Seraphina/neutral.png",
+        "type": "file",
+        "bytes": 130547,
+        "sha256": "aeefd83cd8768d9701d914dbe78775ad92e93c175079c33072c2ec22fbba7d26"
+      },
+      {
+        "path": "default-user/characters/Seraphina/optimism.png",
+        "type": "file",
+        "bytes": 130100,
+        "sha256": "4aa443a4446ca577cdd2e434ae949f599c624e907303c0744b73868e027d789d"
+      },
+      {
+        "path": "default-user/characters/Seraphina/pride.png",
+        "type": "file",
+        "bytes": 128948,
+        "sha256": "e6852d60291a6a37d1f29ca159ac80816d1c9ba24239601a76de2af12d36d34a"
+      },
+      {
+        "path": "default-user/characters/Seraphina/realization.png",
+        "type": "file",
+        "bytes": 129403,
+        "sha256": "597d3a5cf6e5a142dd9329559263e0a77a5aa26f8ef6d19e6e5b6d9000d6afb2"
+      },
+      {
+        "path": "default-user/characters/Seraphina/relief.png",
+        "type": "file",
+        "bytes": 130481,
+        "sha256": "89aba575c32b9341871a906ebd64b66fe0031b281108f9eee8c3734d70ec5e00"
+      },
+      {
+        "path": "default-user/characters/Seraphina/remorse.png",
+        "type": "file",
+        "bytes": 129769,
+        "sha256": "26e65c298abc03da60688a8b891e54d1faa701bb47a439ba817ecf1a72a65c31"
+      },
+      {
+        "path": "default-user/characters/Seraphina/sadness.png",
+        "type": "file",
+        "bytes": 129868,
+        "sha256": "3819c2bca59224f67767eb3762c846e35d5eb5272be03f35c21fc32163df67a6"
+      },
+      {
+        "path": "default-user/characters/Seraphina/surprise.png",
+        "type": "file",
+        "bytes": 130587,
+        "sha256": "f6a9f657d081f670a961649a5a21526ec251262ca06adf99626509059fbbb103"
+      },
+      {
+        "path": "default-user/characters/default_Seraphina.png",
+        "type": "file",
+        "bytes": 551901,
+        "sha256": "8a71e8270f54fafbccf905b1bdf053a6a55f57bea89c01fcd8c0e87ee76a2d52"
+      },
+      {
+        "path": "default-user/chats",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/content.log",
+        "type": "file",
+        "bytes": 5529,
+        "sha256": "2cfbbb6815662c942c6c58369a3a56a0fc8ea05c094bb243eaa69f5caa152629"
+      },
+      {
+        "path": "default-user/context",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/context/Adventure.json",
+        "type": "file",
+        "bytes": 718,
+        "sha256": "7e3619707cda7005c8b54dfcbb69658ff7edda086ce5c56eff23eef0b674c73a"
+      },
+      {
+        "path": "default-user/context/Alpaca-Single-Turn.json",
+        "type": "file",
+        "bytes": 728,
+        "sha256": "625f93178371f84d4a31e8eaac1c37c8a1d05450cdc3a44a9e2bf74759364d59"
+      },
+      {
+        "path": "default-user/context/Alpaca.json",
+        "type": "file",
+        "bytes": 715,
+        "sha256": "206828b70e8e027c20e204b767daf814c20451f4e06ea66fc993f0a1093e3486"
+      },
+      {
+        "path": "default-user/context/ChatML-Names.json",
+        "type": "file",
+        "bytes": 721,
+        "sha256": "a048775c2a455aac97a0d4d422fab6c8aa1f0843d690dd64a0d8056d1d8f609a"
+      },
+      {
+        "path": "default-user/context/ChatML.json",
+        "type": "file",
+        "bytes": 715,
+        "sha256": "24570cc76693da9a67e22cf13b8cd7badf6598610b1def663f1e26ba82dd34bb"
+      },
+      {
+        "path": "default-user/context/Command R.json",
+        "type": "file",
+        "bytes": 718,
+        "sha256": "1ffa82c3083eeeca49a64a11ac23fd2e333d9a728e1b9ae5798277f6327b0cdd"
+      },
+      {
+        "path": "default-user/context/DeepSeek-V2.5.json",
+        "type": "file",
+        "bytes": 722,
+        "sha256": "fc7b65c231b352457a9f3c37d8265146b70fecc83ce8c6aa5c0dff28183ec015"
+      },
+      {
+        "path": "default-user/context/Default.json",
+        "type": "file",
+        "bytes": 722,
+        "sha256": "90437a80dff193fa0be3d0e6ab95845ad8b49fc9c6ebb9d39588bb39477b4888"
+      },
+      {
+        "path": "default-user/context/Dots1.json",
+        "type": "file",
+        "bytes": 714,
+        "sha256": "0d4909d12f44737cad4da7286cb93e32a1e6a7b47c1a6d336c4d32dda784ffa4"
+      },
+      {
+        "path": "default-user/context/GLM-4.json",
+        "type": "file",
+        "bytes": 714,
+        "sha256": "52b3b989544b69ee685128123f58ff57fc61606709451e9180826b758bda2810"
+      },
+      {
+        "path": "default-user/context/Gemma 2.json",
+        "type": "file",
+        "bytes": 716,
+        "sha256": "2d1ab0197461287d9cafd0fc277e761b6b16f861b0b6da55bb5935fcfe59f8cb"
+      },
+      {
+        "path": "default-user/context/Gemma 4.json",
+        "type": "file",
+        "bytes": 716,
+        "sha256": "4722f024cd2601b88a29542e046602c63ae1b33fc132b142740cc95e723e4ae1"
+      },
+      {
+        "path": "default-user/context/Libra-32B.json",
+        "type": "file",
+        "bytes": 749,
+        "sha256": "67a056686862823fbff872c4bbbeca221d363512d75e7193e19bbac8a6e97cea"
+      },
+      {
+        "path": "default-user/context/Lightning 1.1.json",
+        "type": "file",
+        "bytes": 788,
+        "sha256": "e7d73dc14de9c556ff86b72e4f9f460ed10c334d8dbce906f78f4c304d7a2591"
+      },
+      {
+        "path": "default-user/context/Llama 2 Chat.json",
+        "type": "file",
+        "bytes": 721,
+        "sha256": "8dbc8dd7fa33d4a29946c38584c3a7dd19ceda2f0043cf6cee3ddcd85e119fa5"
+      },
+      {
+        "path": "default-user/context/Llama 3 Instruct.json",
+        "type": "file",
+        "bytes": 725,
+        "sha256": "a1a14403605d9eff26adfee3aaf3b746bb9ceb5d9e5d99601ead8cd0a3800ad8"
+      },
+      {
+        "path": "default-user/context/Llama 4 Instruct.json",
+        "type": "file",
+        "bytes": 725,
+        "sha256": "db06ee7de1da1c6266d8a046d0df52164517e3526513556cd5edfc881db1dfcf"
+      },
+      {
+        "path": "default-user/context/Llama-3-Instruct-Names.json",
+        "type": "file",
+        "bytes": 731,
+        "sha256": "f0d075a49f3f5a4d54af464f7728e2e579cf27eba682a7c7ce1007b232a4911d"
+      },
+      {
+        "path": "default-user/context/Metharme.json",
+        "type": "file",
+        "bytes": 717,
+        "sha256": "703e73e82ac7666014ef3b46eaa45bab50267130b5f43830a0e9049a37f6af55"
+      },
+      {
+        "path": "default-user/context/Minimalist.json",
+        "type": "file",
+        "bytes": 719,
+        "sha256": "8d869998d4d78e0763ff7b73ecfeb9d238928da9efa58cb4dec672e02f9b5578"
+      },
+      {
+        "path": "default-user/context/Mistral V1.json",
+        "type": "file",
+        "bytes": 719,
+        "sha256": "eee140f7d861f26bf58f7f3941f9e84099b81dba4ca361e0f080430a6e0a2570"
+      },
+      {
+        "path": "default-user/context/Mistral V2 & V3.json",
+        "type": "file",
+        "bytes": 724,
+        "sha256": "530999503beb216adafa61f77bc1516aaa0d93bec2df8f1399c4d07d0926d6d8"
+      },
+      {
+        "path": "default-user/context/Mistral V3-Tekken.json",
+        "type": "file",
+        "bytes": 726,
+        "sha256": "15b2a602b0dea7fbeb417e11b46baba214dea7db8f72258d23940af67b2fc001"
+      },
+      {
+        "path": "default-user/context/Mistral V7-Tekken.json",
+        "type": "file",
+        "bytes": 726,
+        "sha256": "161b1df96a84b98a3f0486744a9a939c3ca4e11bd4fc5b72c4a122a5b0a1968a"
+      },
+      {
+        "path": "default-user/context/Mistral V7.json",
+        "type": "file",
+        "bytes": 719,
+        "sha256": "5de90cd4f7082f1b69f78fd1d0ca5c918dcc02495b8e7b50a11eedae873ad943"
+      },
+      {
+        "path": "default-user/context/Moonshot AI.json",
+        "type": "file",
+        "bytes": 720,
+        "sha256": "1a9ddec80ca34bb1c430b1196a50891a64e603778b59ed66b1568bd38af4cf2c"
+      },
+      {
+        "path": "default-user/context/NovelAI.json",
+        "type": "file",
+        "bytes": 722,
+        "sha256": "aab948f349b7f46d0356961708df46c9dbf52eff044ccf3b7d534aea03b7ad33"
+      },
+      {
+        "path": "default-user/context/OldDefault.json",
+        "type": "file",
+        "bytes": 874,
+        "sha256": "8eec6c48ac10e67c8ade58019b4596a5e66b0854145791e8147527bee693bfd2"
+      },
+      {
+        "path": "default-user/context/OpenAI Harmony.json",
+        "type": "file",
+        "bytes": 723,
+        "sha256": "0f912f4922bca0740982aed3b1619d17f90dd1551c156ade2661e8921c6121f1"
+      },
+      {
+        "path": "default-user/context/Phi.json",
+        "type": "file",
+        "bytes": 712,
+        "sha256": "4b41862e7aef53eb39910bc896712cce2dc99047113883ff2ed44d6faf313aad"
+      },
+      {
+        "path": "default-user/context/Story.json",
+        "type": "file",
+        "bytes": 714,
+        "sha256": "1e813bb003eb8c2d9d80afeca8e5dfa841c42f167802b2fc2a95ec165d477c91"
+      },
+      {
+        "path": "default-user/context/Synthia.json",
+        "type": "file",
+        "bytes": 716,
+        "sha256": "343da773c09a0f43a12eafd6fbbd55f586dc0fc262dc7ea47799b4b0a24be874"
+      },
+      {
+        "path": "default-user/context/Tulu.json",
+        "type": "file",
+        "bytes": 713,
+        "sha256": "b96e22b7346afa334574a3a27e9792f2dbcdba1839a6a747f795e4132f67b212"
+      },
+      {
+        "path": "default-user/context/simple-proxy-for-tavern.json",
+        "type": "file",
+        "bytes": 792,
+        "sha256": "384240293e643a689716977f0d6c81c1ff6ae83ef94098d06c47f0558df92b96"
+      },
+      {
+        "path": "default-user/extensions",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/group chats",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/groups",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/instruct",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/instruct/Adventure.json",
+        "type": "file",
+        "bytes": 684,
+        "sha256": "d6659f665b04e9ad005b27ade79eec7fd69752963ffe1cb6b1827d9cb429b52c"
+      },
+      {
+        "path": "default-user/instruct/Alpaca-Single-Turn.json",
+        "type": "file",
+        "bytes": 851,
+        "sha256": "b9a59e0bfe10787c65d2f472e486e011f4fd671ba1a0c93a81933c4151e47ea7"
+      },
+      {
+        "path": "default-user/instruct/Alpaca.json",
+        "type": "file",
+        "bytes": 737,
+        "sha256": "71d4cb67cf267406816499cf50c8165831244fb2020c2ed42654953892e95f58"
+      },
+      {
+        "path": "default-user/instruct/ChatML-Names.json",
+        "type": "file",
+        "bytes": 821,
+        "sha256": "aa4c76d64a21101f447171d48453089c038f9992a91b53cfc9ed21416694c17c"
+      },
+      {
+        "path": "default-user/instruct/ChatML.json",
+        "type": "file",
+        "bytes": 813,
+        "sha256": "02b5bc3361e5ce423576b00cc2c971c8e1c797a8db0d5e4490b4df5bef4ad672"
+      },
+      {
+        "path": "default-user/instruct/Command R.json",
+        "type": "file",
+        "bytes": 946,
+        "sha256": "b3aa4d52478eee5be8be1c4eff573c2666aea1bddbf6c06f05e0824d43196a14"
+      },
+      {
+        "path": "default-user/instruct/DeepSeek-V2.5.json",
+        "type": "file",
+        "bytes": 745,
+        "sha256": "56658074d237ebd6044e179353bec46df931d17e01786d7d647dfbf2b9686b67"
+      },
+      {
+        "path": "default-user/instruct/Dots1.json",
+        "type": "file",
+        "bytes": 818,
+        "sha256": "ee2b4b6fb2918cc1215dfdd30befecd2937286e1c139d0fb7e9152386aa37850"
+      },
+      {
+        "path": "default-user/instruct/GLM-4.json",
+        "type": "file",
+        "bytes": 720,
+        "sha256": "77a65cc6f196d64355b7e758399fd48b36128049e35d151ab9701be624cc270c"
+      },
+      {
+        "path": "default-user/instruct/Gemma 2.json",
+        "type": "file",
+        "bytes": 834,
+        "sha256": "6599d486248efa620a3b6460ff5d07e2dd071d18c86a3d33975f74b2129a17f0"
+      },
+      {
+        "path": "default-user/instruct/Gemma 4.json",
+        "type": "file",
+        "bytes": 784,
+        "sha256": "c7f53f8de92b3d6ccdb52aac5a709ba91d42b67d8c72881e2fd0b9577f5f5607"
+      },
+      {
+        "path": "default-user/instruct/Koala.json",
+        "type": "file",
+        "bytes": 726,
+        "sha256": "5adb6972265e602026b6f5744c4f42ca1c8b90543567101aacbb0804d59ea81b"
+      },
+      {
+        "path": "default-user/instruct/KoboldAI.json",
+        "type": "file",
+        "bytes": 795,
+        "sha256": "4f1b6dd1f05c73b4680a37aa356f6f5609e25ac7eb16d353eb7e602df1a5b88e"
+      },
+      {
+        "path": "default-user/instruct/Libra-32B.json",
+        "type": "file",
+        "bytes": 717,
+        "sha256": "5af960c28cdbcf1119bc39f77c9f63f21cb7055b6f78a7fa31cc5c1187f4685c"
+      },
+      {
+        "path": "default-user/instruct/Lightning 1.1.json",
+        "type": "file",
+        "bytes": 888,
+        "sha256": "6288477ca1123fd9a90862e2f0532bb69bdfc61d7ec085eab0d7df4c9557268d"
+      },
+      {
+        "path": "default-user/instruct/Llama 2 Chat.json",
+        "type": "file",
+        "bytes": 844,
+        "sha256": "fcaf16a9c412b52b4f56a6204a181b252e56c88a9a402668728a443da8aebb82"
+      },
+      {
+        "path": "default-user/instruct/Llama 3 Instruct.json",
+        "type": "file",
+        "bytes": 928,
+        "sha256": "ccff79de3190ba55080c432d0e8354ef5fd24ba07d594131bccefe83dc5f6a18"
+      },
+      {
+        "path": "default-user/instruct/Llama 4 Instruct.json",
+        "type": "file",
+        "bytes": 906,
+        "sha256": "061962e65a22701fdaadc431f35e1fce9de42d328f710c568860ce04a9afba1a"
+      },
+      {
+        "path": "default-user/instruct/Llama-3-Instruct-Names.json",
+        "type": "file",
+        "bytes": 935,
+        "sha256": "b3abcc0f823fbcfb34248a8f5a179bedd1f21cb8c936cda1eb97b6d4d8989f94"
+      },
+      {
+        "path": "default-user/instruct/Metharme.json",
+        "type": "file",
+        "bytes": 715,
+        "sha256": "8b9952080d7d5d7dc56ab914ee1aed179c1df88bd3edbbefbc51760ac342feb5"
+      },
+      {
+        "path": "default-user/instruct/Mistral V1.json",
+        "type": "file",
+        "bytes": 838,
+        "sha256": "6c6abd486d8a6b41a40962a4c51af404b2120fa33c9274c96b2e5a21ba3fc957"
+      },
+      {
+        "path": "default-user/instruct/Mistral V2 & V3.json",
+        "type": "file",
+        "bytes": 838,
+        "sha256": "a411a87e0fb832f7461546967dea5684dced77928596e9d1ae8f615b455f687c"
+      },
+      {
+        "path": "default-user/instruct/Mistral V3-Tekken.json",
+        "type": "file",
+        "bytes": 829,
+        "sha256": "3ade2f534f7155e6456e20e7cb108993c4f11049d6fc5fd9087431c4f2835372"
+      },
+      {
+        "path": "default-user/instruct/Mistral V7-Tekken.json",
+        "type": "file",
+        "bytes": 777,
+        "sha256": "300a8a67e4efaa369011124659698a2acd450a14b501bb9d229f30702354964a"
+      },
+      {
+        "path": "default-user/instruct/Mistral V7.json",
+        "type": "file",
+        "bytes": 774,
+        "sha256": "c607c3bbe214f67f6395c14c4289bb6638b89a8fc8d4b60052573cf89110cc8c"
+      },
+      {
+        "path": "default-user/instruct/Moonshot AI.json",
+        "type": "file",
+        "bytes": 868,
+        "sha256": "f93efa0f02de67e4b438ac41bb198e5c9b99a6d4d62d3a6272005f30ada3aaac"
+      },
+      {
+        "path": "default-user/instruct/OpenAI Harmony (Thinking).json",
+        "type": "file",
+        "bytes": 863,
+        "sha256": "b62cf90501933a6a9853c665ad944b7874c1bbbe78ec431fe57f6aa52023ac2c"
+      },
+      {
+        "path": "default-user/instruct/OpenAI Harmony.json",
+        "type": "file",
+        "bytes": 843,
+        "sha256": "2c9e6e44ef07b4a2fdf47349027b52ef14024bd84bb30eea6c868facf8bf75aa"
+      },
+      {
+        "path": "default-user/instruct/OpenOrca-OpenChat.json",
+        "type": "file",
+        "bytes": 745,
+        "sha256": "fa8709f8f4f60d327652b38a0f75054ad898773111bf38b3eb539f429ab80688"
+      },
+      {
+        "path": "default-user/instruct/Phi.json",
+        "type": "file",
+        "bytes": 772,
+        "sha256": "7dc643b9888c947858bbe72555edaf2e1f55403ff3fd8e108c149d88cf486d15"
+      },
+      {
+        "path": "default-user/instruct/Story.json",
+        "type": "file",
+        "bytes": 680,
+        "sha256": "83800aaae309619363ddb4eab0b28e8ba8e39f0b344c0a7fda00af05f7e7e3c0"
+      },
+      {
+        "path": "default-user/instruct/Synthia.json",
+        "type": "file",
+        "bytes": 816,
+        "sha256": "7712fdb777bc911af024a9d4c033b5acb2dbeec9588cc5c8e1f578f282bf4748"
+      },
+      {
+        "path": "default-user/instruct/Tulu.json",
+        "type": "file",
+        "bytes": 768,
+        "sha256": "c9ae396053e2bddb0302cd6fcfceb2670bff39fe27518d2820f9af59bb3f4396"
+      },
+      {
+        "path": "default-user/instruct/Vicuna 1.0.json",
+        "type": "file",
+        "bytes": 709,
+        "sha256": "62044743559d4900360ba40e7d4ef6df28ce979f41913434114b35d9e63f666e"
+      },
+      {
+        "path": "default-user/instruct/Vicuna 1.1.json",
+        "type": "file",
+        "bytes": 738,
+        "sha256": "333fd8ee5bede5c10ee5fbc3faddf88cd89fbd311e2c7c06b34867ae25ddcc0f"
+      },
+      {
+        "path": "default-user/instruct/WizardLM-13B.json",
+        "type": "file",
+        "bytes": 704,
+        "sha256": "b27c9d4e069488ebee0a3e430cc9e2977248006ff19aecf9f95a94610589fbd1"
+      },
+      {
+        "path": "default-user/instruct/WizardLM.json",
+        "type": "file",
+        "bytes": 701,
+        "sha256": "07403d0971a6c7482e4b0de14728afe52a48f05ef83b6fba1c4315f29c4e4fb9"
+      },
+      {
+        "path": "default-user/instruct/simple-proxy-for-tavern.json",
+        "type": "file",
+        "bytes": 1048,
+        "sha256": "06be3f557ef745e106a11d46dbb0c735b7a3b1d082e7caee760aa56027bd05f3"
+      },
+      {
+        "path": "default-user/movingUI",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/movingUI/Default.json",
+        "type": "file",
+        "bytes": 53,
+        "sha256": "1fa78ee773086de8f234b48d453c8dd37ecd466ef9ef1321dba2ce7f280bbb55"
+      },
+      {
+        "path": "default-user/reasoning",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/reasoning/Blank.json",
+        "type": "file",
+        "bytes": 87,
+        "sha256": "296d99ed54d78b9527002ac96af1405f88bfc6afa3718a0b5fac32d661b0b426"
+      },
+      {
+        "path": "default-user/reasoning/DeepSeek.json",
+        "type": "file",
+        "bytes": 113,
+        "sha256": "a251c703833fbd36cdef972fe2b00f5e2ffe2148c99d206bae64fc49ffd2bb26"
+      },
+      {
+        "path": "default-user/reasoning/Gemma 4.json",
+        "type": "file",
+        "bytes": 122,
+        "sha256": "60c22f5f8eefb5ffea9353d1086ccbb2b996959315d8bcb9df1f741537fe6618"
+      },
+      {
+        "path": "default-user/reasoning/OpenAI Harmony.json",
+        "type": "file",
+        "bytes": 189,
+        "sha256": "ab17b0d03e3347b201363b1b96592730ffe558a6f2975ee6379ebab12de2565f"
+      },
+      {
+        "path": "default-user/reasoning/Think XML.json",
+        "type": "file",
+        "bytes": 108,
+        "sha256": "969939751f10d8982c71e4b252428f299d70319ba3dea3e9e36cdf5f3dbc41c0"
+      },
+      {
+        "path": "default-user/settings.json",
+        "type": "file",
+        "bytes": 27371,
+        "sha256": "c8445ada83b82a5afacc36ab75c1d89b24c239e71de87511d1ea8719c21bb303"
+      },
+      {
+        "path": "default-user/sysprompt",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/sysprompt/Actor.json",
+        "type": "file",
+        "bytes": 375,
+        "sha256": "61f6652bd929844b297eef6a09d7be441718151ec62be040c55939c6052d295d"
+      },
+      {
+        "path": "default-user/sysprompt/Assistant - Expert.json",
+        "type": "file",
+        "bytes": 784,
+        "sha256": "03b59bce8b68e0d31e93a68e9bc5b06bca287db1d8a8526444a58469caaa3be4"
+      },
+      {
+        "path": "default-user/sysprompt/Assistant - Simple.json",
+        "type": "file",
+        "bytes": 241,
+        "sha256": "b304599da3efbfa38580a3d1fc49bbb59a3722aeac330958322aaea8171da777"
+      },
+      {
+        "path": "default-user/sysprompt/Blank.json",
+        "type": "file",
+        "bytes": 72,
+        "sha256": "4ab4d0e3c07f50164b3e3db6fbb8bbeaf53f3d48ba058d8cd5824b1f4711d49c"
+      },
+      {
+        "path": "default-user/sysprompt/Chain of Thought.json",
+        "type": "file",
+        "bytes": 252,
+        "sha256": "d9705b025384ea3329863d1888843d31cc751507cc8cb30c5273e8af255a05fb"
+      },
+      {
+        "path": "default-user/sysprompt/Lightning 1.1.json",
+        "type": "file",
+        "bytes": 283,
+        "sha256": "e4de29956a4f4da6daef153c9d2ad620912019df3f36d2b6ff8fe4ff3de6f212"
+      },
+      {
+        "path": "default-user/sysprompt/Neutral - Chat.json",
+        "type": "file",
+        "bytes": 159,
+        "sha256": "1800ffbe8d0b70f230a1a953209f895f107c169e0ea9c3881ae15b8469dcfc52"
+      },
+      {
+        "path": "default-user/sysprompt/Roleplay - Detailed.json",
+        "type": "file",
+        "bytes": 295,
+        "sha256": "d349519d68f7225c16cb583800c9aa10e5b54f7a958243627b09c813c4c8c204"
+      },
+      {
+        "path": "default-user/sysprompt/Roleplay - Immersive.json",
+        "type": "file",
+        "bytes": 401,
+        "sha256": "01b755d6a69c170dcfe1e01806eb86f91d942b45a02027c0b556ec1c6f00669e"
+      },
+      {
+        "path": "default-user/sysprompt/Roleplay - Simple.json",
+        "type": "file",
+        "bytes": 165,
+        "sha256": "cea11ead1e6fb2228170f9357743c1a5bfb2323e9a2ce144eaa75268031e1d3a"
+      },
+      {
+        "path": "default-user/sysprompt/Text Adventure.json",
+        "type": "file",
+        "bytes": 349,
+        "sha256": "4f440326d7c552592781061fead5531d350ee1c272996955b830998474d890fd"
+      },
+      {
+        "path": "default-user/sysprompt/Writer - Creative.json",
+        "type": "file",
+        "bytes": 203,
+        "sha256": "a1b8b28615461c30104ed9646a488d5b1ad2f4ba3fe6cd3b9e8af5ddde72006c"
+      },
+      {
+        "path": "default-user/sysprompt/Writer - Realistic.json",
+        "type": "file",
+        "bytes": 150,
+        "sha256": "3458f8ea1f704beaf7df7eacd421bd658c58e5b6b87d9b60e79b01e9c9a3fb06"
+      },
+      {
+        "path": "default-user/themes",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/themes/Azure.json",
+        "type": "file",
+        "bytes": 1212,
+        "sha256": "218a2fbf186f94dc71e14b8d78623959417e2ea45b0ced67ab412a8ca6192f72"
+      },
+      {
+        "path": "default-user/themes/Cappuccino.json",
+        "type": "file",
+        "bytes": 1225,
+        "sha256": "95572555ddec3be5665ada502d0a2c94e04159d6206fb05e56af4951ed9d4deb"
+      },
+      {
+        "path": "default-user/themes/Celestial Macaron.json",
+        "type": "file",
+        "bytes": 1269,
+        "sha256": "083a8244f2c31db8890cf41b2e879f62475a62f995a5de98bea34d0d47f1fef7"
+      },
+      {
+        "path": "default-user/themes/Dark Lite.json",
+        "type": "file",
+        "bytes": 1201,
+        "sha256": "8785fd01494adcb7046222f20092e0333777589e7b746920c662e993937bd298"
+      },
+      {
+        "path": "default-user/themes/Dark V 1.0.json",
+        "type": "file",
+        "bytes": 1261,
+        "sha256": "98f36c4b499cfe0a64d1265d1e66890d351c97a9794b8ddd07421ae7117f1f94"
+      },
+      {
+        "path": "default-user/thumbnails",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/thumbnails/avatar",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/thumbnails/bg",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/thumbnails/persona",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/user",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/user/files",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/user/images",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/user/workflows",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/user/workflows/Char_Avatar_Comfy_Workflow.json",
+        "type": "file",
+        "bytes": 2373,
+        "sha256": "9c1a75cfd01d17dc79d05fbfdba074e1bcc0fe66c5e4b9767c86c366349b2ba0"
+      },
+      {
+        "path": "default-user/user/workflows/Default_Comfy_Workflow.json",
+        "type": "file",
+        "bytes": 1846,
+        "sha256": "b7140c29ce4c527ac77829a3d22277b358c6cd98adb4b444935a295e77c7e8c1"
+      },
+      {
+        "path": "default-user/vectors",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/worlds",
+        "type": "directory"
+      },
+      {
+        "path": "default-user/worlds/Eldoria.json",
+        "type": "file",
+        "bytes": 8734,
+        "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd"
+      }
+    ],
     "userStore": {
       "observed": true,
       "implementation": "node-persist@4.0.4; SHA-256 key filenames; ttl disabled",

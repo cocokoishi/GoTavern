@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -31,12 +33,20 @@ type startupOracle struct {
 			User   []directoryObservation `json:"user"`
 			Public []directoryObservation `json:"public"`
 		} `json:"startupDirectories"`
+		SeededContent []seededObservation `json:"seededContent"`
 	} `json:"filesystem"`
 }
 
 type directoryObservation struct {
 	Key  string `json:"key"`
 	Path string `json:"path"`
+}
+
+type seededObservation struct {
+	Path   string `json:"path"`
+	Type   string `json:"type"`
+	Bytes  int    `json:"bytes"`
+	SHA256 string `json:"sha256"`
 }
 
 func readStartupOracle(t *testing.T) startupOracle {
@@ -216,6 +226,124 @@ func TestEnsureDirectoriesMatchesPinnedDirectoryTemplate(t *testing.T) {
 	}
 }
 
+func TestSeedDefaultContentMatchesPinnedNodeFreshStart(t *testing.T) {
+	fixture := readStartupOracle(t)
+	if len(fixture.Filesystem.SeededContent) < 100 {
+		t.Fatalf("pinned Node fixture has only %d seeded-content entries", len(fixture.Filesystem.SeededContent))
+	}
+	installRoot := filepath.Join(t.TempDir(), "install")
+	dataRoot := filepath.Join(t.TempDir(), "data")
+	handles, err := InitializeUserStorage(dataRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directories, err := EnsureDirectories(installRoot, dataRoot, handles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := SeedDefaultContent(dataRoot, directories, SeedOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.GlobalContentAdded || !result.AnyContentAdded || len(result.UserContentAdded) != 1 || !result.UserContentAdded[0] {
+		t.Fatalf("fresh seeding result = %+v, want global and one user copy", result)
+	}
+
+	actual, err := snapshotSeededContent(dataRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(actual, fixture.Filesystem.SeededContent) {
+		gotJSON, _ := json.MarshalIndent(actual, "", "  ")
+		wantJSON, _ := json.MarshalIndent(fixture.Filesystem.SeededContent, "", "  ")
+		index := firstJSONDifference(gotJSON, wantJSON)
+		start := max(index-120, 0)
+		gotEnd := min(index+400, len(gotJSON))
+		wantEnd := min(index+400, len(wantJSON))
+		t.Fatalf("seeded content differs from the pinned Node startup at JSON byte %d:\n got: %s\nwant: %s", index, gotJSON[start:gotEnd], wantJSON[start:wantEnd])
+	}
+
+	second, err := SeedDefaultContent(dataRoot, directories, SeedOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.AnyContentAdded || second.GlobalContentAdded || (len(second.UserContentAdded) == 1 && second.UserContentAdded[0]) {
+		t.Fatalf("second seeding unexpectedly added content: %+v", second)
+	}
+}
+
+func TestSeedDefaultContentSkipAndExistingSettings(t *testing.T) {
+	installRoot := filepath.Join(t.TempDir(), "install")
+	dataRoot := filepath.Join(t.TempDir(), "data")
+	handles, err := InitializeUserStorage(dataRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directories, err := EnsureDirectories(installRoot, dataRoot, handles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := SeedDefaultContent(dataRoot, directories, SeedOptions{SkipContentCheck: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AnyContentAdded || result.GlobalContentAdded {
+		t.Fatalf("skipContentCheck seeded content: %+v", result)
+	}
+	for _, file := range []string{
+		filepath.Join(dataRoot, "content.log"),
+		filepath.Join(directories[0]["root"], "content.log"),
+		filepath.Join(directories[0]["root"], "settings.json"),
+	} {
+		if _, err := os.Stat(file); !os.IsNotExist(err) {
+			t.Fatalf("skipContentCheck created %s", file)
+		}
+	}
+
+	settingsPath := filepath.Join(directories[0]["root"], "settings.json")
+	customSettings := []byte("{\"userOwned\":true}")
+	if err := os.WriteFile(settingsPath, customSettings, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err = SeedDefaultContent(dataRoot, directories, SeedOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.GlobalContentAdded || !result.UserContentAdded[0] {
+		t.Fatalf("seeding with an existing settings override returned %+v", result)
+	}
+	got, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(customSettings) {
+		t.Fatalf("existing settings override changed to %q", got)
+	}
+	contentLog, err := os.ReadFile(filepath.Join(directories[0]["root"], "content.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(contentLog), "\n")
+	if len(lines) == 0 || lines[0] != "settings.json" {
+		t.Fatalf("content log does not record the existing settings target first: %q", contentLog)
+	}
+	result, err = SeedDefaultContent(dataRoot, directories, SeedOptions{ForceCategories: []string{"settings"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AnyContentAdded {
+		t.Fatalf("forcing an existing settings item unexpectedly copied content: %+v", result)
+	}
+	contentLog, err = os.ReadFile(filepath.Join(directories[0]["root"], "content.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines = strings.Split(string(contentLog), "\n")
+	if lines[len(lines)-1] != "settings.json" {
+		t.Fatalf("forced settings category did not append the upstream duplicate log entry: %q", contentLog)
+	}
+}
+
 func TestInitializeUserStorageIsProcessSafe(t *testing.T) {
 	dataRoot := filepath.Join(t.TempDir(), "data")
 	const callers = 10
@@ -274,4 +402,71 @@ func mustRel(t *testing.T, root, target string) string {
 		t.Fatal(err)
 	}
 	return relative
+}
+
+func snapshotSeededContent(root string) ([]seededObservation, error) {
+	entries := make([]seededObservation, 0)
+	err := filepath.WalkDir(root, func(file string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(root, file)
+		if err != nil {
+			return err
+		}
+		relative = filepath.ToSlash(relative)
+		if !isSeededPath(relative) {
+			if entry.IsDir() {
+				return nil
+			}
+			return nil
+		}
+		if entry.IsDir() {
+			entries = append(entries, seededObservation{Path: relative, Type: "directory"})
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return fmt.Errorf("unexpected non-regular seeded path %s", relative)
+		}
+		body, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		digest := sha256.Sum256(body)
+		entries = append(entries, seededObservation{
+			Path:   relative,
+			Type:   "file",
+			Bytes:  len(body),
+			SHA256: hex.EncodeToString(digest[:]),
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(entries, func(left, right int) bool { return entries[left].Path < entries[right].Path })
+	return entries, nil
+}
+
+func isSeededPath(relative string) bool {
+	if relative == "content.log" || relative == "default-user/content.log" {
+		return true
+	}
+	if relative == "_css" || strings.HasPrefix(relative, "_css/") || relative == "_errors" || strings.HasPrefix(relative, "_errors/") {
+		return true
+	}
+	if !strings.HasPrefix(relative, "default-user/") || relative == "default-user/stats.json" {
+		return false
+	}
+	return relative != "default-user/backups" && !strings.HasPrefix(relative, "default-user/backups/") && !strings.HasSuffix(relative, "/.migrated")
+}
+
+func firstJSONDifference(left, right []byte) int {
+	limit := min(len(left), len(right))
+	for index := 0; index < limit; index++ {
+		if left[index] != right[index] {
+			return index
+		}
+	}
+	return limit
 }
