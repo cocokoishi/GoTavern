@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,9 +15,13 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: image-metadata-roundtrip <data-root> <port>")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "usage: image-metadata-roundtrip <data-root> <port> <thumbnail-dimensions-json>")
 		os.Exit(2)
+	}
+	var thumbnailDimensions map[string]any
+	if err := json.Unmarshal([]byte(os.Args[3]), &thumbnailDimensions); err != nil {
+		fatal(err)
 	}
 	dataRoot, err := filepath.Abs(os.Args[1])
 	if err != nil {
@@ -26,9 +31,10 @@ func main() {
 		fatal(err)
 	}
 	handler := server.NewHTTPHandlerWithOptions(server.HTTPHandlerOptions{
-		InstallRoot:     dataRoot,
-		DataRoot:        dataRoot,
-		AccountsEnabled: true,
+		InstallRoot:                      dataRoot,
+		DataRoot:                         dataRoot,
+		AccountsEnabled:                  true,
+		ImageMetadataThumbnailDimensions: thumbnailDimensions,
 	})
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)

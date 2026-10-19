@@ -44,56 +44,57 @@ type versionResponse struct {
 // HTTP middleware. A nil session timeout means SillyTavern's default of -1
 // (400 days).
 type HTTPHandlerOptions struct {
-	InstallRoot                string
-	DataRoot                   string
-	CookieSecret               string
-	DisableCSRF                bool
-	EnableCorsProxy            bool
-	WhitelistEnabled           bool
-	ForwardedWhitelist         bool
-	Whitelist                  []string
-	ForbiddenPage              []byte
-	PreserveForbiddenPage      bool
-	HostWhitelistEnabled       bool
-	HostWhitelistScan          bool
-	HostWhitelistHosts         []string
-	hostWhitelistWarningWriter io.Writer
-	BasicAuthEnabled           bool
-	BasicAuthMode              bool
-	PerUserBasicAuth           bool
-	BasicAuthUsername          any
-	BasicAuthPassword          any
-	BasicAuthRateLimit         *float64
-	AccountsEnabled            bool
-	DiscreetLogin              bool
-	PreferRealIPHeader         bool
-	SkipContentCheck           bool
-	AllowFullDataBackup        *bool
-	AllowKeysExposure          bool
-	SettingsBackupRetention    *float64
-	ExtensionsEnabled          *bool
-	ExtensionsAutoUpdate       *bool
-	RequestCompressionEnabled  *bool
-	RequestCompressionMin      any
-	RequestCompressionMax      any
-	RequestCompressionTimeout  any
-	LoginRateLimitPoints       *float64
-	RecoveryRateLimitPoints    *float64
-	ResetRateLimitPoints       *float64
-	recoveryCodeGenerator      func() (string, error)
-	resetCodeGenerator         func() (string, error)
-	ForwardedXRealIP           *bool
-	ForwardedCFConnectingIP    *bool
-	ForwardedXForwardedFor     *bool
-	SessionTimeoutSeconds      *float64
-	CorsSettingsConfigured     bool
-	CorsEnabled                *bool
-	CorsOrigin                 any
-	CorsMethods                any
-	CorsAllowedHeaders         any
-	CorsExposedHeaders         any
-	CorsCredentials            *bool
-	CorsMaxAge                 any
+	InstallRoot                      string
+	DataRoot                         string
+	CookieSecret                     string
+	DisableCSRF                      bool
+	EnableCorsProxy                  bool
+	WhitelistEnabled                 bool
+	ForwardedWhitelist               bool
+	Whitelist                        []string
+	ForbiddenPage                    []byte
+	PreserveForbiddenPage            bool
+	HostWhitelistEnabled             bool
+	HostWhitelistScan                bool
+	HostWhitelistHosts               []string
+	hostWhitelistWarningWriter       io.Writer
+	BasicAuthEnabled                 bool
+	BasicAuthMode                    bool
+	PerUserBasicAuth                 bool
+	BasicAuthUsername                any
+	BasicAuthPassword                any
+	BasicAuthRateLimit               *float64
+	AccountsEnabled                  bool
+	DiscreetLogin                    bool
+	PreferRealIPHeader               bool
+	SkipContentCheck                 bool
+	AllowFullDataBackup              *bool
+	AllowKeysExposure                bool
+	SettingsBackupRetention          *float64
+	ExtensionsEnabled                *bool
+	ExtensionsAutoUpdate             *bool
+	RequestCompressionEnabled        *bool
+	RequestCompressionMin            any
+	RequestCompressionMax            any
+	RequestCompressionTimeout        any
+	LoginRateLimitPoints             *float64
+	RecoveryRateLimitPoints          *float64
+	ResetRateLimitPoints             *float64
+	recoveryCodeGenerator            func() (string, error)
+	resetCodeGenerator               func() (string, error)
+	ForwardedXRealIP                 *bool
+	ForwardedCFConnectingIP          *bool
+	ForwardedXForwardedFor           *bool
+	SessionTimeoutSeconds            *float64
+	CorsSettingsConfigured           bool
+	CorsEnabled                      *bool
+	CorsOrigin                       any
+	CorsMethods                      any
+	CorsAllowedHeaders               any
+	CorsExposedHeaders               any
+	CorsCredentials                  *bool
+	CorsMaxAge                       any
+	ImageMetadataThumbnailDimensions map[string]any
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
@@ -144,6 +145,13 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		}
 		if credentials, ok := optionBooleanValue(settings.CorsCredentials); ok {
 			options.CorsCredentials = &credentials
+		}
+	}
+	if settings.ThumbnailDimensionsSet || settings.ThumbnailDimensionsBG != nil || settings.ThumbnailDimensionsAvatar != nil || settings.ThumbnailDimensionsPersona != nil {
+		options.ImageMetadataThumbnailDimensions = map[string]any{
+			"bg":      settings.ThumbnailDimensionsBG,
+			"avatar":  settings.ThumbnailDimensionsAvatar,
+			"persona": settings.ThumbnailDimensionsPersona,
 		}
 	}
 	if timeout, ok := optionNumber(settings.RequestCompressionTimeout); ok {

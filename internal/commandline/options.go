@@ -53,46 +53,50 @@ type OptionWarnings struct {
 // pre-listener startup chain. Generic values retain the upstream getter's
 // output instead of silently coercing malformed or unknown YAML.
 type StartupSettings struct {
-	LegacyCookieSecret         any `json:"legacyCookieSecret"`
-	SessionTimeout             any `json:"sessionTimeout"`
-	EnableUserAccounts         any `json:"enableUserAccounts"`
-	EnableDiscreetLogin        any `json:"enableDiscreetLogin"`
-	SecurityOverride           any `json:"securityOverride"`
-	PerUserBasicAuth           any `json:"perUserBasicAuth"`
-	PreferRealIPHeader         any `json:"preferRealIPHeader"`
-	BasicAuthMaxAttempts       any `json:"basicAuthMaxAttempts"`
-	AccountsLoginMaxAttempts   any `json:"accountsLoginMaxAttempts"`
-	AccountsRecoverMaxAttempts any `json:"accountsRecoverMaxAttempts"`
-	AccountsResetMaxAttempts   any `json:"accountsResetMaxAttempts"`
-	AllowFullDataBackup        any `json:"allowFullDataBackup"`
-	AllowKeysExposure          any `json:"allowKeysExposure"`
-	ExtensionsEnabled          any `json:"extensionsEnabled"`
-	ExtensionsAutoUpdate       any `json:"extensionsAutoUpdate"`
-	RequestCompressionEnabled  any `json:"requestCompressionEnabled"`
-	RequestCompressionMin      any `json:"requestCompressionMin"`
-	RequestCompressionMax      any `json:"requestCompressionMax"`
-	RequestCompressionTimeout  any `json:"requestCompressionTimeout"`
-	CorsEnabled                any `json:"corsEnabled"`
-	CorsOrigin                 any `json:"corsOrigin"`
-	CorsMethods                any `json:"corsMethods"`
-	CorsAllowedHeaders         any `json:"corsAllowedHeaders"`
-	CorsExposedHeaders         any `json:"corsExposedHeaders"`
-	CorsCredentials            any `json:"corsCredentials"`
-	CorsMaxAge                 any `json:"corsMaxAge"`
-	ForwardedXRealIP           any `json:"forwardedXRealIP"`
-	ForwardedCFConnectingIP    any `json:"forwardedCFConnectingIP"`
-	ForwardedXForwardedFor     any `json:"forwardedXForwardedFor"`
-	EnableForwardedWhitelist   any `json:"enableForwardedWhitelist"`
-	Whitelist                  any `json:"whitelist"`
-	WhitelistDockerHosts       any `json:"whitelistDockerHosts"`
-	HostWhitelistEnabled       any `json:"hostWhitelistEnabled"`
-	HostWhitelistScan          any `json:"hostWhitelistScan"`
-	HostWhitelistHosts         any `json:"hostWhitelistHosts"`
-	BasicAuthUsername          any `json:"basicAuthUsername"`
-	BasicAuthPassword          any `json:"basicAuthPassword"`
-	SkipContentCheck           any `json:"skipContentCheck"`
-	UseDiskCache               any `json:"useDiskCache"`
-	SettingsBackupRetention    any `json:"settingsBackupRetention"`
+	LegacyCookieSecret         any  `json:"legacyCookieSecret"`
+	SessionTimeout             any  `json:"sessionTimeout"`
+	EnableUserAccounts         any  `json:"enableUserAccounts"`
+	EnableDiscreetLogin        any  `json:"enableDiscreetLogin"`
+	SecurityOverride           any  `json:"securityOverride"`
+	PerUserBasicAuth           any  `json:"perUserBasicAuth"`
+	PreferRealIPHeader         any  `json:"preferRealIPHeader"`
+	BasicAuthMaxAttempts       any  `json:"basicAuthMaxAttempts"`
+	AccountsLoginMaxAttempts   any  `json:"accountsLoginMaxAttempts"`
+	AccountsRecoverMaxAttempts any  `json:"accountsRecoverMaxAttempts"`
+	AccountsResetMaxAttempts   any  `json:"accountsResetMaxAttempts"`
+	AllowFullDataBackup        any  `json:"allowFullDataBackup"`
+	AllowKeysExposure          any  `json:"allowKeysExposure"`
+	ExtensionsEnabled          any  `json:"extensionsEnabled"`
+	ExtensionsAutoUpdate       any  `json:"extensionsAutoUpdate"`
+	RequestCompressionEnabled  any  `json:"requestCompressionEnabled"`
+	RequestCompressionMin      any  `json:"requestCompressionMin"`
+	RequestCompressionMax      any  `json:"requestCompressionMax"`
+	RequestCompressionTimeout  any  `json:"requestCompressionTimeout"`
+	CorsEnabled                any  `json:"corsEnabled"`
+	CorsOrigin                 any  `json:"corsOrigin"`
+	CorsMethods                any  `json:"corsMethods"`
+	CorsAllowedHeaders         any  `json:"corsAllowedHeaders"`
+	CorsExposedHeaders         any  `json:"corsExposedHeaders"`
+	CorsCredentials            any  `json:"corsCredentials"`
+	CorsMaxAge                 any  `json:"corsMaxAge"`
+	ThumbnailDimensionsBG      any  `json:"thumbnailDimensionsBG"`
+	ThumbnailDimensionsAvatar  any  `json:"thumbnailDimensionsAvatar"`
+	ThumbnailDimensionsPersona any  `json:"thumbnailDimensionsPersona"`
+	ThumbnailDimensionsSet     bool `json:"-"`
+	ForwardedXRealIP           any  `json:"forwardedXRealIP"`
+	ForwardedCFConnectingIP    any  `json:"forwardedCFConnectingIP"`
+	ForwardedXForwardedFor     any  `json:"forwardedXForwardedFor"`
+	EnableForwardedWhitelist   any  `json:"enableForwardedWhitelist"`
+	Whitelist                  any  `json:"whitelist"`
+	WhitelistDockerHosts       any  `json:"whitelistDockerHosts"`
+	HostWhitelistEnabled       any  `json:"hostWhitelistEnabled"`
+	HostWhitelistScan          any  `json:"hostWhitelistScan"`
+	HostWhitelistHosts         any  `json:"hostWhitelistHosts"`
+	BasicAuthUsername          any  `json:"basicAuthUsername"`
+	BasicAuthPassword          any  `json:"basicAuthPassword"`
+	SkipContentCheck           any  `json:"skipContentCheck"`
+	UseDiskCache               any  `json:"useDiskCache"`
+	SettingsBackupRetention    any  `json:"settingsBackupRetention"`
 }
 
 // CommandLineResult combines the path side effects and option values returned
@@ -244,6 +248,10 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		CorsExposedHeaders:         getConfigValue(config, "cors.exposedHeaders", []any{}, cliArray),
 		CorsCredentials:            getConfigValue(config, "cors.credentials", false, cliBoolean),
 		CorsMaxAge:                 getConfigValue(config, "cors.maxAge", nil, cliNumber),
+		ThumbnailDimensionsBG:      getConfigValue(config, "thumbnails.dimensions.bg", []any{160, 90}, cliArray),
+		ThumbnailDimensionsAvatar:  getConfigValue(config, "thumbnails.dimensions.avatar", []any{96, 144}, cliArray),
+		ThumbnailDimensionsPersona: getConfigValue(config, "thumbnails.dimensions.persona", []any{96, 144}, cliArray),
+		ThumbnailDimensionsSet:     true,
 		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
 		ForwardedXForwardedFor:     getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),

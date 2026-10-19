@@ -67,7 +67,7 @@ func (runtimeServer *accountRuntime) serveImageMetadataGet(w http.ResponseWriter
 			return
 		}
 		typeValue, _ := input.member("type")
-		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue)
+		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue, runtimeServer.options.ImageMetadataThumbnailDimensions)
 		if unsupported {
 			respondJSON(w, http.StatusNotImplemented, map[string]string{"error": imageMetadataGenerationUnsupportedMessage})
 			return
@@ -143,7 +143,7 @@ func (runtimeServer *accountRuntime) serveImageMetadataGet(w http.ResponseWriter
 			}
 			continue
 		}
-		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue)
+		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue, runtimeServer.options.ImageMetadataThumbnailDimensions)
 		if unsupported {
 			pathValues[relativePath] = imageMetadataErrorValue(imageMetadataGenerationUnsupportedMessage)
 			continue

@@ -13,6 +13,7 @@ import (
 	_ "image/png"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +30,7 @@ type generatedImageMetadata struct {
 	metadata      orderedNodeJSON
 }
 
-func generateImageMetadata(filePath string, typeValue orderedNodeJSON) (orderedNodeJSON, bool, error) {
+func generateImageMetadata(filePath string, typeValue orderedNodeJSON, thumbnailDimensions map[string]any) (orderedNodeJSON, bool, error) {
 	buffer, err := os.ReadFile(filePath)
 	if err != nil {
 		return orderedNodeJSON{}, false, err
@@ -82,7 +83,7 @@ func generateImageMetadata(filePath string, typeValue orderedNodeJSON) (orderedN
 		{key: "dominantColor", value: orderedNodeJSON{kind: 's', scalar: dominantColor}},
 		{key: "folderIds", value: orderedNodeJSON{kind: 'a'}},
 		{key: "addedTimestamp", value: orderedNodeJSON{kind: 'v', scalar: addedTimestamp}},
-		{key: "thumbnailResolution", value: orderedNodeJSON{kind: 'v', scalar: imageMetadataThumbnailResolution(typeValue)}},
+		{key: "thumbnailResolution", value: orderedNodeJSON{kind: 'v', scalar: imageMetadataThumbnailResolution(typeValue, thumbnailDimensions)}},
 	}}
 	return metadata, false, nil
 }
@@ -141,19 +142,182 @@ func jimpCompatibleAverageColor(source image.Image) string {
 	)
 }
 
-func imageMetadataThumbnailResolution(typeValue orderedNodeJSON) float64 {
+func imageMetadataThumbnailResolution(typeValue orderedNodeJSON, configuredDimensions map[string]any) float64 {
 	name, err := typeValue.javascriptString()
 	if err != nil {
 		return 0
 	}
-	switch name {
-	case "bg":
-		return 160 * 90
-	case "avatar", "persona":
-		return 96 * 144
-	default:
+	defaultDimensions := map[string]any{
+		"bg":      []any{160, 90},
+		"avatar":  []any{96, 144},
+		"persona": []any{96, 144},
+	}
+	if _, exists := defaultDimensions[name]; !exists {
 		return 0
 	}
+	dimensions, exists := configuredDimensions[name]
+	if !exists {
+		dimensions = defaultDimensions[name]
+	}
+	values, isArray := imageMetadataDimensionArray(dimensions)
+	if !isArray || len(values) < 2 {
+		return 0
+	}
+	return imageMetadataJavaScriptNumber(values[0]) * imageMetadataJavaScriptNumber(values[1])
+}
+
+func imageMetadataDimensionArray(value any) ([]any, bool) {
+	switch values := value.(type) {
+	case []any:
+		return values, true
+	case []string:
+		result := make([]any, len(values))
+		for index, item := range values {
+			result[index] = item
+		}
+		return result, true
+	case []int:
+		result := make([]any, len(values))
+		for index, item := range values {
+			result[index] = item
+		}
+		return result, true
+	case []float64:
+		result := make([]any, len(values))
+		for index, item := range values {
+			result[index] = item
+		}
+		return result, true
+	default:
+		return nil, false
+	}
+}
+
+func imageMetadataJavaScriptNumber(value any) float64 {
+	switch typed := value.(type) {
+	case nil:
+		return 0
+	case bool:
+		if typed {
+			return 1
+		}
+		return 0
+	case int:
+		return float64(typed)
+	case int8:
+		return float64(typed)
+	case int16:
+		return float64(typed)
+	case int32:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case uint:
+		return float64(typed)
+	case uint8:
+		return float64(typed)
+	case uint16:
+		return float64(typed)
+	case uint32:
+		return float64(typed)
+	case uint64:
+		return float64(typed)
+	case float32:
+		return float64(typed)
+	case float64:
+		return typed
+	case string:
+		return imageMetadataJavaScriptNumberString(typed)
+	case []any:
+		return imageMetadataJavaScriptNumberString(imageMetadataConfigArrayString(typed))
+	case []string:
+		return imageMetadataJavaScriptNumberString(strings.Join(typed, ","))
+	default:
+		return math.NaN()
+	}
+}
+
+func imageMetadataConfigArrayString(values []any) string {
+	parts := make([]string, len(values))
+	for index, value := range values {
+		if value == nil {
+			continue
+		}
+		parts[index] = imageMetadataConfigString(value)
+	}
+	return strings.Join(parts, ",")
+}
+
+func imageMetadataConfigString(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return typed
+	case bool:
+		return strconv.FormatBool(typed)
+	case int:
+		return strconv.Itoa(typed)
+	case int8:
+		return strconv.FormatInt(int64(typed), 10)
+	case int16:
+		return strconv.FormatInt(int64(typed), 10)
+	case int32:
+		return strconv.FormatInt(int64(typed), 10)
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	case uint:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint8:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint16:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint32:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint64:
+		return strconv.FormatUint(typed, 10)
+	case float32:
+		return javascriptNumberString(float64(typed))
+	case float64:
+		return javascriptNumberString(typed)
+	case []any:
+		return imageMetadataConfigArrayString(typed)
+	case []string:
+		return strings.Join(typed, ",")
+	default:
+		return "[object Object]"
+	}
+}
+
+func imageMetadataJavaScriptNumberString(value string) float64 {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return 0
+	}
+	if trimmed == "Infinity" || trimmed == "+Infinity" {
+		return math.Inf(1)
+	}
+	if trimmed == "-Infinity" {
+		return math.Inf(-1)
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range []struct {
+		marker string
+		base   int
+	}{{"0x", 16}, {"0b", 2}, {"0o", 8}} {
+		if strings.HasPrefix(lower, prefix.marker) {
+			parsed, parseErr := strconv.ParseUint(trimmed[2:], prefix.base, 64)
+			if parseErr != nil {
+				return math.NaN()
+			}
+			return float64(parsed)
+		}
+	}
+	parsed, parseErr := strconv.ParseFloat(trimmed, 64)
+	if parseErr != nil {
+		return math.NaN()
+	}
+	return parsed
 }
 
 func nodeStatMtimeMilliseconds(mtime time.Time) float64 {

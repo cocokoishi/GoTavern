@@ -219,6 +219,29 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 	}
 }
 
+func TestResolveCommandLineMarksExplicitNullThumbnailDimensionsAsConfigured(t *testing.T) {
+	workingDirectory := t.TempDir()
+	serverDirectory := t.TempDir()
+	config := "thumbnails:\n  dimensions:\n    bg: null\n    avatar: null\n    persona: null\n"
+	if err := os.WriteFile(filepath.Join(workingDirectory, "config.yaml"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	clearOptionEnvironment(t)
+	setEnvironment(t, "SILLYTAVERN_DATAROOT", nil)
+
+	parsed, err := ResolveCommandLine(ResolveOptions{
+		WorkingDirectory: workingDirectory,
+		ServerDirectory:  serverDirectory,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := parsed.StartupSettings
+	if !settings.ThumbnailDimensionsSet || settings.ThumbnailDimensionsBG != nil || settings.ThumbnailDimensionsAvatar != nil || settings.ThumbnailDimensionsPersona != nil {
+		t.Fatalf("configured thumbnail dimensions = %+v", settings)
+	}
+}
+
 func captureCommandLineURL(href string, err error) commandlineURLCapture {
 	if err != nil {
 		return commandlineURLCapture{ErrorName: "TypeError", ErrorMessage: err.Error()}
@@ -271,6 +294,9 @@ func jsonSafeValue(value reflect.Value) any {
 				continue
 			}
 			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if name == "-" {
+				continue
+			}
 			if name == "" {
 				name = field.Name
 			}

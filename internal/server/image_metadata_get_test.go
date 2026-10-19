@@ -29,13 +29,14 @@ type imageMetadataGetFixture struct {
 		Commit  string `json:"commit"`
 	} `json:"baseline"`
 	Inputs struct {
-		CookieSecret   string                          `json:"cookieSecret"`
-		Indexes        map[string]json.RawMessage      `json:"indexes"`
-		Cases          map[string]imageMetadataGetCase `json:"cases"`
-		GeneratedFiles map[string]string               `json:"generatedFiles"`
-		CachedMtime    float64                         `json:"cachedMtime"`
-		UncachedMtime  float64                         `json:"uncachedMtime"`
-		GoRoundTrip    struct {
+		CookieSecret        string                          `json:"cookieSecret"`
+		Indexes             map[string]json.RawMessage      `json:"indexes"`
+		Cases               map[string]imageMetadataGetCase `json:"cases"`
+		GeneratedFiles      map[string]string               `json:"generatedFiles"`
+		ThumbnailDimensions map[string]any                  `json:"thumbnailDimensions"`
+		CachedMtime         float64                         `json:"cachedMtime"`
+		UncachedMtime       float64                         `json:"uncachedMtime"`
+		GoRoundTrip         struct {
 			Index          string          `json:"index"`
 			Body           json.RawMessage `json:"body"`
 			GeneratedPaths []string        `json:"generatedPaths"`
@@ -66,7 +67,7 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 	if fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
 		t.Fatalf("image-metadata get oracle baseline = %+v", fixture.Baseline)
 	}
-	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Inputs.Cases) == 0 || len(fixture.Inputs.GeneratedFiles) == 0 {
+	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Inputs.Cases) == 0 || len(fixture.Inputs.GeneratedFiles) == 0 || len(fixture.Inputs.ThumbnailDimensions) == 0 {
 		t.Fatal("image-metadata get oracle is missing required inputs")
 	}
 
@@ -147,7 +148,10 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexPath := filepath.Join(userRoot, imageMetadataIndexFilename)
-	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: installRoot, DataRoot: dataRoot, CookieSecret: fixture.Inputs.CookieSecret, AccountsEnabled: true})
+	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{
+		InstallRoot: installRoot, DataRoot: dataRoot, CookieSecret: fixture.Inputs.CookieSecret, AccountsEnabled: true,
+		ImageMetadataThumbnailDimensions: fixture.Inputs.ThumbnailDimensions,
+	})
 	serve := func(method, route, cookie, token string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		request := httptest.NewRequest(method, route, bytes.NewReader(body))

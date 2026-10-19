@@ -14,6 +14,7 @@ import { pathToFileURL } from 'node:url';
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 const COOKIE_SECRET = 'gotavern-pinned-image-metadata-get-cookie-secret';
+const THUMBNAIL_DIMENSIONS = { bg: [80, 45], avatar: [48, 72], persona: [32, 56] };
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
@@ -200,7 +201,16 @@ function normalizeResponseAddedTimestamps(response, generatedPaths = []) {
 try {
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
     writeFileSync(path.join(dataRoot, 'cookie-secret.txt'), COOKIE_SECRET);
-    writeFileSync(configPath, 'enableUserAccounts: true\nskipContentCheck: true\n');
+    writeFileSync(configPath, [
+        'enableUserAccounts: true',
+        'skipContentCheck: true',
+        'thumbnails:',
+        '  dimensions:',
+        '    bg: [80, 45]',
+        '    avatar: [48, 72]',
+        '    persona: [32, 56]',
+        '',
+    ].join('\n'));
     seedUser('user:default-user', {
         handle: 'default-user', name: 'Image Metadata Cache Probe', created: 1700000000000,
         password: '', admin: true, enabled: true, salt: '', probeUnknownField: { preserve: true },
@@ -340,7 +350,7 @@ try {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
         probe: 'pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF; Go-generated metadata is read back through the pinned Node endpoint',
-        inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles },
+        inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles, thumbnailDimensions: THUMBNAIL_DIMENSIONS },
         responses,
         state: {
             fileContentsAfter,
@@ -365,7 +375,7 @@ try {
     writeFileSync(indexPath, goRoundTripInput.index);
     const goPort = await choosePort();
     goServerOrigin = 'http://127.0.0.1:' + goPort;
-    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort)], {
+    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort), JSON.stringify(THUMBNAIL_DIMENSIONS)], {
         cwd: repositoryRoot, stdio: ['ignore', 'pipe', 'pipe'],
     });
     goChild.stdout.setEncoding('utf8');

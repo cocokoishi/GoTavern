@@ -97,6 +97,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -225,6 +237,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -354,6 +378,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -483,6 +519,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -609,6 +657,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -735,6 +795,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -866,6 +938,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -992,6 +1076,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1120,6 +1216,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1252,6 +1360,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1384,6 +1504,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1513,6 +1645,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1642,6 +1786,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1808,6 +1964,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1941,6 +2109,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2073,6 +2253,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2204,6 +2396,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2332,6 +2536,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2458,6 +2674,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2588,6 +2816,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2717,6 +2957,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2850,6 +3102,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2976,6 +3240,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
@@ -3102,6 +3378,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3235,6 +3523,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3378,6 +3678,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
@@ -3418,7 +3730,7 @@
       "name": "cors-settings-config-and-environment-precedence",
       "args": [],
       "initialConfigPath": "./config.yaml",
-      "initialConfig": "cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\n",
+      "initialConfig": "cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: [48, 72]\n    persona: [32, 56]\n",
       "environmentDataRoot": null,
       "optionEnvironment": {
         "SILLYTAVERN_CORS_ENABLED": "true",
@@ -3438,8 +3750,8 @@
         "dataRoot": "./data",
         "dataRootCreationRelativeToCwd": "data",
         "runtimeDataRootRelativeToServerDirectory": "data",
-        "configBytes": 3339,
-        "configSha256": "6c9c47bf1b449cb0b59e38e8f4e75fb72868b52fa40806a925a2c17389568d0a",
+        "configBytes": 3336,
+        "configSha256": "80d723298edd75a79cbf36256994700c0cd93b2f1759e245744ff2e81132ba84",
         "configCreated": false,
         "configUpdated": true,
         "dataRootIsDirectory": true,
@@ -3512,6 +3824,18 @@
           ],
           "corsCredentials": true,
           "corsMaxAge": 45,
+          "thumbnailDimensionsBG": [
+            80,
+            45
+          ],
+          "thumbnailDimensionsAvatar": [
+            48,
+            72
+          ],
+          "thumbnailDimensionsPersona": [
+            32,
+            56
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3645,6 +3969,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3784,6 +4120,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3910,6 +4258,18 @@
           "corsExposedHeaders": [],
           "corsCredentials": false,
           "corsMaxAge": null,
+          "thumbnailDimensionsBG": [
+            160,
+            90
+          ],
+          "thumbnailDimensionsAvatar": [
+            96,
+            144
+          ],
+          "thumbnailDimensionsPersona": [
+            96,
+            144
+          ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,

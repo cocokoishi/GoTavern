@@ -97,6 +97,9 @@ const startupSettings = {
     corsExposedHeaders: getConfigValue('cors.exposedHeaders', []),
     corsCredentials: getConfigValue('cors.credentials', false, 'boolean'),
     corsMaxAge: getConfigValue('cors.maxAge', null, 'number'),
+    thumbnailDimensionsBG: getConfigValue('thumbnails.dimensions.bg', [160, 90]),
+    thumbnailDimensionsAvatar: getConfigValue('thumbnails.dimensions.avatar', [96, 144]),
+    thumbnailDimensionsPersona: getConfigValue('thumbnails.dimensions.persona', [96, 144]),
     forwardedXRealIP: getConfigValue('forwardedHeaders.xRealIp', true, 'boolean'),
     forwardedCFConnectingIP: getConfigValue('forwardedHeaders.cfConnectingIp', false, 'boolean'),
     forwardedXForwardedFor: getConfigValue('forwardedHeaders.xForwardedFor', true, 'boolean'),
@@ -290,7 +293,7 @@ const scenarios = [
         name: 'cors-settings-config-and-environment-precedence',
         args: [],
         initialConfigPath: './config.yaml',
-        initialConfig: `cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\n`,
+        initialConfig: `cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: [48, 72]\n    persona: [32, 56]\n`,
         optionEnvironment: {
             SILLYTAVERN_CORS_ENABLED: 'true',
             SILLYTAVERN_CORS_METHODS: '["POST","PATCH"]',

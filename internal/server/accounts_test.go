@@ -446,6 +446,9 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 			CorsExposedHeaders:         []any{"ETag"},
 			CorsCredentials:            true,
 			CorsMaxAge:                 corsMaxAge,
+			ThumbnailDimensionsBG:      []any{80, 45},
+			ThumbnailDimensionsAvatar:  []any{48, 72},
+			ThumbnailDimensionsPersona: []any{32, 56},
 			SessionTimeout:             timeout,
 			ForwardedXRealIP:           false,
 			ForwardedCFConnectingIP:    true,
@@ -473,6 +476,11 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 		options.CorsCredentials == nil || !*options.CorsCredentials || options.CorsMaxAge != corsMaxAge {
 		t.Fatalf("handler CORS options = %+v", options)
 	}
+	if !reflect.DeepEqual(options.ImageMetadataThumbnailDimensions, map[string]any{
+		"bg": []any{80, 45}, "avatar": []any{48, 72}, "persona": []any{32, 56},
+	}) {
+		t.Fatalf("handler image-metadata thumbnail dimensions = %#v", options.ImageMetadataThumbnailDimensions)
+	}
 	if options.ExtensionsEnabled == nil || *options.ExtensionsEnabled || options.ExtensionsAutoUpdate == nil || *options.ExtensionsAutoUpdate ||
 		options.RequestCompressionEnabled == nil || !*options.RequestCompressionEnabled || options.RequestCompressionMin != "1.5kb" ||
 		options.RequestCompressionMax != "3.5mb" || options.RequestCompressionTimeout != requestCompressionTimeout {
@@ -480,5 +488,18 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	}
 	if options.ForwardedXRealIP == nil || *options.ForwardedXRealIP || options.ForwardedCFConnectingIP == nil || !*options.ForwardedCFConnectingIP || options.ForwardedXForwardedFor == nil || *options.ForwardedXForwardedFor {
 		t.Fatalf("handler forwarded-header options = %+v", options)
+	}
+}
+
+func TestHTTPHandlerOptionsFromCommandLinePreservesExplicitNullThumbnailDimensions(t *testing.T) {
+	parsed := commandline.CommandLineResult{
+		StartupSettings: commandline.StartupSettings{ThumbnailDimensionsSet: true},
+	}
+
+	options := HTTPHandlerOptionsFromCommandLine(parsed)
+	if !reflect.DeepEqual(options.ImageMetadataThumbnailDimensions, map[string]any{
+		"bg": nil, "avatar": nil, "persona": nil,
+	}) {
+		t.Fatalf("handler image-metadata thumbnail dimensions = %#v", options.ImageMetadataThumbnailDimensions)
 	}
 }
