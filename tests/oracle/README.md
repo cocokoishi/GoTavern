@@ -26,6 +26,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations.
 
+`sillytavern-1.19.0-group-metadata-migration.json` captures legacy group metadata migration, per-chat headers, existing chat-header precedence, and backup files.
+
 `sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations.
 
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:

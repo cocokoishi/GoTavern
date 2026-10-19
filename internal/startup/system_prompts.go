@@ -223,14 +223,23 @@ func getDefaultSystemPromptContents() []any {
 }
 
 func decodeOrderedJSONObject(body []byte) (*orderedJSONObject, error) {
+	value, err := decodeOrderedJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	object, ok := value.(*orderedJSONObject)
+	if !ok {
+		return nil, errors.New("JSON value is not an object")
+	}
+	return object, nil
+}
+
+func decodeOrderedJSON(body []byte) (any, error) {
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.UseNumber()
 	value, err := decodeOrderedJSONValue(decoder)
 	if err != nil {
 		return nil, err
-	}
-	if _, ok := value.(*orderedJSONObject); !ok {
-		return nil, errors.New("JSON value is not an object")
 	}
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
 		if err == nil {
@@ -238,7 +247,7 @@ func decodeOrderedJSONObject(body []byte) (*orderedJSONObject, error) {
 		}
 		return nil, err
 	}
-	return value.(*orderedJSONObject), nil
+	return value, nil
 }
 
 func decodeOrderedJSONValue(decoder *json.Decoder) (any, error) {

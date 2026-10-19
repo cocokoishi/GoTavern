@@ -174,6 +174,18 @@ try {
         throw new Error(`security-settings oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const groupMetadataProbe = path.join(buildRoot, '.gotavern-probe-group-metadata-migration.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-group-metadata-migration.mjs'), groupMetadataProbe);
+    const groupMetadataFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-group-metadata-migration.json');
+    run(process.execPath, [groupMetadataProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstGroupMetadataProbe = readFileSync(groupMetadataFixturePath);
+    run(process.execPath, [groupMetadataProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondGroupMetadataProbe = readFileSync(groupMetadataFixturePath);
+    if (!firstGroupMetadataProbe.equals(secondGroupMetadataProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstGroupMetadataProbe), JSON.parse(secondGroupMetadataProbe));
+        throw new Error(`group-metadata migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

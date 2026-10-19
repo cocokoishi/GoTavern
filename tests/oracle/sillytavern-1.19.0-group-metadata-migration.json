@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned groups.js migrateGroupChatsMetadataFormat filesystem behavior",
+  "scenarios": {
+    "noChanges": {
+      "inputs": {},
+      "tree": [
+        {
+          "path": "default-user/backups",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/group chats",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/groups",
+          "type": "directory"
+        }
+      ]
+    },
+    "legacy": {
+      "inputs": {
+        "groups/legacy.json": "{\n    \"id\": \"legacy-group\",\n    \"name\": \"Migrating Group\",\n    \"chat_id\": \"chat-current\",\n    \"chats\": [\n        \"chat-old\",\n        \"chat-current\",\n        \"chat-existing\",\n        \"missing-chat\"\n    ],\n    \"past_metadata\": {\n        \"chat-old\": {\n            \"from\": \"past\",\n            \"keep\": true\n        },\n        \"chat-current\": {\n            \"from\": \"past\",\n            \"overwritten\": true\n        },\n        \"chat-existing\": {\n            \"from\": \"past-existing\"\n        },\n        \"unused\": {\n            \"keep\": false\n        }\n    },\n    \"chat_metadata\": {\n        \"from\": \"current\",\n        \"nested\": {\n            \"count\": 2\n        }\n    },\n    \"unknown\": {\n        \"preserve\": [\n            \"field\",\n            7,\n            true\n        ]\n    }\n}",
+        "groups/no-chats.json": "{\n    \"id\": \"no-chats\",\n    \"name\": \"No chats array\",\n    \"chat_metadata\": {\n        \"remains\": true\n    },\n    \"extension_field\": \"preserved\"\n}",
+        "groups/untouched.json": "{\n    \"id\": \"untouched\",\n    \"name\": \"No deprecated metadata\",\n    \"chats\": []\n}",
+        "groups/broken.json": "{ this is not valid JSON",
+        "group chats/chat-old.jsonl": "{\"mes\":\"old first line\",\"name\":\"Alice\"}\n\n{\"mes\":\"old second line\"}\n",
+        "group chats/chat-current.jsonl": "{\"mes\":\"current line\"}\n",
+        "group chats/chat-existing.jsonl": "{\"chat_metadata\":{\"already\":true},\"user_name\":\"existing\"}\n{\"mes\":\"existing line\"}\n",
+        "group chats/untouched.jsonl": "{\"mes\":\"untouched line\"}\n"
+      },
+      "tree": [
+        {
+          "path": "default-user/backups",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/backups/_group_metadata_update",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/backups/_group_metadata_update/chat-current.jsonl",
+          "type": "file",
+          "bytes": 23,
+          "sha256": "3ba0081a7d189ac9c072b4bef6bd7507b45b970d21520dce3d830b1bbdab5adb"
+        },
+        {
+          "path": "default-user/backups/_group_metadata_update/chat-old.jsonl",
+          "type": "file",
+          "bytes": 67,
+          "sha256": "1394f43ae5d1c2b405a3f7b6619f6d58c9129166b60b23aac99a992e4e1c6377"
+        },
+        {
+          "path": "default-user/backups/_group_metadata_update/legacy.json",
+          "type": "file",
+          "bytes": 766,
+          "sha256": "fc86c25805d805f30e932bfcefb084df2449b1136fa76ebdc6ff661565cf786d"
+        },
+        {
+          "path": "default-user/backups/_group_metadata_update/no-chats.json",
+          "type": "file",
+          "bytes": 144,
+          "sha256": "a1bde62a67bb0ecfd65b320cf6bcfe5264754ef1a29963c6abe9136b4728d3a4"
+        },
+        {
+          "path": "default-user/group chats",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/group chats/chat-current.jsonl",
+          "type": "file",
+          "bytes": 127,
+          "sha256": "c5a4e8fc8148be490b1c960b5a68676f5452b45c719d3d4ddd190ae5a1a5d421"
+        },
+        {
+          "path": "default-user/group chats/chat-existing.jsonl",
+          "type": "file",
+          "bytes": 82,
+          "sha256": "d1039071b670b1d957ce9b68cad727ea67218be5b9fb1bb740146cb65c180fed"
+        },
+        {
+          "path": "default-user/group chats/chat-old.jsonl",
+          "type": "file",
+          "bytes": 158,
+          "sha256": "54d5209ad051777d5ade8123ca24186daf9b366a06300c54e4a45fbb3e0f6352"
+        },
+        {
+          "path": "default-user/group chats/untouched.jsonl",
+          "type": "file",
+          "bytes": 25,
+          "sha256": "c5387735bf3f57e53e8bcaf1be6096518c9e56b5f8ec90473596358db044f3c9"
+        },
+        {
+          "path": "default-user/groups",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/groups/broken.json",
+          "type": "file",
+          "bytes": 24,
+          "sha256": "87140689bfbbe8fb11dfb5957e985eeccf77220dab68f4109e97820113007d11"
+        },
+        {
+          "path": "default-user/groups/legacy.json",
+          "type": "file",
+          "bytes": 313,
+          "sha256": "f79fb80a058ee7d31c476cd16dffb0812f9292928b04c0fab6a3b2efe19a0dbc"
+        },
+        {
+          "path": "default-user/groups/no-chats.json",
+          "type": "file",
+          "bytes": 144,
+          "sha256": "a1bde62a67bb0ecfd65b320cf6bcfe5264754ef1a29963c6abe9136b4728d3a4"
+        },
+        {
+          "path": "default-user/groups/untouched.json",
+          "type": "file",
+          "bytes": 80,
+          "sha256": "ff40b5a325b00002f7d0dff3e06b1977edb2379bdeb548c70ed77bb130f89bc1"
+        }
+      ]
+    }
+  }
+}
