@@ -435,6 +435,18 @@ try {
         throw new Error('theme oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const movingUIProbe = path.join(buildRoot, '.gotavern-probe-moving-ui.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-moving-ui.mjs'), movingUIProbe);
+    const movingUIFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-moving-ui.json');
+    run(process.execPath, [movingUIProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstMovingUIProbe = readFileSync(movingUIFixturePath);
+    run(process.execPath, [movingUIProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondMovingUIProbe = readFileSync(movingUIFixturePath);
+    if (!firstMovingUIProbe.equals(secondMovingUIProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstMovingUIProbe), JSON.parse(secondMovingUIProbe));
+        throw new Error('moving UI preset oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');

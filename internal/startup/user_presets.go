@@ -32,6 +32,11 @@ func SaveThemePreset(dataRoot, handle, filename string, body []byte) error {
 	return saveUserPreset(dataRoot, handle, "themes", filename, body)
 }
 
+// SaveMovingUIPreset atomically writes one moving UI preset under the user data root.
+func SaveMovingUIPreset(dataRoot, handle, filename string, body []byte) error {
+	return saveUserPreset(dataRoot, handle, "movingUI", filename, body)
+}
+
 func saveUserPreset(dataRoot, handle, directoryKey, filename string, body []byte) error {
 	directory, lock, err := lockUserPresetDirectory(dataRoot, handle, directoryKey)
 	if err != nil {

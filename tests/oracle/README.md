@@ -40,6 +40,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-themes.json` captures authenticated theme save/delete responses, JSON formatting, filename coercion and sanitization, Unicode truncation, the legacy save redirect, overwrite/removal state including the missing-file 404, unchanged account data, and a Go-to-Node theme readback through `/api/settings/get`.
 
+`sillytavern-1.19.0-moving-ui.json` captures authenticated moving UI preset saves, JSON formatting, filename coercion and sanitization, Unicode truncation, the legacy save redirect, overwrite state, unchanged account data, and a Go-to-Node readback through `/api/settings/get`.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.

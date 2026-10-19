@@ -384,6 +384,8 @@ unprobed.
 
 The themes oracle covers authenticated save/delete, the 404 for a missing theme, JSON formatting, filename coercion and sanitization, Unicode truncation, overwrite/removal state, the deprecated POST-preserving 308 save redirect, and unchanged account data. It also verifies that pinned Node reads a Go-created theme through /api/settings/get. Reserved names that sanitize to an empty path, malformed body-parser responses, alias subpaths/warnings, symlink or directory targets, and filesystem failures remain unprobed.
 
+The moving UI oracle covers authenticated preset save, JSON formatting, name coercion and sanitization, Unicode truncation, overwrite state, missing/falsy-name responses, the deprecated POST-preserving 308 redirect, and unchanged account data. It verifies that pinned Node reads a Go-written moving UI preset through /api/settings/get. Browser selection and settings-debounce state are outside this API probe. Reserved names that sanitize to an empty path, malformed body-parser responses, alias subpaths/warnings, symlink targets, and filesystem failures remain unprobed.
+
 ---
 
 ## 10. Character/card suite
