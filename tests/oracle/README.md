@@ -58,6 +58,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-image-metadata-folder-update.json` captures authenticated/CSRF-protected folder rename and cover updates, field assignment, ID validation, not-found and malformed-index errors, exact metadata-index bytes and file state, unknown-field retention, and a Go update read back by pinned Node. Express body-parser syntax errors for primitive JSON remain a documented response difference.
 
+`sillytavern-1.19.0-image-metadata-folder-delete.json` captures authenticated/CSRF-protected folder deletion, duplicate folder and assignment IDs, object/array image collections, validation, not-found and malformed-index errors, exact metadata-index bytes and file state, unknown-field retention, and a Go delete read back by pinned Node. The captured OPTIONS response records the current CORS compatibility gap.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.
