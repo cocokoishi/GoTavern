@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned server-main post-setup heartbeat write and timer behavior",
+  "source": "src/server-main.js: postSetupTasks heartbeatInterval branch, immediate write, and unref interval",
+  "inputs": {
+    "heartbeatIntervalSeconds": 0.05
+  },
+  "observations": {
+    "immediate": {
+      "filePresent": true,
+      "keys": [
+        "timestamp"
+      ],
+      "timestampType": "number"
+    },
+    "periodic": {
+      "timestampChanged": true,
+      "keys": [
+        "timestamp"
+      ]
+    },
+    "afterShutdown": {
+      "filePresent": true,
+      "timestampUnchangedAfterExit": true
+    }
+  }
+}

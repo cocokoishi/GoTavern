@@ -81,6 +81,7 @@ type RunningServer struct {
 	httpServers []*http.Server
 	listeners   []net.Listener
 	serveErrors chan error
+	heartbeat   *heartbeatWriter
 }
 
 // Start follows the pre-listener data startup before constructing the HTTP
@@ -187,6 +188,9 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if len(running.listeners) == 0 {
 		return nil, running.listenerStartupError(protocols)
 	}
+	if interval := parsedHeartbeatInterval(parsed.Options.HeartbeatInterval); interval > 0 {
+		running.heartbeat = startHeartbeat(parsed.Paths.RuntimeDataRoot, interval)
+	}
 	return running, nil
 }
 
@@ -228,6 +232,9 @@ func (running *RunningServer) Listeners() []net.Listener {
 
 // Close gracefully stops all listeners. It may be called more than once.
 func (running *RunningServer) Close(ctx context.Context) error {
+	if running.heartbeat != nil {
+		running.heartbeat.stop()
+	}
 	var errs []error
 	for index := len(running.httpServers) - 1; index >= 0; index-- {
 		if err := running.httpServers[index].Shutdown(ctx); err != nil {

@@ -357,6 +357,18 @@ try {
         throw new Error(`host-whitelist oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const heartbeatProbe = path.join(buildRoot, '.gotavern-probe-heartbeat.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-heartbeat.mjs'), heartbeatProbe);
+    const heartbeatFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-heartbeat.json');
+    run(process.execPath, [heartbeatProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstHeartbeatProbe = readFileSync(heartbeatFixturePath);
+    run(process.execPath, [heartbeatProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondHeartbeatProbe = readFileSync(heartbeatFixturePath);
+    if (!firstHeartbeatProbe.equals(secondHeartbeatProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstHeartbeatProbe), JSON.parse(secondHeartbeatProbe));
+        throw new Error(`heartbeat oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const serverProtocolsProbe = path.join(buildRoot, '.gotavern-probe-server-protocols.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-server-protocols.mjs'), serverProtocolsProbe);
     const serverProtocolsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-server-protocols.json');

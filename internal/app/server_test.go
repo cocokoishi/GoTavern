@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -53,6 +54,31 @@ type hostWhitelistHTTPFixture struct {
 		Bytes       int               `json:"bytes"`
 		SHA256      string            `json:"sha256"`
 		Body        string            `json:"body"`
+	} `json:"observations"`
+}
+
+type heartbeatFixture struct {
+	Baseline struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+	} `json:"baseline"`
+	Inputs struct {
+		IntervalSeconds float64 `json:"heartbeatIntervalSeconds"`
+	} `json:"inputs"`
+	Observations struct {
+		Immediate struct {
+			FilePresent bool     `json:"filePresent"`
+			Keys        []string `json:"keys"`
+			Timestamp   string   `json:"timestampType"`
+		} `json:"immediate"`
+		Periodic struct {
+			TimestampChanged bool     `json:"timestampChanged"`
+			Keys             []string `json:"keys"`
+		} `json:"periodic"`
+		AfterShutdown struct {
+			FilePresent             bool `json:"filePresent"`
+			TimestampUnchangedAfter bool `json:"timestampUnchangedAfterExit"`
+		} `json:"afterShutdown"`
 	} `json:"observations"`
 }
 
@@ -298,6 +324,99 @@ func TestStartHostWhitelistMatchesPinnedNodeHTTPResponses(t *testing.T) {
 	t.Run("customErrorPageReadPerRequest", func(t *testing.T) {
 		assertHostWhitelistResponse(t, client, address, expected.Host, expected)
 	})
+}
+
+func TestStartHeartbeatMatchesPinnedNodeLifecycle(t *testing.T) {
+	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-heartbeat.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture heartbeatFixture
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
+		t.Fatalf("heartbeat oracle baseline = %+v", fixture.Baseline)
+	}
+
+	installRoot := t.TempDir()
+	port := availableIPv4Port(t)
+	running, err := Start(StartOptions{
+		Args: []string{
+			"--enableIPv4", "true", "--enableIPv6", "false", "--listen", "false",
+			"--port", strconv.Itoa(port), "--heartbeatInterval", strconv.FormatFloat(fixture.Inputs.IntervalSeconds, 'f', -1, 64),
+			"--browserLaunchEnabled", "false",
+		},
+		WorkingDirectory:         installRoot,
+		InstallRoot:              installRoot,
+		Now:                      time.UnixMilli(1735689600000),
+		WaitBeforeLegacyDataMove: func(time.Duration) {},
+		InterfaceAddresses:       []net.Addr{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := running.Close(ctx); err != nil {
+			t.Errorf("close GoTavern server: %v", err)
+		}
+	})
+
+	heartbeatPath := filepath.Join(running.CommandLine.Paths.RuntimeDataRoot, "heartbeat.json")
+	firstTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.Immediate.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
+	interval := time.Duration(fixture.Inputs.IntervalSeconds * float64(time.Second))
+	time.Sleep(interval * 4)
+	updatedTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.Immediate.FilePresent, fixture.Observations.Periodic.Keys, fixture.Observations.Immediate.Timestamp)
+	if !fixture.Observations.Periodic.TimestampChanged || updatedTimestamp <= firstTimestamp {
+		t.Fatalf("heartbeat timestamp changed from %d to %d; pinned Node changed=%t", firstTimestamp, updatedTimestamp, fixture.Observations.Periodic.TimestampChanged)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := running.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(interval * 3)
+	stoppedTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.AfterShutdown.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
+	if !fixture.Observations.AfterShutdown.TimestampUnchangedAfter || stoppedTimestamp != updatedTimestamp {
+		t.Fatalf("heartbeat timestamp after shutdown = %d; before shutdown = %d; pinned Node unchanged=%t", stoppedTimestamp, updatedTimestamp, fixture.Observations.AfterShutdown.TimestampUnchangedAfter)
+	}
+}
+
+func readHeartbeatTimestamp(t *testing.T, heartbeatPath string, filePresent bool, expectedKeys []string, timestampType string) int64 {
+	t.Helper()
+	body, err := os.ReadFile(heartbeatPath)
+	if err != nil {
+		if filePresent {
+			t.Fatalf("read heartbeat file: %v", err)
+		}
+		return 0
+	}
+	if !filePresent {
+		t.Fatal("heartbeat file exists; pinned Node does not write it for this setting")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &fields); err != nil {
+		t.Fatalf("decode heartbeat JSON %q: %v", body, err)
+	}
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	if !reflect.DeepEqual(keys, expectedKeys) {
+		t.Fatalf("heartbeat JSON keys = %#v; pinned Node has %#v", keys, expectedKeys)
+	}
+	var timestamp int64
+	if err := json.Unmarshal(fields["timestamp"], &timestamp); err != nil {
+		t.Fatalf("decode heartbeat timestamp %q: %v", fields["timestamp"], err)
+	}
+	if timestampType != "number" || timestamp <= 0 {
+		t.Fatalf("heartbeat timestamp = %d; pinned Node type is %q", timestamp, timestampType)
+	}
+	return timestamp
 }
 
 func assertHostWhitelistResponse(t *testing.T, client *http.Client, address, host string, expected struct {
