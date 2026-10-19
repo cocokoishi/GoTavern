@@ -1,0 +1,790 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned users.js migrateUserData filesystem behavior after ensurePublicDirectoriesExist",
+  "scenarios": {
+    "noLegacyCharacters": {
+      "inputs": {},
+      "tree": [
+        {
+          "path": "backups",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/KoboldAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/NovelAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/OpenAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/QuickReplies",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/TextGen Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/User Avatars",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/assets",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/backgrounds",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/backups",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/characters",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/chats",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/context",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/extensions",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/group chats",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/groups",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/instruct",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/movingUI",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/reasoning",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/themes",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/avatar",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/bg",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/persona",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/files",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/images",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/workflows",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/vectors",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/worlds",
+          "type": "directory"
+        },
+        {
+          "path": "public",
+          "type": "directory"
+        },
+        {
+          "path": "public/img",
+          "type": "directory"
+        },
+        {
+          "path": "public/scripts",
+          "type": "directory"
+        },
+        {
+          "path": "public/scripts/extensions",
+          "type": "directory"
+        },
+        {
+          "path": "public/scripts/extensions/third-party",
+          "type": "directory"
+        },
+        {
+          "path": "public/sounds",
+          "type": "directory"
+        }
+      ]
+    },
+    "legacy": {
+      "inputs": {
+        "public/assets/source.json": "{\"source\":\"assets\"}",
+        "public/backgrounds/bg.png": "background bytes",
+        "public/characters/Alice/Alice.png": "character bytes",
+        "public/characters/Alice/metadata.json": "{\"name\":\"Alice\"}",
+        "public/chats/Alice/2024.jsonl": "{\"mes\":\"chat\"}\n",
+        "public/context/context.json": "{\"context\":true}",
+        "public/group chats/Alice/2024.jsonl": "{\"group\":\"chat\"}\n",
+        "public/groups/groups.json": "[{\"id\":\"group\"}]",
+        "public/instruct/instruct.json": "{\"name\":\"legacy instruct\"}",
+        "public/KoboldAI Settings/preset.json": "{\"kobold\":1}",
+        "public/movingUI/moving-ui.json": "{\"moving\":true}",
+        "public/NovelAI Settings/preset.json": "{\"novel\":1}",
+        "public/OpenAI Settings/preset.json": "{\"openai\":1}",
+        "public/QuickReplies/QuickReplies.json": "{\"quick\":true}",
+        "public/TextGen Settings/preset.json": "{\"textgen\":1}",
+        "public/themes/theme.json": "{\"theme\":\"legacy\"}",
+        "public/user/images/persona.png": "persona image bytes",
+        "public/User Avatars/avatar.png": "avatar bytes",
+        "public/worlds/world.json": "{\"world\":\"legacy\"}",
+        "public/scripts/extensions/third-party/canary/index.js": "globalThis.canary = true;",
+        "thumbnails/legacy.png": "thumbnail bytes",
+        "vectors/legacy.json": "{\"vector\":[1,2,3]}",
+        "secrets.json": "{\"api_key\":\"legacy\"}",
+        "public/settings.json": "{\"setting\":\"legacy\"}",
+        "public/stats.json": "{\"stats\":{\"messages\":3}}",
+        "data/default-user/assets/source.json": "{\"source\":\"old destination\"}",
+        "data/default-user/assets/stale.json": "{\"retain\":true}",
+        "data/default-user/settings.json": "{\"setting\":\"old destination\"}",
+        "backups/_migration/__UTC_DATE__/assets/stale-backup.json": "{\"retainBackup\":true}"
+      },
+      "tree": [
+        {
+          "path": "backups",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/KoboldAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/KoboldAI Settings/preset.json",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "506e4805f6b5374fc4657bf3b2ad9a2bc92059ef920f4a68025d58f1a17fa0e6"
+        },
+        {
+          "path": "backups/_migration/<date>/NovelAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/NovelAI Settings/preset.json",
+          "type": "file",
+          "bytes": 11,
+          "sha256": "b0699606bc149e68eefa3611e10f8831df4cba0da3b702597c43b72967bf58ce"
+        },
+        {
+          "path": "backups/_migration/<date>/OpenAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/OpenAI Settings/preset.json",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "ac9dbd32defce1ac975b9f226f397b676737f2d07a6fc14cd51c4663147d1bf7"
+        },
+        {
+          "path": "backups/_migration/<date>/QuickReplies",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/QuickReplies/QuickReplies.json",
+          "type": "file",
+          "bytes": 14,
+          "sha256": "07570d5aad31079d6ac4ff835dcf660086aaa3bc4f5a0b553222c1871968120a"
+        },
+        {
+          "path": "backups/_migration/<date>/TextGen Settings",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/TextGen Settings/preset.json",
+          "type": "file",
+          "bytes": 13,
+          "sha256": "0235085787655688956c83580e6fc8679504d53924cca6a985f38419215eb473"
+        },
+        {
+          "path": "backups/_migration/<date>/User Avatars",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/User Avatars/avatar.png",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "567d863a804999d8a5b601b68553aa0ef28741f9b363623db395759b54e9cfdc"
+        },
+        {
+          "path": "backups/_migration/<date>/assets",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/assets/source.json",
+          "type": "file",
+          "bytes": 19,
+          "sha256": "176453806800fc21f3865a5a339b2d50b71d7a13166b7c9158af3fd1fac88525"
+        },
+        {
+          "path": "backups/_migration/<date>/assets/stale-backup.json",
+          "type": "file",
+          "bytes": 21,
+          "sha256": "12fd72e73d41d721a1a00fd775f12253a3ade22989af75c8a03f5bff5555fb1f"
+        },
+        {
+          "path": "backups/_migration/<date>/backgrounds",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/backgrounds/bg.png",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "45321930f75c3b362d4717bb4202575ce043285e70f509269c7ae68b61109e05"
+        },
+        {
+          "path": "backups/_migration/<date>/characters",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/characters/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/characters/Alice/Alice.png",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "bc71460f816df55b1a4423440093894533cf2cc1c64845d84d33cb94e9d6860c"
+        },
+        {
+          "path": "backups/_migration/<date>/characters/Alice/metadata.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "3cba1e3cf23c8ce24b7e08171d823fbd9a4929aafd9f27516e30699d3a42026a"
+        },
+        {
+          "path": "backups/_migration/<date>/chats",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/chats/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/chats/Alice/2024.jsonl",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "8695ba1585b02733955f12a11683040588eb54bd14591cdd54a57e7b3b4668b0"
+        },
+        {
+          "path": "backups/_migration/<date>/context",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/context/context.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "46f31b9b807981250af1499c5baa17ff03de3f160478ad0b2e772a67e44c461d"
+        },
+        {
+          "path": "backups/_migration/<date>/group chats",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/group chats/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/group chats/Alice/2024.jsonl",
+          "type": "file",
+          "bytes": 17,
+          "sha256": "6f928f0b2d970592a1d4706b1ef9590a244fdf98b4b5b926d1c6ea80a6faf6f4"
+        },
+        {
+          "path": "backups/_migration/<date>/groups",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/groups/groups.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "8ace706d3183a672da8f191fe6e7da28761e513d88ac4ae924604ea16d2b7d97"
+        },
+        {
+          "path": "backups/_migration/<date>/instruct",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/instruct/instruct.json",
+          "type": "file",
+          "bytes": 26,
+          "sha256": "f90e2be03796b10b7b6c96f0e3884bec80c337be0c650553bfaab866e9fcd35a"
+        },
+        {
+          "path": "backups/_migration/<date>/movingUI",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/movingUI/moving-ui.json",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "5ec08fa26c67439ca910a9e250cd7e875571d8c399c95cbd66a93a66fa098e39"
+        },
+        {
+          "path": "backups/_migration/<date>/secrets.json",
+          "type": "file",
+          "bytes": 20,
+          "sha256": "b59f26454b2ccd011d3f39d337d19b5010f03347baf79cbabfbb84619a58fc7f"
+        },
+        {
+          "path": "backups/_migration/<date>/settings.json",
+          "type": "file",
+          "bytes": 20,
+          "sha256": "6c0e8ae2fdebd3c25aa481584be50739bef1583d9912bf44e3672eaf09e9762a"
+        },
+        {
+          "path": "backups/_migration/<date>/stats.json",
+          "type": "file",
+          "bytes": 24,
+          "sha256": "8b563a4d8b6baa50a1afc9a10c23917ce7adb2d6a078fba793c4d7dd5b3ca421"
+        },
+        {
+          "path": "backups/_migration/<date>/themes",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/themes/theme.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "c1b0183b1789b259c551a5b9f13f6fa4033724b58c486be40910da3fca863646"
+        },
+        {
+          "path": "backups/_migration/<date>/third-party",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/third-party/canary",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/third-party/canary/index.js",
+          "type": "file",
+          "bytes": 25,
+          "sha256": "d8c5fab5becfe118bbf3e0a6e8a524eabc08cd67080cc2088ba18efb1c573444"
+        },
+        {
+          "path": "backups/_migration/<date>/thumbnails",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/thumbnails/legacy.png",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "a16b688dbc3288e0902299c13c944a5f05fc3038c960a86ccf7f33502c903091"
+        },
+        {
+          "path": "backups/_migration/<date>/user",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/user/images",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/user/images/persona.png",
+          "type": "file",
+          "bytes": 19,
+          "sha256": "11592f047183d39719968b39bd7b2bc13764666e6a80851e150a2acb6644c4f3"
+        },
+        {
+          "path": "backups/_migration/<date>/vectors",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/vectors/legacy.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "9f297b4d622d6dc71a49a565f2e190f167c17878e6b5941770d0060ef4cb2f09"
+        },
+        {
+          "path": "backups/_migration/<date>/worlds",
+          "type": "directory"
+        },
+        {
+          "path": "backups/_migration/<date>/worlds/world.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "6dbc5b6dae9710ef1b5aebfd83b6c5847b9e189ca311fc03cc4dacfdee874998"
+        },
+        {
+          "path": "data/default-user",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/KoboldAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/KoboldAI Settings/preset.json",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "506e4805f6b5374fc4657bf3b2ad9a2bc92059ef920f4a68025d58f1a17fa0e6"
+        },
+        {
+          "path": "data/default-user/NovelAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/NovelAI Settings/preset.json",
+          "type": "file",
+          "bytes": 11,
+          "sha256": "b0699606bc149e68eefa3611e10f8831df4cba0da3b702597c43b72967bf58ce"
+        },
+        {
+          "path": "data/default-user/OpenAI Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/OpenAI Settings/preset.json",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "ac9dbd32defce1ac975b9f226f397b676737f2d07a6fc14cd51c4663147d1bf7"
+        },
+        {
+          "path": "data/default-user/QuickReplies",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/QuickReplies/QuickReplies.json",
+          "type": "file",
+          "bytes": 14,
+          "sha256": "07570d5aad31079d6ac4ff835dcf660086aaa3bc4f5a0b553222c1871968120a"
+        },
+        {
+          "path": "data/default-user/TextGen Settings",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/TextGen Settings/preset.json",
+          "type": "file",
+          "bytes": 13,
+          "sha256": "0235085787655688956c83580e6fc8679504d53924cca6a985f38419215eb473"
+        },
+        {
+          "path": "data/default-user/User Avatars",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/User Avatars/avatar.png",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "567d863a804999d8a5b601b68553aa0ef28741f9b363623db395759b54e9cfdc"
+        },
+        {
+          "path": "data/default-user/assets",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/assets/source.json",
+          "type": "file",
+          "bytes": 19,
+          "sha256": "176453806800fc21f3865a5a339b2d50b71d7a13166b7c9158af3fd1fac88525"
+        },
+        {
+          "path": "data/default-user/assets/stale.json",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "4fbffccacada8aeb748dbd59a194b5c5e0403a5355d252ac9bb29cc31d5764a7"
+        },
+        {
+          "path": "data/default-user/backgrounds",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/backgrounds/bg.png",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "45321930f75c3b362d4717bb4202575ce043285e70f509269c7ae68b61109e05"
+        },
+        {
+          "path": "data/default-user/backups",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/characters",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/characters/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/characters/Alice/Alice.png",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "bc71460f816df55b1a4423440093894533cf2cc1c64845d84d33cb94e9d6860c"
+        },
+        {
+          "path": "data/default-user/characters/Alice/metadata.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "3cba1e3cf23c8ce24b7e08171d823fbd9a4929aafd9f27516e30699d3a42026a"
+        },
+        {
+          "path": "data/default-user/chats",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/chats/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/chats/Alice/2024.jsonl",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "8695ba1585b02733955f12a11683040588eb54bd14591cdd54a57e7b3b4668b0"
+        },
+        {
+          "path": "data/default-user/context",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/context/context.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "46f31b9b807981250af1499c5baa17ff03de3f160478ad0b2e772a67e44c461d"
+        },
+        {
+          "path": "data/default-user/extensions",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/extensions/canary",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/extensions/canary/index.js",
+          "type": "file",
+          "bytes": 25,
+          "sha256": "d8c5fab5becfe118bbf3e0a6e8a524eabc08cd67080cc2088ba18efb1c573444"
+        },
+        {
+          "path": "data/default-user/group chats",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/group chats/Alice",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/group chats/Alice/2024.jsonl",
+          "type": "file",
+          "bytes": 17,
+          "sha256": "6f928f0b2d970592a1d4706b1ef9590a244fdf98b4b5b926d1c6ea80a6faf6f4"
+        },
+        {
+          "path": "data/default-user/groups",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/groups/groups.json",
+          "type": "file",
+          "bytes": 16,
+          "sha256": "8ace706d3183a672da8f191fe6e7da28761e513d88ac4ae924604ea16d2b7d97"
+        },
+        {
+          "path": "data/default-user/instruct",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/instruct/instruct.json",
+          "type": "file",
+          "bytes": 26,
+          "sha256": "f90e2be03796b10b7b6c96f0e3884bec80c337be0c650553bfaab866e9fcd35a"
+        },
+        {
+          "path": "data/default-user/movingUI",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/movingUI/moving-ui.json",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "5ec08fa26c67439ca910a9e250cd7e875571d8c399c95cbd66a93a66fa098e39"
+        },
+        {
+          "path": "data/default-user/reasoning",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/secrets.json",
+          "type": "file",
+          "bytes": 20,
+          "sha256": "b59f26454b2ccd011d3f39d337d19b5010f03347baf79cbabfbb84619a58fc7f"
+        },
+        {
+          "path": "data/default-user/settings.json",
+          "type": "file",
+          "bytes": 20,
+          "sha256": "6c0e8ae2fdebd3c25aa481584be50739bef1583d9912bf44e3672eaf09e9762a"
+        },
+        {
+          "path": "data/default-user/stats.json",
+          "type": "file",
+          "bytes": 24,
+          "sha256": "8b563a4d8b6baa50a1afc9a10c23917ce7adb2d6a078fba793c4d7dd5b3ca421"
+        },
+        {
+          "path": "data/default-user/sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/themes",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/themes/theme.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "c1b0183b1789b259c551a5b9f13f6fa4033724b58c486be40910da3fca863646"
+        },
+        {
+          "path": "data/default-user/thumbnails",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/avatar",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/bg",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/thumbnails/legacy.png",
+          "type": "file",
+          "bytes": 15,
+          "sha256": "a16b688dbc3288e0902299c13c944a5f05fc3038c960a86ccf7f33502c903091"
+        },
+        {
+          "path": "data/default-user/thumbnails/persona",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/files",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/images",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/user/images/persona.png",
+          "type": "file",
+          "bytes": 19,
+          "sha256": "11592f047183d39719968b39bd7b2bc13764666e6a80851e150a2acb6644c4f3"
+        },
+        {
+          "path": "data/default-user/user/workflows",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/vectors",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/vectors/legacy.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "9f297b4d622d6dc71a49a565f2e190f167c17878e6b5941770d0060ef4cb2f09"
+        },
+        {
+          "path": "data/default-user/worlds",
+          "type": "directory"
+        },
+        {
+          "path": "data/default-user/worlds/world.json",
+          "type": "file",
+          "bytes": 18,
+          "sha256": "6dbc5b6dae9710ef1b5aebfd83b6c5847b9e189ca311fc03cc4dacfdee874998"
+        },
+        {
+          "path": "public",
+          "type": "directory"
+        },
+        {
+          "path": "public/img",
+          "type": "directory"
+        },
+        {
+          "path": "public/scripts",
+          "type": "directory"
+        },
+        {
+          "path": "public/scripts/extensions",
+          "type": "directory"
+        },
+        {
+          "path": "public/sounds",
+          "type": "directory"
+        }
+      ]
+    }
+  }
+}

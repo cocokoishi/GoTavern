@@ -53,7 +53,7 @@ At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<
 | `DATA_ROOT/_errors/` | User error-page overrides; `url-not-found.html` also supplies the final 404 body. |
 | `DATA_ROOT/_css/user.css` | User CSS override migrated from `public/css/user.css` when absent. |
 | `DATA_ROOT/heartbeat.json` | Written immediately and periodically when heartbeat is enabled. |
-| `serverDirectory/backups/` | Default-content, migration, and other upstream backup paths; not all backup paths are under `DATA_ROOT`. |
+| `serverDirectory/backups/` | Default-content and legacy user-data migration backups under `_migration/<date>`; other upstream backup paths also live here, outside `DATA_ROOT`. |
 | `serverDirectory/public/scripts/extensions/third-party/` | Global frontend extension overlay, separate from per-user `DATA_ROOT/<handle>/extensions/`. |
 
 Global public directories are declared in `src/constants.js`: `public/img/`, `backups/`, `public/sounds`, `public/scripts/extensions`, and `public/scripts/extensions/third-party`.
@@ -64,8 +64,8 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, and legacy instruct system-prompt migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, and legacy instruct system-prompt migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
-- Content-log skip/force/update cases, settings aggregation, cache files, backup policy, migration behavior, and unknown-field preservation.
+- Content-log skip/force/update cases, settings aggregation, cache files, backup policy, remaining migration behavior, and unknown-field preservation.
 - Node-written → Go-read/write → Node-read round trips for every persistent mutation family.

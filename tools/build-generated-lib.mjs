@@ -138,6 +138,18 @@ try {
         throw new Error(`system-prompt migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const userDataMigrationProbe = path.join(buildRoot, '.gotavern-probe-user-data-migration.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-user-data-migration.mjs'), userDataMigrationProbe);
+    const userDataMigrationFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-user-data-migration.json');
+    run(process.execPath, [userDataMigrationProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstUserDataMigrationProbe = readFileSync(userDataMigrationFixturePath);
+    run(process.execPath, [userDataMigrationProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondUserDataMigrationProbe = readFileSync(userDataMigrationFixturePath);
+    if (!firstUserDataMigrationProbe.equals(secondUserDataMigrationProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstUserDataMigrationProbe), JSON.parse(secondUserDataMigrationProbe));
+        throw new Error(`user-data migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);
