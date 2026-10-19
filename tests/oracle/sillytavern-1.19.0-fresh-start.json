@@ -34,6 +34,17 @@
       {
         "method": "HEAD",
         "path": "/__gotavern_missing_route__"
+      },
+      {
+        "method": "GET",
+        "path": "/callback/openrouter?code=a%2Fb&state=probe+state"
+      },
+      {
+        "method": "GET",
+        "path": "/callback/openrouter?code=a%2Fb&state=probe+state",
+        "headers": {
+          "Accept": "text/html"
+        }
       }
     ],
     "responses": {
@@ -62,17 +73,103 @@
         "sha256": "2d5fb1eedcbefe7062421e8ca54b90a23312f64df8d480c16538714c5157e0bf"
       },
       "/__gotavern_missing_route__": {
+        "headers": {
+          "content-length": "204",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"cc-IW3eAdW59f228dYdZvrbKNSmDcI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
         "status": 404,
         "contentType": "text/html; charset=utf-8",
         "bytes": 204,
         "sha256": "3c9c01243df0eb3beaa4cd0b55c8b1caa30b54fd30348bca1e8452f91a101cbe"
       },
       "HEAD /__gotavern_missing_route__": {
+        "headers": {
+          "content-length": "204",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"cc-IW3eAdW59f228dYdZvrbKNSmDcI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
         "status": 404,
         "contentType": "text/html; charset=utf-8",
         "contentLength": "204",
         "bytes": 0,
         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "GET /callback/openrouter?code=a%2Fb&state=probe+state": {
+        "headers": {
+          "content-length": "99",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "location": "/?source=openrouter&query=code%3Da%252Fb%26state%3Dprobe%2Bstate",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 307,
+        "location": "/?source=openrouter&query=code%3Da%252Fb%26state%3Dprobe%2Bstate",
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "99",
+        "bytes": 99,
+        "sha256": "a91120b9ba55aec1c9b50f231e064a9844966a838d09243ad86c872a9df0dcdc",
+        "body": "Temporary Redirect. Redirecting to /?source=openrouter&query=code%3Da%252Fb%26state%3Dprobe%2Bstate"
+      },
+      "GET /callback/openrouter?code=a%2Fb&state=probe+state (Accept: text/html)": {
+        "headers": {
+          "content-length": "110",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "location": "/?source=openrouter&query=code%3Da%252Fb%26state%3Dprobe%2Bstate",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 307,
+        "location": "/?source=openrouter&query=code%3Da%252Fb%26state%3Dprobe%2Bstate",
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "110",
+        "bytes": 110,
+        "sha256": "54738eb115c07c6bdcda3922c6df4bd41ac10b6217d38925d38d73d734ea41ce",
+        "body": "<p>Temporary Redirect. Redirecting to /?source=openrouter&amp;query=code%3Da%252Fb%26state%3Dprobe%2Bstate</p>"
       }
     }
   },

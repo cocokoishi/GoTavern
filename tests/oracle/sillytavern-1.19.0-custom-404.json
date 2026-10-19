@@ -10,6 +10,23 @@
     "content": "<!doctype html><html><body>Custom 404 from pinned probe.</body></html>\n"
   },
   "response": {
+    "headers": {
+      "content-length": "71",
+      "content-type": "text/html; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"47-9vNFA2ViIxJMkK3/LR5WSyt67b4\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
     "status": 404,
     "contentType": "text/html; charset=utf-8",
     "contentLength": "71",

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -27,22 +28,25 @@ type customNotFoundFixture struct {
 		Content string `json:"content"`
 	} `json:"inputs"`
 	Response struct {
-		Status        int    `json:"status"`
-		ContentType   string `json:"contentType"`
-		ContentLength string `json:"contentLength"`
-		Bytes         int    `json:"bytes"`
-		SHA256        string `json:"sha256"`
-		Body          string `json:"body"`
+		Headers       map[string]string `json:"headers"`
+		Status        int               `json:"status"`
+		ContentType   string            `json:"contentType"`
+		ContentLength string            `json:"contentLength"`
+		Bytes         int               `json:"bytes"`
+		SHA256        string            `json:"sha256"`
+		Body          string            `json:"body"`
 	} `json:"response"`
 }
 
 type nodeResponse struct {
-	Status        int             `json:"status"`
-	ContentType   string          `json:"contentType"`
-	ContentLength string          `json:"contentLength"`
-	Bytes         int             `json:"bytes"`
-	SHA256        string          `json:"sha256"`
-	Body          json.RawMessage `json:"body"`
+	Headers       map[string]string `json:"headers"`
+	Status        int               `json:"status"`
+	Location      string            `json:"location"`
+	ContentType   string            `json:"contentType"`
+	ContentLength string            `json:"contentLength"`
+	Bytes         int               `json:"bytes"`
+	SHA256        string            `json:"sha256"`
+	Body          json.RawMessage   `json:"body"`
 }
 
 func readFreshStartFixture(t *testing.T) freshStartFixture {
@@ -58,6 +62,20 @@ func readFreshStartFixture(t *testing.T) freshStartFixture {
 	return fixture
 }
 
+func assertPinnedHeaders(t *testing.T, got http.Header, want map[string]string) {
+	t.Helper()
+	normalized := make(map[string]string, len(got))
+	for name, values := range got {
+		if len(values) == 0 {
+			continue
+		}
+		normalized[strings.ToLower(name)] = strings.Join(values, ", ")
+	}
+	if !reflect.DeepEqual(normalized, want) {
+		t.Fatalf("headers differ from pinned Node oracle:\n got: %#v\nwant: %#v", normalized, want)
+	}
+}
+
 func TestPinnedNodeHTTPOracle(t *testing.T) {
 	fixture := readFreshStartFixture(t)
 	handler := NewHTTPHandler()
@@ -71,6 +89,9 @@ func TestPinnedNodeHTTPOracle(t *testing.T) {
 			expected := fixture.HTTP.Responses[requestPath]
 			if response.Code != expected.Status {
 				t.Fatalf("status: got %d, Node oracle has %d", response.Code, expected.Status)
+			}
+			if expected.Headers != nil {
+				assertPinnedHeaders(t, response.Header(), expected.Headers)
 			}
 			if contentType := response.Header().Get("Content-Type"); contentType != expected.ContentType {
 				t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, expected.ContentType)
@@ -141,6 +162,7 @@ func TestPinnedNodeHTTPOracleHeadNotFoundResponse(t *testing.T) {
 	if response.Code != expected.Status {
 		t.Fatalf("status: got %d, Node oracle has %d", response.Code, expected.Status)
 	}
+	assertPinnedHeaders(t, response.Header(), expected.Headers)
 	if contentType := response.Header().Get("Content-Type"); contentType != expected.ContentType {
 		t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, expected.ContentType)
 	}
@@ -189,6 +211,7 @@ func TestPinnedNodeHTTPOracleCustomDataRootNotFoundPage(t *testing.T) {
 	if response.Code != fixture.Response.Status {
 		t.Fatalf("status: got %d, Node oracle has %d", response.Code, fixture.Response.Status)
 	}
+	assertPinnedHeaders(t, response.Header(), fixture.Response.Headers)
 	if contentType := response.Header().Get("Content-Type"); contentType != fixture.Response.ContentType {
 		t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, fixture.Response.ContentType)
 	}
@@ -202,5 +225,63 @@ func TestPinnedNodeHTTPOracleCustomDataRootNotFoundPage(t *testing.T) {
 	digest := sha256.Sum256(body)
 	if got := hex.EncodeToString(digest[:]); got != fixture.Response.SHA256 {
 		t.Fatalf("body SHA-256: got %s, Node oracle has %s", got, fixture.Response.SHA256)
+	}
+}
+
+func TestPinnedNodeCallbackRedirectMatchesPinnedServer(t *testing.T) {
+	fixture := readFreshStartFixture(t)
+	requestPath := "/callback/openrouter?code=a%2Fb&state=probe+state"
+	observations := []struct {
+		name       string
+		accept     string
+		fixtureKey string
+	}{
+		{
+			name:       "default accept",
+			fixtureKey: "GET " + requestPath,
+		},
+		{
+			name:       "html accept",
+			accept:     "text/html",
+			fixtureKey: "GET " + requestPath + " (Accept: text/html)",
+		},
+	}
+
+	for _, observation := range observations {
+		t.Run(observation.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, requestPath, nil)
+			if observation.accept != "" {
+				request.Header.Set("Accept", observation.accept)
+			}
+			response := httptest.NewRecorder()
+			NewHTTPHandler().ServeHTTP(response, request)
+
+			expected := fixture.HTTP.Responses[observation.fixtureKey]
+			if response.Code != expected.Status {
+				t.Fatalf("status: got %d, Node oracle has %d", response.Code, expected.Status)
+			}
+			assertPinnedHeaders(t, response.Header(), expected.Headers)
+			if location := response.Header().Get("Location"); location != expected.Location {
+				t.Fatalf("Location: got %q, Node oracle has %q", location, expected.Location)
+			}
+			if contentType := response.Header().Get("Content-Type"); contentType != expected.ContentType {
+				t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, expected.ContentType)
+			}
+			if contentLength := response.Header().Get("Content-Length"); contentLength != expected.ContentLength {
+				t.Fatalf("Content-Length: got %q, Node oracle has %q", contentLength, expected.ContentLength)
+			}
+			var expectedBody string
+			if err := json.Unmarshal(expected.Body, &expectedBody); err != nil {
+				t.Fatal(err)
+			}
+			body := response.Body.Bytes()
+			if len(body) != expected.Bytes || string(body) != expectedBody {
+				t.Fatalf("redirect body = %q (%d bytes), pinned Node has %q (%d bytes)", body, len(body), expectedBody, expected.Bytes)
+			}
+			digest := sha256.Sum256(body)
+			if got := hex.EncodeToString(digest[:]); got != expected.SHA256 {
+				t.Fatalf("body SHA-256: got %s, Node oracle has %s", got, expected.SHA256)
+			}
+		})
 	}
 }

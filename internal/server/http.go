@@ -4,13 +4,18 @@
 package server
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/cocokoishi/gotavern/upstream"
@@ -32,9 +37,9 @@ type versionResponse struct {
 	IsLatest    bool   `json:"isLatest"`
 }
 
-// NewHTTPHandler serves the pinned frontend and version response captured in
-// the fresh-start Node oracle. Startup, authentication, and API routes are not
-// part of this handler yet.
+// NewHTTPHandler serves the pinned frontend, callback redirect, version
+// response, and seeded 404 page captured in the fresh-start Node oracle.
+// Authentication and the remaining API routes are not part of this handler.
 func NewHTTPHandler() http.Handler {
 	page, err := upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
 	if err != nil {
@@ -56,10 +61,107 @@ func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
 func newHTTPHandler(notFoundPage []byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
+	mux.HandleFunc("GET /callback", func(w http.ResponseWriter, r *http.Request) {
+		serveCallback(w, r, notFoundPage)
+	})
+	mux.HandleFunc("GET /callback/", func(w http.ResponseWriter, r *http.Request) {
+		serveCallback(w, r, notFoundPage)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage)
 	})
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setPinnedSecurityHeaders(w.Header())
+		mux.ServeHTTP(w, r)
+	})
+}
+
+func setPinnedSecurityHeaders(header http.Header) {
+	header.Set("Cross-Origin-Opener-Policy", "same-origin")
+	header.Set("Cross-Origin-Resource-Policy", "same-origin")
+	header.Set("Origin-Agent-Cluster", "?1")
+	header.Set("Referrer-Policy", "no-referrer")
+	header.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("X-DNS-Prefetch-Control", "off")
+	header.Set("X-Download-Options", "noopen")
+	header.Set("X-Frame-Options", "SAMEORIGIN")
+	header.Set("X-Permitted-Cross-Domain-Policies", "none")
+	header.Set("X-XSS-Protection", "0")
+	header.Set("Vary", "Origin, Accept-Encoding")
+}
+
+func serveCallback(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
+	escapedPath := r.URL.EscapedPath()
+	var source string
+	switch {
+	case escapedPath == "/callback" || escapedPath == "/callback/":
+	case strings.HasPrefix(escapedPath, "/callback/"):
+		rawSource := strings.TrimPrefix(escapedPath, "/callback/")
+		if rawSource == "" || strings.Contains(rawSource, "/") {
+			serveNotFound(w, r, notFoundPage)
+			return
+		}
+		decoded, err := url.PathUnescape(rawSource)
+		if err != nil {
+			serveNotFound(w, r, notFoundPage)
+			return
+		}
+		source = decoded
+	default:
+		serveNotFound(w, r, notFoundPage)
+		return
+	}
+
+	params := make([]string, 0, 2)
+	if source != "" {
+		params = append(params, "source="+urlSearchParamEscape(source))
+	}
+	if r.URL.RawQuery != "" {
+		params = append(params, "query="+urlSearchParamEscape(r.URL.RawQuery))
+	}
+	location := "/?" + strings.Join(params, "&")
+	message := "Temporary Redirect. Redirecting to " + location
+	contentType := "text/plain; charset=utf-8"
+	body := message
+	if acceptsHTMLRedirect(r.Header.Get("Accept")) {
+		contentType = "text/html; charset=utf-8"
+		body = "<p>" + html.EscapeString(message) + "</p>"
+	}
+	w.Header().Set("Location", location)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+	w.Header().Set("Vary", "Origin, Accept, Accept-Encoding")
+	w.WriteHeader(http.StatusTemporaryRedirect)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write([]byte(body))
+	}
+}
+
+func urlSearchParamEscape(value string) string {
+	encoded := url.QueryEscape(value)
+	encoded = strings.ReplaceAll(encoded, "~", "%7E")
+	return strings.ReplaceAll(encoded, "%2A", "*")
+}
+
+func acceptsHTMLRedirect(accept string) bool {
+	for _, mediaRange := range strings.Split(accept, ",") {
+		mediaType, parameters, err := mime.ParseMediaType(strings.TrimSpace(mediaRange))
+		if err != nil || mediaType != "text/html" {
+			continue
+		}
+		quality := 1.0
+		if value, ok := parameters["q"]; ok {
+			parsed, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				quality = 0
+			} else {
+				quality = parsed
+			}
+		}
+		return quality > 0
+	}
+	return false
 }
 
 func serveVersion(w http.ResponseWriter, r *http.Request) {
@@ -118,10 +220,17 @@ func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
 func serveNotFound(w http.ResponseWriter, r *http.Request, page []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(page)))
+	w.Header().Set("ETag", expressWeakETag(page))
 	w.WriteHeader(http.StatusNotFound)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(page)
 	}
+}
+
+func expressWeakETag(body []byte) string {
+	digest := sha1.Sum(body)
+	encoded := base64.StdEncoding.EncodeToString(digest[:])
+	return fmt.Sprintf("W/\"%x-%s\"", len(body), encoded[:27])
 }
 
 func fsPathIsValid(p string) bool {

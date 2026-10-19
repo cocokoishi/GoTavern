@@ -218,6 +218,7 @@ function generateRoutes() {
         '## Non-router HTTP surface',
         '',
         '- `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.',
+        '- Public `GET /callback/:source?` redirect status, target, stable headers, and text/HTML bodies match pinned observations for encoded OAuth query values; the per-request timing header is normalized out and other route-level middleware remains outside that probe.',
         '- Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.',
         '- The final 404 handler matches the seeded fresh-install page and a preexisting custom data-root `url-not-found.html` for GET; full middleware ordering remains unimplemented.',
         '- `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.',

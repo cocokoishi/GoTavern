@@ -36,6 +36,12 @@ function sha256(bytes) {
     return createHash('sha256').update(bytes).digest('hex');
 }
 
+function stableHeaders(response) {
+    return Object.fromEntries([...response.headers.entries()]
+        .filter(([name]) => !['connection', 'date', 'keep-alive', 'x-response-time'].includes(name))
+        .sort(([left], [right]) => left.localeCompare(right)));
+}
+
 function safeCleanup() {
     const resolved = path.resolve(runtimeRoot);
     const parent = path.resolve(os.tmpdir());
@@ -144,8 +150,8 @@ async function stopServer() {
     if (child.exitCode === null) child.kill();
 }
 
-async function getResponse(url, method = 'GET') {
-    const response = await fetch(url, { method, redirect: 'manual', signal: AbortSignal.timeout(10000) });
+async function getResponse(url, method = 'GET', headers = {}) {
+    const response = await fetch(url, { method, headers, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     const body = new Uint8Array(await response.arrayBuffer());
     return { response, body };
 }
@@ -213,6 +219,9 @@ try {
     const notFoundURL = `${origin}/__gotavern_missing_route__`;
     const notFoundResult = await getResponse(notFoundURL);
     const notFoundHeadResult = await getResponse(notFoundURL, 'HEAD');
+    const callbackPath = '/callback/openrouter?code=a%2Fb&state=probe+state';
+    const callbackResult = await getResponse(`${origin}${callbackPath}`);
+    const callbackHTMLResult = await getResponse(`${origin}${callbackPath}`, 'GET', { Accept: 'text/html' });
 
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
@@ -236,6 +245,8 @@ try {
                 { method: 'GET', path: '/lib.js' },
                 { method: 'GET', path: '/__gotavern_missing_route__' },
                 { method: 'HEAD', path: '/__gotavern_missing_route__' },
+                { method: 'GET', path: callbackPath },
+                { method: 'GET', path: callbackPath, headers: { Accept: 'text/html' } },
             ],
             responses: {
                 '/version': versionObservation,
@@ -252,17 +263,39 @@ try {
                     sha256: libraryHash,
                 },
                 '/__gotavern_missing_route__': {
+                    headers: stableHeaders(notFoundResult.response),
                     status: notFoundResult.response.status,
                     contentType: notFoundResult.response.headers.get('content-type'),
                     bytes: notFoundResult.body.byteLength,
                     sha256: sha256(notFoundResult.body),
                 },
                 'HEAD /__gotavern_missing_route__': {
+                    headers: stableHeaders(notFoundHeadResult.response),
                     status: notFoundHeadResult.response.status,
                     contentType: notFoundHeadResult.response.headers.get('content-type'),
                     contentLength: notFoundHeadResult.response.headers.get('content-length'),
                     bytes: notFoundHeadResult.body.byteLength,
                     sha256: sha256(notFoundHeadResult.body),
+                },
+                [`GET ${callbackPath}`]: {
+                    headers: stableHeaders(callbackResult.response),
+                    status: callbackResult.response.status,
+                    location: callbackResult.response.headers.get('location'),
+                    contentType: callbackResult.response.headers.get('content-type'),
+                    contentLength: callbackResult.response.headers.get('content-length'),
+                    bytes: callbackResult.body.byteLength,
+                    sha256: sha256(callbackResult.body),
+                    body: Buffer.from(callbackResult.body).toString('utf8'),
+                },
+                [`GET ${callbackPath} (Accept: text/html)`]: {
+                    headers: stableHeaders(callbackHTMLResult.response),
+                    status: callbackHTMLResult.response.status,
+                    location: callbackHTMLResult.response.headers.get('location'),
+                    contentType: callbackHTMLResult.response.headers.get('content-type'),
+                    contentLength: callbackHTMLResult.response.headers.get('content-length'),
+                    bytes: callbackHTMLResult.body.byteLength,
+                    sha256: sha256(callbackHTMLResult.body),
+                    body: Buffer.from(callbackHTMLResult.body).toString('utf8'),
                 },
             },
         },
@@ -295,6 +328,7 @@ try {
             source: 'src/users.js: migratePublicOverrides; src/endpoints/content-manager.js: seedContent; src/server-main.js: apply404Middleware',
             inputs: { content: custom404Content },
             response: {
+                headers: stableHeaders(notFoundResult.response),
                 status: notFoundResult.response.status,
                 contentType: notFoundResult.response.headers.get('content-type'),
                 contentLength: notFoundResult.response.headers.get('content-length'),
