@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned account recovery, rate limiter, active session update, and node-persist password mutation",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-account-recovery-probe-secret",
+    "recoveryPoints": 4,
+    "newPassword": "pássword",
+    "unrelatedMalformedRecordPresent": true
+  },
+  "missingStep1": {
+    "status": 400,
+    "headers": {
+      "content-length": "35",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Missing required fields"
+    }
+  },
+  "unknownStep1": {
+    "status": 404,
+    "headers": {
+      "content-length": "26",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "User not found"
+    }
+  },
+  "disabledStep1": {
+    "status": 403,
+    "headers": {
+      "content-length": "28",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1c-VLmqyh049bVOvudSdSeLpqxcWok\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "User is disabled"
+    }
+  },
+  "startedRecovery": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": null,
+    "recoveryCodeDigits": 6
+  },
+  "missingStep2": {
+    "status": 400,
+    "headers": {
+      "content-length": "35",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Missing required fields"
+    }
+  },
+  "unknownStep2": {
+    "status": 404,
+    "headers": {
+      "content-length": "26",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "User not found"
+    }
+  },
+  "disabledStep2": {
+    "status": 403,
+    "headers": {
+      "content-length": "28",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1c-VLmqyh049bVOvudSdSeLpqxcWok\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "User is disabled"
+    }
+  },
+  "wrongCode": {
+    "status": 403,
+    "headers": {
+      "content-length": "26",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1a-wPFVR72rIOPuy0u+HKJLOFlcsyk\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Incorrect code"
+    }
+  },
+  "successfulRecovery": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2,
+    "sessionHandle": "default-user",
+    "sessionVersionMatchesStoredAccount": true,
+    "sessionCSRFTokenBytes": 64
+  },
+  "wrongPasswordLogin": {
+    "status": 403,
+    "headers": {
+      "content-length": "33",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"21-xyaGftUEPjCEvi2J/U9EbrnySMk\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Incorrect credentials"
+    }
+  },
+  "passwordLogin": {
+    "status": 200,
+    "headers": {
+      "content-length": "25",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"19-VTeLbkraYe+CTNuS0jcqgyJyMi0\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "handle": "default-user"
+    }
+  },
+  "startedClearRecovery": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": null,
+    "recoveryCodeDigits": 6
+  },
+  "clearedPasswordRecovery": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": null
+  },
+  "clearUserLogin": {
+    "status": 200,
+    "headers": {
+      "content-length": "23",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"17-QXawJyQA7+l/3NmmOYr8U40Xs1U\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "handle": "clear-user"
+    }
+  },
+  "recoveryReplay": {
+    "status": 403,
+    "headers": {
+      "content-length": "26",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"1a-wPFVR72rIOPuy0u+HKJLOFlcsyk\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Incorrect code"
+    }
+  },
+  "rateLimitedAttempts": [
+    403,
+    403,
+    403,
+    403,
+    429
+  ],
+  "rateLimited": {
+    "status": 429,
+    "headers": {
+      "content-length": "69",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"45-U3zjcqYrQevx5PusvOSMhYxhqGE\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "retry-after": "<positive-seconds>",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Too many attempts. Try again later or contact your admin."
+    }
+  },
+  "persistedUser": {
+    "keys": [
+      "handle",
+      "name",
+      "created",
+      "password",
+      "admin",
+      "enabled",
+      "salt",
+      "unknownField"
+    ],
+    "handle": "default-user",
+    "name": "Recovery User",
+    "created": 1700000000000,
+    "enabled": true,
+    "admin": true,
+    "passwordVerifies": true,
+    "passwordHashBytes": 64,
+    "saltBytes": 16,
+    "unknownField": {
+      "keep": [
+        "recovery",
+        17,
+        true
+      ]
+    },
+    "nodePersistKeys": [
+      "key",
+      "value"
+    ],
+    "ttlPresent": false
+  },
+  "persistedClearedUser": {
+    "handle": "clear-user",
+    "passwordCleared": true,
+    "unknownField": {
+      "keep": [
+        "clear",
+        19,
+        true
+      ]
+    },
+    "nodePersistKeys": [
+      "key",
+      "value"
+    ],
+    "ttlPresent": false
+  },
+  "log": {
+    "recoveryCodePrinted": true,
+    "recoveryCodesPrinted": 2,
+    "recoveryCodeDigits": 6
+  }
+}

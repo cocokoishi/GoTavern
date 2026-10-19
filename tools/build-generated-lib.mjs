@@ -159,6 +159,18 @@ try {
         throw new Error(`account session oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountRecoveryProbe = path.join(buildRoot, '.gotavern-probe-account-recovery.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-recovery.mjs'), accountRecoveryProbe);
+    const accountRecoveryFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-recovery.json');
+    run(process.execPath, [accountRecoveryProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountRecoveryProbe = readFileSync(accountRecoveryFixturePath);
+    run(process.execPath, [accountRecoveryProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountRecoveryProbe = readFileSync(accountRecoveryFixturePath);
+    if (!firstAccountRecoveryProbe.equals(secondAccountRecoveryProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountRecoveryProbe), JSON.parse(secondAccountRecoveryProbe));
+        throw new Error(`account recovery oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

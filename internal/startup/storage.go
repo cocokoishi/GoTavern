@@ -159,6 +159,59 @@ func InitializeUserStorage(dataRoot string) ([]string, error) {
 	return handles, nil
 }
 
+// UpdateNodePersistRecord updates one existing node-persist record under the
+// same lock used by user-storage startup. The replacement is atomic so a
+// process interruption cannot leave the record partially encoded.
+func UpdateNodePersistRecord(dataRoot, key string, update func(json.RawMessage) (json.RawMessage, error)) error {
+	if key == "" || update == nil {
+		return errors.New("node-persist record update requires a key and callback")
+	}
+	absoluteRoot, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return fmt.Errorf("resolve data root: %w", err)
+	}
+	storageDir := filepath.Join(absoluteRoot, storageFolder)
+	canonicalDir, err := canonicalPath(storageDir)
+	if err != nil {
+		return fmt.Errorf("resolve user storage directory: %w", err)
+	}
+	lock, err := acquireStorageLock(canonicalDir)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+
+	target := filepath.Join(storageDir, storeFilename(key))
+	body, err := os.ReadFile(target)
+	if err != nil {
+		return fmt.Errorf("read node-persist record %s: %w", key, err)
+	}
+	var record map[string]json.RawMessage
+	if err := json.Unmarshal(body, &record); err != nil || record == nil {
+		return fmt.Errorf("decode node-persist record %s: invalid JSON object", key)
+	}
+	var storedKey string
+	if json.Unmarshal(record["key"], &storedKey) != nil || storedKey != key {
+		return fmt.Errorf("node-persist record filename does not contain key %s", key)
+	}
+	updatedValue, err := update(record["value"])
+	if err != nil {
+		return err
+	}
+	if !json.Valid(updatedValue) {
+		return fmt.Errorf("node-persist record %s update returned invalid JSON", key)
+	}
+	record["value"] = updatedValue
+	updatedRecord, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("encode node-persist record %s: %w", key, err)
+	}
+	if err := atomicReplace(target, updatedRecord); err != nil {
+		return fmt.Errorf("write node-persist record %s: %w", key, err)
+	}
+	return nil
+}
+
 // DirectoriesForUser returns the paths declared by SillyTavern's pinned
 // USER_DIRECTORY_TEMPLATE for one user.
 func DirectoriesForUser(dataRoot, handle string) (UserDirectories, error) {

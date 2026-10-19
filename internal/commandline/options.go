@@ -53,29 +53,30 @@ type OptionWarnings struct {
 // pre-listener startup chain. Generic values retain the upstream getter's
 // output instead of silently coercing malformed or unknown YAML.
 type StartupSettings struct {
-	LegacyCookieSecret       any `json:"legacyCookieSecret"`
-	SessionTimeout           any `json:"sessionTimeout"`
-	EnableUserAccounts       any `json:"enableUserAccounts"`
-	EnableDiscreetLogin      any `json:"enableDiscreetLogin"`
-	SecurityOverride         any `json:"securityOverride"`
-	PerUserBasicAuth         any `json:"perUserBasicAuth"`
-	PreferRealIPHeader       any `json:"preferRealIPHeader"`
-	BasicAuthMaxAttempts     any `json:"basicAuthMaxAttempts"`
-	AccountsLoginMaxAttempts any `json:"accountsLoginMaxAttempts"`
-	ForwardedXRealIP         any `json:"forwardedXRealIP"`
-	ForwardedCFConnectingIP  any `json:"forwardedCFConnectingIP"`
-	ForwardedXForwardedFor   any `json:"forwardedXForwardedFor"`
-	EnableForwardedWhitelist any `json:"enableForwardedWhitelist"`
-	Whitelist                any `json:"whitelist"`
-	WhitelistDockerHosts     any `json:"whitelistDockerHosts"`
-	HostWhitelistEnabled     any `json:"hostWhitelistEnabled"`
-	HostWhitelistScan        any `json:"hostWhitelistScan"`
-	HostWhitelistHosts       any `json:"hostWhitelistHosts"`
-	BasicAuthUsername        any `json:"basicAuthUsername"`
-	BasicAuthPassword        any `json:"basicAuthPassword"`
-	SkipContentCheck         any `json:"skipContentCheck"`
-	UseDiskCache             any `json:"useDiskCache"`
-	SettingsBackupRetention  any `json:"settingsBackupRetention"`
+	LegacyCookieSecret         any `json:"legacyCookieSecret"`
+	SessionTimeout             any `json:"sessionTimeout"`
+	EnableUserAccounts         any `json:"enableUserAccounts"`
+	EnableDiscreetLogin        any `json:"enableDiscreetLogin"`
+	SecurityOverride           any `json:"securityOverride"`
+	PerUserBasicAuth           any `json:"perUserBasicAuth"`
+	PreferRealIPHeader         any `json:"preferRealIPHeader"`
+	BasicAuthMaxAttempts       any `json:"basicAuthMaxAttempts"`
+	AccountsLoginMaxAttempts   any `json:"accountsLoginMaxAttempts"`
+	AccountsRecoverMaxAttempts any `json:"accountsRecoverMaxAttempts"`
+	ForwardedXRealIP           any `json:"forwardedXRealIP"`
+	ForwardedCFConnectingIP    any `json:"forwardedCFConnectingIP"`
+	ForwardedXForwardedFor     any `json:"forwardedXForwardedFor"`
+	EnableForwardedWhitelist   any `json:"enableForwardedWhitelist"`
+	Whitelist                  any `json:"whitelist"`
+	WhitelistDockerHosts       any `json:"whitelistDockerHosts"`
+	HostWhitelistEnabled       any `json:"hostWhitelistEnabled"`
+	HostWhitelistScan          any `json:"hostWhitelistScan"`
+	HostWhitelistHosts         any `json:"hostWhitelistHosts"`
+	BasicAuthUsername          any `json:"basicAuthUsername"`
+	BasicAuthPassword          any `json:"basicAuthPassword"`
+	SkipContentCheck           any `json:"skipContentCheck"`
+	UseDiskCache               any `json:"useDiskCache"`
+	SettingsBackupRetention    any `json:"settingsBackupRetention"`
 }
 
 // CommandLineResult combines the path side effects and option values returned
@@ -201,29 +202,30 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		RequestProxyBypass:          get("requestProxyBypass", "requestProxy.bypass", defaults.RequestProxyBypass, cliArray),
 	}
 	startupSettings := StartupSettings{
-		LegacyCookieSecret:       getConfigValue(config, "cookieSecret", nil, cliString),
-		SessionTimeout:           getConfigValue(config, "sessionTimeout", -1, cliNumber),
-		EnableUserAccounts:       getConfigValue(config, "enableUserAccounts", false, cliBoolean),
-		EnableDiscreetLogin:      getConfigValue(config, "enableDiscreetLogin", false, cliBoolean),
-		SecurityOverride:         getConfigValue(config, "securityOverride", false, cliBoolean),
-		PerUserBasicAuth:         getConfigValue(config, "perUserBasicAuth", false, cliBoolean),
-		PreferRealIPHeader:       getConfigValue(config, "rateLimiting.preferRealIpHeader", false, cliBoolean),
-		BasicAuthMaxAttempts:     getConfigValue(config, "rateLimiting.basicAuthMaxAttempts", 5, cliNumber),
-		AccountsLoginMaxAttempts: getConfigValue(config, "rateLimiting.accountsLoginMaxAttempts", 5, cliNumber),
-		ForwardedXRealIP:         getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
-		ForwardedCFConnectingIP:  getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
-		ForwardedXForwardedFor:   getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),
-		EnableForwardedWhitelist: getConfigValue(config, "enableForwardedWhitelist", false, cliBoolean),
-		Whitelist:                getConfigValue(config, "whitelist", []any{}, cliArray),
-		WhitelistDockerHosts:     getConfigValue(config, "whitelistDockerHosts", true, cliBoolean),
-		HostWhitelistEnabled:     getConfigValue(config, "hostWhitelist.enabled", false, cliBoolean),
-		HostWhitelistScan:        getConfigValue(config, "hostWhitelist.scan", false, cliBoolean),
-		HostWhitelistHosts:       getConfigValue(config, "hostWhitelist.hosts", []any{}, cliArray),
-		BasicAuthUsername:        getConfigValue(config, "basicAuthUser.username", "", cliString),
-		BasicAuthPassword:        getConfigValue(config, "basicAuthUser.password", "", cliString),
-		SkipContentCheck:         getConfigValue(config, "skipContentCheck", false, cliBoolean),
-		UseDiskCache:             getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
-		SettingsBackupRetention:  getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
+		LegacyCookieSecret:         getConfigValue(config, "cookieSecret", nil, cliString),
+		SessionTimeout:             getConfigValue(config, "sessionTimeout", -1, cliNumber),
+		EnableUserAccounts:         getConfigValue(config, "enableUserAccounts", false, cliBoolean),
+		EnableDiscreetLogin:        getConfigValue(config, "enableDiscreetLogin", false, cliBoolean),
+		SecurityOverride:           getConfigValue(config, "securityOverride", false, cliBoolean),
+		PerUserBasicAuth:           getConfigValue(config, "perUserBasicAuth", false, cliBoolean),
+		PreferRealIPHeader:         getConfigValue(config, "rateLimiting.preferRealIpHeader", false, cliBoolean),
+		BasicAuthMaxAttempts:       getConfigValue(config, "rateLimiting.basicAuthMaxAttempts", 5, cliNumber),
+		AccountsLoginMaxAttempts:   getConfigValue(config, "rateLimiting.accountsLoginMaxAttempts", 5, cliNumber),
+		AccountsRecoverMaxAttempts: getConfigValue(config, "rateLimiting.accountsRecoverMaxAttempts", 5, cliNumber),
+		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
+		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
+		ForwardedXForwardedFor:     getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),
+		EnableForwardedWhitelist:   getConfigValue(config, "enableForwardedWhitelist", false, cliBoolean),
+		Whitelist:                  getConfigValue(config, "whitelist", []any{}, cliArray),
+		WhitelistDockerHosts:       getConfigValue(config, "whitelistDockerHosts", true, cliBoolean),
+		HostWhitelistEnabled:       getConfigValue(config, "hostWhitelist.enabled", false, cliBoolean),
+		HostWhitelistScan:          getConfigValue(config, "hostWhitelist.scan", false, cliBoolean),
+		HostWhitelistHosts:         getConfigValue(config, "hostWhitelist.hosts", []any{}, cliArray),
+		BasicAuthUsername:          getConfigValue(config, "basicAuthUser.username", "", cliString),
+		BasicAuthPassword:          getConfigValue(config, "basicAuthUser.password", "", cliString),
+		SkipContentCheck:           getConfigValue(config, "skipContentCheck", false, cliBoolean),
+		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
+		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
 	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings}, nil
 }

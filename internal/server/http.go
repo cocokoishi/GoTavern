@@ -67,6 +67,8 @@ type HTTPHandlerOptions struct {
 	DiscreetLogin              bool
 	PreferRealIPHeader         bool
 	LoginRateLimitPoints       *float64
+	RecoveryRateLimitPoints    *float64
+	recoveryCodeGenerator      func() (string, error)
 	ForwardedXRealIP           *bool
 	ForwardedCFConnectingIP    *bool
 	ForwardedXForwardedFor     *bool
@@ -101,6 +103,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if attempts, ok := optionNumber(settings.AccountsLoginMaxAttempts); ok {
 		options.LoginRateLimitPoints = &attempts
+	}
+	if attempts, ok := optionNumber(settings.AccountsRecoverMaxAttempts); ok {
+		options.RecoveryRateLimitPoints = &attempts
 	}
 	if attempts, ok := optionNumber(settings.BasicAuthMaxAttempts); ok {
 		options.BasicAuthRateLimit = &attempts
@@ -225,6 +230,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	})
 	mux.HandleFunc("POST /api/users/list", accounts.serveUserList)
 	mux.HandleFunc("POST /api/users/login", accounts.serveUserLogin)
+	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
+	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
 		servePing(w, r, options)
 	})

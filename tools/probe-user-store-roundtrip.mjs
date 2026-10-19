@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, scryptSync } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -13,6 +13,7 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+const RECOVERY_PASSWORD = 'pa\u0301ssword';
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
@@ -38,6 +39,15 @@ async function initStorage(dataRoot) {
 
 function runGoInitializer(dataRoot) {
     const output = execFileSync('go', ['run', './tools/user-store-fixture', dataRoot], {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return JSON.parse(output);
+}
+
+function runGoRecoveryUpdater(dataRoot) {
+    const output = execFileSync('go', ['run', './tools/user-store-recovery-fixture', dataRoot], {
         cwd: repositoryRoot,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -120,6 +130,36 @@ async function verifyNodeReadsGoCreatedRecord() {
     };
 }
 
+async function verifyGoRecoveryUpdateSurvivesNode() {
+    const dataRoot = path.join(tempRoot, 'go-recovery-update');
+    const user = {
+        handle: 'recovery-roundtrip',
+        name: 'Recovery round-trip account',
+        created: 1700000000002,
+        password: '',
+        admin: false,
+        enabled: true,
+        salt: '',
+        unknownField: { preserve: ['node-go-node', 23, true] },
+    };
+    await initStorage(dataRoot);
+    await storage.setItem('user:recovery-roundtrip', user);
+
+    const written = runGoRecoveryUpdater(dataRoot);
+    await initStorage(dataRoot);
+    const recovered = await storage.getItem('user:recovery-roundtrip');
+    const expectedHash = scryptSync(RECOVERY_PASSWORD.normalize(), written.salt, 64).toString('base64');
+    assert.equal(recovered.password, written.password);
+    assert.equal(recovered.password, expectedHash, 'Go recovery update did not use pinned Unicode-normalized scrypt');
+    assert.equal(Buffer.from(recovered.salt, 'base64').byteLength, 16);
+    assert.deepEqual({ ...recovered, password: '', salt: '' }, user, 'Node did not preserve the full account after Go recovery update');
+    return {
+        nodeReadGoRecoveredUser: { ...recovered, created: '<timestamp>', password: '<64-byte-scrypt-base64>', salt: '<16-byte-base64>' },
+        nodeReadHashMatchesPinnedScrypt: true,
+        unknownFieldsPreserved: true,
+    };
+}
+
 function safeCleanup() {
     const resolved = path.resolve(tempRoot);
     const parent = path.resolve(os.tmpdir());
@@ -138,6 +178,7 @@ try {
         implementation: 'pinned node-persist@4.0.4',
         scenarios: {
             nodeWritten: await verifyNodeWrittenRecordSurvivesGo(),
+            goRecoveryUpdate: await verifyGoRecoveryUpdateSurvivesNode(),
             goWritten: await verifyNodeReadsGoCreatedRecord(),
         },
     };

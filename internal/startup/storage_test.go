@@ -470,3 +470,82 @@ func firstJSONDifference(left, right []byte) int {
 	}
 	return limit
 }
+
+func TestUpdateNodePersistRecordPreservesFieldsAndSerializesConcurrentUpdates(t *testing.T) {
+	dataRoot := t.TempDir()
+	storageDir := filepath.Join(dataRoot, storageFolder)
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	key := "user:recovery-test"
+	target := filepath.Join(storageDir, storeFilename(key))
+	original := []byte(`{"key":"user:recovery-test","value":{"handle":"recovery-test","unknown":{"keep":[1,true]}},"unknownRecordField":"preserved","ttl":1700000000000}`)
+	if err := os.WriteFile(target, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	const updates = 12
+	var wait sync.WaitGroup
+	errors := make(chan error, updates)
+	for range updates {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			err := UpdateNodePersistRecord(dataRoot, key, func(raw json.RawMessage) (json.RawMessage, error) {
+				var fields map[string]json.RawMessage
+				if err := json.Unmarshal(raw, &fields); err != nil {
+					return nil, err
+				}
+				var count int
+				if encoded := fields["updates"]; len(encoded) > 0 {
+					if err := json.Unmarshal(encoded, &count); err != nil {
+						return nil, err
+					}
+				}
+				encoded, err := json.Marshal(count + 1)
+				if err != nil {
+					return nil, err
+				}
+				fields["updates"] = encoded
+				return json.Marshal(fields)
+			})
+			if err != nil {
+				errors <- err
+			}
+		}()
+	}
+	wait.Wait()
+	close(errors)
+	for err := range errors {
+		t.Error(err)
+	}
+
+	body, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]json.RawMessage
+	if err := json.Unmarshal(body, &record); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(record["unknownRecordField"]); got != `"preserved"` {
+		t.Errorf("unknown node-persist record field = %s", got)
+	}
+	if got := string(record["ttl"]); got != "1700000000000" {
+		t.Errorf("node-persist TTL = %s", got)
+	}
+	var value map[string]json.RawMessage
+	if err := json.Unmarshal(record["value"], &value); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := json.Unmarshal(value["updates"], &count); err != nil {
+		t.Fatal(err)
+	}
+	if count != updates {
+		t.Errorf("concurrent record updates = %d, want %d", count, updates)
+	}
+	if got := string(value["unknown"]); got != `{"keep":[1,true]}` {
+		t.Errorf("unknown user field = %s", got)
+	}
+}

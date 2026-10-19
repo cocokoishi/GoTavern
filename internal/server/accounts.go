@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"mime"
 	"net"
 	"net/http"
@@ -23,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cocokoishi/gotavern/internal/startup"
 	"github.com/cocokoishi/gotavern/upstream"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
@@ -61,8 +64,16 @@ type accountRequestState struct {
 }
 
 type accountRuntime struct {
-	options HTTPHandlerOptions
-	limiter *memoryLoginLimiter
+	options        HTTPHandlerOptions
+	limiter        *memoryLoginLimiter
+	recoverLimiter *memoryLoginLimiter
+	recoveryMu     sync.Mutex
+	recoveryCodes  map[string]recoveryCodeEntry
+}
+
+type recoveryCodeEntry struct {
+	code    string
+	expires time.Time
 }
 
 type loginAttemptWindow struct {
@@ -85,9 +96,18 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 	if points <= 0 {
 		points = 9007199254740991
 	}
+	recoverPoints := float64(5)
+	if options.RecoveryRateLimitPoints != nil {
+		recoverPoints = *options.RecoveryRateLimitPoints
+	}
+	if recoverPoints <= 0 {
+		recoverPoints = 9007199254740991
+	}
 	return &accountRuntime{
-		options: options,
-		limiter: &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
+		options:        options,
+		limiter:        &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
+		recoverLimiter: &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
+		recoveryCodes:  make(map[string]recoveryCodeEntry),
 	}
 }
 
@@ -110,6 +130,16 @@ func (limiter *memoryLoginLimiter) clear(key string) {
 	limiter.mu.Lock()
 	delete(limiter.entries, key)
 	limiter.mu.Unlock()
+}
+
+func (limiter *memoryLoginLimiter) exceeded(key string, now time.Time) (bool, time.Duration) {
+	limiter.mu.Lock()
+	defer limiter.mu.Unlock()
+	window, found := limiter.entries[key]
+	if !found || !now.Before(window.resetAt) || float64(window.consumed) <= limiter.points {
+		return false, 0
+	}
+	return true, max(window.resetAt.Sub(now), 0)
 }
 
 func loadStoredAccounts(dataRoot string) (map[string]storedAccount, error) {
@@ -148,6 +178,34 @@ func loadStoredAccounts(dataRoot string) (map[string]storedAccount, error) {
 		accounts[handle] = storedAccount{fields: fields}
 	}
 	return accounts, nil
+}
+
+func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
+	if dataRoot == "" {
+		return storedAccount{}, false, nil
+	}
+	key := userStoragePrefix + handle
+	body, err := os.ReadFile(filepath.Join(dataRoot, userStorageFolder, nodeStoreFilename(key)))
+	if errors.Is(err, os.ErrNotExist) {
+		return storedAccount{}, false, nil
+	}
+	if err != nil {
+		return storedAccount{}, false, fmt.Errorf("read node-persist record %s: %w", key, err)
+	}
+	var record map[string]json.RawMessage
+	if err := json.Unmarshal(body, &record); err != nil || record == nil || !nodeTruthyJSON(record["key"]) {
+		return storedAccount{}, false, fmt.Errorf("decode node-persist record %s: invalid storage file", key)
+	}
+	if !nodeTruthyJSON(record["value"]) {
+		return storedAccount{}, false, nil
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(record["value"], &fields) != nil || fields == nil {
+		// node-persist returns any truthy JSON value. JavaScript property access
+		// then sees a missing handle/enabled field on primitives and arrays.
+		fields = make(map[string]json.RawMessage)
+	}
+	return storedAccount{fields: fields}, true, nil
 }
 
 func (account storedAccount) raw(name string) json.RawMessage {
@@ -225,11 +283,10 @@ func (runtime *accountRuntime) currentUser(session *cookieSession) (*storedAccou
 	if !hasHandle || handle == "" {
 		return nil, false, nil
 	}
-	accounts, err := loadStoredAccounts(runtime.options.DataRoot)
+	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
 		return nil, false, err
 	}
-	account, found := accounts[handle]
 	if !found || !nodeTruthyJSON(account.raw("enabled")) {
 		return nil, false, nil
 	}
@@ -516,12 +573,11 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 		respondJSON(w, http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Try again later or recover your password."})
 		return
 	}
-	accounts, err := loadStoredAccounts(runtime.options.DataRoot)
+	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	account, found := accounts[handle]
 	if !found {
 		respondJSON(w, http.StatusForbidden, map[string]string{"error": "Incorrect credentials"})
 		return
@@ -551,6 +607,269 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 	state.session.set("version", account.version())
 	writeCookieSession(w, request, runtime.options, state.session)
 	respondJSON(w, http.StatusOK, map[string]string{"handle": account.string("handle")})
+}
+
+func (runtime *accountRuntime) serveUserRecoverStep1(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+
+	ip := runtime.clientIP(request)
+	allowed, wait := runtime.recoverLimiter.consume(ip, time.Now())
+	if !allowed {
+		serveAccountRateLimit(w, wait, "Too many attempts. Try again later or contact your admin.")
+		return
+	}
+	handle := jsonString(input["handle"])
+	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	if !nodeTruthyJSON(account.raw("enabled")) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "User is disabled"})
+		return
+	}
+
+	codeGenerator := runtime.options.recoveryCodeGenerator
+	if codeGenerator == nil {
+		codeGenerator = generateRecoveryCode
+	}
+	code, err := codeGenerator()
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	runtime.recoveryMu.Lock()
+	runtime.recoveryCodes[account.string("handle")] = recoveryCodeEntry{code: code, expires: time.Now().Add(5 * time.Minute)}
+	runtime.recoveryMu.Unlock()
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "%s, your password recovery code is: %s\n", account.string("name"), code)
+	fmt.Fprintln(os.Stdout)
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) || !nodeTruthyJSON(input["code"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	handle := jsonString(input["handle"])
+	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	ip := runtime.clientIP(request)
+	if exceeded, wait := runtime.recoverLimiter.exceeded(ip, time.Now()); exceeded {
+		serveAccountRateLimit(w, wait, "Too many attempts. Try again later or contact your admin.")
+		return
+	}
+	if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	if !nodeTruthyJSON(account.raw("enabled")) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "User is disabled"})
+		return
+	}
+	code := runtime.recoveryCode(account.string("handle"), time.Now())
+	if requestCode := jsonString(input["code"]); requestCode != code || code == "" {
+		allowed, wait := runtime.recoverLimiter.consume(ip, time.Now())
+		if !allowed {
+			serveAccountRateLimit(w, wait, "Too many attempts. Try again later or contact your admin.")
+			return
+		}
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "Incorrect code"})
+		return
+	}
+
+	password := ""
+	salt := ""
+	if nodeTruthyJSON(input["newPassword"]) {
+		if json.Unmarshal(input["newPassword"], &password) != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		saltBytes := make([]byte, 16)
+		if _, err := rand.Read(saltBytes); err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		salt = base64.StdEncoding.EncodeToString(saltBytes)
+	}
+	passwordHash := ""
+	if password != "" {
+		passwordHash, err = upstreamPasswordHash(password, salt)
+		if err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+	}
+	passwordJSON, _ := json.Marshal(passwordHash)
+	saltJSON, _ := json.Marshal(salt)
+	updatedAccount := storedAccount{}
+	err = startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+account.string("handle"), func(current json.RawMessage) (json.RawMessage, error) {
+		updatedValue, err := replaceJSONObjectMembers(current, []string{"password", "salt"}, map[string]json.RawMessage{
+			"password": passwordJSON,
+			"salt":     saltJSON,
+		})
+		if err != nil {
+			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(updatedValue, &fields); err != nil || fields == nil {
+			return nil, errors.New("updated user record is not a JSON object")
+		}
+		updatedAccount = storedAccount{fields: fields}
+		return updatedValue, nil
+	})
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+
+	state := accountFromContext(request)
+	if state.session != nil {
+		if sessionHandle, hasHandle := state.session.stringValue("handle"); hasHandle && sessionHandle == account.string("handle") {
+			state.session.set("version", updatedAccount.version())
+			writeCookieSession(w, request, runtime.options, state.session)
+		}
+	}
+	runtime.recoverLimiter.clear(ip)
+	runtime.recoveryMu.Lock()
+	delete(runtime.recoveryCodes, account.string("handle"))
+	runtime.recoveryMu.Unlock()
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) recoveryCode(handle string, now time.Time) string {
+	runtime.recoveryMu.Lock()
+	defer runtime.recoveryMu.Unlock()
+	entry, found := runtime.recoveryCodes[handle]
+	if !found {
+		return ""
+	}
+	if !entry.expires.After(now) {
+		delete(runtime.recoveryCodes, handle)
+		return ""
+	}
+	return entry.code
+}
+
+func generateRecoveryCode() (string, error) {
+	var code strings.Builder
+	code.Grow(6)
+	for range 6 {
+		digit, err := rand.Int(rand.Reader, big.NewInt(10))
+		if err != nil {
+			return "", err
+		}
+		code.WriteByte(byte('0' + digit.Int64()))
+	}
+	return code.String(), nil
+}
+
+func readAccountRequestBody(request *http.Request) (map[string]json.RawMessage, bool) {
+	body, err := io.ReadAll(io.LimitReader(request.Body, 500<<20))
+	if err != nil {
+		return nil, false
+	}
+	input := make(map[string]json.RawMessage)
+	if len(bytes.TrimSpace(body)) > 0 && json.Unmarshal(body, &input) != nil {
+		return nil, false
+	}
+	if input == nil {
+		input = make(map[string]json.RawMessage)
+	}
+	return input, true
+}
+
+func serveAccountRateLimit(w http.ResponseWriter, wait time.Duration, message string) {
+	seconds := int64((wait + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+	respondJSON(w, http.StatusTooManyRequests, map[string]string{"error": message})
+}
+
+func serveNoContent(w http.ResponseWriter) {
+	w.Header().Set("ETag", expressWeakETag([]byte(http.StatusText(http.StatusNoContent))))
+	w.Header().Set("Vary", "Origin")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func replaceJSONObjectMembers(value []byte, order []string, replacements map[string]json.RawMessage) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	token, err := decoder.Token()
+	if err != nil || token != json.Delim('{') {
+		return nil, errors.New("user record is not a JSON object")
+	}
+	type member struct {
+		key   string
+		value json.RawMessage
+	}
+	members := make([]member, 0, len(replacements)+4)
+	seen := make(map[string]bool, len(replacements))
+	for decoder.More() {
+		keyToken, err := decoder.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := keyToken.(string)
+		if !ok {
+			return nil, errors.New("user record contains a non-string object key")
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return nil, err
+		}
+		if replacement, exists := replacements[key]; exists {
+			raw = replacement
+			seen[key] = true
+		}
+		members = append(members, member{key: key, value: compactJSON(raw)})
+	}
+	if _, err := decoder.Token(); err != nil {
+		return nil, err
+	}
+	for _, key := range order {
+		if !seen[key] {
+			members = append(members, member{key: key, value: compactJSON(replacements[key])})
+		}
+	}
+	var result bytes.Buffer
+	result.WriteByte('{')
+	for index, item := range members {
+		if index > 0 {
+			result.WriteByte(',')
+		}
+		encodedKey, err := marshalNodeJSON(item.key)
+		if err != nil {
+			return nil, err
+		}
+		result.Write(encodedKey)
+		result.WriteByte(':')
+		result.Write(item.value)
+	}
+	result.WriteByte('}')
+	return result.Bytes(), nil
 }
 
 func (runtime *accountRuntime) clientIP(request *http.Request) string {

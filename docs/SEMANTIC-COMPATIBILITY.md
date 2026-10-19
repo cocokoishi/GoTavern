@@ -486,6 +486,10 @@ Maintain fixtures for:
 
 Run Node and Go once, stop them, then compare destination state before doing browser tests.
 
+Account recovery is a persistent mutation. Compare the recovery-code log and
+five-minute cache, IP limiter results, password hash/salt, unknown user fields,
+the updated session version, and a Node→Go→Node node-persist round trip.
+
 ---
 
 ## 15. Failure semantics
@@ -500,6 +504,8 @@ Happy paths miss many extension assumptions. Add differential cases for:
 - invalid CSRF;
 - expired/missing login;
 - Basic Auth failure/rate limit;
+- account recovery with missing, unknown, disabled, incorrect-code, expired-code,
+  and rate-limited requests;
 - provider 400/401/429/500;
 - DNS/connect timeout;
 - request-proxy failures;

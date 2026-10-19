@@ -32,6 +32,26 @@
       "nodeReadBackAvatar": "data:image/png;base64,AA==",
       "defaultUserAdded": false
     },
+    "goRecoveryUpdate": {
+      "nodeReadGoRecoveredUser": {
+        "admin": false,
+        "created": "<timestamp>",
+        "enabled": true,
+        "handle": "recovery-roundtrip",
+        "name": "Recovery round-trip account",
+        "password": "<64-byte-scrypt-base64>",
+        "salt": "<16-byte-base64>",
+        "unknownField": {
+          "preserve": [
+            "node-go-node",
+            23,
+            true
+          ]
+        }
+      },
+      "nodeReadHashMatchesPinnedScrypt": true,
+      "unknownFieldsPreserved": true
+    },
     "goWritten": {
       "goObservedHandles": [
         "default-user"
