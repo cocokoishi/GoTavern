@@ -183,6 +183,14 @@
           "height": 45
         },
         "thumbnailResolution": 0
+      },
+      {
+        "type": "bg",
+        "dimensions": [
+          "﻿80﻿",
+          45
+        ],
+        "thumbnailResolution": 3600
       }
     ],
     "goRoundTrip": {

@@ -91,6 +91,12 @@ function cookieHeader(cookies) {
 
 async function captureThumbnailDimensionShapeCases() {
     const values = { bg: 'not-an-array', avatar: [48], persona: { width: 80, height: 45 } };
+    const cases = [
+        { type: 'bg', dimensions: values.bg },
+        { type: 'avatar', dimensions: values.avatar },
+        { type: 'persona', dimensions: values.persona },
+        { type: 'bg', dimensions: ['\uFEFF80\uFEFF', 45] },
+    ];
     const environment = Object.fromEntries(Object.keys(values).map(type => {
         const key = 'SILLYTAVERN_THUMBNAILS_DIMENSIONS_' + type.toUpperCase();
         return [key, process.env[key]];
@@ -100,11 +106,14 @@ async function captureThumbnailDimensionShapeCases() {
             process.env['SILLYTAVERN_THUMBNAILS_DIMENSIONS_' + type.toUpperCase()] = JSON.stringify(value);
         }
         const sourceModule = await import(pathToFileURL(path.join(sourceRoot, 'src', 'endpoints', 'image-metadata.js')).href);
-        return Object.entries(values).map(([type, dimensions]) => ({
+        return cases.map(({ type, dimensions }) => {
+            sourceModule.thumbnailDimensions[type] = dimensions;
+            return {
             type,
             dimensions,
             thumbnailResolution: sourceModule.getThumbnailResolution(type),
-        }));
+            };
+        });
     } finally {
         for (const [key, value] of Object.entries(environment)) {
             if (value === undefined) delete process.env[key];

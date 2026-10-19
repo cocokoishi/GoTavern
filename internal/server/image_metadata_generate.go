@@ -291,7 +291,7 @@ func imageMetadataConfigString(value any) string {
 }
 
 func imageMetadataJavaScriptNumberString(value string) float64 {
-	trimmed := strings.TrimSpace(value)
+	trimmed := strings.TrimFunc(value, isECMAScriptNumberWhitespace)
 	if trimmed == "" {
 		return 0
 	}
@@ -324,6 +324,15 @@ func imageMetadataJavaScriptNumberString(value string) float64 {
 		return math.NaN()
 	}
 	return parsed
+}
+
+func isECMAScriptNumberWhitespace(value rune) bool {
+	switch value {
+	case '\u0009', '\u000A', '\u000B', '\u000C', '\u000D', '\u0020', '\u00A0', '\u1680', '\u2028', '\u2029', '\u202F', '\u205F', '\u3000', '\uFEFF':
+		return true
+	default:
+		return value >= '\u2000' && value <= '\u200A'
+	}
 }
 
 func imageMetadataValidRadixDigits(value string, base int) bool {
