@@ -323,7 +323,7 @@ function generateConfig() {
         '',
         '## Config migrations',
         '',
-        'Migrations run in `addMissingConfigValues()` before missing defaults are added. The same old-to-new environment-variable names are redirected when the old environment variable is present and the new one is absent. YAML parsing/stringification and error handling remain to be implemented and probed.',
+        'Migrations run in `addMissingConfigValues()` before missing defaults are added. The same old-to-new environment-variable names are redirected when the old environment variable is present and the new one is absent. The pinned Node probe records fresh-file YAML bytes, a legacy config with key migrations/default insertion/unknown fields, and a legacy environment variable migration.',
         '',
         '| Legacy key | New key | Transform recorded from source |',
         '|---|---|---|',
@@ -331,9 +331,9 @@ function generateConfig() {
         '',
         '## Implementation status',
         '',
-        '- Default key list and values: inventoried from pinned YAML.',
+        '- Fresh config bytes and existing-config migration/default insertion: implemented against the pinned Node oracle in `internal/configinit`.',
         '- Runtime read sites: statically detected only for literal `getConfigValue()` calls; dynamic key use needs manual review.',
-        '- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, config migration, write formatting, and error side effects: not implemented.',
+        '- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation, and startup integration: not implemented or not fully probed.',
         '',
     ];
     return lines.join('\n');

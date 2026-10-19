@@ -82,5 +82,5 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  gotavern assets verify")
 	fmt.Fprintln(os.Stderr, "  gotavern help")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "The SillyTavern-compatible server is not implemented in this Phase 0 build.")
+	fmt.Fprintln(os.Stderr, "The HTTP handler is not wired into CLI startup yet.")
 }

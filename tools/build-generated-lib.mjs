@@ -5,7 +5,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
@@ -56,6 +56,27 @@ function changedJSONPaths(left, right, location = '$', output = []) {
     return output;
 }
 
+function generatedManifest(directory) {
+    const entries = [];
+    function visit(current, prefix = '') {
+        for (const entry of readdirSync(current, { withFileTypes: true })) {
+            const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+            const absolute = path.join(current, entry.name);
+            if (entry.isDirectory()) {
+                visit(absolute, relative);
+            } else if (entry.isFile()) {
+                const digest = createHash('sha256').update(readFileSync(absolute)).digest('hex');
+                entries.push({ path: relative, digest });
+            } else {
+                throw new Error(`unsupported generated asset type: ${absolute}`);
+            }
+        }
+    }
+    visit(directory);
+    entries.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+    return `${entries.map(entry => `${entry.digest}  ${entry.path}`).join('\n')}\n`;
+}
+
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: upstreamRoot, encoding: 'utf8' }).trim();
 if (sourceCommit !== PINNED_COMMIT) {
     throw new Error(`upstream checkout is ${sourceCommit}; expected ${PINNED_COMMIT}`);
@@ -84,6 +105,20 @@ try {
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);
+
+    const configProbe = path.join(buildRoot, '.gotavern-probe-config-init.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-config-init.mjs'), configProbe);
+    const configFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-config-init.json');
+    run(process.execPath, [configProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstConfigProbe = readFileSync(configFixturePath);
+    run(process.execPath, [configProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondConfigProbe = readFileSync(configFixturePath);
+    if (!firstConfigProbe.equals(secondConfigProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstConfigProbe), JSON.parse(secondConfigProbe));
+        throw new Error(`config-init oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+    const configFixture = JSON.parse(firstConfigProbe);
+    writeFileSync(path.join(repositoryRoot, 'upstream', 'generated', 'default-config.yaml'), configFixture.scenarios.fresh.outputYaml);
 
     const compiler = `
 import { copyFileSync } from 'node:fs';
@@ -142,6 +177,7 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
         sha256: digest,
     };
     writeFileSync(path.join(repositoryRoot, 'upstream', 'generated', 'build-info.json'), `${JSON.stringify(metadata, null, 2)}\n`);
+    writeFileSync(path.join(repositoryRoot, 'upstream', 'manifests', 'generated.sha256'), generatedManifest(path.join(repositoryRoot, 'upstream', 'generated')));
     console.log(`Built upstream/generated/lib.js (${digest})`);
 } finally {
     const resolvedTempRoot = path.resolve(tempRoot);

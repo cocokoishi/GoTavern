@@ -32,7 +32,7 @@ jobs:
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Verify generated results are committed
         run: |
-          git diff --exit-code -- docs/api-inventory.md docs/config-inventory.md upstream/generated tests/oracle/sillytavern-1.19.0-fresh-start.json
+          git diff --exit-code -- docs/api-inventory.md docs/config-inventory.md upstream/generated upstream/manifests/generated.sha256 tests/oracle/sillytavern-1.19.0-fresh-start.json tests/oracle/sillytavern-1.19.0-config-init.json
 
   verify:
     runs-on: ubuntu-latest
@@ -90,4 +90,5 @@ jobs:
           suffix=''
           if [ "$GOOS" = windows ]; then suffix='.exe'; fi
           mkdir -p dist
+          go build ./...
           go build -trimpath -ldflags='-s -w' -o "dist/gotavern-${GOOS}-${GOARCH}${suffix}" ./cmd/gotavern

@@ -1,0 +1,678 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned addMissingConfigValues fresh creation, legacy migration, defaults merge, and unknown-field preservation",
+  "source": "src/config-init.js: addMissingConfigValues",
+  "scenarios": {
+    "fresh": {
+      "input": null,
+      "outputYaml": "dataRoot: ./data\nlisten: false\nlistenAddress:\n  ipv4: 0.0.0.0\n  ipv6: \"[::]\"\nprotocol:\n  ipv4: true\n  ipv6: false\ndnsPreferIPv6: false\nbrowserLaunch:\n  enabled: true\n  browser: default\n  hostname: auto\n  port: -1\n  avoidLocalhost: false\nport: 8000\nheartbeatInterval: 0\nenableKeepAlive: false\nssl:\n  enabled: false\n  certPath: ./certs/cert.pem\n  keyPath: ./certs/privkey.pem\n  keyPassphrase: \"\"\nwhitelistMode: true\nenableForwardedWhitelist: true\nwhitelist:\n  - ::1\n  - 127.0.0.1\nwhitelistDockerHosts: true\nbasicAuthMode: false\nbasicAuthUser:\n  username: user\n  password: password\nenableCorsProxy: false\ncors:\n  enabled: true\n  origin:\n    - \"null\"\n  methods:\n    - OPTIONS\n  allowedHeaders: []\n  exposedHeaders: []\n  credentials: false\n  maxAge: null\nrequestProxy:\n  enabled: false\n  url: socks5://username:password@example.com:1080\n  bypass:\n    - localhost\n    - 127.0.0.1\nenableUserAccounts: false\nenableDiscreetLogin: false\nperUserBasicAuth: false\nsso:\n  autheliaAuth: false\n  authentikAuth: false\n  trustedProxies:\n    - ::1\n    - 127.0.0.1\nhostWhitelist:\n  enabled: false\n  scan: true\n  hosts: []\nprivateAddressWhitelist:\n  enabled: false\n  allowUnresolvedHosts: false\n  log:\n    blockedRequests: true\n    allowedRequests: false\n  allowedRanges:\n    - 127.0.0.0/8\n    - ::1/128\nsessionTimeout: -1\ndisableCsrfProtection: false\nsecurityOverride: false\nlogging:\n  enableAccessLog: true\n  minLogLevel: 0\nrateLimiting:\n  preferRealIpHeader: false\n  basicAuthMaxAttempts: 5\n  accountsLoginMaxAttempts: 5\n  accountsRecoverMaxAttempts: 5\n  accountsResetMaxAttempts: 5\nforwardedHeaders:\n  xRealIp: true\n  xForwardedFor: true\n  cfConnectingIp: false\nbackups:\n  allowFullDataBackup: true\n  common:\n    numberOfBackups: 50\n  chat:\n    enabled: true\n    checkIntegrity: true\n    maxTotalBackups: -1\n    throttleInterval: 10000\nthumbnails:\n  enabled: true\n  format: jpg\n  quality: 95\n  dimensions:\n    bg:\n      - 160\n      - 90\n    avatar:\n      - 96\n      - 144\n    persona:\n      - 96\n      - 144\nperformance:\n  lazyLoadCharacters: false\n  memoryCacheCapacity: 100mb\n  useDiskCache: true\n  requestCompression:\n    enabled: false\n    minPayloadSize: 256kb\n    maxPayloadSize: 8mb\n    timeout: 4000\ncacheBuster:\n  enabled: false\n  userAgentPattern: \"\"\nallowKeysExposure: false\nskipContentCheck: false\nwhitelistImportDomains:\n  - localhost\n  - cdn.discordapp.com\n  - files.catbox.moe\n  - raw.githubusercontent.com\nrequestOverrides: []\nextensions:\n  enabled: true\n  autoUpdate: true\n  models:\n    autoDownload: true\n    classification: Cohee/distilbert-base-uncased-go-emotions-onnx\n    captioning: Xenova/vit-gpt2-image-captioning\n    embedding: Cohee/jina-embeddings-v2-base-en\n    speechToText: Xenova/whisper-small\n    textToSpeech: Xenova/speecht5_tts\ngit:\n  backend: auto\nenableDownloadableTokenizers: true\npromptPlaceholder: \"[Start a new chat]\"\nopenai:\n  randomizeUserId: false\n  captionSystemPrompt: \"\"\ndeepl:\n  formality: default\nmistral:\n  enablePrefix: false\nollama:\n  keepAlive: -1\n  batchSize: -1\nclaude:\n  enableSystemPromptCache: false\n  cachingAtDepth: -1\n  extendedTTL: false\n  enableAdaptiveThinking: false\ngemini:\n  apiVersion: v1beta\n  thoughtSignatures: true\n  enableSystemPromptCache: false\n  image:\n    personGeneration: allow_adult\nenableServerPlugins: false\nenableServerPluginsAutoUpdate: true\n",
+      "bytes": 3310,
+      "sha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+      "parsed": {
+        "dataRoot": "./data",
+        "listen": false,
+        "listenAddress": {
+          "ipv4": "0.0.0.0",
+          "ipv6": "[::]"
+        },
+        "protocol": {
+          "ipv4": true,
+          "ipv6": false
+        },
+        "dnsPreferIPv6": false,
+        "browserLaunch": {
+          "enabled": true,
+          "browser": "default",
+          "hostname": "auto",
+          "port": -1,
+          "avoidLocalhost": false
+        },
+        "port": 8000,
+        "heartbeatInterval": 0,
+        "enableKeepAlive": false,
+        "ssl": {
+          "enabled": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": ""
+        },
+        "whitelistMode": true,
+        "enableForwardedWhitelist": true,
+        "whitelist": [
+          "::1",
+          "127.0.0.1"
+        ],
+        "whitelistDockerHosts": true,
+        "basicAuthMode": false,
+        "basicAuthUser": {
+          "username": "user",
+          "password": "password"
+        },
+        "enableCorsProxy": false,
+        "cors": {
+          "enabled": true,
+          "origin": [
+            "null"
+          ],
+          "methods": [
+            "OPTIONS"
+          ],
+          "allowedHeaders": [],
+          "exposedHeaders": [],
+          "credentials": false,
+          "maxAge": null
+        },
+        "requestProxy": {
+          "enabled": false,
+          "url": "socks5://username:password@example.com:1080",
+          "bypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "enableUserAccounts": false,
+        "enableDiscreetLogin": false,
+        "perUserBasicAuth": false,
+        "sso": {
+          "autheliaAuth": false,
+          "authentikAuth": false,
+          "trustedProxies": [
+            "::1",
+            "127.0.0.1"
+          ]
+        },
+        "hostWhitelist": {
+          "enabled": false,
+          "scan": true,
+          "hosts": []
+        },
+        "privateAddressWhitelist": {
+          "enabled": false,
+          "allowUnresolvedHosts": false,
+          "log": {
+            "blockedRequests": true,
+            "allowedRequests": false
+          },
+          "allowedRanges": [
+            "127.0.0.0/8",
+            "::1/128"
+          ]
+        },
+        "sessionTimeout": -1,
+        "disableCsrfProtection": false,
+        "securityOverride": false,
+        "logging": {
+          "enableAccessLog": true,
+          "minLogLevel": 0
+        },
+        "rateLimiting": {
+          "preferRealIpHeader": false,
+          "basicAuthMaxAttempts": 5,
+          "accountsLoginMaxAttempts": 5,
+          "accountsRecoverMaxAttempts": 5,
+          "accountsResetMaxAttempts": 5
+        },
+        "forwardedHeaders": {
+          "xRealIp": true,
+          "xForwardedFor": true,
+          "cfConnectingIp": false
+        },
+        "backups": {
+          "allowFullDataBackup": true,
+          "common": {
+            "numberOfBackups": 50
+          },
+          "chat": {
+            "enabled": true,
+            "checkIntegrity": true,
+            "maxTotalBackups": -1,
+            "throttleInterval": 10000
+          }
+        },
+        "thumbnails": {
+          "enabled": true,
+          "format": "jpg",
+          "quality": 95,
+          "dimensions": {
+            "bg": [
+              160,
+              90
+            ],
+            "avatar": [
+              96,
+              144
+            ],
+            "persona": [
+              96,
+              144
+            ]
+          }
+        },
+        "performance": {
+          "lazyLoadCharacters": false,
+          "memoryCacheCapacity": "100mb",
+          "useDiskCache": true,
+          "requestCompression": {
+            "enabled": false,
+            "minPayloadSize": "256kb",
+            "maxPayloadSize": "8mb",
+            "timeout": 4000
+          }
+        },
+        "cacheBuster": {
+          "enabled": false,
+          "userAgentPattern": ""
+        },
+        "allowKeysExposure": false,
+        "skipContentCheck": false,
+        "whitelistImportDomains": [
+          "localhost",
+          "cdn.discordapp.com",
+          "files.catbox.moe",
+          "raw.githubusercontent.com"
+        ],
+        "requestOverrides": [],
+        "extensions": {
+          "enabled": true,
+          "autoUpdate": true,
+          "models": {
+            "autoDownload": true,
+            "classification": "Cohee/distilbert-base-uncased-go-emotions-onnx",
+            "captioning": "Xenova/vit-gpt2-image-captioning",
+            "embedding": "Cohee/jina-embeddings-v2-base-en",
+            "speechToText": "Xenova/whisper-small",
+            "textToSpeech": "Xenova/speecht5_tts"
+          }
+        },
+        "git": {
+          "backend": "auto"
+        },
+        "enableDownloadableTokenizers": true,
+        "promptPlaceholder": "[Start a new chat]",
+        "openai": {
+          "randomizeUserId": false,
+          "captionSystemPrompt": ""
+        },
+        "deepl": {
+          "formality": "default"
+        },
+        "mistral": {
+          "enablePrefix": false
+        },
+        "ollama": {
+          "keepAlive": -1,
+          "batchSize": -1
+        },
+        "claude": {
+          "enableSystemPromptCache": false,
+          "cachingAtDepth": -1,
+          "extendedTTL": false,
+          "enableAdaptiveThinking": false
+        },
+        "gemini": {
+          "apiVersion": "v1beta",
+          "thoughtSignatures": true,
+          "enableSystemPromptCache": false,
+          "image": {
+            "personGeneration": "allow_adult"
+          }
+        },
+        "enableServerPlugins": false,
+        "enableServerPluginsAutoUpdate": true
+      }
+    },
+    "migrationsAndUnknownFields": {
+      "input": "port: 24680\nwhitelist: []\ndisableThumbnails: true\nthumbnails:\n  enabled: true\n  customUnknown: keep-thumbnails\nthumbnailsQuality: 82\navatarThumbnailsPng: false\ndisableChatBackup: true\nnumberOfBackups: 7\nmaxTotalChatBackups: 99\nchatBackupThrottleInterval: 11\nenableExtensions: false\nenableExtensionsAutoUpdate: false\nextras:\n  disableAutoDownload: false\n  classificationModel: compat/classifier\n  captioningModel: compat/caption\n  embeddingModel: compat/embed\n  speechToTextModel: compat/stt\n  textToSpeechModel: compat/tts\n  promptExpansionModel: legacy/removed\nminLogLevel: debug\ncardsCacheCapacity: 128\ncookieSecret: legacy-secret\nautorun: true\nautorunHostname: example.test\nautorunPortOverride: 1234\navoidLocalhost: true\nautheliaAuth: true\nauthentikAuth: false\ncustomUnknown:\n  nested: preserved\n  sequence: [alpha, beta]\n",
+      "outputYaml": "port: 24680\nwhitelist:\n  - ::1\n  - 127.0.0.1\nthumbnails:\n  enabled: false\n  customUnknown: keep-thumbnails\n  quality: 82\n  format: jpg\n  dimensions:\n    bg:\n      - 160\n      - 90\n    avatar:\n      - 96\n      - 144\n    persona:\n      - 96\n      - 144\nextras: {}\ncustomUnknown:\n  nested: preserved\n  sequence:\n    - alpha\n    - beta\nbackups:\n  chat:\n    enabled: false\n    maxTotalBackups: 99\n    throttleInterval: 11\n    checkIntegrity: true\n  common:\n    numberOfBackups: 7\n  allowFullDataBackup: true\nextensions:\n  enabled: false\n  autoUpdate: false\n  models:\n    autoDownload: true\n    classification: compat/classifier\n    captioning: compat/caption\n    embedding: compat/embed\n    speechToText: compat/stt\n    textToSpeech: compat/tts\nlogging:\n  minLogLevel: debug\n  enableAccessLog: true\nperformance:\n  memoryCacheCapacity: 128mb\n  lazyLoadCharacters: false\n  useDiskCache: true\n  requestCompression:\n    enabled: false\n    minPayloadSize: 256kb\n    maxPayloadSize: 8mb\n    timeout: 4000\nbrowserLaunch:\n  enabled: true\n  hostname: example.test\n  port: 1234\n  avoidLocalhost: true\n  browser: default\nsso:\n  autheliaAuth: true\n  authentikAuth: false\n  trustedProxies:\n    - ::1\n    - 127.0.0.1\ndataRoot: ./data\nlisten: false\nlistenAddress:\n  ipv4: 0.0.0.0\n  ipv6: \"[::]\"\nprotocol:\n  ipv4: true\n  ipv6: false\ndnsPreferIPv6: false\nheartbeatInterval: 0\nenableKeepAlive: false\nssl:\n  enabled: false\n  certPath: ./certs/cert.pem\n  keyPath: ./certs/privkey.pem\n  keyPassphrase: \"\"\nwhitelistMode: true\nenableForwardedWhitelist: true\nwhitelistDockerHosts: true\nbasicAuthMode: false\nbasicAuthUser:\n  username: user\n  password: password\nenableCorsProxy: false\ncors:\n  enabled: true\n  origin:\n    - \"null\"\n  methods:\n    - OPTIONS\n  allowedHeaders: []\n  exposedHeaders: []\n  credentials: false\n  maxAge: null\nrequestProxy:\n  enabled: false\n  url: socks5://username:password@example.com:1080\n  bypass:\n    - localhost\n    - 127.0.0.1\nenableUserAccounts: false\nenableDiscreetLogin: false\nperUserBasicAuth: false\nhostWhitelist:\n  enabled: false\n  scan: true\n  hosts: []\nprivateAddressWhitelist:\n  enabled: false\n  allowUnresolvedHosts: false\n  log:\n    blockedRequests: true\n    allowedRequests: false\n  allowedRanges:\n    - 127.0.0.0/8\n    - ::1/128\nsessionTimeout: -1\ndisableCsrfProtection: false\nsecurityOverride: false\nrateLimiting:\n  preferRealIpHeader: false\n  basicAuthMaxAttempts: 5\n  accountsLoginMaxAttempts: 5\n  accountsRecoverMaxAttempts: 5\n  accountsResetMaxAttempts: 5\nforwardedHeaders:\n  xRealIp: true\n  xForwardedFor: true\n  cfConnectingIp: false\ncacheBuster:\n  enabled: false\n  userAgentPattern: \"\"\nallowKeysExposure: false\nskipContentCheck: false\nwhitelistImportDomains:\n  - localhost\n  - cdn.discordapp.com\n  - files.catbox.moe\n  - raw.githubusercontent.com\nrequestOverrides: []\ngit:\n  backend: auto\nenableDownloadableTokenizers: true\npromptPlaceholder: \"[Start a new chat]\"\nopenai:\n  randomizeUserId: false\n  captionSystemPrompt: \"\"\ndeepl:\n  formality: default\nmistral:\n  enablePrefix: false\nollama:\n  keepAlive: -1\n  batchSize: -1\nclaude:\n  enableSystemPromptCache: false\n  cachingAtDepth: -1\n  extendedTTL: false\n  enableAdaptiveThinking: false\ngemini:\n  apiVersion: v1beta\n  thoughtSignatures: true\n  enableSystemPromptCache: false\n  image:\n    personGeneration: allow_adult\nenableServerPlugins: false\nenableServerPluginsAutoUpdate: true\n",
+      "bytes": 3351,
+      "sha256": "07f58236e6f076ff13b971c5668cb45ab863e4dcce1eeef29873f69931a69cb4",
+      "parsed": {
+        "port": 24680,
+        "whitelist": [
+          "::1",
+          "127.0.0.1"
+        ],
+        "thumbnails": {
+          "enabled": false,
+          "customUnknown": "keep-thumbnails",
+          "quality": 82,
+          "format": "jpg",
+          "dimensions": {
+            "bg": [
+              160,
+              90
+            ],
+            "avatar": [
+              96,
+              144
+            ],
+            "persona": [
+              96,
+              144
+            ]
+          }
+        },
+        "extras": {},
+        "customUnknown": {
+          "nested": "preserved",
+          "sequence": [
+            "alpha",
+            "beta"
+          ]
+        },
+        "backups": {
+          "chat": {
+            "enabled": false,
+            "maxTotalBackups": 99,
+            "throttleInterval": 11,
+            "checkIntegrity": true
+          },
+          "common": {
+            "numberOfBackups": 7
+          },
+          "allowFullDataBackup": true
+        },
+        "extensions": {
+          "enabled": false,
+          "autoUpdate": false,
+          "models": {
+            "autoDownload": true,
+            "classification": "compat/classifier",
+            "captioning": "compat/caption",
+            "embedding": "compat/embed",
+            "speechToText": "compat/stt",
+            "textToSpeech": "compat/tts"
+          }
+        },
+        "logging": {
+          "minLogLevel": "debug",
+          "enableAccessLog": true
+        },
+        "performance": {
+          "memoryCacheCapacity": "128mb",
+          "lazyLoadCharacters": false,
+          "useDiskCache": true,
+          "requestCompression": {
+            "enabled": false,
+            "minPayloadSize": "256kb",
+            "maxPayloadSize": "8mb",
+            "timeout": 4000
+          }
+        },
+        "browserLaunch": {
+          "enabled": true,
+          "hostname": "example.test",
+          "port": 1234,
+          "avoidLocalhost": true,
+          "browser": "default"
+        },
+        "sso": {
+          "autheliaAuth": true,
+          "authentikAuth": false,
+          "trustedProxies": [
+            "::1",
+            "127.0.0.1"
+          ]
+        },
+        "dataRoot": "./data",
+        "listen": false,
+        "listenAddress": {
+          "ipv4": "0.0.0.0",
+          "ipv6": "[::]"
+        },
+        "protocol": {
+          "ipv4": true,
+          "ipv6": false
+        },
+        "dnsPreferIPv6": false,
+        "heartbeatInterval": 0,
+        "enableKeepAlive": false,
+        "ssl": {
+          "enabled": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": ""
+        },
+        "whitelistMode": true,
+        "enableForwardedWhitelist": true,
+        "whitelistDockerHosts": true,
+        "basicAuthMode": false,
+        "basicAuthUser": {
+          "username": "user",
+          "password": "password"
+        },
+        "enableCorsProxy": false,
+        "cors": {
+          "enabled": true,
+          "origin": [
+            "null"
+          ],
+          "methods": [
+            "OPTIONS"
+          ],
+          "allowedHeaders": [],
+          "exposedHeaders": [],
+          "credentials": false,
+          "maxAge": null
+        },
+        "requestProxy": {
+          "enabled": false,
+          "url": "socks5://username:password@example.com:1080",
+          "bypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "enableUserAccounts": false,
+        "enableDiscreetLogin": false,
+        "perUserBasicAuth": false,
+        "hostWhitelist": {
+          "enabled": false,
+          "scan": true,
+          "hosts": []
+        },
+        "privateAddressWhitelist": {
+          "enabled": false,
+          "allowUnresolvedHosts": false,
+          "log": {
+            "blockedRequests": true,
+            "allowedRequests": false
+          },
+          "allowedRanges": [
+            "127.0.0.0/8",
+            "::1/128"
+          ]
+        },
+        "sessionTimeout": -1,
+        "disableCsrfProtection": false,
+        "securityOverride": false,
+        "rateLimiting": {
+          "preferRealIpHeader": false,
+          "basicAuthMaxAttempts": 5,
+          "accountsLoginMaxAttempts": 5,
+          "accountsRecoverMaxAttempts": 5,
+          "accountsResetMaxAttempts": 5
+        },
+        "forwardedHeaders": {
+          "xRealIp": true,
+          "xForwardedFor": true,
+          "cfConnectingIp": false
+        },
+        "cacheBuster": {
+          "enabled": false,
+          "userAgentPattern": ""
+        },
+        "allowKeysExposure": false,
+        "skipContentCheck": false,
+        "whitelistImportDomains": [
+          "localhost",
+          "cdn.discordapp.com",
+          "files.catbox.moe",
+          "raw.githubusercontent.com"
+        ],
+        "requestOverrides": [],
+        "git": {
+          "backend": "auto"
+        },
+        "enableDownloadableTokenizers": true,
+        "promptPlaceholder": "[Start a new chat]",
+        "openai": {
+          "randomizeUserId": false,
+          "captionSystemPrompt": ""
+        },
+        "deepl": {
+          "formality": "default"
+        },
+        "mistral": {
+          "enablePrefix": false
+        },
+        "ollama": {
+          "keepAlive": -1,
+          "batchSize": -1
+        },
+        "claude": {
+          "enableSystemPromptCache": false,
+          "cachingAtDepth": -1,
+          "extendedTTL": false,
+          "enableAdaptiveThinking": false
+        },
+        "gemini": {
+          "apiVersion": "v1beta",
+          "thoughtSignatures": true,
+          "enableSystemPromptCache": false,
+          "image": {
+            "personGeneration": "allow_adult"
+          }
+        },
+        "enableServerPlugins": false,
+        "enableServerPluginsAutoUpdate": true
+      }
+    },
+    "environmentMigration": {
+      "input": "{}\n",
+      "outputYaml": "dataRoot: ./data\nlisten: false\nlistenAddress:\n  ipv4: 0.0.0.0\n  ipv6: \"[::]\"\nprotocol:\n  ipv4: true\n  ipv6: false\ndnsPreferIPv6: false\nbrowserLaunch:\n  enabled: true\n  browser: default\n  hostname: auto\n  port: -1\n  avoidLocalhost: false\nport: 8000\nheartbeatInterval: 0\nenableKeepAlive: false\nssl:\n  enabled: false\n  certPath: ./certs/cert.pem\n  keyPath: ./certs/privkey.pem\n  keyPassphrase: \"\"\nwhitelistMode: true\nenableForwardedWhitelist: true\nwhitelist:\n  - ::1\n  - 127.0.0.1\nwhitelistDockerHosts: true\nbasicAuthMode: false\nbasicAuthUser:\n  username: user\n  password: password\nenableCorsProxy: false\ncors:\n  enabled: true\n  origin:\n    - \"null\"\n  methods:\n    - OPTIONS\n  allowedHeaders: []\n  exposedHeaders: []\n  credentials: false\n  maxAge: null\nrequestProxy:\n  enabled: false\n  url: socks5://username:password@example.com:1080\n  bypass:\n    - localhost\n    - 127.0.0.1\nenableUserAccounts: false\nenableDiscreetLogin: false\nperUserBasicAuth: false\nsso:\n  autheliaAuth: false\n  authentikAuth: false\n  trustedProxies:\n    - ::1\n    - 127.0.0.1\nhostWhitelist:\n  enabled: false\n  scan: true\n  hosts: []\nprivateAddressWhitelist:\n  enabled: false\n  allowUnresolvedHosts: false\n  log:\n    blockedRequests: true\n    allowedRequests: false\n  allowedRanges:\n    - 127.0.0.0/8\n    - ::1/128\nsessionTimeout: -1\ndisableCsrfProtection: false\nsecurityOverride: false\nlogging:\n  enableAccessLog: true\n  minLogLevel: 0\nrateLimiting:\n  preferRealIpHeader: false\n  basicAuthMaxAttempts: 5\n  accountsLoginMaxAttempts: 5\n  accountsRecoverMaxAttempts: 5\n  accountsResetMaxAttempts: 5\nforwardedHeaders:\n  xRealIp: true\n  xForwardedFor: true\n  cfConnectingIp: false\nbackups:\n  allowFullDataBackup: true\n  common:\n    numberOfBackups: 50\n  chat:\n    enabled: true\n    checkIntegrity: true\n    maxTotalBackups: -1\n    throttleInterval: 10000\nthumbnails:\n  enabled: true\n  format: jpg\n  quality: 95\n  dimensions:\n    bg:\n      - 160\n      - 90\n    avatar:\n      - 96\n      - 144\n    persona:\n      - 96\n      - 144\nperformance:\n  lazyLoadCharacters: false\n  memoryCacheCapacity: 100mb\n  useDiskCache: true\n  requestCompression:\n    enabled: false\n    minPayloadSize: 256kb\n    maxPayloadSize: 8mb\n    timeout: 4000\ncacheBuster:\n  enabled: false\n  userAgentPattern: \"\"\nallowKeysExposure: false\nskipContentCheck: false\nwhitelistImportDomains:\n  - localhost\n  - cdn.discordapp.com\n  - files.catbox.moe\n  - raw.githubusercontent.com\nrequestOverrides: []\nextensions:\n  enabled: true\n  autoUpdate: true\n  models:\n    autoDownload: true\n    classification: Cohee/distilbert-base-uncased-go-emotions-onnx\n    captioning: Xenova/vit-gpt2-image-captioning\n    embedding: Cohee/jina-embeddings-v2-base-en\n    speechToText: Xenova/whisper-small\n    textToSpeech: Xenova/speecht5_tts\ngit:\n  backend: auto\nenableDownloadableTokenizers: true\npromptPlaceholder: \"[Start a new chat]\"\nopenai:\n  randomizeUserId: false\n  captionSystemPrompt: \"\"\ndeepl:\n  formality: default\nmistral:\n  enablePrefix: false\nollama:\n  keepAlive: -1\n  batchSize: -1\nclaude:\n  enableSystemPromptCache: false\n  cachingAtDepth: -1\n  extendedTTL: false\n  enableAdaptiveThinking: false\ngemini:\n  apiVersion: v1beta\n  thoughtSignatures: true\n  enableSystemPromptCache: false\n  image:\n    personGeneration: allow_adult\nenableServerPlugins: false\nenableServerPluginsAutoUpdate: true\n",
+      "bytes": 3310,
+      "sha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+      "parsed": {
+        "dataRoot": "./data",
+        "listen": false,
+        "listenAddress": {
+          "ipv4": "0.0.0.0",
+          "ipv6": "[::]"
+        },
+        "protocol": {
+          "ipv4": true,
+          "ipv6": false
+        },
+        "dnsPreferIPv6": false,
+        "browserLaunch": {
+          "enabled": true,
+          "browser": "default",
+          "hostname": "auto",
+          "port": -1,
+          "avoidLocalhost": false
+        },
+        "port": 8000,
+        "heartbeatInterval": 0,
+        "enableKeepAlive": false,
+        "ssl": {
+          "enabled": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": ""
+        },
+        "whitelistMode": true,
+        "enableForwardedWhitelist": true,
+        "whitelist": [
+          "::1",
+          "127.0.0.1"
+        ],
+        "whitelistDockerHosts": true,
+        "basicAuthMode": false,
+        "basicAuthUser": {
+          "username": "user",
+          "password": "password"
+        },
+        "enableCorsProxy": false,
+        "cors": {
+          "enabled": true,
+          "origin": [
+            "null"
+          ],
+          "methods": [
+            "OPTIONS"
+          ],
+          "allowedHeaders": [],
+          "exposedHeaders": [],
+          "credentials": false,
+          "maxAge": null
+        },
+        "requestProxy": {
+          "enabled": false,
+          "url": "socks5://username:password@example.com:1080",
+          "bypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "enableUserAccounts": false,
+        "enableDiscreetLogin": false,
+        "perUserBasicAuth": false,
+        "sso": {
+          "autheliaAuth": false,
+          "authentikAuth": false,
+          "trustedProxies": [
+            "::1",
+            "127.0.0.1"
+          ]
+        },
+        "hostWhitelist": {
+          "enabled": false,
+          "scan": true,
+          "hosts": []
+        },
+        "privateAddressWhitelist": {
+          "enabled": false,
+          "allowUnresolvedHosts": false,
+          "log": {
+            "blockedRequests": true,
+            "allowedRequests": false
+          },
+          "allowedRanges": [
+            "127.0.0.0/8",
+            "::1/128"
+          ]
+        },
+        "sessionTimeout": -1,
+        "disableCsrfProtection": false,
+        "securityOverride": false,
+        "logging": {
+          "enableAccessLog": true,
+          "minLogLevel": 0
+        },
+        "rateLimiting": {
+          "preferRealIpHeader": false,
+          "basicAuthMaxAttempts": 5,
+          "accountsLoginMaxAttempts": 5,
+          "accountsRecoverMaxAttempts": 5,
+          "accountsResetMaxAttempts": 5
+        },
+        "forwardedHeaders": {
+          "xRealIp": true,
+          "xForwardedFor": true,
+          "cfConnectingIp": false
+        },
+        "backups": {
+          "allowFullDataBackup": true,
+          "common": {
+            "numberOfBackups": 50
+          },
+          "chat": {
+            "enabled": true,
+            "checkIntegrity": true,
+            "maxTotalBackups": -1,
+            "throttleInterval": 10000
+          }
+        },
+        "thumbnails": {
+          "enabled": true,
+          "format": "jpg",
+          "quality": 95,
+          "dimensions": {
+            "bg": [
+              160,
+              90
+            ],
+            "avatar": [
+              96,
+              144
+            ],
+            "persona": [
+              96,
+              144
+            ]
+          }
+        },
+        "performance": {
+          "lazyLoadCharacters": false,
+          "memoryCacheCapacity": "100mb",
+          "useDiskCache": true,
+          "requestCompression": {
+            "enabled": false,
+            "minPayloadSize": "256kb",
+            "maxPayloadSize": "8mb",
+            "timeout": 4000
+          }
+        },
+        "cacheBuster": {
+          "enabled": false,
+          "userAgentPattern": ""
+        },
+        "allowKeysExposure": false,
+        "skipContentCheck": false,
+        "whitelistImportDomains": [
+          "localhost",
+          "cdn.discordapp.com",
+          "files.catbox.moe",
+          "raw.githubusercontent.com"
+        ],
+        "requestOverrides": [],
+        "extensions": {
+          "enabled": true,
+          "autoUpdate": true,
+          "models": {
+            "autoDownload": true,
+            "classification": "Cohee/distilbert-base-uncased-go-emotions-onnx",
+            "captioning": "Xenova/vit-gpt2-image-captioning",
+            "embedding": "Cohee/jina-embeddings-v2-base-en",
+            "speechToText": "Xenova/whisper-small",
+            "textToSpeech": "Xenova/speecht5_tts"
+          }
+        },
+        "git": {
+          "backend": "auto"
+        },
+        "enableDownloadableTokenizers": true,
+        "promptPlaceholder": "[Start a new chat]",
+        "openai": {
+          "randomizeUserId": false,
+          "captionSystemPrompt": ""
+        },
+        "deepl": {
+          "formality": "default"
+        },
+        "mistral": {
+          "enablePrefix": false
+        },
+        "ollama": {
+          "keepAlive": -1,
+          "batchSize": -1
+        },
+        "claude": {
+          "enableSystemPromptCache": false,
+          "cachingAtDepth": -1,
+          "extendedTTL": false,
+          "enableAdaptiveThinking": false
+        },
+        "gemini": {
+          "apiVersion": "v1beta",
+          "thoughtSignatures": true,
+          "enableSystemPromptCache": false,
+          "image": {
+            "personGeneration": "allow_adult"
+          }
+        },
+        "enableServerPlugins": false,
+        "enableServerPluginsAutoUpdate": true
+      },
+      "environment": {
+        "SILLYTAVERN_DISABLETHUMBNAILS": null,
+        "SILLYTAVERN_THUMBNAILS_ENABLED": "true"
+      }
+    }
+  }
+}

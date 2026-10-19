@@ -2,14 +2,14 @@
 
 Baseline: SillyTavern `1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
-This order follows the pinned startup call path. It is an implementation checklist, not evidence that GoTavern already matches it. Every side effect remains `not implemented` until exercised against isolated Node and Go runtime roots.
+This order follows the pinned startup call path. It is an implementation checklist, not evidence that GoTavern already matches it. A `partial` item names its tested surface; all other side effects remain unimplemented until exercised against isolated Node and Go runtime roots.
 
 ## Entry and configuration
 
 | Order | Pinned operation | Observable behavior / follow-up | Source | GoTavern status |
 |---:|---|---|---|---|
 | 1 | `server.js` constructs `CommandLineParser` and parses arguments | Resolves standalone/global config and data paths; applies CLI/config values; may create the global config parent and data root; calls `initConfig` before server import. | [server.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/server.js), [src/command-line.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/command-line.js) | not implemented |
-| 2 | `initConfig` sets the config path and calls `addMissingConfigValues` | Creates missing config from `default/config.yaml`; applies legacy key and environment migrations; recursively inserts missing defaults; serializes YAML only when it created, migrated, or added values; catches and warns on errors. | [src/config-init.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/config-init.js) | not implemented |
+| 2 | `initConfig` sets the config path and calls `addMissingConfigValues` | Creates missing config from `default/config.yaml`; applies legacy key and environment migrations; recursively inserts missing defaults; serializes YAML only when it created, migrated, or added values; catches and warns on errors. | [src/config-init.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/config-init.js) | partial: pinned fresh bytes, key migrations/default merge, unknown fields, and one environment migration are tested; CLI integration/error continuation remains unimplemented |
 | 3 | `server.js` sets `DATA_ROOT` and `COMMAND_LINE_ARGS`, changes cwd to `serverDirectory`, then imports `server-main.js` | Relative paths and default runtime assets are anchored to the SillyTavern server directory after argument parsing. | [server.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/server.js) | not implemented |
 
 `src/server-init.js` is a separate pre-start helper that calls `addMissingConfigValues(process.cwd()/config.yaml)` and catches errors. It is not the main `server.js` entry path; the command-line parser calls `initConfig` directly.

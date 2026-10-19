@@ -10,7 +10,9 @@ node tools/build-generated-lib.mjs /path/to/SillyTavern-at-06bde939
 
 The tool clones from that local checkout, installs the pinned package lock in a temporary clone, and deletes the generated runtime fixture after recording observations. It does not install dependencies into or write to the supplied checkout.
 
-The current fixture is an oracle capture, not a Node-vs-Go pass. The Go server is not implemented yet. The provider and browser-event observers are explicitly marked unobserved for this startup-only scenario. Nondeterministic fields are listed in the fixture and normalized only there.
+The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/version`, and `/lib.js`; startup filesystem comparison remains unimplemented. Provider and browser-event observers are explicitly marked unobserved for this startup-only scenario. Nondeterministic fields are listed in the fixture and normalized only there.
+
+`sillytavern-1.19.0-config-init.json` captures pinned `addMissingConfigValues()` output for a missing config, a legacy YAML config with unknown fields, and a deprecated environment variable. It stores exact output YAML so Go config initialization can compare startup writes byte-for-byte.
 
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
