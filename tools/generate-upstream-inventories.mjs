@@ -25,6 +25,35 @@ const espree = require('espree');
 const yaml = require('yaml');
 const routeMethods = new Set(['get', 'post', 'put', 'patch', 'delete', 'all', 'options', 'head']);
 
+function apiStatusKey(method, fullPath, file, line) {
+    return [method, fullPath, file, line].join('\0');
+}
+
+function readExistingApiStatuses() {
+    let content;
+    try {
+        content = readFileSync(path.join(outputRoot, 'docs', 'api-inventory.md'), 'utf8');
+    } catch (error) {
+        if (error.code === 'ENOENT') return { routes: new Map(), redirects: new Map() };
+        throw error;
+    }
+
+    const routes = new Map();
+    const redirects = new Map();
+    for (const line of content.split(/\r?\n/)) {
+        const route = line.match(/^\| ([A-Z]+) \| `([^`]+)` \| \[([^:\]]+):(\d+)\]\([^)]+\) \| (.*) \|$/);
+        if (route) {
+            routes.set(apiStatusKey(route[1], route[2], route[3], route[4]), route[5]);
+            continue;
+        }
+        const redirect = line.match(/^\| `([^`]+)` \| `([^`]+)` \| \[([^:\]]+):(\d+)\]\([^)]+\) \| (.*) \|$/);
+        if (redirect) {
+            redirects.set(apiStatusKey(redirect[1], redirect[2], redirect[3], redirect[4]), redirect[5]);
+        }
+    }
+    return { routes, redirects };
+}
+
 function read(relative) {
     return readFileSync(path.join(sourceRoot, relative), 'utf8');
 }
@@ -88,6 +117,7 @@ function sourceLink(file, line) {
 }
 
 function generateRoutes() {
+    const existingStatuses = readExistingApiStatuses();
     const files = [...walk('src'), 'server.js'];
     const parsed = new Map(files.map(file => [file, parse(file)]));
     const imports = new Map([...parsed].map(([file, item]) => [file, importRouters(file, item.tree)]));
@@ -199,7 +229,7 @@ function generateRoutes() {
         '| Method | Full path | Upstream declaration | Current status |',
         '|---|---|---|---|',
         ...rows.map(row => {
-            const status = row.method === 'GET' && row.fullPath === '/'
+            const defaultStatus = row.method === 'GET' && row.fullPath === '/'
                 ? 'partial: fresh-start static body/status/content type match the pinned oracle; shared middleware remains unimplemented'
                 : row.method === 'GET' && row.fullPath === '/callback/:source?'
                 ? 'partial: one encoded OAuth source/query case matches the pinned 307 target, stable headers, and text/HTML response bodies; other inputs and middleware remain unimplemented'
@@ -216,6 +246,7 @@ function generateRoutes() {
                 : row.method === 'POST' && row.fullPath === '/api/users/login'
                 ? 'partial: missing/unknown user responses, no-password login, session version, and Unicode-normalized scrypt vector match pinned probes; protected-password endpoint success, disabled-user and limiter errors, and malformed bodies need probes'
                 : 'not implemented';
+            const status = existingStatuses.routes.get(apiStatusKey(row.method, row.fullPath, row.file, row.line)) ?? defaultStatus;
             return `| ${row.method} | \`${row.fullPath}\` | [${row.file}:${row.line}](${sourceLink(row.file, row.line)}) | ${status} |`;
         }),
         '',
@@ -225,7 +256,10 @@ function generateRoutes() {
         '',
         '| Legacy path | Destination | Upstream declaration | Current status |',
         '|---|---|---|---|',
-        ...redirects.map(row => `| \`${row.source}\` | \`${row.destination}\` | [src/server-startup.js:${row.line}](${sourceLink('src/server-startup.js', row.line)}) | not implemented |`),
+        ...redirects.map(row => {
+            const status = existingStatuses.redirects.get(apiStatusKey(row.source, row.destination, 'src/server-startup.js', row.line)) ?? 'not implemented';
+            return `| \`${row.source}\` | \`${row.destination}\` | [src/server-startup.js:${row.line}](${sourceLink('src/server-startup.js', row.line)}) | ${status} |`;
+        }),
         '',
         '## Non-router HTTP surface',
         '',

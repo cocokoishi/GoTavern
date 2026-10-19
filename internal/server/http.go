@@ -370,6 +370,15 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		accounts.serveImageMetadataCleanup(w, r)
 	})
+	imageMetadataRootHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveImageMetadataGet(w, r)
+	}
+	mux.HandleFunc("/api/image-metadata", imageMetadataRootHandler)
+	mux.HandleFunc("/api/image-metadata/{$}", imageMetadataRootHandler)
 	mux.HandleFunc("GET /api/sprites/get", accounts.serveSpritesGet)
 	mux.HandleFunc("POST /api/sprites/delete", accounts.serveSpritesDelete)
 	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {

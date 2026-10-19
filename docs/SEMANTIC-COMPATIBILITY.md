@@ -408,6 +408,8 @@ The image-metadata assignment oracle covers POST /api/image-metadata/folders/ass
 
 The image-metadata cleanup oracle covers POST /api/image-metadata/cleanup authentication, CSRF, GET/HEAD 404s, missing files, lexically out-of-user-root paths, object and array image collections, malformed roots, exact removed-key order, and exact four-space persistence. Cleanup uses the shared user-content lock and atomic replacement only when entries are removed; a no-op preserves index bytes, existence, and mtime. Its Go cleanup is read back by pinned Node. Pinned CORS answers OPTIONS with 204 while Go returns 404. Malformed request-body parsing, filesystem permission/race behavior, and some primitive image-index shapes remain incomplete.
 
+The image-metadata read oracle covers POST /api/image-metadata authentication, CSRF, GET/HEAD 404s, cached single and batch values, exact Node-compatible mtime matching, missing files, outside-root paths, path/paths selection and validation, malformed metadata-index shapes, root trailing-slash behavior, unknown-subpath routing, and unchanged index/account state. Cached JSON is returned without rewriting it, preserving unknown metadata fields. Image decoding and metadata generation are not implemented in Go: the pinned server generates metadata for uncached valid images, while this handler returns 501 for an uncached single file and an explicit per-path unsupported error for uncached batches. Pinned CORS answers OPTIONS with 204 while Go returns 404. Express body-parser syntax errors and non-string path coercions remain incomplete.
+
 ---
 
 ## 10. Character/card suite
