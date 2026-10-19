@@ -14,6 +14,23 @@ func UpdateUserContentFile(dataRoot, handle, relativePath string, update func([]
 	if update == nil {
 		return errors.New("user content update callback is nil")
 	}
+	return updateUserContentFile(dataRoot, handle, relativePath, func(current []byte) ([]byte, bool, error) {
+		body, err := update(current)
+		return body, true, err
+	})
+}
+
+// UpdateUserContentFileIfChanged applies an atomic read-modify-write while
+// holding the shared per-user content lock. The callback can decline the write
+// to preserve the target file's existence, bytes, and modification time.
+func UpdateUserContentFileIfChanged(dataRoot, handle, relativePath string, update func([]byte) ([]byte, bool, error)) error {
+	if update == nil {
+		return errors.New("user content update callback is nil")
+	}
+	return updateUserContentFile(dataRoot, handle, relativePath, update)
+}
+
+func updateUserContentFile(dataRoot, handle, relativePath string, update func([]byte) ([]byte, bool, error)) error {
 	if filepath.IsAbs(relativePath) || relativePath == "" {
 		return errors.New("user content path must be relative")
 	}
@@ -35,9 +52,12 @@ func UpdateUserContentFile(dataRoot, handle, relativePath string, update func([]
 	if err != nil {
 		current = nil
 	}
-	body, err := update(current)
+	body, shouldWrite, err := update(current)
 	if err != nil {
 		return err
+	}
+	if !shouldWrite {
+		return nil
 	}
 	if err := ensureResolvedContained(userRoot, target); err != nil {
 		return err

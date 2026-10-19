@@ -62,6 +62,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-image-metadata-folder-assignments.json` captures authenticated/CSRF-protected assign and unassign operations, path normalization and traversal validation, missing-file skips, deduplicated and one-at-a-time folder IDs, malformed metadata errors, exact index bytes and file state, and Go mutations read back by pinned Node. Its captured OPTIONS responses record the current CORS gap.
 
+`sillytavern-1.19.0-image-metadata-cleanup.json` captures authenticated/CSRF-protected orphan cleanup, missing and out-of-root paths, array/object image indexes, exact removal order and file bytes, no-write mtime preservation, and Go cleanup read back by pinned Node. Its captured OPTIONS response records the current CORS gap.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.

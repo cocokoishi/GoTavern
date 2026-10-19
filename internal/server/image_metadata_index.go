@@ -239,6 +239,16 @@ func (value *orderedNodeJSON) setMember(key string, member orderedNodeJSON) {
 	value.object = append(value.object, orderedNodeJSONEntry{key: key, value: member})
 }
 
+func (value *orderedNodeJSON) deleteMember(key string) bool {
+	for index := range value.object {
+		if value.object[index].key == key {
+			value.object = append(value.object[:index], value.object[index+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func (value orderedNodeJSON) entries() ([]orderedNodeJSONEntry, bool) {
 	switch value.kind {
 	case 'o':

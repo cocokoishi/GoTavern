@@ -406,6 +406,8 @@ The image-metadata folder-delete oracle covers POST /api/image-metadata/folders/
 
 The image-metadata assignment oracle covers POST /api/image-metadata/folders/assign and `/unassign` authentication, CSRF, GET/HEAD 404s, ID/path validation, POSIX normalization and traversal checks, missing-file skips, folder existence ordering, metadata stub creation, deduplicated assignment, one-at-a-time removal, raw unassign keys, malformed metadata shapes, and exact four-space persistence with unknown-field retention. Both handlers use the shared user-content lock and atomic replacement. Go assign and unassign operations are read back through pinned Node. Pinned CORS answers OPTIONS with 204 while Go returns 404; parser responses, remaining filesystem failures/races, and browser `imageFolderMap` state updates remain incomplete.
 
+The image-metadata cleanup oracle covers POST /api/image-metadata/cleanup authentication, CSRF, GET/HEAD 404s, missing files, lexically out-of-user-root paths, object and array image collections, malformed roots, exact removed-key order, and exact four-space persistence. Cleanup uses the shared user-content lock and atomic replacement only when entries are removed; a no-op preserves index bytes, existence, and mtime. Its Go cleanup is read back by pinned Node. Pinned CORS answers OPTIONS with 204 while Go returns 404. Malformed request-body parsing, filesystem permission/race behavior, and some primitive image-index shapes remain incomplete.
+
 ---
 
 ## 10. Character/card suite
