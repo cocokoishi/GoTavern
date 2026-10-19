@@ -35,9 +35,9 @@ type imageMetadataGetFixture struct {
 		GeneratedFiles               map[string]string               `json:"generatedFiles"`
 		ThumbnailDimensions          map[string]any                  `json:"thumbnailDimensions"`
 		ThumbnailDimensionShapeCases []struct {
-			Type                string  `json:"type"`
-			Dimensions          any     `json:"dimensions"`
-			ThumbnailResolution float64 `json:"thumbnailResolution"`
+			Type                string          `json:"type"`
+			Dimensions          any             `json:"dimensions"`
+			ThumbnailResolution json.RawMessage `json:"thumbnailResolution"`
 		} `json:"thumbnailDimensionShapeCases"`
 		CachedMtime   float64 `json:"cachedMtime"`
 		UncachedMtime float64 `json:"uncachedMtime"`
@@ -77,8 +77,12 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 	}
 	for _, shapeCase := range fixture.Inputs.ThumbnailDimensionShapeCases {
 		got := imageMetadataThumbnailResolution(orderedNodeJSON{kind: 's', scalar: shapeCase.Type}, map[string]any{shapeCase.Type: shapeCase.Dimensions})
-		if got != shapeCase.ThumbnailResolution {
-			t.Errorf("thumbnail resolution for %s dimensions %#v = %v; pinned Node has %v", shapeCase.Type, shapeCase.Dimensions, got, shapeCase.ThumbnailResolution)
+		gotJSON, err := marshalECMAScriptNumber(got)
+		if err != nil {
+			t.Fatalf("marshal thumbnail resolution for %s dimensions %#v: %v", shapeCase.Type, shapeCase.Dimensions, err)
+		}
+		if !bytes.Equal(gotJSON, shapeCase.ThumbnailResolution) {
+			t.Errorf("thumbnail resolution for %s dimensions %#v = %s; pinned Node has %s", shapeCase.Type, shapeCase.Dimensions, gotJSON, shapeCase.ThumbnailResolution)
 		}
 	}
 

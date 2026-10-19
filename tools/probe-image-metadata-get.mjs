@@ -96,6 +96,9 @@ async function captureThumbnailDimensionShapeCases() {
         { type: 'avatar', dimensions: values.avatar },
         { type: 'persona', dimensions: values.persona },
         { type: 'bg', dimensions: ['\uFEFF80\uFEFF', 45] },
+        { type: 'bg', dimensions: ['0x1p2', 1] },
+        { type: 'avatar', dimensions: ['1e-999', 1e308] },
+        { type: 'persona', dimensions: ['\u008580\u0085', 45] },
     ];
     const environment = Object.fromEntries(Object.keys(values).map(type => {
         const key = 'SILLYTAVERN_THUMBNAILS_DIMENSIONS_' + type.toUpperCase();

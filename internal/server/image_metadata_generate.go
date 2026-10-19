@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -319,12 +320,17 @@ func imageMetadataJavaScriptNumberString(value string) float64 {
 			return value
 		}
 	}
+	if !ecmaScriptDecimalNumber.MatchString(trimmed) {
+		return math.NaN()
+	}
 	parsed, parseErr := strconv.ParseFloat(trimmed, 64)
-	if parseErr != nil {
+	if parseErr != nil && !errors.Is(parseErr, strconv.ErrRange) {
 		return math.NaN()
 	}
 	return parsed
 }
+
+var ecmaScriptDecimalNumber = regexp.MustCompile(`^[+-]?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)$`)
 
 func isECMAScriptNumberWhitespace(value rune) bool {
 	switch value {

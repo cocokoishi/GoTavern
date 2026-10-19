@@ -191,6 +191,30 @@
           45
         ],
         "thumbnailResolution": 3600
+      },
+      {
+        "type": "bg",
+        "dimensions": [
+          "0x1p2",
+          1
+        ],
+        "thumbnailResolution": null
+      },
+      {
+        "type": "avatar",
+        "dimensions": [
+          "1e-999",
+          1e+308
+        ],
+        "thumbnailResolution": 0
+      },
+      {
+        "type": "persona",
+        "dimensions": [
+          "80",
+          45
+        ],
+        "thumbnailResolution": null
       }
     ],
     "goRoundTrip": {
