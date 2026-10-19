@@ -400,6 +400,8 @@ The image-metadata folder-create oracle covers POST /api/image-metadata/folders/
 
 The image-metadata thumbnail oracle covers POST /api/image-metadata/folders/set-thumbnails authentication, CSRF, GET/HEAD 404s, batch validation, strict ID comparisons, duplicate updates, skipped unknown folders, malformed index fallback and shape errors, and exact four-space index persistence with unknown-field retention. Go serializes batch updates under the shared user-content lock and uses atomic replacement. Its cross-process round trip updates a folder through GoTavern and reads the resulting folder list and full index through pinned Node. URL-encoded/malformed request-body parser responses and filesystem failure/race cases remain unprobed.
 
+The image-metadata folder-update oracle covers POST /api/image-metadata/folders/update authentication, CSRF, GET/HEAD 404s, string-ID validation, first-match updates, assignment of arbitrary JSON values to `name` and `thumbnailFile`, not-found responses, malformed index fallback and shape errors, and exact four-space persistence with unknown-field retention. Go serializes updates under the shared user-content lock and uses atomic replacement. Its cross-process round trip renames a folder and changes its cover through GoTavern, then reads the resulting folder list and full index through pinned Node. Two known response differences remain: pinned CORS middleware answers OPTIONS with 204 and `Access-Control-Allow-Methods: OPTIONS` while Go returns 404, and Express emits a dynamic HTML syntax error for primitive JSON such as `null` while Go returns plain `Bad Request`. URL-encoded/malformed parser responses and filesystem failure/race cases still need broader coverage.
+
 ---
 
 ## 10. Character/card suite

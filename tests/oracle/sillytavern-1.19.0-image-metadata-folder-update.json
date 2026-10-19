@@ -1,0 +1,756 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned folder update behavior validates IDs, changes only supported fields, preserves unknown fields, and atomically persists the shared index",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-image-metadata-folder-update-cookie-secret",
+    "indexes": {
+      "populated": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "empty": "{\"version\":4,\"images\":{},\"folders\":[]}",
+      "missingFolders": "{\"version\":5,\"images\":{}}",
+      "nullFolders": "{\"version\":6,\"images\":{},\"folders\":null}",
+      "nullFolderEntry": "{\"version\":7,\"images\":{},\"folders\":[null]}",
+      "malformed": "{\"version\":",
+      "nullRoot": "null",
+      "missing": null
+    },
+    "cases": {
+      "renameAndCover": {
+        "index": "populated",
+        "body": {
+          "id": "alpha",
+          "name": "Renamed",
+          "thumbnailFile": "cover.webp",
+          "ignoredUpdate": true
+        }
+      },
+      "nameOnly": {
+        "index": "populated",
+        "body": {
+          "id": "alpha",
+          "name": "Renamed only"
+        }
+      },
+      "coverOnly": {
+        "index": "populated",
+        "body": {
+          "id": "beta",
+          "thumbnailFile": "new.jpg"
+        }
+      },
+      "noFieldUpdates": {
+        "index": "populated",
+        "body": {
+          "id": "beta",
+          "ignored": true
+        }
+      },
+      "arbitraryFieldTypes": {
+        "index": "populated",
+        "body": {
+          "id": "beta",
+          "name": null,
+          "thumbnailFile": 7
+        }
+      },
+      "missingFolder": {
+        "index": "populated",
+        "body": {
+          "id": "absent",
+          "name": "No folder"
+        }
+      },
+      "missingIndex": {
+        "index": "missing",
+        "body": {
+          "id": "absent"
+        }
+      },
+      "malformedIndex": {
+        "index": "malformed",
+        "body": {
+          "id": "absent"
+        }
+      },
+      "missingFolders": {
+        "index": "missingFolders",
+        "body": {
+          "id": "alpha",
+          "name": "x"
+        }
+      },
+      "nullFolders": {
+        "index": "nullFolders",
+        "body": {
+          "id": "alpha",
+          "name": "x"
+        }
+      },
+      "nullFolderEntry": {
+        "index": "nullFolderEntry",
+        "body": {
+          "id": "alpha",
+          "name": "x"
+        }
+      },
+      "nullRoot": {
+        "index": "nullRoot",
+        "body": {
+          "id": "alpha",
+          "name": "x"
+        }
+      },
+      "missingID": {
+        "index": "populated",
+        "body": {
+          "name": "Missing ID"
+        }
+      },
+      "emptyID": {
+        "index": "populated",
+        "body": {
+          "id": "",
+          "name": "Empty ID"
+        }
+      },
+      "nonStringID": {
+        "index": "populated",
+        "body": {
+          "id": 7,
+          "name": "Wrong ID type"
+        }
+      }
+    },
+    "goRoundTripInput": {
+      "index": "{\n    \"version\": 13,\n    \"images\": {\n        \"backgrounds/tree.png\": {\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"unknownImage\": {\n                \"preserve\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"people\",\n            \"name\": \"People\",\n            \"thumbnailFile\": \"\",\n            \"probe\": [\n                \"retained\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"roundTrip\": true\n    }\n}",
+      "body": {
+        "id": "forest",
+        "name": "Trees",
+        "thumbnailFile": "tree.png",
+        "ignored": "drop"
+      }
+    }
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "invalidCSRF": {
+      "status": 403,
+      "headers": {
+        "content-length": "201",
+        "content-security-policy": "default-src 'none'",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>ForbiddenError: Invalid CSRF token. Please refresh the page and try again.</pre>\n</body>\n</html>\n"
+    },
+    "wrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodHead": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodOptions": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-methods": "OPTIONS",
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Access-Control-Request-Headers",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "renameAndCover": {
+      "status": 200,
+      "headers": {
+        "content-length": "90",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5a-xq6b6RwLGrDVUjBwB2xcJGvV5wc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "id": "alpha",
+        "name": "Renamed",
+        "thumbnailFile": "cover.webp",
+        "unknownFolder": {
+          "keep": true
+        }
+      }
+    },
+    "nameOnly": {
+      "status": 200,
+      "headers": {
+        "content-length": "85",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"55-tqyRi4JZMaD004s1GTNTYlTADQo\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "id": "alpha",
+        "name": "Renamed only",
+        "thumbnailFile": "",
+        "unknownFolder": {
+          "keep": true
+        }
+      }
+    },
+    "coverOnly": {
+      "status": 200,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-bJBoUo/HyP/OuefOI96b9Q8EsFY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "id": "beta",
+        "name": "Beta",
+        "thumbnailFile": "new.jpg",
+        "unknown": [
+          "retain"
+        ]
+      }
+    },
+    "noFieldUpdates": {
+      "status": 200,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-CGTFIttZ1Eki7oDl7Nk5FsMz0bk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "id": "beta",
+        "name": "Beta",
+        "thumbnailFile": "old.jpg",
+        "unknown": [
+          "retain"
+        ]
+      }
+    },
+    "arbitraryFieldTypes": {
+      "status": 200,
+      "headers": {
+        "content-length": "64",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"40-lObvaVUtSX4aXJ7uZUokUX8SfLI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "id": "beta",
+        "name": null,
+        "thumbnailFile": 7,
+        "unknown": [
+          "retain"
+        ]
+      }
+    },
+    "missingFolder": {
+      "status": 404,
+      "headers": {
+        "content-length": "38",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"26-Fx0E28MjBP3bCaOMe53Iir9FaCc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Folder 'absent' not found."
+      }
+    },
+    "missingIndex": {
+      "status": 404,
+      "headers": {
+        "content-length": "38",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"26-Fx0E28MjBP3bCaOMe53Iir9FaCc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Folder 'absent' not found."
+      }
+    },
+    "malformedIndex": {
+      "status": 404,
+      "headers": {
+        "content-length": "38",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"26-Fx0E28MjBP3bCaOMe53Iir9FaCc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Folder 'absent' not found."
+      }
+    },
+    "missingFolders": {
+      "status": 500,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-0CBIDfHXpycpAijV1RvIp9/LC/A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Internal server error."
+      }
+    },
+    "nullFolders": {
+      "status": 500,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-0CBIDfHXpycpAijV1RvIp9/LC/A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Internal server error."
+      }
+    },
+    "nullFolderEntry": {
+      "status": 500,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-0CBIDfHXpycpAijV1RvIp9/LC/A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Internal server error."
+      }
+    },
+    "nullRoot": {
+      "status": 500,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-0CBIDfHXpycpAijV1RvIp9/LC/A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Internal server error."
+      }
+    },
+    "missingID": {
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-Hsk8pP2vKMlPQtINvwHmgsQZsEw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "\"id\" is required."
+      }
+    },
+    "emptyID": {
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-Hsk8pP2vKMlPQtINvwHmgsQZsEw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "\"id\" is required."
+      }
+    },
+    "nonStringID": {
+      "status": 400,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-Hsk8pP2vKMlPQtINvwHmgsQZsEw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "\"id\" is required."
+      }
+    }
+  },
+  "state": {
+    "fileContentsAfter": {
+      "renameAndCover": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Renamed\",\n            \"thumbnailFile\": \"cover.webp\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "nameOnly": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Renamed only\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "coverOnly": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"new.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "noFieldUpdates": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "arbitraryFieldTypes": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": null,\n            \"thumbnailFile\": 7,\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "missingFolder": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "missingIndex": null,
+      "malformedIndex": "{\"version\":",
+      "missingFolders": "{\"version\":5,\"images\":{}}",
+      "nullFolders": "{\"version\":6,\"images\":{},\"folders\":null}",
+      "nullFolderEntry": "{\"version\":7,\"images\":{},\"folders\":[null]}",
+      "nullRoot": "null",
+      "missingID": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "emptyID": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "nonStringID": "{\n    \"version\": 2,\n    \"images\": {\n        \"backgrounds/forest.webp\": {\n            \"folderIds\": [\n                \"alpha\"\n            ],\n            \"unknownImage\": {\n                \"keep\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Alpha\",\n            \"thumbnailFile\": \"\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"alpha\",\n            \"name\": \"Duplicate\",\n            \"thumbnailFile\": \"second.jpg\",\n            \"probe\": 2\n        },\n        {\n            \"id\": \"beta\",\n            \"name\": \"Beta\",\n            \"thumbnailFile\": \"old.jpg\",\n            \"unknown\": [\n                \"retain\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}"
+    },
+    "accountRecordUnchanged": true,
+    "goRoundTrip": {
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "87",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"57-SQNcL+Bx6qAwRqzuXyfYFcNQgtg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "forest",
+          "name": "Trees",
+          "thumbnailFile": "tree.png",
+          "unknownFolder": {
+            "keep": true
+          }
+        }
+      },
+      "nodeFoldersReadback": {
+        "status": 200,
+        "headers": {
+          "content-length": "161",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a1-kenkDUrSL1iye9hcYDAsl/kzOdE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "forest",
+            "name": "Trees",
+            "thumbnailFile": "tree.png",
+            "unknownFolder": {
+              "keep": true
+            }
+          },
+          {
+            "id": "people",
+            "name": "People",
+            "thumbnailFile": "",
+            "probe": [
+              "retained"
+            ]
+          }
+        ]
+      },
+      "nodeIndexReadback": {
+        "status": 200,
+        "headers": {
+          "content-length": "311",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"137-pxuPTSt0EGYCKyFTOD2NHNxMSHE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "version": 13,
+          "images": {
+            "backgrounds/tree.png": {
+              "folderIds": [
+                "forest"
+              ],
+              "unknownImage": {
+                "preserve": true
+              }
+            }
+          },
+          "folders": [
+            {
+              "id": "forest",
+              "name": "Trees",
+              "thumbnailFile": "tree.png",
+              "unknownFolder": {
+                "keep": true
+              }
+            },
+            {
+              "id": "people",
+              "name": "People",
+              "thumbnailFile": "",
+              "probe": [
+                "retained"
+              ]
+            }
+          ],
+          "unknownRoot": {
+            "roundTrip": true
+          }
+        }
+      },
+      "fileContent": "{\n    \"version\": 13,\n    \"images\": {\n        \"backgrounds/tree.png\": {\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"unknownImage\": {\n                \"preserve\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Trees\",\n            \"thumbnailFile\": \"tree.png\",\n            \"unknownFolder\": {\n                \"keep\": true\n            }\n        },\n        {\n            \"id\": \"people\",\n            \"name\": \"People\",\n            \"thumbnailFile\": \"\",\n            \"probe\": [\n                \"retained\"\n            ]\n        }\n    ],\n    \"unknownRoot\": {\n        \"roundTrip\": true\n    }\n}"
+    }
+  }
+}
