@@ -44,6 +44,7 @@ type versionResponse struct {
 // HTTP middleware. A nil session timeout means SillyTavern's default of -1
 // (400 days).
 type HTTPHandlerOptions struct {
+	InstallRoot                string
 	DataRoot                   string
 	CookieSecret               string
 	DisableCSRF                bool
@@ -236,6 +237,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/change-name", accounts.serveUserChangeName)
 	mux.HandleFunc("POST /api/users/change-password", accounts.serveUserChangePassword)
 	mux.HandleFunc("POST /api/users/get", accounts.serveUserAdminGet)
+	mux.HandleFunc("POST /api/users/create", accounts.serveUserAdminCreate)
+	mux.HandleFunc("POST /api/users/slugify", accounts.serveUserAdminSlugify)
 	mux.HandleFunc("POST /api/users/disable", accounts.serveUserAdminDisable)
 	mux.HandleFunc("POST /api/users/enable", accounts.serveUserAdminEnable)
 	mux.HandleFunc("POST /api/users/promote", accounts.serveUserAdminPromote)

@@ -301,6 +301,33 @@ func RemoveNodePersistRecord(dataRoot, key string) error {
 	return nil
 }
 
+// NodePersistKeys returns the persisted keys that match a prefix, without
+// interpreting their values. SillyTavern's node-persist keys() predicate
+// operates on key names even when an account value is not an object.
+func NodePersistKeys(dataRoot, prefix string) ([]string, error) {
+	if dataRoot == "" {
+		return nil, nil
+	}
+	absoluteRoot, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve data root: %w", err)
+	}
+	entries, err := readStoreEntries(filepath.Join(absoluteRoot, storageFolder))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Key, prefix) {
+			keys = append(keys, entry.Key)
+		}
+	}
+	return keys, nil
+}
+
 // DirectoriesForUser returns the paths declared by SillyTavern's pinned
 // USER_DIRECTORY_TEMPLATE for one user.
 func DirectoriesForUser(dataRoot, handle string) (UserDirectories, error) {

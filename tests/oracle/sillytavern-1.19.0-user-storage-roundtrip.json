@@ -81,6 +81,28 @@
       ],
       "ttlPresent": false,
       "recordPath": "_storage/3a5bb37ab86ac047d8ef481ee2e7bd3683d694ff8502a7cfe6951af849015dcc"
+    },
+    "goAccountCreate": {
+      "nodeAdminRecordPreserved": true,
+      "nodeAdminUnknownFieldReadBack": {
+        "preserve": "node-go-node"
+      },
+      "nodeReadGoCreatedAccount": {
+        "handle": "go-roundtrip",
+        "name": "Go-created account",
+        "created": "<timestamp>",
+        "password": "<64-byte-scrypt-base64>",
+        "salt": "<16-byte-base64>",
+        "admin": false,
+        "enabled": true
+      },
+      "nodeReadGoCreatedPasswordMatchesPinnedScrypt": true,
+      "nodePersistKeys": [
+        "key",
+        "value"
+      ],
+      "ttlPresent": false,
+      "recordPath": "_storage/629aaee5f56af14d0229374977b11e9bd0050c35771e520604e57aa0122d1b3a"
     }
   }
 }

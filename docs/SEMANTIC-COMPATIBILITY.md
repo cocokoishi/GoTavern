@@ -492,6 +492,13 @@ the updated session version, and a Node→Go→Node node-persist round trip.
 
 ---
 
+Admin account creation also changes persistent data and the user content tree.
+Compare lodash-based handle normalization, duplicate detection, optional
+password hashing and salt generation, the exact node-persist record fields,
+all user directories, global defaults, and every per-user seeded file. The
+`account-create` oracle includes accent, ligature, combining-mark, non-Latin,
+array, object, and numeric slug inputs.
+
 ## 15. Failure semantics
 
 Happy paths miss many extension assumptions. Add differential cases for:

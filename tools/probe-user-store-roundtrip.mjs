@@ -14,6 +14,7 @@ import process from 'node:process';
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 const RECOVERY_PASSWORD = 'pa\u0301ssword';
+const CREATE_PASSWORD = 'account-create-roundtrip-password';
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
@@ -57,6 +58,15 @@ function runGoRecoveryUpdater(dataRoot) {
 
 function runGoAvatarWriter(dataRoot) {
     const output = execFileSync('go', ['run', './tools/user-store-avatar-fixture', dataRoot], {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return JSON.parse(output);
+}
+
+function runGoAccountCreate(dataRoot, installRoot) {
+    const output = execFileSync('go', ['run', './tools/account-create-roundtrip', dataRoot, installRoot], {
         cwd: repositoryRoot,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -199,6 +209,53 @@ async function verifyGoAvatarSetSurvivesNode() {
     };
 }
 
+async function verifyGoAccountCreateSurvivesNode() {
+    const dataRoot = path.join(tempRoot, 'go-account-create-data');
+    const installRoot = path.join(tempRoot, 'go-account-create-install');
+    mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
+    mkdirSync(installRoot, { recursive: true });
+    await initStorage(dataRoot);
+    const nodeAdmin = {
+        handle: 'default-user', name: 'Node-seeded admin', created: 1700000000004,
+        password: '', admin: true, enabled: true, salt: '', unknownField: { preserve: 'node-go-node' },
+    };
+    await storage.setItem('user:default-user', nodeAdmin);
+    const adminPath = storagePath(dataRoot, 'user:default-user');
+    const adminBytes = readFileSync(adminPath);
+
+    const createdByGo = runGoAccountCreate(dataRoot, installRoot);
+    assert.deepEqual(createdByGo, { handle: 'go-roundtrip' });
+    await initStorage(dataRoot);
+    const created = await storage.getItem('user:go-roundtrip');
+    const adminAfter = await storage.getItem('user:default-user');
+    const recordPath = storagePath(dataRoot, 'user:go-roundtrip');
+    const record = JSON.parse(readFileSync(recordPath, 'utf8'));
+    const expectedHash = scryptSync(CREATE_PASSWORD.normalize('NFC'), created.salt, 64).toString('base64');
+    assert.equal(readFileSync(adminPath).compare(adminBytes), 0, 'Go changed the Node-created administrator record');
+    assert.deepEqual(adminAfter, nodeAdmin, 'Node did not read back its untouched administrator record');
+    assert.deepEqual(Object.keys(created), ['handle', 'name', 'created', 'password', 'salt', 'admin', 'enabled']);
+    assert.equal(created.handle, 'go-roundtrip');
+    assert.equal(created.name, 'Go-created account');
+    assert.equal(created.admin, false);
+    assert.equal(created.enabled, true);
+    assert.equal(typeof created.created, 'number');
+    assert.equal(created.password, expectedHash, 'Go account-create route did not use pinned Unicode-normalized scrypt');
+    assert.equal(Buffer.from(created.salt, 'base64').byteLength, 16);
+    assert.deepEqual(Object.keys(record), ['key', 'value']);
+    assert.equal(record.key, 'user:go-roundtrip');
+    assert.deepEqual(record.value, created);
+    assert.equal(Object.hasOwn(record, 'ttl'), false);
+    return {
+        nodeAdminRecordPreserved: true,
+        nodeAdminUnknownFieldReadBack: adminAfter.unknownField,
+        nodeReadGoCreatedAccount: { ...created, created: '<timestamp>', password: '<64-byte-scrypt-base64>', salt: '<16-byte-base64>' },
+        nodeReadGoCreatedPasswordMatchesPinnedScrypt: true,
+        nodePersistKeys: Object.keys(record),
+        ttlPresent: Object.hasOwn(record, 'ttl'),
+        recordPath: `_storage/${path.basename(recordPath)}`,
+    };
+}
+
 function safeCleanup() {
     const resolved = path.resolve(tempRoot);
     const parent = path.resolve(os.tmpdir());
@@ -220,6 +277,7 @@ try {
             goRecoveryUpdate: await verifyGoRecoveryUpdateSurvivesNode(),
             goAvatarSet: await verifyGoAvatarSetSurvivesNode(),
             goWritten: await verifyNodeReadsGoCreatedRecord(),
+            goAccountCreate: await verifyGoAccountCreateSurvivesNode(),
         },
     };
     const outputDirectory = path.join(repositoryRoot, 'tests', 'oracle');

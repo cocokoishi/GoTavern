@@ -207,6 +207,18 @@ try {
         throw new Error(`account-admin oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountCreateProbe = path.join(buildRoot, '.gotavern-probe-account-create.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-create.mjs'), accountCreateProbe);
+    const accountCreateFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-create.json');
+    run(process.execPath, [accountCreateProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountCreateProbe = readFileSync(accountCreateFixturePath);
+    run(process.execPath, [accountCreateProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountCreateProbe = readFileSync(accountCreateFixturePath);
+    if (!firstAccountCreateProbe.equals(secondAccountCreateProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountCreateProbe), JSON.parse(secondAccountCreateProbe));
+        throw new Error(`account-create oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

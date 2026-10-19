@@ -87,6 +87,7 @@ type accountRuntime struct {
 	limiter        *memoryLoginLimiter
 	recoverLimiter *memoryLoginLimiter
 	defaultUser    storedAccount
+	createMu       sync.Mutex
 	recoveryMu     sync.Mutex
 	recoveryCodes  map[string]recoveryCodeEntry
 }

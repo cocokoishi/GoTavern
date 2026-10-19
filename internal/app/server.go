@@ -152,6 +152,7 @@ func Start(options StartOptions) (*RunningServer, error) {
 	}
 
 	handlerOptions := server.HTTPHandlerOptionsFromCommandLine(parsed)
+	handlerOptions.InstallRoot = options.InstallRoot
 	handlerOptions.Whitelist = loadWhitelistPatterns(handlerOptions.Whitelist, options.InstallRoot)
 	handlerOptions.ForbiddenPage = whitelistPage
 	handlerOptions.PreserveForbiddenPage = true
