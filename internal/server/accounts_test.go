@@ -412,6 +412,7 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	recoveryAttempts := 2.5
 	resetAttempts := 4.5
 	allowFullDataBackup := false
+	settingsBackupRetention := 2.5
 	timeout := float64(900)
 	parsed := commandline.CommandLineResult{
 		Paths: commandline.ResolvedPaths{RuntimeDataRoot: filepath.Join(t.TempDir(), "data")},
@@ -429,6 +430,7 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 			SkipContentCheck:           true,
 			AllowFullDataBackup:        allowFullDataBackup,
 			AllowKeysExposure:          true,
+			SettingsBackupRetention:    settingsBackupRetention,
 			SessionTimeout:             timeout,
 			ForwardedXRealIP:           false,
 			ForwardedCFConnectingIP:    true,
@@ -444,6 +446,9 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	}
 	if options.AllowFullDataBackup == nil || *options.AllowFullDataBackup || !options.AllowKeysExposure {
 		t.Fatalf("handler backup options = %+v", options)
+	}
+	if options.SettingsBackupRetention == nil || *options.SettingsBackupRetention != settingsBackupRetention {
+		t.Fatalf("handler settings-backup retention = %+v", options.SettingsBackupRetention)
 	}
 	if options.ForwardedXRealIP == nil || *options.ForwardedXRealIP || options.ForwardedCFConnectingIP == nil || !*options.ForwardedCFConnectingIP || options.ForwardedXForwardedFor == nil || *options.ForwardedXForwardedFor {
 		t.Fatalf("handler forwarded-header options = %+v", options)

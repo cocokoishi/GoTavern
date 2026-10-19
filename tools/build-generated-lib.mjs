@@ -375,6 +375,18 @@ try {
         throw new Error(`settings-backup oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const settingsSnapshotsProbe = path.join(buildRoot, '.gotavern-probe-settings-snapshots.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-settings-snapshots.mjs'), settingsSnapshotsProbe);
+    const settingsSnapshotsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-settings-snapshots.json');
+    run(process.execPath, [settingsSnapshotsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSettingsSnapshotsProbe = readFileSync(settingsSnapshotsFixturePath);
+    run(process.execPath, [settingsSnapshotsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSettingsSnapshotsProbe = readFileSync(settingsSnapshotsFixturePath);
+    if (!firstSettingsSnapshotsProbe.equals(secondSettingsSnapshotsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSettingsSnapshotsProbe), JSON.parse(secondSettingsSnapshotsProbe));
+        throw new Error(`settings-snapshots oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');

@@ -351,6 +351,15 @@ Compare exact response field names/types/ordering semantics and follow with real
 
 Also test settings save + backup throttling/snapshot APIs using an isolated clock/filesystem where practical.
 
+The settings snapshot routes are persistent file operations. Compare per-user
+snapshot prefixes, list response order and date/name/size values, load and
+restore validation, not-found responses, exact UTF-8 bytes, timestamped manual
+backup creation, configured retention, a missing-settings no-op, and unchanged
+account records. The `settings-snapshots` oracle normalizes change times and
+generated timestamp text only. It also checks that Node reads a Go-created
+snapshot and Go restores a Node-created snapshot. `settings/get` and
+`settings/save` remain separate contracts.
+
 ---
 
 ## 10. Character/card suite

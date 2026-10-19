@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned per-user settings snapshot list/load/create/restore authorization and filesystem behavior",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-settings-snapshots-cookie-secret",
+    "password": "settings-snapshots-protected-password",
+    "salt": "c2V0dGluZ3Mtc25hcHNob3RzLXNhbHQ="
+  },
+  "responses": {
+    "unauthorizedList": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "listInitial": {
+      "status": 200,
+      "headers": {
+        "content-length": "<dynamic>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<dynamic>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "date": "<ctime>",
+          "name": "settings_default-user_newer.json",
+          "size": 20
+        },
+        {
+          "date": "<ctime>",
+          "name": "settings_default-user_older.json",
+          "size": 20
+        }
+      ]
+    },
+    "loadOlder": {
+      "status": 200,
+      "headers": {
+        "content-length": "20",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-4QHFgUydTBY5c9W/5VHkXMAgepQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "snapshot": "older"
+      }
+    },
+    "loadForeign": {
+      "status": 400,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-v6S6MPSaBxtZ3+NzGjnY9332tdE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Invalid snapshot name"
+      }
+    },
+    "loadMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "loadSlash": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "loadNoName": {
+      "status": 400,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-v6S6MPSaBxtZ3+NzGjnY9332tdE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Invalid snapshot name"
+      }
+    },
+    "restoreOlder": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "makeSnapshot": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "listAfterMake": {
+      "status": 200,
+      "headers": {
+        "content-length": "<dynamic>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<dynamic>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "date": "<ctime>",
+          "name": "settings_default-user_<timestamp>.json",
+          "size": 34
+        },
+        {
+          "date": "<ctime>",
+          "name": "settings_default-user_newer.json",
+          "size": 20
+        }
+      ]
+    },
+    "loadNew": {
+      "status": 200,
+      "headers": {
+        "content-length": "34",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-ga7D0smOSiK1PBiS3AB+4TT48vo\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "settings": "saved after restore"
+      }
+    },
+    "restoreNew": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "restoreMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "restoreSlash": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "restoreNoName": {
+      "status": 400,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-v6S6MPSaBxtZ3+NzGjnY9332tdE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Invalid snapshot name"
+      }
+    },
+    "makeSnapshotMissingSettings": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    }
+  },
+  "roundTrip": {
+    "nodeSettings": {
+      "sha256": "24ab4a396204fc4b5528ff68e52101dcf9c5324ffb1f9744a02ac09901817996",
+      "bytes": 40
+    },
+    "goCreatedSnapshot": {
+      "name": "settings_roundtrip-user_<timestamp>.json",
+      "sha256": "24ab4a396204fc4b5528ff68e52101dcf9c5324ffb1f9744a02ac09901817996",
+      "bytes": 40,
+      "readableByNode": true
+    },
+    "nodeSnapshot": {
+      "sha256": "bb110d81a3979b126326470ad7421086a846646ebf399454dfe8c4edafe6c817",
+      "bytes": 44
+    },
+    "goRestoreResult": {
+      "restored": true
+    },
+    "goRestoredNodeSnapshot": {
+      "sha256": "bb110d81a3979b126326470ad7421086a846646ebf399454dfe8c4edafe6c817",
+      "bytes": 44,
+      "readableByNode": true
+    }
+  },
+  "filesystem": {
+    "settingsFileName": "settings.json",
+    "initialSettings": {
+      "sha256": "204cf8bc86e0810a0d017e469c74911eaef4d8347994bf0b39ecaa17e02a2a05",
+      "bytes": 31
+    },
+    "seededBackups": [
+      {
+        "name": "settings_another-user_private.json",
+        "sha256": "9de79122d3d7b21b3abe51e8bd404fa152ffbae3cb9aa95fb1fd27e2b1bd3b51",
+        "bytes": 25
+      },
+      {
+        "name": "settings_default-user_newer.json",
+        "sha256": "1eb305c3f59f2d1f47827c7200adec4f9a781769a40d978be262e0cd5e71d2a4",
+        "bytes": 20
+      },
+      {
+        "name": "settings_default-user_older.json",
+        "sha256": "072a869d59c867c3afe04e7d165c0cb12124c1502e2e21eafd79210fa67f9817",
+        "bytes": 20
+      }
+    ],
+    "afterRestoreOlder": {
+      "sha256": "072a869d59c867c3afe04e7d165c0cb12124c1502e2e21eafd79210fa67f9817",
+      "bytes": 20,
+      "content": "{\"snapshot\":\"older\"}"
+    },
+    "backupsAfterRestore": [
+      {
+        "name": "settings_another-user_private.json",
+        "sha256": "9de79122d3d7b21b3abe51e8bd404fa152ffbae3cb9aa95fb1fd27e2b1bd3b51",
+        "bytes": 25
+      },
+      {
+        "name": "settings_default-user_newer.json",
+        "sha256": "1eb305c3f59f2d1f47827c7200adec4f9a781769a40d978be262e0cd5e71d2a4",
+        "bytes": 20
+      },
+      {
+        "name": "settings_default-user_older.json",
+        "sha256": "072a869d59c867c3afe04e7d165c0cb12124c1502e2e21eafd79210fa67f9817",
+        "bytes": 20
+      }
+    ],
+    "backupsAfterMake": [
+      {
+        "name": "settings_another-user_private.json",
+        "sha256": "9de79122d3d7b21b3abe51e8bd404fa152ffbae3cb9aa95fb1fd27e2b1bd3b51",
+        "bytes": 25
+      },
+      {
+        "name": "settings_default-user_<timestamp>.json",
+        "sha256": "62e9af20b9b2439b2e6870646692e9b4f6f79d850a86dad48668daf4d7a11c38",
+        "bytes": 34
+      },
+      {
+        "name": "settings_default-user_newer.json",
+        "sha256": "1eb305c3f59f2d1f47827c7200adec4f9a781769a40d978be262e0cd5e71d2a4",
+        "bytes": 20
+      }
+    ],
+    "afterRestoreNew": {
+      "sha256": "62e9af20b9b2439b2e6870646692e9b4f6f79d850a86dad48668daf4d7a11c38",
+      "bytes": 34,
+      "content": "{\"settings\":\"saved after restore\"}"
+    },
+    "backupsAfterMissingSourceMake": {
+      "before": [
+        {
+          "name": "settings_another-user_private.json",
+          "sha256": "9de79122d3d7b21b3abe51e8bd404fa152ffbae3cb9aa95fb1fd27e2b1bd3b51",
+          "bytes": 25
+        },
+        {
+          "name": "settings_default-user_<timestamp>.json",
+          "sha256": "62e9af20b9b2439b2e6870646692e9b4f6f79d850a86dad48668daf4d7a11c38",
+          "bytes": 34
+        },
+        {
+          "name": "settings_default-user_newer.json",
+          "sha256": "1eb305c3f59f2d1f47827c7200adec4f9a781769a40d978be262e0cd5e71d2a4",
+          "bytes": 20
+        }
+      ],
+      "after": [
+        {
+          "name": "settings_another-user_private.json",
+          "sha256": "9de79122d3d7b21b3abe51e8bd404fa152ffbae3cb9aa95fb1fd27e2b1bd3b51",
+          "bytes": 25
+        },
+        {
+          "name": "settings_default-user_<timestamp>.json",
+          "sha256": "62e9af20b9b2439b2e6870646692e9b4f6f79d850a86dad48668daf4d7a11c38",
+          "bytes": 34
+        },
+        {
+          "name": "settings_default-user_newer.json",
+          "sha256": "1eb305c3f59f2d1f47827c7200adec4f9a781769a40d978be262e0cd5e71d2a4",
+          "bytes": 20
+        }
+      ]
+    },
+    "accountRecordUnchanged": true
+  }
+}

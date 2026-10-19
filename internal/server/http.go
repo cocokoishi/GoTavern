@@ -70,6 +70,7 @@ type HTTPHandlerOptions struct {
 	SkipContentCheck           bool
 	AllowFullDataBackup        *bool
 	AllowKeysExposure          bool
+	SettingsBackupRetention    *float64
 	LoginRateLimitPoints       *float64
 	RecoveryRateLimitPoints    *float64
 	ResetRateLimitPoints       *float64
@@ -120,6 +121,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if allowed, ok := optionBooleanValue(settings.AllowFullDataBackup); ok {
 		options.AllowFullDataBackup = &allowed
+	}
+	if retention, ok := optionNumber(settings.SettingsBackupRetention); ok {
+		options.SettingsBackupRetention = &retention
 	}
 	if attempts, ok := optionNumber(settings.BasicAuthMaxAttempts); ok {
 		options.BasicAuthRateLimit = &attempts
@@ -263,6 +267,10 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/delete", accounts.serveUserAdminDelete)
 	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
+	mux.HandleFunc("POST /api/settings/get-snapshots", accounts.serveSettingsGetSnapshots)
+	mux.HandleFunc("POST /api/settings/load-snapshot", accounts.serveSettingsLoadSnapshot)
+	mux.HandleFunc("POST /api/settings/make-snapshot", accounts.serveSettingsMakeSnapshot)
+	mux.HandleFunc("POST /api/settings/restore-snapshot", accounts.serveSettingsRestoreSnapshot)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
 		servePing(w, r, options)
 	})
