@@ -6,7 +6,7 @@ The canonical persistent format is the upstream directory/file layout. GoTavern 
 
 ## Per-user paths
 
-At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<handle>/`. User records live in the `_storage` key/value store at the data root; `cookie-secret.txt` also lives at the data root.
+At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<handle>/`. User records live in the `_storage` key/value store at the data root; `cookie-secret.txt` also lives at the data root. Each user root can contain `secrets.json`; startup converts legacy flat string entries to the current array format and backs up the source file.
 
 | Directory key | Relative path under `DATA_ROOT/<handle>/` | Source |
 |---|---|---|
@@ -65,8 +65,8 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, group-chat metadata migration, and character disk-cache verification. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, group-chat metadata migration, character disk-cache verification, and legacy flat-secret migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
-- Content-log skip/force/update cases, settings aggregation, character-cache error cases and node-persist write behavior, backup policy, remaining migration behavior, and unknown-field preservation.
+- Content-log skip/force/update cases, settings aggregation, character-cache error cases and node-persist write behavior, secret backup/write-failure handling, remaining migration behavior, and unknown-field preservation.
 - Node-written → Go-read/write → Node-read round trips for every persistent mutation family.

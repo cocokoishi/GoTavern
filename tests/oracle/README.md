@@ -30,6 +30,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-character-disk-cache.json` captures pinned character-cache creation and verification behavior for disabled, empty, valid-PNG, stale, and non-PNG entries, including the hashed-filename removal behavior.
 
+`sillytavern-1.19.0-flat-secrets.json` captures pinned legacy secrets migration, backups, idempotence, JavaScript property/value edge cases, per-user error continuation, and a Node-to-Go-to-Node check that SillyTavern reads Go-migrated secrets.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh

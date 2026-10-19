@@ -198,6 +198,18 @@ try {
         throw new Error(`character disk-cache oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const flatSecretsProbe = path.join(buildRoot, '.gotavern-probe-flat-secrets.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-flat-secrets.mjs'), flatSecretsProbe);
+    const flatSecretsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-flat-secrets.json');
+    run(process.execPath, [flatSecretsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstFlatSecretsProbe = readFileSync(flatSecretsFixturePath);
+    run(process.execPath, [flatSecretsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondFlatSecretsProbe = readFileSync(flatSecretsFixturePath);
+    if (!firstFlatSecretsProbe.equals(secondFlatSecretsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstFlatSecretsProbe), JSON.parse(secondFlatSecretsProbe));
+        throw new Error(`flat-secrets oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);
