@@ -47,13 +47,15 @@ async function choosePort() {
     return port;
 }
 
-async function request(url, method = 'GET', headers = {}) {
+async function request(url, method = 'GET', headers = {}, captureBody = false) {
     const response = await fetch(url, { method, headers, redirect: 'manual', signal: AbortSignal.timeout(10000) });
-    await response.arrayBuffer();
+    const body = await response.text();
     const selectedHeaders = Object.fromEntries([...response.headers.entries()]
-        .filter(([name]) => name.startsWith('access-control-') || name === 'vary' || name === 'allow' || (response.status === 204 && name === 'content-length'))
+        .filter(([name]) => name.startsWith('access-control-') || name === 'vary' || name === 'allow'
+            || (method === 'OPTIONS' && captureBody && (name === 'content-length' || name === 'content-type'))
+            || (response.status === 204 && name === 'content-length'))
         .sort(([left], [right]) => left.localeCompare(right)));
-    return { status: response.status, headers: selectedHeaders };
+    return { status: response.status, headers: selectedHeaders, ...(captureBody ? { body } : {}) };
 }
 
 async function stopServer() {
@@ -147,14 +149,15 @@ try {
     child.stdout.on('data', chunk => logs.push(chunk));
     child.stderr.on('data', chunk => logs.push(chunk));
     await waitForServer(disabledOrigin);
-    responses.disabledPreflight = await request(disabledOrigin + '/api/image-metadata', 'OPTIONS', allowedHeaders);
+    responses.disabledPreflight = await request(disabledOrigin + '/api/image-metadata', 'OPTIONS', allowedHeaders, true);
+    responses.disabledGetPreflight = await request(disabledOrigin + '/api/sprites/get', 'OPTIONS', allowedHeaders, true);
     responses.disabledActualRequest = await request(disabledOrigin + '/version', 'GET', { Origin: 'https://allowed.example' });
     await stopServer();
 
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned cors@2.8.5 applies configured CORS headers before route dispatch and terminates enabled OPTIONS requests with status 204; when disabled, Express automatic OPTIONS handling remains active for registered routes',
+        probe: 'pinned cors@2.8.5 applies configured CORS headers before route dispatch and terminates enabled OPTIONS requests with status 204; when disabled, Express automatic OPTIONS returns its route method list for registered routes',
         inputs: {
             cors: {
                 enabled: true,

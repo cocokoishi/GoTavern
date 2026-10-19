@@ -4,7 +4,7 @@
     "version": "1.19.0",
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
-  "probe": "pinned cors@2.8.5 applies configured CORS headers before route dispatch and terminates enabled OPTIONS requests with status 204; when disabled, Express automatic OPTIONS handling remains active for registered routes",
+  "probe": "pinned cors@2.8.5 applies configured CORS headers before route dispatch and terminates enabled OPTIONS requests with status 204; when disabled, Express automatic OPTIONS returns its route method list for registered routes",
   "inputs": {
     "cors": {
       "enabled": true,
@@ -99,8 +99,21 @@
       "status": 200,
       "headers": {
         "allow": "POST",
+        "content-length": "4",
+        "content-type": "text/html; charset=utf-8",
         "vary": "Accept-Encoding"
-      }
+      },
+      "body": "POST"
+    },
+    "disabledGetPreflight": {
+      "status": 200,
+      "headers": {
+        "allow": "GET,HEAD",
+        "content-length": "8",
+        "content-type": "text/html; charset=utf-8",
+        "vary": "Accept-Encoding"
+      },
+      "body": "GET,HEAD"
     },
     "disabledActualRequest": {
       "status": 200,

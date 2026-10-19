@@ -35,6 +35,7 @@ type corsMiddlewareFixture struct {
 	Responses map[string]struct {
 		Status  int               `json:"status"`
 		Headers map[string]string `json:"headers"`
+		Body    string            `json:"body"`
 	} `json:"responses"`
 }
 
@@ -111,12 +112,14 @@ func TestPinnedNodeCORSMiddleware(t *testing.T) {
 		CorsEnabled:            &disabled,
 	})
 	for _, probeCase := range []struct {
-		name    string
-		method  string
-		route   string
-		headers map[string]string
+		name             string
+		method           string
+		route            string
+		headers          map[string]string
+		automaticOptions bool
 	}{
-		{name: "disabledPreflight", method: http.MethodOptions, route: "/api/image-metadata", headers: fixture.Inputs.AllowedHeaders},
+		{name: "disabledPreflight", method: http.MethodOptions, route: "/api/image-metadata", headers: fixture.Inputs.AllowedHeaders, automaticOptions: true},
+		{name: "disabledGetPreflight", method: http.MethodOptions, route: "/api/sprites/get", headers: fixture.Inputs.AllowedHeaders, automaticOptions: true},
 		{name: "disabledActualRequest", method: http.MethodGet, route: "/version", headers: map[string]string{"Origin": "https://allowed.example"}},
 	} {
 		t.Run(probeCase.name, func(t *testing.T) {
@@ -131,24 +134,31 @@ func TestPinnedNodeCORSMiddleware(t *testing.T) {
 				t.Fatalf("CORS oracle has no response %q", probeCase.name)
 			}
 			gotHeaders := stableCORSHeaders(response.Header(), false)
-			wantHeaders := make(map[string]string, len(want.Headers))
-			for key, value := range want.Headers {
-				if key != "allow" {
-					wantHeaders[key] = value
-				}
+			if probeCase.automaticOptions {
+				gotHeaders = stableDisabledOptionsHeaders(response.Header())
 			}
-			if probeCase.name == "disabledPreflight" {
-				if want.Status != http.StatusOK || response.Code != http.StatusNotFound || want.Headers["allow"] == "" {
-					t.Fatalf("disabled CORS preflight divergence changed: pinned status=%d allow=%q, Go status=%d", want.Status, want.Headers["allow"], response.Code)
-				}
-			} else if response.Code != want.Status {
+			if response.Code != want.Status {
 				t.Fatalf("disabled CORS response %s status=%d want=%d", probeCase.name, response.Code, want.Status)
 			}
-			if !reflect.DeepEqual(gotHeaders, wantHeaders) {
+			if !reflect.DeepEqual(gotHeaders, want.Headers) {
 				t.Fatalf("disabled CORS response %s differs from pinned Node: status=%d want=%d headers=%#v want=%#v", probeCase.name, response.Code, want.Status, gotHeaders, want.Headers)
+			}
+			if probeCase.automaticOptions && response.Body.String() != want.Body {
+				t.Fatalf("disabled CORS response %s body=%q want=%q", probeCase.name, response.Body.String(), want.Body)
 			}
 		})
 	}
+}
+
+func stableDisabledOptionsHeaders(header http.Header) map[string]string {
+	result := make(map[string]string)
+	for name, values := range header {
+		key := strings.ToLower(name)
+		if key == "allow" || key == "content-length" || key == "content-type" || key == "vary" {
+			result[key] = strings.Join(values, ", ")
+		}
+	}
+	return result
 }
 
 func stableCORSHeaders(header http.Header, preflight bool) map[string]string {

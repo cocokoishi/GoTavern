@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -104,6 +105,85 @@ func servePinnedCORS(writer http.ResponseWriter, request *http.Request, settings
 	}
 	header.Set("Content-Length", "0")
 	writer.WriteHeader(http.StatusNoContent)
+	return true
+}
+
+// These Go handlers dispatch methods manually; the pinned Express routes retain their POST method metadata.
+func pinnedExpressMethodlessOptionsMethods() map[string][]string {
+	return map[string][]string{
+		"/api/backgrounds/folders":                   {http.MethodPost},
+		"/api/image-metadata":                        {http.MethodPost},
+		"/api/image-metadata/{$}":                    {http.MethodPost},
+		"/api/image-metadata/all":                    {http.MethodPost},
+		"/api/image-metadata/cleanup":                {http.MethodPost},
+		"/api/image-metadata/folders/assign":         {http.MethodPost},
+		"/api/image-metadata/folders/create":         {http.MethodPost},
+		"/api/image-metadata/folders/delete":         {http.MethodPost},
+		"/api/image-metadata/folders/get":            {http.MethodPost},
+		"/api/image-metadata/folders/set-thumbnails": {http.MethodPost},
+		"/api/image-metadata/folders/unassign":       {http.MethodPost},
+		"/api/image-metadata/folders/update":         {http.MethodPost},
+	}
+}
+
+func servePinnedExpressAutomaticOptions(writer http.ResponseWriter, request *http.Request, mux *http.ServeMux, methodlessRoutes map[string][]string) bool {
+	if request.Method != http.MethodOptions || mux == nil ||
+		(request.URL.Path != "/api" && !strings.HasPrefix(request.URL.Path, "/api/")) {
+		return false
+	}
+	if _, pattern := mux.Handler(request); pattern != "" && pattern != "/" {
+		_, _, methodQualified := strings.Cut(pattern, " ")
+		if methodQualified {
+			return false
+		}
+		methods, exists := methodlessRoutes[pattern]
+		if !exists {
+			return false
+		}
+		return writePinnedExpressAutomaticOptions(writer, methods)
+	}
+
+	methods := make([]string, 0, 4)
+	hasGet := false
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodConnect, http.MethodTrace} {
+		candidate := request.Clone(request.Context())
+		candidate.Method = method
+		_, pattern := mux.Handler(candidate)
+		routeMethod, _, methodQualified := strings.Cut(pattern, " ")
+		if !methodQualified || routeMethod != method {
+			continue
+		}
+		methods = append(methods, method)
+		if method == http.MethodGet {
+			hasGet = true
+		}
+	}
+	if hasGet {
+		methods = append(methods, http.MethodHead)
+	} else {
+		candidate := request.Clone(request.Context())
+		candidate.Method = http.MethodHead
+		_, pattern := mux.Handler(candidate)
+		routeMethod, _, methodQualified := strings.Cut(pattern, " ")
+		if methodQualified && routeMethod == http.MethodHead {
+			methods = append(methods, http.MethodHead)
+		}
+	}
+	return writePinnedExpressAutomaticOptions(writer, methods)
+}
+
+func writePinnedExpressAutomaticOptions(writer http.ResponseWriter, methods []string) bool {
+	if len(methods) == 0 {
+		return false
+	}
+
+	body := strings.Join(methods, ",")
+	header := writer.Header()
+	header.Set("Allow", body)
+	header.Set("Content-Type", "text/html; charset=utf-8")
+	header.Set("Content-Length", strconv.Itoa(len(body)))
+	writer.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(writer, body)
 	return true
 }
 

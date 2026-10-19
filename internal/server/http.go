@@ -281,6 +281,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	basicAuth := newBasicAuthRuntime(options)
 	hostWhitelist := newHostWhitelistRuntime(options)
 	corsSettings := pinnedCORSSettingsFromOptions(options)
+	methodlessOptionsRoutes := pinnedExpressMethodlessOptionsMethods()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
@@ -498,6 +499,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		if options.AccountsEnabled && !isPublicAccountRequest(r) && user == nil {
 			serveStatusText(w, http.StatusForbidden)
+			return
+		}
+		if !corsSettings.enabled && servePinnedExpressAutomaticOptions(w, r, mux, methodlessOptionsRoutes) {
 			return
 		}
 		mux.ServeHTTP(w, r)
