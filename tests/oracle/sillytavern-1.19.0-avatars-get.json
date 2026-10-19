@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned user-avatar listing filters MIME image files, sorts by locale, authenticates, and preserves the legacy redirect",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-avatars-get-cookie-secret",
+    "files": [
+      {
+        "name": ".hidden.png",
+        "kind": "file"
+      },
+      {
+        "name": ".png",
+        "kind": "file"
+      },
+      {
+        "name": "Alice.PNG",
+        "kind": "file"
+      },
+      {
+        "name": "alice.jpg",
+        "kind": "file"
+      },
+      {
+        "name": "avatar-10.webp",
+        "kind": "file"
+      },
+      {
+        "name": "avatar-2.png",
+        "kind": "file"
+      },
+      {
+        "name": "emoji🙂.avif",
+        "kind": "file"
+      },
+      {
+        "name": "folder.png",
+        "kind": "directory"
+      },
+      {
+        "name": "no-extension",
+        "kind": "file"
+      },
+      {
+        "name": "portrait.jxl",
+        "kind": "file"
+      },
+      {
+        "name": "readme.txt",
+        "kind": "file"
+      },
+      {
+        "name": "éclair.gif",
+        "kind": "file"
+      }
+    ]
+  },
+  "responses": {
+    "unauthorizedGet": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "legacyRedirect": {
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/get"
+    },
+    "get": {
+      "status": 200,
+      "headers": {
+        "content-length": "124",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7c-khqm98L9G+xNTHq+RQsiI/mlFes\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        ".hidden.png",
+        ".png",
+        "alice.jpg",
+        "Alice.PNG",
+        "avatar-10.webp",
+        "avatar-2.png",
+        "éclair.gif",
+        "emoji🙂.avif",
+        "portrait.jxl"
+      ]
+    }
+  },
+  "state": {
+    "fileState": [
+      {
+        "name": ".hidden.png",
+        "kind": "file"
+      },
+      {
+        "name": ".png",
+        "kind": "file"
+      },
+      {
+        "name": "Alice.PNG",
+        "kind": "file"
+      },
+      {
+        "name": "alice.jpg",
+        "kind": "file"
+      },
+      {
+        "name": "avatar-10.webp",
+        "kind": "file"
+      },
+      {
+        "name": "avatar-2.png",
+        "kind": "file"
+      },
+      {
+        "name": "emoji🙂.avif",
+        "kind": "file"
+      },
+      {
+        "name": "folder.png",
+        "kind": "directory"
+      },
+      {
+        "name": "no-extension",
+        "kind": "file"
+      },
+      {
+        "name": "portrait.jxl",
+        "kind": "file"
+      },
+      {
+        "name": "readme.txt",
+        "kind": "file"
+      },
+      {
+        "name": "éclair.gif",
+        "kind": "file"
+      }
+    ],
+    "accountRecordUnchanged": true
+  }
+}

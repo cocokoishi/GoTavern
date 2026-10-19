@@ -386,6 +386,8 @@ The themes oracle covers authenticated save/delete, the 404 for a missing theme,
 
 The moving UI oracle covers authenticated preset save, JSON formatting, name coercion and sanitization, Unicode truncation, overwrite state, missing/falsy-name responses, the deprecated POST-preserving 308 redirect, and unchanged account data. It verifies that pinned Node reads a Go-written moving UI preset through /api/settings/get. Browser selection and settings-debounce state are outside this API probe. Reserved names that sanitize to an empty path, malformed body-parser responses, alias subpaths/warnings, symlink targets, and filesystem failures remain unprobed.
 
+The user-avatar oracle covers authenticated listing, pinned mime-db 1.54.0 image-extension filtering, en-US Intl.Collator order, hidden-file and directory behavior, response headers, and the legacy method-preserving 308 redirect. The API does not mutate avatar files or account data. Permission failures, other platform locale settings, symlink entries, and non-image MIME edge cases remain unprobed.
+
 ---
 
 ## 10. Character/card suite

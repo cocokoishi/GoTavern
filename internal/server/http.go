@@ -298,11 +298,15 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/themes/save", accounts.serveThemeSave)
 	mux.HandleFunc("POST /api/themes/delete", accounts.serveThemeDelete)
 	mux.HandleFunc("POST /api/moving-ui/save", accounts.serveMovingUISave)
+	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/themes/save")
 	})
 	mux.HandleFunc("/savemovingui", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/moving-ui/save")
+	})
+	mux.HandleFunc("/getuseravatars", func(w http.ResponseWriter, r *http.Request) {
+		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/avatars/get")
 	})
 	mux.HandleFunc("/savequickreply", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/quick-replies/save")

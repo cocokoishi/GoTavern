@@ -447,6 +447,18 @@ try {
         throw new Error('moving UI preset oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const avatarsGetProbe = path.join(buildRoot, '.gotavern-probe-avatars-get.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-avatars-get.mjs'), avatarsGetProbe);
+    const avatarsGetFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-avatars-get.json');
+    run(process.execPath, [avatarsGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAvatarsGetProbe = readFileSync(avatarsGetFixturePath);
+    run(process.execPath, [avatarsGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAvatarsGetProbe = readFileSync(avatarsGetFixturePath);
+    if (!firstAvatarsGetProbe.equals(secondAvatarsGetProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAvatarsGetProbe), JSON.parse(secondAvatarsGetProbe));
+        throw new Error('avatar-list oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');
