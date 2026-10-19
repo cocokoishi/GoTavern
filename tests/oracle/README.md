@@ -38,6 +38,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-settings-backup.json` captures the `settings.init()` startup snapshots, duplicate suppression, backup retention by modification time, and the caught missing-backups-directory error.
 
+`sillytavern-1.19.0-stats-init.json` captures valid stats loading, missing/invalid-file recreation with empty character chats, memory state, the five-minute save interval, the caught missing-character-directory error, and a Node-created directory → Go-created stats file → Node-readback round trip.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh

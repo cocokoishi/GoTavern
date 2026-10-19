@@ -246,6 +246,18 @@ try {
         throw new Error(`settings-backup oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
+    const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');
+    run(process.execPath, [statsInitProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstStatsInitProbe = readFileSync(statsInitFixturePath);
+    run(process.execPath, [statsInitProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondStatsInitProbe = readFileSync(statsInitFixturePath);
+    if (!firstStatsInitProbe.equals(secondStatsInitProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstStatsInitProbe), JSON.parse(secondStatsInitProbe));
+        throw new Error(`stats-init oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

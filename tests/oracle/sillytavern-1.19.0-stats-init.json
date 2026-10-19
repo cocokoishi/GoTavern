@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned stats.init() file load, empty-chat recreation, and interval behavior",
+  "scenarios": {
+    "existingValid": {
+      "input": {
+        "statsFileContent": "{\"timestamp\":321,\"unknown\":{\"retained\":true}}",
+        "characterFiles": [
+          "default_Seraphina.png"
+        ]
+      },
+      "observation": {
+        "logs": [],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {
+          "timestamp": 321,
+          "unknown": {
+            "retained": true
+          }
+        },
+        "filesystem": {
+          "statsFileExists": true,
+          "statsFileContent": "{\"timestamp\":321,\"unknown\":{\"retained\":true}}"
+        }
+      }
+    },
+    "missingStatsNoCharacters": {
+      "input": {
+        "characterFiles": [
+          "persona.webp",
+          "ignored.PNG"
+        ]
+      },
+      "observation": {
+        "logs": [
+          {
+            "level": "info",
+            "message": "Collecting and creating stats for user:",
+            "errorCode": null
+          }
+        ],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {
+          "timestamp": 1735689600000
+        },
+        "filesystem": {
+          "statsFileExists": true,
+          "statsFileContent": "{\"timestamp\":1735689600000}"
+        }
+      }
+    },
+    "invalidStatsNoCharacters": {
+      "input": {
+        "statsFileContent": "{ invalid json",
+        "characterFiles": []
+      },
+      "observation": {
+        "logs": [
+          {
+            "level": "info",
+            "message": "Collecting and creating stats for user:",
+            "errorCode": null
+          }
+        ],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {
+          "timestamp": 1735689600000
+        },
+        "filesystem": {
+          "statsFileExists": true,
+          "statsFileContent": "{\"timestamp\":1735689600000}"
+        }
+      }
+    },
+    "missingStatsCharacterWithoutChats": {
+      "input": {
+        "characterFiles": [
+          "default_Seraphina.png"
+        ]
+      },
+      "observation": {
+        "logs": [
+          {
+            "level": "info",
+            "message": "Collecting and creating stats for user:",
+            "errorCode": null
+          }
+        ],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {
+          "default_Seraphina.png": {
+            "total_gen_time": 0,
+            "user_word_count": 0,
+            "non_user_word_count": 0,
+            "user_msg_count": 0,
+            "non_user_msg_count": 0,
+            "total_swipe_count": 0,
+            "chat_size": 0,
+            "date_last_chat": 0,
+            "date_first_chat": 253402300799999
+          },
+          "timestamp": 1735689600000
+        },
+        "filesystem": {
+          "statsFileExists": true,
+          "statsFileContent": "{\"default_Seraphina.png\":{\"total_gen_time\":0,\"user_word_count\":0,\"non_user_word_count\":0,\"user_msg_count\":0,\"non_user_msg_count\":0,\"total_swipe_count\":0,\"chat_size\":0,\"date_last_chat\":0,\"date_first_chat\":253402300799999},\"timestamp\":1735689600000}"
+        }
+      }
+    },
+    "missingCharactersDirectory": {
+      "input": {
+        "charactersDirectoryExists": false
+      },
+      "observation": {
+        "logs": [
+          {
+            "level": "info",
+            "message": "Collecting and creating stats for user:",
+            "errorCode": null
+          },
+          {
+            "level": "error",
+            "message": "Failed to initialize stats:",
+            "errorCode": "ENOENT"
+          }
+        ],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {},
+        "filesystem": {
+          "statsFileExists": false,
+          "statsFileContent": null
+        }
+      }
+    }
+  },
+  "roundTrip": {
+    "input": {
+      "characterFiles": [
+        "default_Seraphina.png"
+      ],
+      "chatFiles": {}
+    },
+    "errors": [],
+    "fileContent": "{\"default_Seraphina.png\":{\"total_gen_time\":0,\"user_word_count\":0,\"non_user_word_count\":0,\"user_msg_count\":0,\"non_user_msg_count\":0,\"total_swipe_count\":0,\"chat_size\":0,\"date_last_chat\":0,\"date_first_chat\":253402300799999},\"timestamp\":1735689600000}",
+    "memory": {
+      "default_Seraphina.png": {
+        "total_gen_time": 0,
+        "user_word_count": 0,
+        "non_user_word_count": 0,
+        "user_msg_count": 0,
+        "non_user_msg_count": 0,
+        "total_swipe_count": 0,
+        "chat_size": 0,
+        "date_last_chat": 0,
+        "date_first_chat": 253402300799999
+      },
+      "timestamp": 1735689600000
+    },
+    "nodeReadback": {
+      "default_Seraphina.png": {
+        "total_gen_time": 0,
+        "user_word_count": 0,
+        "non_user_word_count": 0,
+        "user_msg_count": 0,
+        "non_user_msg_count": 0,
+        "total_swipe_count": 0,
+        "chat_size": 0,
+        "date_last_chat": 0,
+        "date_first_chat": 253402300799999
+      },
+      "timestamp": 1735689600000
+    }
+  }
+}
