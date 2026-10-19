@@ -3,6 +3,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -22,6 +23,26 @@ if (!process.argv[2] || !process.argv[3] || !['fresh-start', 'custom-404'].inclu
 
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim();
 if (sourceCommit !== PINNED_COMMIT) throw new Error(`upstream checkout is ${sourceCommit}; expected ${PINNED_COMMIT}`);
+
+const sourceRequire = createRequire(path.join(sourceRoot, 'server.js'));
+const ipMatching = sourceRequire('ip-matching');
+const whitelistPatternCases = [
+    { pattern: '192.0.2.4', ip: '192.0.2.4' },
+    { pattern: '192.0.2.4', ip: '192.0.2.5' },
+    { pattern: '192.000.002.004', ip: '192.0.2.4' },
+    { pattern: '192.0.2.0/24', ip: '192.0.2.250' },
+    { pattern: '192.0.2.0/ 24 ', ip: '192.0.2.25' },
+    { pattern: '192.0.2.0/0x18', ip: '192.0.2.25' },
+    { pattern: '2001:db8::/32', ip: '2001:db8:1::42' },
+    { pattern: '10.1.2.0/255.255.0.255', ip: '10.1.99.0' },
+    { pattern: '2001:db8:abcd::/ffff:ffff:ffff::', ip: '2001:db8:abcd:ffff::42' },
+    { pattern: '198.51.100.10-198.51.100.20', ip: '198.51.100.15' },
+    { pattern: '198.51.100.10-198.51.100.20', ip: '198.51.100.21' },
+    { pattern: '10.2.*.4', ip: '10.2.99.4' },
+    { pattern: '2001:db8:*::2', ip: '2001:db8:abcd::2' },
+    { pattern: '::ffff:192.0.2.1', ip: '::ffff:192.0.2.1' },
+    { pattern: '192.0.2.0/0', ip: '203.0.113.25' },
+].map(item => ({ ...item, matches: ipMatching.matches(item.ip, ipMatching.getMatch(item.pattern)) }));
 
 const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-node-oracle-'));
 const dataRoot = path.join(runtimeRoot, 'data');
@@ -225,6 +246,11 @@ try {
     const loginPath = '/login?noauto=1';
     const loginResult = await getResponse(`${origin}${loginPath}`);
     const loginHTMLResult = await getResponse(`${origin}${loginPath}`, 'GET', { Accept: 'text/html' });
+    const whitelistBlockedResult = await getResponse(`${origin}/version`, 'GET', { 'X-Real-IP': '198.51.100.42' });
+    const whitelistPriorityResult = await getResponse(`${origin}/version`, 'GET', {
+        'X-Real-IP': '127.0.0.1',
+        'X-Forwarded-For': '198.51.100.42',
+    });
 
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
@@ -240,6 +266,9 @@ try {
             'data/<handle>/stats.json': 'startup statistics are time-dependent; path and size are retained',
             'data/<handle>/backups/settings_<handle>_<timestamp>.json': 'the upstream startup backup name contains a local timestamp; path is normalized and content hash is retained',
         },
+        security: {
+            whitelistPatternMatches: whitelistPatternCases,
+        },
         http: {
             observed: true,
             requests: [
@@ -252,6 +281,8 @@ try {
                 { method: 'GET', path: callbackPath, headers: { Accept: 'text/html' } },
                 { method: 'GET', path: loginPath },
                 { method: 'GET', path: loginPath, headers: { Accept: 'text/html' } },
+                { method: 'GET', path: '/version', headers: { 'X-Real-IP': '198.51.100.42' }, expectedStatus: 403 },
+                { method: 'GET', path: '/version', headers: { 'X-Real-IP': '127.0.0.1', 'X-Forwarded-For': '198.51.100.42' }, expectedStatus: 200 },
             ],
             responses: {
                 '/version': versionObservation,
@@ -321,6 +352,22 @@ try {
                     bytes: loginHTMLResult.body.byteLength,
                     sha256: sha256(loginHTMLResult.body),
                     body: Buffer.from(loginHTMLResult.body).toString('utf8'),
+                },
+                'GET /version (X-Real-IP: 198.51.100.42)': {
+                    headers: stableHeaders(whitelistBlockedResult.response),
+                    status: whitelistBlockedResult.response.status,
+                    contentType: whitelistBlockedResult.response.headers.get('content-type'),
+                    bytes: whitelistBlockedResult.body.byteLength,
+                    sha256: sha256(whitelistBlockedResult.body),
+                    body: Buffer.from(whitelistBlockedResult.body).toString('utf8'),
+                },
+                'GET /version (X-Real-IP priority)': {
+                    headers: stableHeaders(whitelistPriorityResult.response),
+                    status: whitelistPriorityResult.response.status,
+                    contentType: whitelistPriorityResult.response.headers.get('content-type'),
+                    bytes: whitelistPriorityResult.body.byteLength,
+                    sha256: sha256(whitelistPriorityResult.body),
+                    body: Buffer.from(whitelistPriorityResult.body).toString('utf8'),
                 },
             },
         },

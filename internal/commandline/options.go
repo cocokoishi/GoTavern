@@ -64,6 +64,10 @@ type StartupSettings struct {
 	ForwardedXRealIP         any `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP  any `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor   any `json:"forwardedXForwardedFor"`
+	EnableForwardedWhitelist any `json:"enableForwardedWhitelist"`
+	Whitelist                any `json:"whitelist"`
+	WhitelistDockerHosts     any `json:"whitelistDockerHosts"`
+	HostWhitelistEnabled     any `json:"hostWhitelistEnabled"`
 	BasicAuthUsername        any `json:"basicAuthUsername"`
 	BasicAuthPassword        any `json:"basicAuthPassword"`
 	SkipContentCheck         any `json:"skipContentCheck"`
@@ -205,6 +209,10 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		ForwardedXRealIP:         getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:  getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
 		ForwardedXForwardedFor:   getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),
+		EnableForwardedWhitelist: getConfigValue(config, "enableForwardedWhitelist", false, cliBoolean),
+		Whitelist:                getConfigValue(config, "whitelist", []any{}, cliArray),
+		WhitelistDockerHosts:     getConfigValue(config, "whitelistDockerHosts", true, cliBoolean),
+		HostWhitelistEnabled:     getConfigValue(config, "hostWhitelist.enabled", false, cliBoolean),
 		BasicAuthUsername:        getConfigValue(config, "basicAuthUser.username", "", cliString),
 		BasicAuthPassword:        getConfigValue(config, "basicAuthUser.password", "", cliString),
 		SkipContentCheck:         getConfigValue(config, "skipContentCheck", false, cliBoolean),

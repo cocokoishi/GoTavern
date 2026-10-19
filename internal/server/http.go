@@ -47,6 +47,11 @@ type HTTPHandlerOptions struct {
 	CookieSecret            string
 	DisableCSRF             bool
 	EnableCorsProxy         bool
+	WhitelistEnabled        bool
+	ForwardedWhitelist      bool
+	Whitelist               []string
+	ForbiddenPage           []byte
+	PreserveForbiddenPage   bool
 	AccountsEnabled         bool
 	DiscreetLogin           bool
 	PreferRealIPHeader      bool
@@ -65,6 +70,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		DataRoot:           parsed.Paths.RuntimeDataRoot,
 		DisableCSRF:        optionBoolean(parsed.Options.DisableCsrf),
 		EnableCorsProxy:    optionBoolean(parsed.Options.EnableCorsProxy),
+		WhitelistEnabled:   optionBoolean(parsed.Options.WhitelistMode),
+		ForwardedWhitelist: optionBoolean(settings.EnableForwardedWhitelist),
+		Whitelist:          stringList(settings.Whitelist),
 		AccountsEnabled:    optionBoolean(settings.EnableUserAccounts),
 		DiscreetLogin:      optionBoolean(settings.EnableDiscreetLogin),
 		PreferRealIPHeader: optionBoolean(settings.PreferRealIPHeader),
@@ -124,6 +132,21 @@ func optionNumber(value any) (float64, bool) {
 	}
 }
 
+func stringList(value any) []string {
+	var result []string
+	switch values := value.(type) {
+	case []any:
+		for _, item := range values {
+			if text, ok := item.(string); ok {
+				result = append(result, text)
+			}
+		}
+	case []string:
+		result = append(result, values...)
+	}
+	return result
+}
+
 // NewHTTPHandler serves asset and HTTP behavior that does not require startup
 // state. Session routes should use NewHTTPHandlerWithOptions after startup has
 // initialized the cookie secret in the data root.
@@ -146,11 +169,19 @@ func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
 // startup first, including cookie-secret creation and configuration parsing.
 func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 	var page []byte
+	forbiddenPage := options.ForbiddenPage
 	if options.DataRoot != "" {
 		page, _ = os.ReadFile(filepath.Join(options.DataRoot, "_errors", "url-not-found.html"))
+		if !options.PreserveForbiddenPage {
+			forbiddenPage, _ = os.ReadFile(filepath.Join(options.DataRoot, "_errors", "forbidden-by-whitelist.html"))
+		}
 	} else {
 		page, _ = upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
+		if !options.PreserveForbiddenPage {
+			forbiddenPage, _ = upstream.Assets.ReadFile("default/content/errors/forbidden-by-whitelist.html")
+		}
 	}
+	options.ForbiddenPage = forbiddenPage
 	if options.CookieSecret == "" && options.DataRoot != "" {
 		secret, _ := os.ReadFile(filepath.Join(options.DataRoot, "cookie-secret.txt"))
 		options.CookieSecret = string(secret)
@@ -184,6 +215,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
+		if options.WhitelistEnabled {
+			allowed, ipDetails := requestPassesWhitelist(r, options)
+			if !allowed {
+				serveWhitelistForbidden(w, r, options.ForbiddenPage, ipDetails)
+				return
+			}
+		}
 		var session *cookieSession
 		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
 			session = loadCookieSession(r, options)
@@ -343,6 +381,7 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+	w.Header().Set("ETag", expressWeakETag(body))
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)

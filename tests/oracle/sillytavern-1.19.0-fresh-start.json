@@ -12,6 +12,85 @@
     "data/<handle>/stats.json": "startup statistics are time-dependent; path and size are retained",
     "data/<handle>/backups/settings_<handle>_<timestamp>.json": "the upstream startup backup name contains a local timestamp; path is normalized and content hash is retained"
   },
+  "security": {
+    "whitelistPatternMatches": [
+      {
+        "pattern": "192.0.2.4",
+        "ip": "192.0.2.4",
+        "matches": true
+      },
+      {
+        "pattern": "192.0.2.4",
+        "ip": "192.0.2.5",
+        "matches": false
+      },
+      {
+        "pattern": "192.000.002.004",
+        "ip": "192.0.2.4",
+        "matches": true
+      },
+      {
+        "pattern": "192.0.2.0/24",
+        "ip": "192.0.2.250",
+        "matches": true
+      },
+      {
+        "pattern": "192.0.2.0/ 24 ",
+        "ip": "192.0.2.25",
+        "matches": true
+      },
+      {
+        "pattern": "192.0.2.0/0x18",
+        "ip": "192.0.2.25",
+        "matches": true
+      },
+      {
+        "pattern": "2001:db8::/32",
+        "ip": "2001:db8:1::42",
+        "matches": true
+      },
+      {
+        "pattern": "10.1.2.0/255.255.0.255",
+        "ip": "10.1.99.0",
+        "matches": true
+      },
+      {
+        "pattern": "2001:db8:abcd::/ffff:ffff:ffff::",
+        "ip": "2001:db8:abcd:ffff::42",
+        "matches": true
+      },
+      {
+        "pattern": "198.51.100.10-198.51.100.20",
+        "ip": "198.51.100.15",
+        "matches": true
+      },
+      {
+        "pattern": "198.51.100.10-198.51.100.20",
+        "ip": "198.51.100.21",
+        "matches": false
+      },
+      {
+        "pattern": "10.2.*.4",
+        "ip": "10.2.99.4",
+        "matches": true
+      },
+      {
+        "pattern": "2001:db8:*::2",
+        "ip": "2001:db8:abcd::2",
+        "matches": true
+      },
+      {
+        "pattern": "::ffff:192.0.2.1",
+        "ip": "::ffff:192.0.2.1",
+        "matches": true
+      },
+      {
+        "pattern": "192.0.2.0/0",
+        "ip": "203.0.113.25",
+        "matches": true
+      }
+    ]
+  },
   "http": {
     "observed": true,
     "requests": [
@@ -56,6 +135,23 @@
         "headers": {
           "Accept": "text/html"
         }
+      },
+      {
+        "method": "GET",
+        "path": "/version",
+        "headers": {
+          "X-Real-IP": "198.51.100.42"
+        },
+        "expectedStatus": 403
+      },
+      {
+        "method": "GET",
+        "path": "/version",
+        "headers": {
+          "X-Real-IP": "127.0.0.1",
+          "X-Forwarded-For": "198.51.100.42"
+        },
+        "expectedStatus": 200
       }
     ],
     "responses": {
@@ -233,6 +329,54 @@
         "bytes": 30,
         "sha256": "1b44f175f3f3b06f5d33d3599a36e40e8c2aa9e8c1b594779cf81d91978c3e7d",
         "body": "<p>Found. Redirecting to /</p>"
+      },
+      "GET /version (X-Real-IP: 198.51.100.42)": {
+        "headers": {
+          "content-length": "0",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 403,
+        "contentType": "text/html; charset=utf-8",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body": ""
+      },
+      "GET /version (X-Real-IP priority)": {
+        "headers": {
+          "content-length": "168",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a8-BrFhoi6zi3oirGT/1962lhwDp4E\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "bytes": 168,
+        "sha256": "586f3d932b58fe17b061aead167ee646af1d6f95090f1fc5ca992f88a63142a8",
+        "body": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}"
       }
     }
   },

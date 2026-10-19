@@ -78,6 +78,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -175,6 +182,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -273,6 +287,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -371,6 +392,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -466,6 +494,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -561,6 +596,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -661,6 +703,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -756,6 +805,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -853,6 +909,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -954,6 +1017,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1055,6 +1125,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1153,6 +1230,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1251,6 +1335,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1386,6 +1477,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1488,6 +1586,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1589,6 +1694,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1689,6 +1801,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1786,6 +1905,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1881,6 +2007,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -1980,6 +2113,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -2078,6 +2218,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -2180,6 +2327,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -2275,6 +2429,13 @@
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "config-user",
           "basicAuthPassword": "config-password",
           "skipContentCheck": true,
@@ -2386,6 +2547,13 @@
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "environment-user",
           "basicAuthPassword": "environment-password",
           "skipContentCheck": true,
@@ -2488,6 +2656,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -2596,6 +2771,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
@@ -2691,6 +2873,13 @@
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
           "basicAuthUsername": "user",
           "basicAuthPassword": "password",
           "skipContentCheck": false,
