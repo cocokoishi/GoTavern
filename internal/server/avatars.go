@@ -44,7 +44,7 @@ func (runtime *accountRuntime) serveAvatarsDelete(w http.ResponseWriter, request
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	if avatarFieldHasForbiddenPathCharacter(rawAvatar) {
+	if filenameFieldHasForbiddenPathCharacter(rawAvatar) {
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
@@ -75,7 +75,7 @@ func (runtime *accountRuntime) serveAvatarsDelete(w http.ResponseWriter, request
 	respondJSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
 
-func avatarFieldHasForbiddenPathCharacter(raw json.RawMessage) bool {
+func filenameFieldHasForbiddenPathCharacter(raw json.RawMessage) bool {
 	var value any
 	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil || value == nil {
 		return false
@@ -85,7 +85,7 @@ func avatarFieldHasForbiddenPathCharacter(raw json.RawMessage) bool {
 			return false
 		}
 	}
-	text := nodeStringForAvatarValidation(value)
+	text := nodeStringForFilenameValidation(value)
 	forbidden := "/\x00"
 	if os.PathSeparator == '\\' {
 		forbidden += "\\"
@@ -93,7 +93,7 @@ func avatarFieldHasForbiddenPathCharacter(raw json.RawMessage) bool {
 	return strings.ContainsAny(text, forbidden)
 }
 
-func nodeStringForAvatarValidation(value any) string {
+func nodeStringForFilenameValidation(value any) string {
 	switch typed := value.(type) {
 	case nil:
 		return ""
@@ -109,7 +109,7 @@ func nodeStringForAvatarValidation(value any) string {
 	case []any:
 		parts := make([]string, len(typed))
 		for index, item := range typed {
-			parts[index] = nodeStringForAvatarValidation(item)
+			parts[index] = nodeStringForFilenameValidation(item)
 		}
 		return strings.Join(parts, ",")
 	default:

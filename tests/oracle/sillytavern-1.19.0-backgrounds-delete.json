@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "POST /api/backgrounds/delete removes the validated background and thumbnail, deletes its metadata and clears matching folder thumbnail references; removal tolerates malformed metadata JSON, while thumbnail unlink failures surface after the background is removed",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backgrounds-delete-cookie-secret",
+    "files": {
+      "delete-me.png": "ZGVsZXRlIG1l",
+      "keep.png": "a2VlcCBtZQ==",
+      "malformed.png": "cmVtb3ZlIHdpdGggbWFsZm9ybWVkIG1ldGFkYXRhIGluZGV4",
+      "thumbfail.png": "cmVtb3ZlIGJlZm9yZSBpbnZhbGlkIHRodW1ibmFpbCBlcnJvcg==",
+      "outside.png": "bXVzdCBub3QgYmUgZGVsZXRlZCBieSB0cmF2ZXJzYWw=",
+      "go-delete.png": "R28gZGVsZXRlIE5vZGUgcmVhZGJhY2s="
+    },
+    "mainIndex": "{\n    \"version\": 6,\n    \"images\": {\n        \"backgrounds/delete-me.png\": {\n            \"hash\": \"delete-hash\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"isAnimated\": false,\n            \"unknownImageField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/keep.png\": {\n            \"hash\": \"keep-hash\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"isAnimated\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"delete-me.png\",\n            \"unknownFolderField\": 17\n        },\n        {\n            \"id\": \"other\",\n            \"name\": \"Other\",\n            \"thumbnailFile\": \"keep.png\"\n        },\n        {\n            \"id\": \"second\",\n            \"name\": \"Second reference\",\n            \"thumbnailFile\": \"delete-me.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+    "malformedIndexBytes": "{\"version\":6,\"images\":",
+    "thumbfailIndex": {
+      "version": 3,
+      "images": {
+        "backgrounds/thumbfail.png": {
+          "hash": "thumbfail",
+          "folderIds": [
+            "retain"
+          ]
+        }
+      },
+      "folders": [
+        {
+          "id": "retain",
+          "name": "Retain",
+          "thumbnailFile": "thumbfail.png"
+        }
+      ],
+      "unknownRoot": "preserve"
+    },
+    "goRoundTripIndex": "{\n    \"version\": 8,\n    \"images\": {\n        \"backgrounds/go-delete.png\": {\n            \"hash\": \"go-delete-hash\",\n            \"folderIds\": [\n                \"gone\"\n            ],\n            \"unknown\": true\n        },\n        \"backgrounds/retained.png\": {\n            \"hash\": \"retained-hash\",\n            \"folderIds\": [\n                \"kept\"\n            ]\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"gone\",\n            \"name\": \"Gone\",\n            \"thumbnailFile\": \"go-delete.png\"\n        },\n        {\n            \"id\": \"kept\",\n            \"name\": \"Kept\",\n            \"thumbnailFile\": \"retained.png\",\n            \"unknown\": \"preserve\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retained\": true\n    }\n}"
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "invalidCSRF": {
+      "status": 403,
+      "headers": {
+        "content-length": "201",
+        "content-security-policy": "default-src 'none'",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>ForbiddenError: Invalid CSRF token. Please refresh the page and try again.</pre>\n</body>\n</html>\n"
+    },
+    "wrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodHead": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodOptions": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-methods": "OPTIONS",
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Access-Control-Request-Headers",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "deleted": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-eoX0dku9ba8cNUXvu/DyeabcC+s\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "ok"
+    },
+    "missingFile": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "sanitizedName": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "pathSeparator": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "missingField": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    },
+    "noBody": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    },
+    "directoryTarget": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    },
+    "malformedIndexDelete": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-eoX0dku9ba8cNUXvu/DyeabcC+s\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "ok"
+    },
+    "thumbnailFailure": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    }
+  },
+  "state": {
+    "afterDelete": {
+      "backgroundExists": false,
+      "thumbnailExists": false,
+      "index": {
+        "version": 6,
+        "images": {
+          "backgrounds/keep.png": {
+            "hash": "keep-hash",
+            "folderIds": [
+              "forest"
+            ],
+            "isAnimated": true
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "",
+            "unknownFolderField": 17
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "thumbnailFile": "keep.png"
+          },
+          {
+            "id": "second",
+            "name": "Second reference",
+            "thumbnailFile": ""
+          }
+        ],
+        "unknownRoot": {
+          "preserve": true
+        }
+      }
+    },
+    "malformedIndexAfter": "{\"version\":6,\"images\":",
+    "malformedFileExistsAfter": false,
+    "afterThumbnailFailure": {
+      "backgroundExists": false,
+      "thumbnailIsDirectory": true,
+      "index": {
+        "version": 3,
+        "images": {
+          "backgrounds/thumbfail.png": {
+            "hash": "thumbfail",
+            "folderIds": [
+              "retain"
+            ]
+          }
+        },
+        "folders": [
+          {
+            "id": "retain",
+            "name": "Retain",
+            "thumbnailFile": "thumbfail.png"
+          }
+        ],
+        "unknownRoot": "preserve"
+      }
+    },
+    "goRoundTrip": {
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-eoX0dku9ba8cNUXvu/DyeabcC+s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ok"
+      },
+      "nodeReadback": {
+        "status": 200,
+        "headers": {
+          "content-length": "97",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"61-jjgijnqmWRU0ovtOyx+Qo/AfZ0k\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "version": 8,
+          "images": {
+            "backgrounds/retained.png": {
+              "hash": "retained-hash",
+              "folderIds": [
+                "kept"
+              ]
+            }
+          }
+        }
+      },
+      "backgroundExists": false,
+      "thumbnailExists": false
+    },
+    "accountRecordUnchanged": true
+  }
+}

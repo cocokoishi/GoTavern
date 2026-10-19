@@ -339,6 +339,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		accounts.serveBackgroundsAll(w, r)
 	})
+	mux.HandleFunc("/api/backgrounds/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveBackgroundsDelete(w, r)
+	})
 	mux.HandleFunc("/api/backgrounds/folders", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			serveStatic(w, r, notFoundPage, options)
