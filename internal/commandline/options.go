@@ -60,6 +60,7 @@ type StartupSettings struct {
 	SecurityOverride         any `json:"securityOverride"`
 	PerUserBasicAuth         any `json:"perUserBasicAuth"`
 	PreferRealIPHeader       any `json:"preferRealIPHeader"`
+	BasicAuthMaxAttempts     any `json:"basicAuthMaxAttempts"`
 	AccountsLoginMaxAttempts any `json:"accountsLoginMaxAttempts"`
 	ForwardedXRealIP         any `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP  any `json:"forwardedCFConnectingIP"`
@@ -205,6 +206,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		SecurityOverride:         getConfigValue(config, "securityOverride", false, cliBoolean),
 		PerUserBasicAuth:         getConfigValue(config, "perUserBasicAuth", false, cliBoolean),
 		PreferRealIPHeader:       getConfigValue(config, "rateLimiting.preferRealIpHeader", false, cliBoolean),
+		BasicAuthMaxAttempts:     getConfigValue(config, "rateLimiting.basicAuthMaxAttempts", 5, cliNumber),
 		AccountsLoginMaxAttempts: getConfigValue(config, "rateLimiting.accountsLoginMaxAttempts", 5, cliNumber),
 		ForwardedXRealIP:         getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:  getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),

@@ -52,6 +52,10 @@ type HTTPHandlerOptions struct {
 	Whitelist               []string
 	ForbiddenPage           []byte
 	PreserveForbiddenPage   bool
+	BasicAuthEnabled        bool
+	BasicAuthUsername       any
+	BasicAuthPassword       any
+	BasicAuthRateLimit      *float64
 	AccountsEnabled         bool
 	DiscreetLogin           bool
 	PreferRealIPHeader      bool
@@ -73,6 +77,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		WhitelistEnabled:   optionBoolean(parsed.Options.WhitelistMode),
 		ForwardedWhitelist: optionBoolean(settings.EnableForwardedWhitelist),
 		Whitelist:          stringList(settings.Whitelist),
+		BasicAuthEnabled:   optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
+		BasicAuthUsername:  settings.BasicAuthUsername,
+		BasicAuthPassword:  settings.BasicAuthPassword,
 		AccountsEnabled:    optionBoolean(settings.EnableUserAccounts),
 		DiscreetLogin:      optionBoolean(settings.EnableDiscreetLogin),
 		PreferRealIPHeader: optionBoolean(settings.PreferRealIPHeader),
@@ -82,6 +89,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if attempts, ok := optionNumber(settings.AccountsLoginMaxAttempts); ok {
 		options.LoginRateLimitPoints = &attempts
+	}
+	if attempts, ok := optionNumber(settings.BasicAuthMaxAttempts); ok {
+		options.BasicAuthRateLimit = &attempts
 	}
 	if enabled, ok := optionBooleanValue(settings.ForwardedXRealIP); ok {
 		options.ForwardedXRealIP = &enabled
@@ -191,6 +201,7 @@ func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 
 func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
 	accounts := newAccountRuntime(options)
+	basicAuth := newBasicAuthRuntime(options)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
@@ -215,6 +226,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
+		if options.BasicAuthEnabled && !basicAuth.authenticate(w, r, options) {
+			return
+		}
 		if options.WhitelistEnabled {
 			allowed, ipDetails := requestPassesWhitelist(r, options)
 			if !allowed {

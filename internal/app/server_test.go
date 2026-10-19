@@ -203,9 +203,9 @@ func TestStartStopsWhenUnimplementedSecurityMiddlewareIsEnabled(t *testing.T) {
 		wantError string
 	}{
 		{
-			name:      "remote basic auth",
-			config:    "listen: true\nbasicAuthMode: true\nwhitelistMode: true\n",
-			wantError: "Basic Auth middleware is not implemented",
+			name:      "per-user basic auth",
+			config:    "listen: true\nbasicAuthMode: true\nwhitelistMode: true\nperUserBasicAuth: true\nenableUserAccounts: true\n",
+			wantError: "perUserBasicAuth is enabled with accounts",
 		},
 		{
 			name:      "host whitelist",

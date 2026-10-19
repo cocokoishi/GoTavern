@@ -78,6 +78,7 @@ const startupSettings = {
     securityOverride: getConfigValue('securityOverride', false, 'boolean'),
     perUserBasicAuth: getConfigValue('perUserBasicAuth', false, 'boolean'),
     preferRealIPHeader: getConfigValue('rateLimiting.preferRealIpHeader', false, 'boolean'),
+    basicAuthMaxAttempts: getConfigValue('rateLimiting.basicAuthMaxAttempts', 5, 'number'),
     accountsLoginMaxAttempts: getConfigValue('rateLimiting.accountsLoginMaxAttempts', 5, 'number'),
     forwardedXRealIP: getConfigValue('forwardedHeaders.xRealIp', true, 'boolean'),
     forwardedCFConnectingIP: getConfigValue('forwardedHeaders.cfConnectingIp', false, 'boolean'),

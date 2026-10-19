@@ -4,7 +4,7 @@ GoTavern is a work-in-progress **standalone Go reimplementation of the SillyTave
 
 ## Status
 
-**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** The Phase 0 asset/oracle foundation is in place and Phase 1 is underway. `gotavern` and `gotavern start` now run command-line/config resolution, ordered data startup, protocol selection, and the HTTP/HTTPS listener path. A pinned Node fresh-start probe covers the root page, generated `lib.js`, `/version`, the final 404, and default IP whitelist rejection. Account login/session behavior is partially implemented. Most SillyTavern routes and shared middleware remain absent; remote Basic Auth and enabled host validation stop startup explicitly until implemented.
+**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** The Phase 0 asset/oracle foundation is in place and Phase 1 is underway. `gotavern` and `gotavern start` now run command-line/config resolution, ordered data startup, protocol selection, and the HTTP/HTTPS listener path. Pinned Node probes cover the root page, generated `lib.js`, `/version`, the final 404, the IP whitelist, and global Basic Auth responses and rate limiting. Account login/session behavior and global Basic Auth are partially implemented. Most SillyTavern routes and shared middleware remain absent; per-user Basic Auth with accounts and enabled host validation stop startup explicitly until implemented.
 
 The initial compatibility baseline is:
 
