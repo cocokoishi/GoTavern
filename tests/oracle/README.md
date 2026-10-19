@@ -14,6 +14,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-config-init.json` captures pinned `addMissingConfigValues()` output for a missing config, a legacy YAML config with unknown fields, and a deprecated environment variable. It stores exact output YAML so Go config initialization can compare startup writes byte-for-byte.
 
+`sillytavern-1.19.0-commandline-paths.json` captures pinned `CommandLineParser` standalone/global config and data-root selection, CLI/environment precedence, ignored global path arguments, forced global mode, config initialization, and data-root directory creation or warning behavior. Global paths are normalized under a fixture root; `env-paths@3.0.0` OS-specific directory layout is checked separately against the pinned package behavior.
+
 `sillytavern-1.19.0-user-storage-roundtrip.json` is produced with the pinned `node-persist@4.0.4` package and the Go startup package. It checks Node-written user/avatar records survive Go initialization byte-for-byte and remain readable by Node, then checks Node can read the Go-created default-user record. The asset/oracle rebuild job requires both Node and Go for this round-trip probe.
 
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.

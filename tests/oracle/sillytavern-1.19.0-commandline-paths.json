@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned CommandLineParser config/data path selection, precedence, and directory creation",
+  "source": "src/command-line.js: CommandLineParser.parse/getDefaultConfig",
+  "scenarios": {
+    "standalone-default": {
+      "name": "standalone-default",
+      "args": [],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-global-disabled": {
+      "name": "standalone-global-disabled",
+      "args": [
+        "--global=false"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-config-data-root": {
+      "name": "standalone-config-data-root",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "dataRoot: ./from-config\n",
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./from-config",
+        "dataRootCreationRelativeToCwd": "from-config",
+        "runtimeDataRootRelativeToServerDirectory": "from-config",
+        "configBytes": 3317,
+        "configSha256": "c535f3780bd0ba036e13640d7a9992706e3498f15d981d3a22cc5faaff81f59b",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-existing-data-root": {
+      "name": "standalone-existing-data-root",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "dataRoot: ./existing-data\n",
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": "./existing-data",
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./existing-data",
+        "dataRootCreationRelativeToCwd": "existing-data",
+        "runtimeDataRootRelativeToServerDirectory": "existing-data",
+        "configBytes": 3319,
+        "configSha256": "28653949987cb98c67ff2d1d73fdda72902fabef4965aff84d80a97f51bf5bd6",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": true,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-cli-precedence": {
+      "name": "standalone-cli-precedence",
+      "args": [
+        "--configPath",
+        "./custom.yaml",
+        "--dataRoot",
+        "./from-cli"
+      ],
+      "initialConfigPath": "./custom.yaml",
+      "initialConfig": "dataRoot: ./from-config\n",
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./custom.yaml",
+        "configFileRelativeToCwd": "custom.yaml",
+        "dataRoot": "./from-cli",
+        "dataRootCreationRelativeToCwd": "from-cli",
+        "runtimeDataRootRelativeToServerDirectory": "from-cli",
+        "configBytes": 3317,
+        "configSha256": "c535f3780bd0ba036e13640d7a9992706e3498f15d981d3a22cc5faaff81f59b",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-env-precedence": {
+      "name": "standalone-env-precedence",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "dataRoot: ./from-config\n",
+      "environmentDataRoot": "./from-env",
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./from-env",
+        "dataRootCreationRelativeToCwd": "from-env",
+        "runtimeDataRootRelativeToServerDirectory": "from-env",
+        "configBytes": 3317,
+        "configSha256": "c535f3780bd0ba036e13640d7a9992706e3498f15d981d3a22cc5faaff81f59b",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "standalone-cli-over-env": {
+      "name": "standalone-cli-over-env",
+      "args": [
+        "--dataRoot=./from-cli"
+      ],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "dataRoot: ./from-config\n",
+      "environmentDataRoot": "./from-env",
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./from-cli",
+        "dataRootCreationRelativeToCwd": "from-cli",
+        "runtimeDataRootRelativeToServerDirectory": "from-cli",
+        "configBytes": 3317,
+        "configSha256": "c535f3780bd0ba036e13640d7a9992706e3498f15d981d3a22cc5faaff81f59b",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "global-ignores-cli": {
+      "name": "global-ignores-cli",
+      "args": [
+        "--global",
+        "--configPath",
+        "./ignored-config.yaml",
+        "--dataRoot",
+        "./ignored-data"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": true,
+        "configPath": "<globalData>/config.yaml",
+        "configFileRelativeToCwd": "<globalData>/config.yaml",
+        "dataRoot": "<globalData>/data",
+        "dataRootCreationRelativeToCwd": "<globalData>/data",
+        "runtimeDataRootRelativeToServerDirectory": "<globalData>/data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": true,
+          "ignoredDataRoot": true,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "forced-global": {
+      "name": "forced-global",
+      "args": [
+        "--global=false",
+        "--configPath",
+        "./ignored-config.yaml",
+        "--dataRoot",
+        "./ignored-data"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": true,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": true,
+        "configPath": "<globalData>/config.yaml",
+        "configFileRelativeToCwd": "<globalData>/config.yaml",
+        "dataRoot": "<globalData>/data",
+        "dataRootCreationRelativeToCwd": "<globalData>/data",
+        "runtimeDataRootRelativeToServerDirectory": "<globalData>/data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": true,
+          "ignoredDataRoot": true,
+          "failedDataRootCreation": false
+        }
+      }
+    },
+    "failed-data-root-create": {
+      "name": "failed-data-root-create",
+      "args": [
+        "--dataRoot",
+        "./file-blocker/child"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": "./file-blocker",
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./file-blocker/child",
+        "dataRootCreationRelativeToCwd": "file-blocker/child",
+        "runtimeDataRootRelativeToServerDirectory": "file-blocker/child",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": false,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": true
+        }
+      }
+    },
+    "empty-data-root": {
+      "name": "empty-data-root",
+      "args": [
+        "--dataRoot",
+        ""
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "",
+        "dataRootCreationRelativeToCwd": "",
+        "runtimeDataRootRelativeToServerDirectory": "",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": true
+        }
+      }
+    }
+  }
+}

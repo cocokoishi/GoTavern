@@ -276,6 +276,18 @@ try {
     const configFixture = JSON.parse(firstConfigProbe);
     writeFileSync(path.join(repositoryRoot, 'upstream', 'generated', 'default-config.yaml'), configFixture.scenarios.fresh.outputYaml);
 
+    const commandLineProbe = path.join(buildRoot, '.gotavern-probe-commandline-paths.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-commandline-paths.mjs'), commandLineProbe);
+    const commandLineFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-commandline-paths.json');
+    run(process.execPath, [commandLineProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstCommandLineProbe = readFileSync(commandLineFixturePath);
+    run(process.execPath, [commandLineProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondCommandLineProbe = readFileSync(commandLineFixturePath);
+    if (!firstCommandLineProbe.equals(secondCommandLineProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCommandLineProbe), JSON.parse(secondCommandLineProbe));
+        throw new Error(`command-line paths oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const compiler = `
 import { copyFileSync } from 'node:fs';
 import path from 'node:path';
