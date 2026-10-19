@@ -410,6 +410,7 @@ func normalizeAccountCookies(t *testing.T, cookies []string, sessionName string)
 func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing.T) {
 	attempts := 3.5
 	recoveryAttempts := 2.5
+	resetAttempts := 4.5
 	timeout := float64(900)
 	parsed := commandline.CommandLineResult{
 		Paths: commandline.ResolvedPaths{RuntimeDataRoot: filepath.Join(t.TempDir(), "data")},
@@ -423,6 +424,8 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 			PreferRealIPHeader:         true,
 			AccountsLoginMaxAttempts:   attempts,
 			AccountsRecoverMaxAttempts: recoveryAttempts,
+			AccountsResetMaxAttempts:   resetAttempts,
+			SkipContentCheck:           true,
 			SessionTimeout:             timeout,
 			ForwardedXRealIP:           false,
 			ForwardedCFConnectingIP:    true,
@@ -433,7 +436,7 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	if options.DataRoot != parsed.Paths.RuntimeDataRoot || !options.DisableCSRF || !options.EnableCorsProxy || !options.AccountsEnabled || !options.DiscreetLogin || !options.PreferRealIPHeader {
 		t.Fatalf("handler options did not carry parsed config: %+v", options)
 	}
-	if options.LoginRateLimitPoints == nil || *options.LoginRateLimitPoints != attempts || options.RecoveryRateLimitPoints == nil || *options.RecoveryRateLimitPoints != recoveryAttempts || options.SessionTimeoutSeconds == nil || *options.SessionTimeoutSeconds != timeout {
+	if options.LoginRateLimitPoints == nil || *options.LoginRateLimitPoints != attempts || options.RecoveryRateLimitPoints == nil || *options.RecoveryRateLimitPoints != recoveryAttempts || options.ResetRateLimitPoints == nil || *options.ResetRateLimitPoints != resetAttempts || !options.SkipContentCheck || options.SessionTimeoutSeconds == nil || *options.SessionTimeoutSeconds != timeout {
 		t.Fatalf("handler numeric options = %+v", options)
 	}
 	if options.ForwardedXRealIP == nil || *options.ForwardedXRealIP || options.ForwardedCFConnectingIP == nil || !*options.ForwardedCFConnectingIP || options.ForwardedXForwardedFor == nil || *options.ForwardedXForwardedFor {

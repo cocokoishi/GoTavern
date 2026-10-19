@@ -81,6 +81,7 @@ const startupSettings = {
     basicAuthMaxAttempts: getConfigValue('rateLimiting.basicAuthMaxAttempts', 5, 'number'),
     accountsLoginMaxAttempts: getConfigValue('rateLimiting.accountsLoginMaxAttempts', 5, 'number'),
     accountsRecoverMaxAttempts: getConfigValue('rateLimiting.accountsRecoverMaxAttempts', 5, 'number'),
+    accountsResetMaxAttempts: getConfigValue('rateLimiting.accountsResetMaxAttempts', 5, 'number'),
     forwardedXRealIP: getConfigValue('forwardedHeaders.xRealIp', true, 'boolean'),
     forwardedCFConnectingIP: getConfigValue('forwardedHeaders.cfConnectingIp', false, 'boolean'),
     forwardedXForwardedFor: getConfigValue('forwardedHeaders.xForwardedFor', true, 'boolean'),
@@ -224,7 +225,7 @@ const scenarios = [
         name: 'startup-settings-config-values',
         args: [],
         initialConfigPath: './config.yaml',
-        initialConfig: `cookieSecret: legacy-file-secret\nenableUserAccounts: true\nenableDiscreetLogin: true\nsecurityOverride: true\nperUserBasicAuth: true\nrateLimiting:\n  preferRealIpHeader: true\n  accountsLoginMaxAttempts: 3.5\n  accountsRecoverMaxAttempts: 4.5\nforwardedHeaders:\n  xRealIp: false\n  cfConnectingIp: true\n  xForwardedFor: false\nbasicAuthUser:\n  username: config-user\n  password: config-password\nskipContentCheck: true\nperformance:\n  useDiskCache: false\nbackups:\n  common:\n    numberOfBackups: 7\n`,
+        initialConfig: `cookieSecret: legacy-file-secret\nenableUserAccounts: true\nenableDiscreetLogin: true\nsecurityOverride: true\nperUserBasicAuth: true\nrateLimiting:\n  preferRealIpHeader: true\n  accountsLoginMaxAttempts: 3.5\n  accountsRecoverMaxAttempts: 4.5\n  accountsResetMaxAttempts: 2.5\nforwardedHeaders:\n  xRealIp: false\n  cfConnectingIp: true\n  xForwardedFor: false\nbasicAuthUser:\n  username: config-user\n  password: config-password\nskipContentCheck: true\nperformance:\n  useDiskCache: false\nbackups:\n  common:\n    numberOfBackups: 7\n`,
     },
     {
         name: 'startup-settings-environment-overrides',

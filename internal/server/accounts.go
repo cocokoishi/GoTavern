@@ -86,10 +86,13 @@ type accountRuntime struct {
 	options        HTTPHandlerOptions
 	limiter        *memoryLoginLimiter
 	recoverLimiter *memoryLoginLimiter
+	resetLimiter   *memoryLoginLimiter
 	defaultUser    storedAccount
 	createMu       sync.Mutex
 	recoveryMu     sync.Mutex
 	recoveryCodes  map[string]recoveryCodeEntry
+	resetMu        sync.Mutex
+	resetCodes     map[string]recoveryCodeEntry
 }
 
 type recoveryCodeEntry struct {
@@ -124,6 +127,13 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 	if recoverPoints <= 0 {
 		recoverPoints = 9007199254740991
 	}
+	resetPoints := float64(5)
+	if options.ResetRateLimitPoints != nil {
+		resetPoints = *options.ResetRateLimitPoints
+	}
+	if resetPoints <= 0 {
+		resetPoints = 9007199254740991
+	}
 	defaultUser := storedAccount{fields: map[string]json.RawMessage{}}
 	for key, value := range map[string]any{
 		"handle":   "default-user",
@@ -141,8 +151,10 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 		options:        options,
 		limiter:        &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
 		recoverLimiter: &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
+		resetLimiter:   &memoryLoginLimiter{points: resetPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
 		defaultUser:    defaultUser,
 		recoveryCodes:  make(map[string]recoveryCodeEntry),
+		resetCodes:     make(map[string]recoveryCodeEntry),
 	}
 }
 

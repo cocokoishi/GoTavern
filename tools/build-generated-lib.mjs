@@ -231,6 +231,18 @@ try {
         throw new Error(`account-reset-settings oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountDataResetProbe = path.join(buildRoot, '.gotavern-probe-account-data-reset.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-data-reset.mjs'), accountDataResetProbe);
+    const accountDataResetFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-data-reset.json');
+    run(process.execPath, [accountDataResetProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountDataResetProbe = readFileSync(accountDataResetFixturePath);
+    run(process.execPath, [accountDataResetProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountDataResetProbe = readFileSync(accountDataResetFixturePath);
+    if (!firstAccountDataResetProbe.equals(secondAccountDataResetProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountDataResetProbe), JSON.parse(secondAccountDataResetProbe));
+        throw new Error(`account-data-reset oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

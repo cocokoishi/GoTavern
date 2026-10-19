@@ -67,9 +67,12 @@ type HTTPHandlerOptions struct {
 	AccountsEnabled            bool
 	DiscreetLogin              bool
 	PreferRealIPHeader         bool
+	SkipContentCheck           bool
 	LoginRateLimitPoints       *float64
 	RecoveryRateLimitPoints    *float64
+	ResetRateLimitPoints       *float64
 	recoveryCodeGenerator      func() (string, error)
+	resetCodeGenerator         func() (string, error)
 	ForwardedXRealIP           *bool
 	ForwardedCFConnectingIP    *bool
 	ForwardedXForwardedFor     *bool
@@ -98,6 +101,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		AccountsEnabled:      optionBoolean(settings.EnableUserAccounts),
 		DiscreetLogin:        optionBoolean(settings.EnableDiscreetLogin),
 		PreferRealIPHeader:   optionBoolean(settings.PreferRealIPHeader),
+		SkipContentCheck:     optionBoolean(settings.SkipContentCheck),
 	}
 	if timeout, ok := optionNumber(settings.SessionTimeout); ok {
 		options.SessionTimeoutSeconds = &timeout
@@ -107,6 +111,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if attempts, ok := optionNumber(settings.AccountsRecoverMaxAttempts); ok {
 		options.RecoveryRateLimitPoints = &attempts
+	}
+	if attempts, ok := optionNumber(settings.AccountsResetMaxAttempts); ok {
+		options.ResetRateLimitPoints = &attempts
 	}
 	if attempts, ok := optionNumber(settings.BasicAuthMaxAttempts); ok {
 		options.BasicAuthRateLimit = &attempts
@@ -237,6 +244,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/change-name", accounts.serveUserChangeName)
 	mux.HandleFunc("POST /api/users/change-password", accounts.serveUserChangePassword)
 	mux.HandleFunc("POST /api/users/reset-settings", accounts.serveUserResetSettings)
+	mux.HandleFunc("POST /api/users/reset-step1", accounts.serveUserResetStep1)
+	mux.HandleFunc("POST /api/users/reset-step2", accounts.serveUserResetStep2)
 	mux.HandleFunc("POST /api/users/get", accounts.serveUserAdminGet)
 	mux.HandleFunc("POST /api/users/create", accounts.serveUserAdminCreate)
 	mux.HandleFunc("POST /api/users/slugify", accounts.serveUserAdminSlugify)

@@ -507,6 +507,14 @@ and unchanged account records. The `account-reset-settings` oracle pins the
 startup stats timestamp and includes the system-prompt migration marker so the
 whole user-tree comparison isolates the route effects deterministically.
 
+Resetting all user data is another persistent mutation. Compare the logged
+six-digit code and its replacement, password and code failures, the per-user
+five-minute cache, shared per-IP rate-limit state and `Retry-After`, recursive
+user-tree deletion, directory recreation, default-content reseeding, account
+record retention, and successful cleanup of code/limiter state. The
+`account-data-reset` oracle uses separate protected and passwordless accounts
+and normalizes startup-only settings-backup names and stats timestamps.
+
 ## 15. Failure semantics
 
 Happy paths miss many extension assumptions. Add differential cases for:
