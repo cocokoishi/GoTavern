@@ -36,6 +36,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-access-log-migration.json` captures pinned legacy access-log moves, destination precedence, same-path no-op, directory sources, and caught move failures.
 
+`sillytavern-1.19.0-settings-backup.json` captures the `settings.init()` startup snapshots, duplicate suppression, backup retention by modification time, and the caught missing-backups-directory error.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh

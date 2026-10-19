@@ -8,6 +8,8 @@ The canonical persistent format is the upstream directory/file layout. GoTavern 
 
 At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<handle>/`. User records live in the `_storage` key/value store at the data root; `cookie-secret.txt` also lives at the data root. Each user root can contain `secrets.json`; startup converts legacy flat string entries to the current array format and backs up the source file.
 
+`settings.init()` writes `backups/settings_<handle>_<YYYYMMDD-HHmmss>.json` when `settings.json` exists and differs from the latest backup. It suppresses equal snapshots, retains the configured number by oldest modification time, and catches the first error across the user loop. The latest-backup choice uses filesystem change time, matching pinned Node behavior on the supported release targets.
+
 | Directory key | Relative path under `DATA_ROOT/<handle>/` | Source |
 |---|---|---|
 | root | `.` | [src/constants.js](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/constants.js) |
@@ -50,7 +52,7 @@ At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<
 | `DATA_ROOT/cookie-secret.txt` | Session signing secret; generated when missing or migrated from legacy `cookieSecret` config. |
 | `DATA_ROOT/_cache/characters/` | node-persist records used by the pinned character image disk cache; created when `performance.useDiskCache` is enabled. |
 | `DATA_ROOT/access.log` | Incoming-connection log; receives `serverDirectory/access.log` at startup only when the data-root copy is absent. |
-| `DATA_ROOT/<handle>/...` | Per-user directory template above; directories created for every user at startup. `sysprompt/.migrated` records completion of the legacy instruct system-prompt migration; originals are backed up under `backups/_sysprompt/`. |
+| `DATA_ROOT/<handle>/...` | Per-user directory template above; directories created for every user at startup. `backups/settings_<handle>_<timestamp>.json` holds startup and user-requested settings snapshots. `sysprompt/.migrated` records completion of the legacy instruct system-prompt migration; originals are backed up under `backups/_sysprompt/`. |
 | `DATA_ROOT/_uploads/` | Temporary multipart uploads; files are cleaned during pre-listen startup. |
 | `DATA_ROOT/_errors/` | User error-page overrides; `url-not-found.html` also supplies the final 404 body. |
 | `DATA_ROOT/_css/user.css` | User CSS override migrated from `public/css/user.css` when absent. |
@@ -66,8 +68,8 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, group-chat metadata migration, character disk-cache verification, legacy flat-secret migration, `_uploads` cleanup, and access-log migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, group-chat metadata migration, character disk-cache verification, legacy flat-secret migration, `_uploads` cleanup, access-log migration, and settings backup creation/deduplication/retention. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
-- Content-log skip/force/update cases, settings aggregation, character-cache error cases and node-persist write behavior, secret backup/write-failure handling, upload symlink and partial-deletion failure cases, access-log write-failure behavior, remaining migration behavior, and unknown-field preservation.
+- Content-log skip/force/update cases, settings aggregation, malformed settings-byte comparison, settings-backup failure and unusual timestamp cases, character-cache error cases and node-persist write behavior, secret backup/write-failure handling, upload symlink and partial-deletion failure cases, access-log write-failure behavior, remaining migration behavior, and unknown-field preservation.
 - Node-written → Go-read/write → Node-read round trips for every persistent mutation family.

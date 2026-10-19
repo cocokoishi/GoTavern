@@ -234,6 +234,18 @@ try {
         throw new Error(`access-log migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const settingsBackupProbe = path.join(buildRoot, '.gotavern-probe-settings-backup.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-settings-backup.mjs'), settingsBackupProbe);
+    const settingsBackupFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-settings-backup.json');
+    run(process.execPath, [settingsBackupProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSettingsBackupProbe = readFileSync(settingsBackupFixturePath);
+    run(process.execPath, [settingsBackupProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSettingsBackupProbe = readFileSync(settingsBackupFixturePath);
+    if (!firstSettingsBackupProbe.equals(secondSettingsBackupProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSettingsBackupProbe), JSON.parse(secondSettingsBackupProbe));
+        throw new Error(`settings-backup oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

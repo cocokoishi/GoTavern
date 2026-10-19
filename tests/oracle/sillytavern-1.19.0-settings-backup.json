@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned settings.init() backup, duplicate, retention, and error behavior",
+  "scenarios": {
+    "rootMissing": {
+      "input": {
+        "rootExists": false,
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": false,
+          "settings": null,
+          "backupsDirectoryExists": false,
+          "backups": []
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": false,
+          "settings": null,
+          "backupsDirectoryExists": false,
+          "backups": []
+        }
+      }
+    },
+    "settingsMissing": {
+      "input": {
+        "rootExists": true,
+        "backupsDirectoryExists": true,
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": null,
+          "backupsDirectoryExists": true,
+          "backups": []
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": null,
+          "backupsDirectoryExists": true,
+          "backups": []
+        }
+      }
+    },
+    "newBackup": {
+      "input": {
+        "rootExists": true,
+        "settings": "{\"name\":\"current\",\"unknown\":7}",
+        "backups": [],
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"current\",\"unknown\":7}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"current\",\"unknown\":7}"
+            }
+          ]
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"current\",\"unknown\":7}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"current\",\"unknown\":7}"
+            }
+          ]
+        }
+      }
+    },
+    "duplicate": {
+      "input": {
+        "rootExists": true,
+        "settings": "{\"name\":\"same\"}",
+        "backups": [
+          {
+            "name": "settings_default-user_20000101-000000.json",
+            "contents": "{\"name\":\"same\"}",
+            "mtime": 1000
+          }
+        ],
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"same\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"same\"}"
+            }
+          ]
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"same\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"same\"}"
+            }
+          ]
+        }
+      }
+    },
+    "latestByChangeTime": {
+      "input": {
+        "rootExists": true,
+        "settings": "{\"name\":\"same\"}",
+        "backups": [
+          {
+            "name": "settings_default-user_20000101-000000.json",
+            "contents": "{\"name\":\"older change time\"}",
+            "mtime": 3000
+          },
+          {
+            "name": "settings_default-user_20000102-000000.json",
+            "contents": "{\"name\":\"same\"}",
+            "mtime": 1000
+          }
+        ],
+        "changeTimeGapMs": 25,
+        "maxBackups": 3
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"same\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"older change time\"}"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"same\"}"
+            }
+          ]
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"same\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"older change time\"}"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"same\"}"
+            }
+          ]
+        }
+      }
+    },
+    "changed": {
+      "input": {
+        "rootExists": true,
+        "settings": "{\"name\":\"new\"}",
+        "backups": [
+          {
+            "name": "settings_default-user_20000101-000000.json",
+            "contents": "{\"name\":\"old\"}",
+            "mtime": 1000
+          }
+        ],
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"new\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"old\"}"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"new\"}"
+            }
+          ]
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"new\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"old\"}"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"new\"}"
+            }
+          ]
+        }
+      }
+    },
+    "pruneOldest": {
+      "input": {
+        "rootExists": true,
+        "settings": "{\"name\":\"new\"}",
+        "backups": [
+          {
+            "name": "settings_default-user_20000101-000000.json",
+            "contents": "oldest",
+            "mtime": 1000
+          },
+          {
+            "name": "settings_default-user_20000102-000000.json",
+            "contents": "newer",
+            "mtime": 2000
+          }
+        ],
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"new\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "newer"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"new\"}"
+            }
+          ]
+        }
+      },
+      "second": {
+        "errorCount": 0,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"new\"}",
+          "backupsDirectoryExists": true,
+          "backups": [
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "newer"
+            },
+            {
+              "name": "settings_default-user_<timestamp>.json",
+              "contents": "{\"name\":\"new\"}"
+            }
+          ]
+        }
+      }
+    },
+    "backupsMissing": {
+      "input": {
+        "rootExists": true,
+        "backupsDirectoryExists": false,
+        "settings": "{\"name\":\"current\"}",
+        "maxBackups": 2
+      },
+      "first": {
+        "errorCount": 1,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"current\"}",
+          "backupsDirectoryExists": false,
+          "backups": []
+        }
+      },
+      "second": {
+        "errorCount": 1,
+        "state": {
+          "rootExists": true,
+          "settings": "{\"name\":\"current\"}",
+          "backupsDirectoryExists": false,
+          "backups": []
+        }
+      }
+    }
+  }
+}
