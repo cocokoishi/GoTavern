@@ -87,6 +87,8 @@ const startupSettings = {
     whitelist: getConfigValue('whitelist', []),
     whitelistDockerHosts: getConfigValue('whitelistDockerHosts', true, 'boolean'),
     hostWhitelistEnabled: getConfigValue('hostWhitelist.enabled', false, 'boolean'),
+    hostWhitelistScan: getConfigValue('hostWhitelist.scan', false, 'boolean'),
+    hostWhitelistHosts: getConfigValue('hostWhitelist.hosts', []),
     basicAuthUsername: getConfigValue('basicAuthUser.username', ''),
     basicAuthPassword: getConfigValue('basicAuthUser.password', ''),
     skipContentCheck: getConfigValue('skipContentCheck', false, 'boolean'),

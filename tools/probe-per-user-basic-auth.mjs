@@ -43,6 +43,13 @@ function passwordHash(password, salt) {
 function stableHeaders(response) {
     return Object.fromEntries([...response.headers.entries()]
         .filter(([name]) => !['connection', 'date', 'keep-alive', 'last-modified', 'set-cookie', 'x-response-time'].includes(name))
+        // Express's send-file ETag embeds the checkout file mtime in hex. It
+        // changes when the pinned tree is freshly cloned, even though the page
+        // bytes are identical, so retain the size and normalize that metadata.
+        .map(([name, value]) => {
+            const sendFileTag = name === 'etag' && /^W\/"(\d+)-[a-f\d]+"$/i.exec(value);
+            return [name, sendFileTag ? `W/"${sendFileTag[1]}-<mtime>"` : value];
+        })
         .sort(([left], [right]) => left.localeCompare(right)));
 }
 

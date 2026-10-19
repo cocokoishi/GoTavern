@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -33,6 +32,28 @@ type pinnedFreshHTTPFixture struct {
 			Body        json.RawMessage   `json:"body"`
 		} `json:"responses"`
 	} `json:"http"`
+}
+
+type hostWhitelistHTTPFixture struct {
+	Baseline struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+	} `json:"baseline"`
+	Inputs struct {
+		HostWhitelistEnabled bool     `json:"hostWhitelistEnabled"`
+		HostWhitelistScan    bool     `json:"hostWhitelistScan"`
+		Hosts                []string `json:"hosts"`
+		CustomErrorPage      string   `json:"customErrorPageContent"`
+	} `json:"inputs"`
+	Observations map[string]struct {
+		Host        string            `json:"host"`
+		Headers     map[string]string `json:"headers"`
+		Status      int               `json:"status"`
+		ContentType string            `json:"contentType"`
+		Bytes       int               `json:"bytes"`
+		SHA256      string            `json:"sha256"`
+		Body        string            `json:"body"`
+	} `json:"observations"`
 }
 
 func TestStartFreshServerMatchesPinnedNodeHTTPResponses(t *testing.T) {
@@ -196,39 +217,125 @@ func TestStartFreshServerMatchesPinnedNodeHTTPResponses(t *testing.T) {
 	})
 }
 
-func TestStartStopsWhenHostWhitelistIsEnabledButUnimplemented(t *testing.T) {
-	for _, scenario := range []struct {
-		name      string
-		config    string
-		wantError string
-	}{
-		{
-			name:      "host whitelist",
-			config:    "hostWhitelist:\n  enabled: true\n",
-			wantError: "host-validation middleware is not implemented",
+func TestStartHostWhitelistMatchesPinnedNodeHTTPResponses(t *testing.T) {
+	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-host-whitelist.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture hostWhitelistHTTPFixture
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
+		t.Fatalf("host-whitelist oracle baseline = %+v", fixture.Baseline)
+	}
+
+	installRoot := t.TempDir()
+	configLines := []string{
+		"whitelistMode: true",
+		"whitelist:",
+		"  - 127.0.0.1",
+		"hostWhitelist:",
+		"  enabled: " + strconv.FormatBool(fixture.Inputs.HostWhitelistEnabled),
+		"  scan: " + strconv.FormatBool(fixture.Inputs.HostWhitelistScan),
+		"  hosts:",
+	}
+	for _, host := range fixture.Inputs.Hosts {
+		configLines = append(configLines, "    - "+host)
+	}
+	config := strings.Join(append(configLines, ""), "\n")
+	if err := os.WriteFile(filepath.Join(installRoot, "config.yaml"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	port := availableIPv4Port(t)
+	running, err := Start(StartOptions{
+		Args: []string{
+			"--enableIPv4", "true", "--enableIPv6", "false", "--listen", "false",
+			"--port", strconv.Itoa(port), "--heartbeatInterval", "0", "--browserLaunchEnabled", "false",
 		},
-	} {
-		t.Run(scenario.name, func(t *testing.T) {
-			installRoot := t.TempDir()
-			if err := os.WriteFile(filepath.Join(installRoot, "config.yaml"), []byte(scenario.config), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			_, err := Start(StartOptions{
-				Args:                     []string{"--enableIPv4", "true", "--enableIPv6", "false", "--port", "0"},
-				WorkingDirectory:         installRoot,
-				InstallRoot:              installRoot,
-				Now:                      time.UnixMilli(1735689600000),
-				WaitBeforeLegacyDataMove: func(time.Duration) {},
-				InterfaceAddresses:       []net.Addr{},
-			})
-			var startupError *StartupError
-			if !errors.As(err, &startupError) {
-				t.Fatalf("Start error = %v; want explicit unsupported security configuration error", err)
-			}
-			if startupError.ExitCode() != 1 || !strings.Contains(startupError.Error(), scenario.wantError) {
-				t.Fatalf("Start error = %v (exit %d); want message containing %q and exit 1", startupError, startupError.ExitCode(), scenario.wantError)
-			}
+		WorkingDirectory:         installRoot,
+		InstallRoot:              installRoot,
+		Now:                      time.UnixMilli(1735689600000),
+		WaitBeforeLegacyDataMove: func(time.Duration) {},
+		InterfaceAddresses:       []net.Addr{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := running.Close(ctx); err != nil {
+			t.Errorf("close GoTavern server: %v", err)
+		}
+	})
+	if !running.StartedIPv4 || running.StartedIPv6 || len(running.ListenerFailures) != 0 {
+		t.Fatalf("listener result = IPv4 %t, IPv6 %t, failures %+v", running.StartedIPv4, running.StartedIPv6, running.ListenerFailures)
+	}
+
+	client := &http.Client{Transport: &http.Transport{Proxy: nil}, Timeout: 20 * time.Second}
+	address := running.Listeners()[0].Addr().String()
+	_, serverPort, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatalf("split listener address %q: %v", address, err)
+	}
+	for name, expected := range fixture.Observations {
+		if name == "customErrorPageReadPerRequest" {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			host := strings.ReplaceAll(expected.Host, "<port>", serverPort)
+			assertHostWhitelistResponse(t, client, address, host, expected)
 		})
+	}
+
+	customErrorPage := []byte(fixture.Inputs.CustomErrorPage)
+	hostErrorPagePath := filepath.Join(running.CommandLine.Paths.RuntimeDataRoot, "_errors", "host-not-allowed.html")
+	if err := os.WriteFile(hostErrorPagePath, customErrorPage, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	expected := fixture.Observations["customErrorPageReadPerRequest"]
+	t.Run("customErrorPageReadPerRequest", func(t *testing.T) {
+		assertHostWhitelistResponse(t, client, address, expected.Host, expected)
+	})
+}
+
+func assertHostWhitelistResponse(t *testing.T, client *http.Client, address, host string, expected struct {
+	Host        string            `json:"host"`
+	Headers     map[string]string `json:"headers"`
+	Status      int               `json:"status"`
+	ContentType string            `json:"contentType"`
+	Bytes       int               `json:"bytes"`
+	SHA256      string            `json:"sha256"`
+	Body        string            `json:"body"`
+}) {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodGet, "http://"+address+"/version", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Host = host
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != expected.Status || response.Header.Get("Content-Type") != expected.ContentType {
+		t.Fatalf("response = %d %q; pinned Node has %d %q", response.StatusCode, response.Header.Get("Content-Type"), expected.Status, expected.ContentType)
+	}
+	if len(body) != expected.Bytes || sha256Hex(body) != expected.SHA256 || string(body) != expected.Body {
+		t.Fatalf("response body = %d bytes/%s/%q; pinned Node has %d bytes/%s/%q", len(body), sha256Hex(body), body, expected.Bytes, expected.SHA256, expected.Body)
+	}
+	gotHeaders := stableResponseHeaders(response.Header)
+	if len(response.TransferEncoding) > 0 {
+		gotHeaders["transfer-encoding"] = strings.Join(response.TransferEncoding, ", ")
+	}
+	if !reflect.DeepEqual(gotHeaders, expected.Headers) {
+		t.Fatalf("response headers = %#v; pinned Node has %#v", gotHeaders, expected.Headers)
 	}
 }
 

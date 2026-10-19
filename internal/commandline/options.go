@@ -69,6 +69,8 @@ type StartupSettings struct {
 	Whitelist                any `json:"whitelist"`
 	WhitelistDockerHosts     any `json:"whitelistDockerHosts"`
 	HostWhitelistEnabled     any `json:"hostWhitelistEnabled"`
+	HostWhitelistScan        any `json:"hostWhitelistScan"`
+	HostWhitelistHosts       any `json:"hostWhitelistHosts"`
 	BasicAuthUsername        any `json:"basicAuthUsername"`
 	BasicAuthPassword        any `json:"basicAuthPassword"`
 	SkipContentCheck         any `json:"skipContentCheck"`
@@ -215,6 +217,8 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		Whitelist:                getConfigValue(config, "whitelist", []any{}, cliArray),
 		WhitelistDockerHosts:     getConfigValue(config, "whitelistDockerHosts", true, cliBoolean),
 		HostWhitelistEnabled:     getConfigValue(config, "hostWhitelist.enabled", false, cliBoolean),
+		HostWhitelistScan:        getConfigValue(config, "hostWhitelist.scan", false, cliBoolean),
+		HostWhitelistHosts:       getConfigValue(config, "hostWhitelist.hosts", []any{}, cliArray),
 		BasicAuthUsername:        getConfigValue(config, "basicAuthUser.username", "", cliString),
 		BasicAuthPassword:        getConfigValue(config, "basicAuthUser.password", "", cliString),
 		SkipContentCheck:         getConfigValue(config, "skipContentCheck", false, cliBoolean),

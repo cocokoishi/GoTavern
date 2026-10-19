@@ -133,9 +133,6 @@ func Start(options StartOptions) (*RunningServer, error) {
 		}
 		return nil, fmt.Errorf("initialize pinned server data: %w", err)
 	}
-	if optionEnabled(parsed.StartupSettings.HostWhitelistEnabled) {
-		return nil, &StartupError{Code: 1, Message: "hostWhitelist.enabled is configured, but the pinned host-validation middleware is not implemented"}
-	}
 	addresses := options.InterfaceAddresses
 	if addresses == nil {
 		addresses = systemInterfaceAddresses()

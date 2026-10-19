@@ -473,7 +473,7 @@
         "content-type": "text/html; charset=UTF-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"1383-1a154a614f9\"",
+        "etag": "W/\"1383-<mtime>\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",

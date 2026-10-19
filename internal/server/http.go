@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -43,29 +44,33 @@ type versionResponse struct {
 // HTTP middleware. A nil session timeout means SillyTavern's default of -1
 // (400 days).
 type HTTPHandlerOptions struct {
-	DataRoot                string
-	CookieSecret            string
-	DisableCSRF             bool
-	EnableCorsProxy         bool
-	WhitelistEnabled        bool
-	ForwardedWhitelist      bool
-	Whitelist               []string
-	ForbiddenPage           []byte
-	PreserveForbiddenPage   bool
-	BasicAuthEnabled        bool
-	BasicAuthMode           bool
-	PerUserBasicAuth        bool
-	BasicAuthUsername       any
-	BasicAuthPassword       any
-	BasicAuthRateLimit      *float64
-	AccountsEnabled         bool
-	DiscreetLogin           bool
-	PreferRealIPHeader      bool
-	LoginRateLimitPoints    *float64
-	ForwardedXRealIP        *bool
-	ForwardedCFConnectingIP *bool
-	ForwardedXForwardedFor  *bool
-	SessionTimeoutSeconds   *float64
+	DataRoot                   string
+	CookieSecret               string
+	DisableCSRF                bool
+	EnableCorsProxy            bool
+	WhitelistEnabled           bool
+	ForwardedWhitelist         bool
+	Whitelist                  []string
+	ForbiddenPage              []byte
+	PreserveForbiddenPage      bool
+	HostWhitelistEnabled       bool
+	HostWhitelistScan          bool
+	HostWhitelistHosts         []string
+	hostWhitelistWarningWriter io.Writer
+	BasicAuthEnabled           bool
+	BasicAuthMode              bool
+	PerUserBasicAuth           bool
+	BasicAuthUsername          any
+	BasicAuthPassword          any
+	BasicAuthRateLimit         *float64
+	AccountsEnabled            bool
+	DiscreetLogin              bool
+	PreferRealIPHeader         bool
+	LoginRateLimitPoints       *float64
+	ForwardedXRealIP           *bool
+	ForwardedCFConnectingIP    *bool
+	ForwardedXForwardedFor     *bool
+	SessionTimeoutSeconds      *float64
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
@@ -73,20 +78,23 @@ type HTTPHandlerOptions struct {
 func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTTPHandlerOptions {
 	settings := parsed.StartupSettings
 	options := HTTPHandlerOptions{
-		DataRoot:           parsed.Paths.RuntimeDataRoot,
-		DisableCSRF:        optionBoolean(parsed.Options.DisableCsrf),
-		EnableCorsProxy:    optionBoolean(parsed.Options.EnableCorsProxy),
-		WhitelistEnabled:   optionBoolean(parsed.Options.WhitelistMode),
-		ForwardedWhitelist: optionBoolean(settings.EnableForwardedWhitelist),
-		Whitelist:          stringList(settings.Whitelist),
-		BasicAuthEnabled:   optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
-		BasicAuthMode:      optionBoolean(parsed.Options.BasicAuthMode),
-		PerUserBasicAuth:   optionBoolean(settings.PerUserBasicAuth),
-		BasicAuthUsername:  settings.BasicAuthUsername,
-		BasicAuthPassword:  settings.BasicAuthPassword,
-		AccountsEnabled:    optionBoolean(settings.EnableUserAccounts),
-		DiscreetLogin:      optionBoolean(settings.EnableDiscreetLogin),
-		PreferRealIPHeader: optionBoolean(settings.PreferRealIPHeader),
+		DataRoot:             parsed.Paths.RuntimeDataRoot,
+		DisableCSRF:          optionBoolean(parsed.Options.DisableCsrf),
+		EnableCorsProxy:      optionBoolean(parsed.Options.EnableCorsProxy),
+		WhitelistEnabled:     optionBoolean(parsed.Options.WhitelistMode),
+		ForwardedWhitelist:   optionBoolean(settings.EnableForwardedWhitelist),
+		Whitelist:            stringList(settings.Whitelist),
+		HostWhitelistEnabled: optionBoolean(settings.HostWhitelistEnabled),
+		HostWhitelistScan:    optionBoolean(settings.HostWhitelistScan),
+		HostWhitelistHosts:   stringList(settings.HostWhitelistHosts),
+		BasicAuthEnabled:     optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
+		BasicAuthMode:        optionBoolean(parsed.Options.BasicAuthMode),
+		PerUserBasicAuth:     optionBoolean(settings.PerUserBasicAuth),
+		BasicAuthUsername:    settings.BasicAuthUsername,
+		BasicAuthPassword:    settings.BasicAuthPassword,
+		AccountsEnabled:      optionBoolean(settings.EnableUserAccounts),
+		DiscreetLogin:        optionBoolean(settings.EnableDiscreetLogin),
+		PreferRealIPHeader:   optionBoolean(settings.PreferRealIPHeader),
 	}
 	if timeout, ok := optionNumber(settings.SessionTimeout); ok {
 		options.SessionTimeoutSeconds = &timeout
@@ -206,6 +214,7 @@ func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
 	accounts := newAccountRuntime(options)
 	basicAuth := newBasicAuthRuntime(options)
+	hostWhitelist := newHostWhitelistRuntime(options)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
@@ -239,6 +248,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 				serveWhitelistForbidden(w, r, options.ForbiddenPage, ipDetails)
 				return
 			}
+		}
+		if !hostWhitelist.allow(w, r) {
+			return
 		}
 		var session *cookieSession
 		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {

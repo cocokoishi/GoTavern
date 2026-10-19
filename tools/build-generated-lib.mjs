@@ -345,6 +345,18 @@ try {
         throw new Error(`per-user Basic Auth oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const hostWhitelistProbe = path.join(buildRoot, '.gotavern-probe-host-whitelist.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-host-whitelist.mjs'), hostWhitelistProbe);
+    const hostWhitelistFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-host-whitelist.json');
+    run(process.execPath, [hostWhitelistProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstHostWhitelistProbe = readFileSync(hostWhitelistFixturePath);
+    run(process.execPath, [hostWhitelistProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondHostWhitelistProbe = readFileSync(hostWhitelistFixturePath);
+    if (!firstHostWhitelistProbe.equals(secondHostWhitelistProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstHostWhitelistProbe), JSON.parse(secondHostWhitelistProbe));
+        throw new Error(`host-whitelist oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const serverProtocolsProbe = path.join(buildRoot, '.gotavern-probe-server-protocols.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-server-protocols.mjs'), serverProtocolsProbe);
     const serverProtocolsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-server-protocols.json');
