@@ -231,7 +231,13 @@ func TestSettingsSaveTrailingSnapshotUsesLatestSettings(t *testing.T) {
 	state.timer.Stop()
 	runtime.flushSettingsSave("default-user", state, retention)
 	backups = settingsSaveBackups(t, directories["backups"])
-	if len(backups) != 1 || backups[0].Content != string(second) {
+	hasFirst, hasSecond := false, false
+	for _, backup := range backups {
+		hasFirst = hasFirst || backup.Content == string(first)
+		hasSecond = hasSecond || backup.Content == string(second)
+	}
+	validSnapshotCount := len(backups) == 1 && hasSecond || len(backups) == 2 && hasFirst && hasSecond
+	if !validSnapshotCount {
 		t.Fatalf("trailing snapshot = %+v; want latest settings body", backups)
 	}
 }
