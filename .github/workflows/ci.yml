@@ -36,7 +36,7 @@ jobs:
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Verify generated results are committed
         run: |
-          git diff --exit-code -- docs/api-inventory.md docs/config-inventory.md upstream/generated upstream/manifests/generated.sha256 tests/oracle/sillytavern-1.19.0-fresh-start.json tests/oracle/sillytavern-1.19.0-config-init.json tests/oracle/sillytavern-1.19.0-user-storage-roundtrip.json
+          git diff --exit-code -- docs/api-inventory.md docs/config-inventory.md upstream/generated upstream/manifests/generated.sha256 tests/oracle/sillytavern-1.19.0-fresh-start.json tests/oracle/sillytavern-1.19.0-config-init.json tests/oracle/sillytavern-1.19.0-user-storage-roundtrip.json tests/oracle/sillytavern-1.19.0-cookie-secret.json
 
   verify:
     runs-on: ubuntu-latest

@@ -114,6 +114,18 @@ try {
         throw new Error(`user-store round-trip oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const cookieSecretProbe = path.join(buildRoot, '.gotavern-probe-cookie-secret.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-cookie-secret.mjs'), cookieSecretProbe);
+    const cookieSecretFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-cookie-secret.json');
+    run(process.execPath, [cookieSecretProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstCookieSecretProbe = readFileSync(cookieSecretFixturePath);
+    run(process.execPath, [cookieSecretProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondCookieSecretProbe = readFileSync(cookieSecretFixturePath);
+    if (!firstCookieSecretProbe.equals(secondCookieSecretProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCookieSecretProbe), JSON.parse(secondCookieSecretProbe));
+        throw new Error(`cookie-secret oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

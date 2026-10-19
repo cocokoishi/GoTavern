@@ -16,6 +16,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-user-storage-roundtrip.json` is produced with the pinned `node-persist@4.0.4` package and the Go startup package. It checks Node-written user/avatar records survive Go initialization byte-for-byte and remain readable by Node, then checks Node can read the Go-created default-user record. The asset/oracle rebuild job requires both Node and Go for this round-trip probe.
 
+`sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh
