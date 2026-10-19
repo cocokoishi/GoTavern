@@ -32,6 +32,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-flat-secrets.json` captures pinned legacy secrets migration, backups, idempotence, JavaScript property/value edge cases, per-user error continuation, and a Node-to-Go-to-Node check that SillyTavern reads Go-migrated secrets.
 
+`sillytavern-1.19.0-upload-cleanup.json` captures pinned pre-listen upload-directory handling for absent, empty, dirty, nested-directory, and non-directory paths.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh

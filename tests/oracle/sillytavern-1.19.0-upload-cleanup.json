@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned cleanUploads() listing, deletion, and caught-error behavior",
+  "scenarios": {
+    "absent": {
+      "input": {
+        "setup": "absent"
+      },
+      "first": {
+        "debug": [],
+        "errorCount": 0,
+        "state": {
+          "exists": false,
+          "isDirectory": false,
+          "contents": null,
+          "entries": []
+        }
+      },
+      "second": {
+        "debug": [],
+        "errorCount": 0,
+        "state": {
+          "exists": false,
+          "isDirectory": false,
+          "contents": null,
+          "entries": []
+        }
+      }
+    },
+    "empty": {
+      "input": {
+        "setup": "empty"
+      },
+      "first": {
+        "debug": [],
+        "errorCount": 0,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": []
+        }
+      },
+      "second": {
+        "debug": [],
+        "errorCount": 0,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": []
+        }
+      }
+    },
+    "files": {
+      "input": {
+        "setup": "files",
+        "files": {
+          "one.tmp": "first upload",
+          "two.bin": "second upload"
+        }
+      },
+      "first": {
+        "debug": [
+          "Cleaning uploads folder (2 files)"
+        ],
+        "errorCount": 0,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": []
+        }
+      },
+      "second": {
+        "debug": [],
+        "errorCount": 0,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": []
+        }
+      }
+    },
+    "childDirectory": {
+      "input": {
+        "setup": "childDirectory"
+      },
+      "first": {
+        "debug": [
+          "Cleaning uploads folder (1 files)"
+        ],
+        "errorCount": 1,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": [
+            {
+              "path": "pending",
+              "type": "directory",
+              "contents": null
+            },
+            {
+              "path": "pending/keep.tmp",
+              "type": "file",
+              "contents": "inside nested directory"
+            }
+          ]
+        }
+      },
+      "second": {
+        "debug": [
+          "Cleaning uploads folder (1 files)"
+        ],
+        "errorCount": 1,
+        "state": {
+          "exists": true,
+          "isDirectory": true,
+          "contents": null,
+          "entries": [
+            {
+              "path": "pending",
+              "type": "directory",
+              "contents": null
+            },
+            {
+              "path": "pending/keep.tmp",
+              "type": "file",
+              "contents": "inside nested directory"
+            }
+          ]
+        }
+      }
+    },
+    "pathIsFile": {
+      "input": {
+        "setup": "pathFile",
+        "contents": "not an uploads directory"
+      },
+      "first": {
+        "debug": [],
+        "errorCount": 1,
+        "state": {
+          "exists": true,
+          "isDirectory": false,
+          "contents": "not an uploads directory",
+          "entries": []
+        }
+      },
+      "second": {
+        "debug": [],
+        "errorCount": 1,
+        "state": {
+          "exists": true,
+          "isDirectory": false,
+          "contents": "not an uploads directory",
+          "entries": []
+        }
+      }
+    }
+  }
+}

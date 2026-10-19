@@ -210,6 +210,18 @@ try {
         throw new Error(`flat-secrets oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const uploadCleanupProbe = path.join(buildRoot, '.gotavern-probe-upload-cleanup.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-upload-cleanup.mjs'), uploadCleanupProbe);
+    const uploadCleanupFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-upload-cleanup.json');
+    run(process.execPath, [uploadCleanupProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstUploadCleanupProbe = readFileSync(uploadCleanupFixturePath);
+    run(process.execPath, [uploadCleanupProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondUploadCleanupProbe = readFileSync(uploadCleanupFixturePath);
+    if (!firstUploadCleanupProbe.equals(secondUploadCleanupProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstUploadCleanupProbe), JSON.parse(secondUploadCleanupProbe));
+        throw new Error(`upload-cleanup oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);
