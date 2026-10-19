@@ -293,7 +293,7 @@ const scenarios = [
         name: 'cors-settings-config-and-environment-precedence',
         args: [],
         initialConfigPath: './config.yaml',
-        initialConfig: `cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: [48, 72]\n    persona: [32, 56]\n`,
+        initialConfig: `cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: ["0x100000000000000000000", 1]\n    persona: ["not-a-number", 2]\n`,
         optionEnvironment: {
             SILLYTAVERN_CORS_ENABLED: 'true',
             SILLYTAVERN_CORS_METHODS: '["POST","PATCH"]',

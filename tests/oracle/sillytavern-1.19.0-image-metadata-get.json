@@ -4,7 +4,7 @@
     "version": "1.19.0",
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
-  "probe": "pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF; Go-generated metadata is read back through the pinned Node endpoint",
+  "probe": "pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF/24-bit BMP, apply configured thumbnail dimensions and JavaScript Number coercion, and read Go-generated metadata back through the pinned Node endpoint",
   "inputs": {
     "cookieSecret": "gotavern-pinned-image-metadata-get-cookie-secret",
     "indexes": {
@@ -155,19 +155,19 @@
         45
       ],
       "avatar": [
-        48,
-        72
+        "0x100000000000000000000",
+        1
       ],
       "persona": [
-        32,
-        56
+        "not-a-number",
+        2
       ]
     },
     "goRoundTrip": {
       "index": "{\n    \"version\": 8,\n    \"images\": {},\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}",
       "body": {
         "path": "backgrounds/roundtrip.png",
-        "type": "bg"
+        "type": "avatar"
       },
       "generatedPaths": [
         "backgrounds/roundtrip.png"
@@ -415,7 +415,7 @@
     "singleGeneratedJpeg": {
       "status": 200,
       "headers": {
-        "content-length": "232",
+        "content-length": "250",
         "content-type": "application/json; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
@@ -438,7 +438,7 @@
         "dominantColor": "#5f9ad2",
         "folderIds": [],
         "addedTimestamp": "__ADDED_TIMESTAMP__",
-        "thumbnailResolution": 3456,
+        "thumbnailResolution": 1.2089258196146292e+24,
         "mtime": 981173106123
       }
     },
@@ -471,7 +471,7 @@
             "preserve-this-folder"
           ],
           "addedTimestamp": "__ADDED_TIMESTAMP__",
-          "thumbnailResolution": 1792,
+          "thumbnailResolution": null,
           "mtime": 981173106123
         },
         "backgrounds/flat.gif": {
@@ -481,7 +481,7 @@
           "dominantColor": "#808080",
           "folderIds": [],
           "addedTimestamp": "__ADDED_TIMESTAMP__",
-          "thumbnailResolution": 1792,
+          "thumbnailResolution": null,
           "mtime": 981173106123
         },
         "backgrounds/missing.png": {
@@ -795,8 +795,8 @@
     "fileContentsAfter": {
       "singleCached": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "singleGeneratedPng": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 3600,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
-      "singleGeneratedJpeg": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        },\n        \"backgrounds/photo.jpg\": {\n            \"hash\": \"0cd982aa47bdb3ac6a52c24fcaaa4dba5bcbc16c3968bc6c7f9f44530aea1468\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#5f9ad2\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 3456,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
-      "batchGeneratedPngAndGif": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 1792,\n            \"mtime\": 981173106123\n        },\n        \"backgrounds/flat.gif\": {\n            \"hash\": \"30b82ef9ee940aa9c2cad54c10fd123d26be1a0f253086468499a950aa7e77d2\",\n            \"aspectRatio\": 2,\n            \"isAnimated\": true,\n            \"dominantColor\": \"#808080\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 1792,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "singleGeneratedJpeg": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        },\n        \"backgrounds/photo.jpg\": {\n            \"hash\": \"0cd982aa47bdb3ac6a52c24fcaaa4dba5bcbc16c3968bc6c7f9f44530aea1468\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#5f9ad2\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 1.2089258196146292e+24,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "batchGeneratedPngAndGif": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": null,\n            \"mtime\": 981173106123\n        },\n        \"backgrounds/flat.gif\": {\n            \"hash\": \"30b82ef9ee940aa9c2cad54c10fd123d26be1a0f253086468499a950aa7e77d2\",\n            \"aspectRatio\": 2,\n            \"isAnimated\": true,\n            \"dominantColor\": \"#808080\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": null,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "singleGeneratedBmp": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        },\n        \"backgrounds/bitmap.bmp\": {\n            \"hash\": \"578b5fdf3f8fa44bdb39c0127e3e3bf9057f48b66c59651db2de8fe4af00a967\",\n            \"aspectRatio\": 1,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#808080\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 3600,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "batchCachedMissingAndOutside": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "bothPathAndEmptyPaths": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
@@ -833,7 +833,7 @@
       "goResponse": {
         "status": 200,
         "headers": {
-          "content-length": "232",
+          "content-length": "250",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
@@ -856,14 +856,14 @@
           "dominantColor": "#6a6a6a",
           "folderIds": [],
           "addedTimestamp": "__ADDED_TIMESTAMP__",
-          "thumbnailResolution": 3600,
+          "thumbnailResolution": 1.2089258196146292e+24,
           "mtime": 981173106123
         }
       },
       "nodeReadback": {
         "status": 200,
         "headers": {
-          "content-length": "232",
+          "content-length": "250",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
@@ -886,11 +886,11 @@
           "dominantColor": "#6a6a6a",
           "folderIds": [],
           "addedTimestamp": "__ADDED_TIMESTAMP__",
-          "thumbnailResolution": 3600,
+          "thumbnailResolution": 1.2089258196146292e+24,
           "mtime": 981173106123
         }
       },
-      "fileContent": "{\n    \"version\": 8,\n    \"images\": {\n        \"backgrounds/roundtrip.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 3600,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}"
+      "fileContent": "{\n    \"version\": 8,\n    \"images\": {\n        \"backgrounds/roundtrip.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 1.2089258196146292e+24,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}"
     }
   }
 }

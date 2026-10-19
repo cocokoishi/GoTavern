@@ -14,7 +14,7 @@ import { pathToFileURL } from 'node:url';
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 const COOKIE_SECRET = 'gotavern-pinned-image-metadata-get-cookie-secret';
-const THUMBNAIL_DIMENSIONS = { bg: [80, 45], avatar: [48, 72], persona: [32, 56] };
+const THUMBNAIL_DIMENSIONS = { bg: [80, 45], avatar: ['0x100000000000000000000', 1], persona: ['not-a-number', 2] };
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
@@ -207,8 +207,8 @@ try {
         'thumbnails:',
         '  dimensions:',
         '    bg: [80, 45]',
-        '    avatar: [48, 72]',
-        '    persona: [32, 56]',
+        '    avatar: ["0x100000000000000000000", 1]',
+        '    persona: ["not-a-number", 2]',
         '',
     ].join('\n'));
     seedUser('user:default-user', {
@@ -349,7 +349,7 @@ try {
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF; Go-generated metadata is read back through the pinned Node endpoint',
+        probe: 'pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF/24-bit BMP, apply configured thumbnail dimensions and JavaScript Number coercion, and read Go-generated metadata back through the pinned Node endpoint',
         inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles, thumbnailDimensions: THUMBNAIL_DIMENSIONS },
         responses,
         state: {
@@ -366,7 +366,7 @@ try {
             folders: [{ id: 'keep', name: 'Round trip', thumbnailFile: '' }],
             unknownRoot: { retain: true },
         }, null, 4),
-        body: { path: 'backgrounds/roundtrip.png', type: 'bg' },
+        body: { path: 'backgrounds/roundtrip.png', type: 'avatar' },
         generatedPaths: ['backgrounds/roundtrip.png'],
     };
     const goRoundTripPath = path.join(backgroundsRoot, 'roundtrip.png');

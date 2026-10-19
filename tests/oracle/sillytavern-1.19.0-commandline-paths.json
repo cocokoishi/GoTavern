@@ -3730,7 +3730,7 @@
       "name": "cors-settings-config-and-environment-precedence",
       "args": [],
       "initialConfigPath": "./config.yaml",
-      "initialConfig": "cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: [48, 72]\n    persona: [32, 56]\n",
+      "initialConfig": "cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\nthumbnails:\n  dimensions:\n    bg: [80, 45]\n    avatar: [\"0x100000000000000000000\", 1]\n    persona: [\"not-a-number\", 2]\n",
       "environmentDataRoot": null,
       "optionEnvironment": {
         "SILLYTAVERN_CORS_ENABLED": "true",
@@ -3750,8 +3750,8 @@
         "dataRoot": "./data",
         "dataRootCreationRelativeToCwd": "data",
         "runtimeDataRootRelativeToServerDirectory": "data",
-        "configBytes": 3336,
-        "configSha256": "80d723298edd75a79cbf36256994700c0cd93b2f1759e245744ff2e81132ba84",
+        "configBytes": 3367,
+        "configSha256": "cf9c8e973bce4cc248f98b208a5269c41ca3ae0921ad131d1eab80d22fd0d5c1",
         "configCreated": false,
         "configUpdated": true,
         "dataRootIsDirectory": true,
@@ -3829,12 +3829,12 @@
             45
           ],
           "thumbnailDimensionsAvatar": [
-            48,
-            72
+            "0x100000000000000000000",
+            1
           ],
           "thumbnailDimensionsPersona": [
-            32,
-            56
+            "not-a-number",
+            2
           ],
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,

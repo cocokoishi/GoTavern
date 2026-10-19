@@ -428,6 +428,9 @@ func needsQuotedString(value string) bool {
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
 		return true
 	}
+	if isPinnedYAMLInteger(value) {
+		return true
+	}
 	first := value[0]
 	switch first {
 	case '[', ']', '{', '}', '#', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`':
@@ -444,6 +447,77 @@ func needsQuotedString(value string) bool {
 		}
 	}
 	return false
+}
+
+func isPinnedYAMLInteger(value string) bool {
+	index := 0
+	if value == "" {
+		return false
+	}
+	if value[index] == '-' || value[index] == '+' {
+		index++
+	}
+	if index >= len(value) {
+		return false
+	}
+	if value[index] == '0' {
+		if index+1 == len(value) {
+			return true
+		}
+		switch value[index+1] {
+		case 'b':
+			return isPinnedRadixInteger(value[index+2:], 2)
+		case 'o':
+			return isPinnedRadixInteger(value[index+2:], 8)
+		case 'x':
+			return isPinnedRadixInteger(value[index+2:], 16)
+		}
+		index++
+	}
+	if value[index] == '_' {
+		return false
+	}
+	hasDigits := false
+	for ; index < len(value); index++ {
+		character := value[index]
+		if character == '_' {
+			continue
+		}
+		if character < '0' || character > '9' {
+			return false
+		}
+		hasDigits = true
+	}
+	return hasDigits && value[len(value)-1] != '_'
+}
+
+func isPinnedRadixInteger(value string, base int) bool {
+	hasDigits := false
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character == '_' {
+			continue
+		}
+		digit, valid := yamlRadixDigit(character)
+		if !valid || digit >= base {
+			return false
+		}
+		hasDigits = true
+	}
+	return hasDigits && value[len(value)-1] != '_'
+}
+
+func yamlRadixDigit(value byte) (int, bool) {
+	switch {
+	case value >= '0' && value <= '9':
+		return int(value - '0'), true
+	case value >= 'A' && value <= 'F':
+		return int(value-'A') + 10, true
+	case value >= 'a' && value <= 'f':
+		return int(value-'a') + 10, true
+	default:
+		return 0, false
+	}
 }
 
 func stringifyConfig(document *yaml.Node) ([]byte, error) {

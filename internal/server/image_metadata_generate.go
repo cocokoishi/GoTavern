@@ -12,6 +12,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -306,11 +307,16 @@ func imageMetadataJavaScriptNumberString(value string) float64 {
 		base   int
 	}{{"0x", 16}, {"0b", 2}, {"0o", 8}} {
 		if strings.HasPrefix(lower, prefix.marker) {
-			parsed, parseErr := strconv.ParseUint(trimmed[2:], prefix.base, 64)
-			if parseErr != nil {
+			digits := trimmed[2:]
+			if !imageMetadataValidRadixDigits(digits, prefix.base) {
 				return math.NaN()
 			}
-			return float64(parsed)
+			parsed, ok := new(big.Int).SetString(digits, prefix.base)
+			if !ok {
+				return math.NaN()
+			}
+			value, _ := new(big.Float).SetInt(parsed).Float64()
+			return value
 		}
 	}
 	parsed, parseErr := strconv.ParseFloat(trimmed, 64)
@@ -318,6 +324,29 @@ func imageMetadataJavaScriptNumberString(value string) float64 {
 		return math.NaN()
 	}
 	return parsed
+}
+
+func imageMetadataValidRadixDigits(value string, base int) bool {
+	if value == "" {
+		return false
+	}
+	for _, digit := range value {
+		var number int
+		switch {
+		case digit >= '0' && digit <= '9':
+			number = int(digit - '0')
+		case digit >= 'a' && digit <= 'f':
+			number = int(digit-'a') + 10
+		case digit >= 'A' && digit <= 'F':
+			number = int(digit-'A') + 10
+		default:
+			return false
+		}
+		if number >= base {
+			return false
+		}
+	}
+	return true
 }
 
 func nodeStatMtimeMilliseconds(mtime time.Time) float64 {

@@ -66,7 +66,7 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-cors-middleware.json` captures pinned `cors@2.8.5` configured-origin allow/deny behavior for actual requests and preflights, custom methods/headers/credentials/exposed headers/max-age, origin-less preflights, preflight handling on an unregistered route, and disabled-CORS automatic OPTIONS responses for POST-only and GET API routes.
 
-`sillytavern-1.19.0-image-metadata-get.json` captures authenticated/CSRF-protected single and batch metadata reads, cached-value passthrough, generated PNG/JPEG/GIF/24-bit BMP metadata, custom per-type thumbnail resolutions from YAML, stale-entry replacement, folder-ID retention, atomic index persistence, and a Go-write/Node-readback round trip. It also records missing/outside paths, request validation, trailing-slash and unknown-subpath routing, unchanged account state, and the default OPTIONS response.
+`sillytavern-1.19.0-image-metadata-get.json` captures authenticated/CSRF-protected single and batch metadata reads, cached-value passthrough, generated PNG/JPEG/GIF/24-bit BMP metadata, custom per-type thumbnail resolutions from YAML, large hexadecimal and invalid numeric-string coercion, stale-entry replacement, folder-ID retention, atomic index persistence, and a Go-write/Node-readback round trip. It also records missing/outside paths, request validation, trailing-slash and unknown-subpath routing, unchanged account state, and the default OPTIONS response.
 
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
