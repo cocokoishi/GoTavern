@@ -1,134 +1,870 @@
 # GoTavern Architecture
 
-> A standalone, low-memory Go reimplementation of the SillyTavern **server/backend**, while serving the **unmodified upstream SillyTavern frontend** and preserving SillyTavern's on-disk data formats and browser-visible HTTP contract.
+> A release-first, standalone Go replacement for the SillyTavern server/backend that serves the **unmodified upstream SillyTavern frontend**, uses the **same persistent data**, and reproduces the browser-visible, provider-visible, and filesystem-visible behavior of a pinned SillyTavern release closely enough that ordinary users and frontend extensions do not need to know the backend changed.
 
-## 0. Status and compatibility baseline
+## 0. Product contract
 
-GoTavern is a compatibility implementation, not a redesign.
+GoTavern is not a Go port for developers who happen to have a Go toolchain. It is an end-user SillyTavern-compatible server product.
 
-The initial compatibility baseline is pinned to:
+An ordinary user must be able to:
 
-- Upstream repository: `SillyTavern/SillyTavern`
-- Upstream branch used to select the baseline: `release`
-- SillyTavern version: **1.19.0**
-- Baseline commit: **`06bde939fb1e9c4c8d8641d810f0a916b5bce127`**
-- License: **AGPL-3.0**
+1. download a prebuilt release or run an installer script;
+2. run GoTavern without Go, Node.js, npm, pnpm, Python, or a compiler;
+3. open it from a browser, including through an existing reverse proxy;
+4. use a fresh installation with the same upstream defaults SillyTavern would seed;
+5. copy or directly reuse an existing SillyTavern `config.yaml` and data root;
+6. keep characters, chats, worlds, presets, settings, secrets, accounts and frontend extensions intact;
+7. use complex prompt/preset/world-info/script workflows with the same semantics, not merely obtain some generated text;
+8. update GoTavern without overwriting mutable user data;
+9. stop GoTavern and return to an equivalent SillyTavern baseline without a schema conversion.
 
-The SHA is the normative baseline. A branch name is not a sufficient compatibility target because `release` moves.
-
-Primary upstream sources of truth:
-
-- `src/server-main.js`
-- `src/server-startup.js`
-- `src/users.js`
-- `src/constants.js`
-- `src/endpoints/**`
-- `src/middleware/**`
-- `src/request-proxy.js`
-- `src/private-request-filter.js`
-- `default/config.yaml`
-- `public/**`
-- `webpack.config.js`
-
-TauriTavern (`Darkatse/TauriTavern`) is a useful architectural reference for the idea of keeping SillyTavern compatibility while replacing the backend, but **GoTavern must not copy Tauri-specific host APIs or treat TauriTavern behavior as normative**. SillyTavern at the pinned SHA is the oracle.
+The project is successful only when these user journeys work from released artifacts. `go run`, a locally compiled binary, or a green handler unit test is not a substitute for a release artifact and end-to-end validation.
 
 ---
 
-## 1. Definition of “compatible”
+## 1. Normative compatibility baseline
 
-A feature is compatible only when all externally observable behavior used by the upstream frontend or frontend extensions matches the pinned SillyTavern baseline closely enough for differential tests to pass.
+The initial baseline is pinned to:
 
-Compatibility includes:
+- upstream repository: `SillyTavern/SillyTavern`;
+- SillyTavern version: **1.19.0**;
+- exact commit: **`06bde939fb1e9c4c8d8641d810f0a916b5bce127`**;
+- license: **AGPL-3.0**.
 
-1. HTTP method and path.
-2. Query parsing and parameter defaults.
-3. Request body parsing, including JSON, URL-encoded forms and multipart uploads.
-4. Upload field names and filename handling.
-5. Authentication requirements and redirect behavior.
-6. CSRF behavior.
-7. Response status code.
-8. Response headers when browser-observable or relied upon by clients.
-9. JSON field names, nesting, types, nullability, omitted fields and array ordering where observable.
-10. Text/binary response bodies.
-11. Error status and error body shape.
-12. Redirect status and `Location` behavior.
-13. Streaming behavior, including chunk boundaries where semantically relevant, SSE framing, `[DONE]`-style sentinels where applicable, flushing and cancellation.
-14. Static/user-resource URL behavior.
-15. File layout and file formats.
-16. Character card metadata semantics, including V1/V2/V3 and PNG metadata.
-17. Authentication/session persistence semantics.
-18. Extension installation/update/delete and static loading behavior.
-19. Outbound provider request behavior that is observable by providers or affects generated responses.
-20. Deprecated endpoint redirects still present in the baseline.
+The commit SHA is normative. `release` is only the branch from which the baseline was selected and must never be treated as a floating build input.
 
-“Returns approximately the same data” is not sufficient.
+Primary source-of-truth areas include:
 
-### Explicit non-goal
+```text
+src/server-main.js
+src/server-startup.js
+src/server-init.js
+src/config-init.js
+src/command-line.js
+src/users.js
+src/constants.js
+src/endpoints/**
+src/middleware/**
+src/request-proxy.js
+src/private-request-filter.js
+default/**
+public/**
+webpack.config.js
+package.json / package-lock.json
+```
 
-Node.js **server plugins** are not supported. They execute server-side JavaScript against Node/SillyTavern internals and are outside the browser-compatible HTTP/data contract. They must be reported as unsupported, never silently ignored or emulated incompletely.
+TauriTavern is useful as a reference for lessons learned when replacing the backend while retaining SillyTavern behavior, but it is not an oracle. If it differs from the pinned SillyTavern source or observed Node behavior, SillyTavern wins.
 
-Everything else shipped as a built-in browser-visible SillyTavern feature remains in scope until the compatibility matrix says otherwise.
+Every GoTavern release must record all of the following in machine-readable build metadata and release notes:
 
----
+- GoTavern version;
+- SillyTavern baseline version and full SHA;
+- hash manifest of embedded `public/**`;
+- hash manifest of embedded `default/**`;
+- build toolchain version used for upstream generated assets;
+- pinned revisions of real third-party compatibility probes;
+- compatibility-matrix result for that release.
 
-## 2. Architectural invariants
+### `/version` is a compatibility endpoint
 
-These are hard constraints. An implementation that violates them is not an acceptable shortcut.
+The upstream frontend and extensions may inspect `/version`. GoTavern must therefore preserve the pinned SillyTavern response schema and meaningful baseline version fields there. Do not replace `/version` with a GoTavern product version.
 
-### 2.1 The frontend is upstream SillyTavern
-
-GoTavern MUST NOT rewrite, fork, transpile by hand, or maintain a parallel implementation of the SillyTavern UI.
-
-The source frontend tree must be byte-for-byte the pinned upstream `public/**` tree, excluding only generated artifacts that upstream itself produces at build/start time.
-
-Release builds embed the pinned frontend into the Go binary with `go:embed`, so production does not require Node.js or a separate frontend directory.
-
-A CI guard must compare the vendored frontend manifest against the pinned upstream SHA. Any changed frontend byte fails CI unless the baseline SHA is intentionally updated.
-
-Third-party extensions are **writable overlays**, not modifications to the embedded upstream frontend. Requests under the upstream third-party extension URL are resolved using the same precedence/semantics as upstream.
-
-### 2.2 No invented compatibility API
-
-Do not add browser compatibility endpoints because they seem convenient. Every route in the SillyTavern compatibility namespace must trace to the pinned upstream source or to a documented compatibility requirement discovered by capture/differential testing.
-
-GoTavern-specific operational endpoints, if eventually needed, must live under a clearly separate namespace such as `/gotavern/*` and must never be required by the upstream frontend.
-
-### 2.3 Disk data remains SillyTavern data
-
-The canonical user data is the SillyTavern filesystem layout. There is no GoTavern database migration layer in front of it.
-
-GoTavern must be able to:
-
-- start directly against an existing compatible SillyTavern `config.yaml` and data root;
-- stop, then allow the original SillyTavern Node server to start against the same files;
-- read files produced by SillyTavern;
-- write files SillyTavern can read;
-- preserve unknown JSON/card fields unless the upstream endpoint itself intentionally replaces the complete object.
-
-Do not introduce SQLite as the source of truth for chats, characters, settings, users, extensions, worlds, presets or secrets.
-
-### 2.4 One compatibility oracle
-
-If documentation, TauriTavern, memory, an old SillyTavern version and current source disagree, the pinned SillyTavern source and observed behavior win.
-
-When behavior is unclear, write a probe against Node SillyTavern first.
-
-### 2.5 No silent degradation
-
-A route is one of:
-
-- `compatible`
-- `partial` with an exact documented difference
-- `unsupported` with a reason
-- `not implemented`
-
-Never return fake success for missing behavior. Never substitute another provider/tokenizer/format and mark the endpoint compatible without a differential test proving equivalence.
+GoTavern's own build identity belongs in the CLI (`gotavern version`) and, only if useful operationally, a separate `/gotavern/version` endpoint that the upstream frontend never depends on.
 
 ---
 
-## 3. Upstream server surface that must be mirrored
+## 2. Compatibility is multi-layered
 
-At the baseline SHA, the private router composition includes these mounted namespaces (see `src/server-startup.js`):
+A server that opens the UI and returns a model response is not necessarily compatible. GoTavern uses eight independent compatibility layers.
+
+### 2.1 Browser HTTP contract
+
+For every upstream route, reproduce observable behavior including:
+
+- method and path;
+- path decoding and routing edge cases;
+- query/body parsing and defaults;
+- JSON, URL-encoded and multipart parsing;
+- upload field names and filename rules;
+- authentication and authorization;
+- CSRF;
+- redirects;
+- status codes;
+- browser-relevant headers and content types;
+- JSON field names, types, omitted/null behavior and ordering where observable;
+- text/binary bodies;
+- historical error shapes;
+- deprecated endpoint behavior;
+- stream framing, termination and cancellation.
+
+A generic Go error envelope is not compatible with an endpoint that historically returns plain text, empty status, or a different JSON shape.
+
+### 2.2 Static/frontend module ABI
+
+Frontend extensions execute inside the real SillyTavern browser environment. Compatibility includes:
+
+- byte-identical pinned upstream `public/**` source assets;
+- the correctly generated upstream `lib.js` artifact;
+- the same same-origin URLs and MIME types;
+- internal frontend module import URLs used by extensions;
+- third-party extension static paths;
+- no new Content-Security-Policy that blocks behavior allowed by the pinned server;
+- user CSS override behavior;
+- cache behavior where extensions rely on refreshed assets;
+- browser globals, DOM, `eventSource`, slash-command infrastructure and other frontend ABI supplied by the unchanged upstream frontend.
+
+Keeping `public/**` unchanged gives GoTavern a major advantage, but it does not by itself guarantee this ABI: backend state, resource routing, MIME types, version reporting and generated assets can still break it.
+
+### 2.3 Persistence/data contract
+
+The canonical data is SillyTavern data, not a GoTavern-private schema. Compatibility includes exact directory names, file formats, unknown-field preservation, backup side effects, timestamps/order where meaningful, PNG metadata behavior and account/session storage.
+
+### 2.4 Startup/configuration contract
+
+Startup is observable. The pinned Node server does more than bind a socket: it initializes user storage, creates directories, migrates supported legacy data/config forms, seeds default content, verifies caches, migrates secrets/group metadata/public overrides, creates settings backups, initializes statistics, cleans uploads, configures request filtering/proxy behavior and installs the final 404 response.
+
+Those side effects must be inventoried and reproduced or explicitly classified. A Go server that serves routes correctly after a hand-prepared fixture can still fail real fresh installs and upgrades.
+
+### 2.5 Provider-wire contract
+
+This layer is critical for roleplay quality and complex presets.
+
+For a given browser request and settings state, Node SillyTavern and GoTavern must send semantically equivalent requests to the model/provider. Compare at the provider boundary:
+
+- target URL and query;
+- HTTP method;
+- relevant headers after secret redaction;
+- provider/model selection;
+- exact message list, order and roles;
+- system/instruction handling;
+- examples;
+- world-info and Author's Note placement;
+- stop strings;
+- sampler fields and omitted/default fields;
+- token limits;
+- tool definitions, tool choice and schemas;
+- structured-output/JSON-schema fields;
+- reasoning/thinking fields;
+- multimodal parts;
+- custom provider body/header inclusion/exclusion;
+- reverse proxy behavior;
+- stream flag and provider-specific transformations.
+
+Receiving plausible text is not evidence of parity. A one-line difference in prompt order, omitted stop string, tokenizer budget, role conversion or tool schema can materially change the roleplay while the UI still appears healthy.
+
+### 2.6 Streaming and cancellation contract
+
+Streaming compatibility includes the route-specific protocol, not a blanket assumption that every stream is SSE.
+
+Where the browser consumes SSE, preserve the event/data semantics, terminal sentinel behavior, provider chunks that carry reasoning/tool calls/images, first-event flushing and cancellation propagation. TCP packet boundaries need not be identical unless they become browser-observable; parsed event sequence and semantics do.
+
+Client abort must cancel or tear down the provider request as upstream does. No reverse-proxy or Go buffering layer may turn a live stream into a delayed full response.
+
+### 2.7 Browser event/state side effects
+
+Complex extensions observe more than HTTP. For representative operations, tests must compare:
+
+- event names;
+- relative event order;
+- payload field/types;
+- save-before/save-after timing where observable;
+- active character/chat/group state;
+- settings/world-info list refreshes;
+- local/global/chat metadata mutations;
+- generated message/reasoning/tool state;
+- final persisted chat after reload.
+
+### 2.8 Operational compatibility
+
+A replacement is not operationally compatible if users need a compiler or must redesign their deployment. Compatibility therefore also covers install, update, startup, reverse proxy, Docker, service management, migration and rollback workflows.
+
+---
+
+## 3. Explicit non-goal
+
+**Arbitrary Node.js SillyTavern server plugins are not supported.**
+
+They execute Node code against server internals and are not reducible to the public/browser compatibility contract. GoTavern must not claim to execute them, silently ignore required plugin endpoints, or build a general Node emulation layer.
+
+This boundary must be applied honestly to third-party extensions that ship optional/required server plugins. The frontend portion is tested against standard SillyTavern APIs; any feature that genuinely requires a Node server plugin is listed separately as outside scope.
+
+Everything else shipped as a built-in browser-visible SillyTavern feature remains in scope until the compatibility matrix explicitly proves otherwise.
+
+---
+
+## 4. User journeys are release gates
+
+### 4.1 Fresh installation
+
+Supported path:
+
+```text
+installer script OR GitHub Release archive
+    -> prebuilt native GoTavern binary
+    -> first start in an empty runtime directory
+    -> config/default data created with pinned upstream semantics
+    -> browser opens/URL is printed
+    -> user can configure a provider and chat
+```
+
+No Go or Node runtime is permitted on the target machine for this path.
+
+Fresh-install E2E must start from an actually empty temporary directory. Test fixtures that already contain `settings.json`, presets or user folders do not satisfy this gate.
+
+### 4.2 Replacing an existing standalone SillyTavern clone
+
+Typical source layout is a Git clone with `config.yaml` and `data/`. The user should install GoTavern into a separate directory, run the migration command/script against the old installation, stop the Node instance, then start GoTavern.
+
+The user must not need to understand Go package layout or manually copy individual character/chat folders.
+
+### 4.3 Custom/global SillyTavern installations
+
+Migration must also handle:
+
+- `--global` installations;
+- custom `--configPath`;
+- custom `--dataRoot`;
+- absolute data roots outside the SillyTavern repository;
+- multi-user installations;
+- reverse-proxy deployments;
+- Docker volume layouts.
+
+These are ordinary deployment variants, not unsupported edge cases.
+
+### 4.4 Updating GoTavern
+
+Re-running the installer or using a future `gotavern update` flow may replace only immutable release components. It must not overwrite or recreate:
+
+- `config.yaml` except through the same startup config migration behavior the baseline itself performs;
+- data root;
+- third-party extension working trees;
+- TLS certificates;
+- user-created service/proxy configuration.
+
+A failed update must not leave a half-written executable. Download/verify to a temporary path, then atomically replace the installed binary/immutable release files.
+
+### 4.5 Rollback
+
+Rollback is only promised across data-compatible baselines:
+
+1. stop GoTavern;
+2. back up the runtime/data root;
+3. start the equivalent/pinned SillyTavern version against the compatible config/data, or copy them to a fresh matching SillyTavern runtime;
+4. verify login, one representative character and one representative chat.
+
+Do not promise that arbitrary future SillyTavern downgrades remain safe after upstream itself introduces irreversible migrations.
+
+---
+
+## 5. Distribution and installation architecture
+
+### 5.1 End users consume releases, not source builds
+
+GitHub Releases are the canonical native distribution channel. Every stable release must publish at least:
+
+```text
+gotavern-linux-amd64.tar.gz
+gotavern-linux-arm64.tar.gz
+gotavern-darwin-amd64.tar.gz
+gotavern-darwin-arm64.tar.gz
+gotavern-windows-amd64.zip
+gotavern-windows-arm64.zip
+checksums.txt
+```
+
+Release archives contain the native executable plus immutable convenience/documentation files needed for manual extraction. They must not contain a live `config.yaml` or `data/` payload that could overwrite an existing runtime during extraction/update.
+
+Linux `amd64` and `arm64` are hard requirements. Windows `amd64` is a hard requirement; Windows `arm64` and both macOS architectures should remain first-class if the dependency graph permits pure-Go builds.
+
+### 5.2 One-line installers
+
+The repository ships `install.sh` and `install.ps1`.
+
+Installer properties:
+
+- detect supported OS/architecture;
+- download the matching **prebuilt** release asset;
+- support latest stable and an explicit version pin;
+- download `checksums.txt` and verify SHA-256 before install;
+- install into a user-owned directory by default;
+- require no root/admin privileges by default;
+- do not modify PATH automatically;
+- never clone source or fall back to local compilation;
+- preserve mutable runtime data on re-run;
+- use temporary files and atomic replacement for updates;
+- report clearly when no compatible release exists;
+- do not automatically start a migrated server before the user has stopped the source Node instance.
+
+The initial portable default is `$HOME/GoTavern` on Unix-like systems and `$HOME\GoTavern` on Windows, overrideable by an installer argument.
+
+### 5.3 Familiar launchers
+
+Manual release archives should include tiny launchers so a SillyTavern user does not have to memorize CLI syntax:
+
+- `start.sh` on Unix;
+- `Start.cmd` on Windows.
+
+They resolve their own directory and execute the adjacent `gotavern` binary with forwarded arguments. The native binary with no subcommand starts the server.
+
+### 5.4 Docker
+
+Stable releases also publish a multi-architecture image, e.g. `ghcr.io/cocokoishi/gotavern:<version>` and a stable/latest channel according to release policy.
+
+The runtime image must not contain Node.js. Prefer a pure-Go built-in Git implementation so it does not require system `git` either. CA certificates and timezone data may be included as needed.
+
+Document mounts for at least config/data and any global extension overlay. Container upgrades must be image replacement, never mutable data replacement.
+
+### 5.5 Services
+
+Provide example user/system `systemd` units and reverse-proxy snippets, but do not make an installer silently register a root service. Service installation is an explicit administrator action.
+
+---
+
+## 6. Repository layout
+
+Target layout:
+
+```text
+GoTavern/
+├── cmd/
+│   └── gotavern/                 # server + operational subcommands
+├── internal/
+│   ├── app/                      # lifecycle/composition root
+│   ├── compat/                   # compatibility metadata/helpers
+│   ├── config/                   # config + CLI/env compatibility
+│   ├── startup/                  # ordered startup migrations/initialization
+│   ├── httpserver/
+│   │   ├── router/
+│   │   ├── middleware/
+│   │   ├── static/
+│   │   └── response/
+│   ├── auth/
+│   ├── userdata/
+│   ├── storage/
+│   │   ├── atomicfile/
+│   │   ├── jsonfile/
+│   │   ├── jsonl/
+│   │   ├── pngcard/
+│   │   └── locks/
+│   ├── endpoints/                # aligned visibly with upstream routers
+│   ├── outbound/                 # proxy/SSRF/override-aware HTTP transport
+│   ├── providers/
+│   ├── tokenizers/
+│   ├── extensions/
+│   ├── media/
+│   └── observability/
+├── upstream/
+│   ├── SILLYTAVERN_VERSION
+│   ├── SILLYTAVERN_COMMIT
+│   ├── public/                   # byte-identical pinned source frontend
+│   ├── default/                  # pinned default content/config/scaffold
+│   ├── generated/                # pinned build-generated browser assets
+│   └── manifests/
+├── tools/
+│   ├── sync-upstream/
+│   ├── inventory/
+│   └── contract-runner/
+├── tests/
+│   ├── contract/
+│   ├── provider-wire/
+│   ├── startup/
+│   ├── roundtrip/
+│   ├── e2e/
+│   ├── torture/
+│   ├── fixtures/
+│   └── benchmarks/
+├── scripts/
+│   └── migrate-from-sillytavern.sh
+├── docs/
+│   ├── INSTALLATION.md
+│   ├── SEMANTIC-COMPATIBILITY.md
+│   ├── api-inventory.md
+│   ├── config-inventory.md
+│   ├── startup-inventory.md
+│   ├── data-layout.md
+│   ├── extension-route-coverage.md
+│   ├── compat-matrix.md
+│   ├── migration.md
+│   └── reports/
+├── install.sh
+├── install.ps1
+├── start.sh
+├── Start.cmd
+├── ARCHITECTURE.md
+├── AGENTS.md
+├── Dockerfile
+├── go.mod
+└── LICENSE
+```
+
+Keep endpoint packages recognizable against upstream until parity is mature. Prematurely hiding hundreds of historically different endpoint semantics behind a generic CRUD framework makes source review and differential debugging harder.
+
+---
+
+## 7. Immutable release assets: `public/**`, `default/**`, generated frontend
+
+### 7.1 `public/**`
+
+Do not rewrite the SillyTavern frontend. The vendored source frontend must be byte-identical to the pinned SHA except generated artifacts that upstream itself produces separately.
+
+Release CI generates and verifies a SHA-256 tree manifest. An unexplained frontend byte change fails CI.
+
+### 7.2 `default/**` is also part of the product
+
+A standalone fresh install cannot embed only `public/**`. Pinned SillyTavern uses `default/config.yaml`, `default/content/**` and `default/scaffold/**` for initial configuration and content seeding.
+
+GoTavern releases must therefore include/embed the pinned default content required by startup and content-manager semantics. This includes the indexes and files used to seed settings, characters/sprites, backgrounds, worlds, themes, workflows, provider presets, instruct/context/system/reasoning presets, Quick Replies and other indexed defaults.
+
+Fresh-install tests must compare the resulting destination tree and `/api/settings/get` output with a fresh Node baseline after both complete startup.
+
+### 7.3 Generated `lib.js`
+
+The pinned server uses the upstream Webpack build to generate the browser `lib.js` artifact. Release CI may use the pinned upstream Node/npm toolchain to build this artifact. Production servers must not.
+
+The generated asset must be reproducibly tied to the pinned source/package lock and embedded into the release.
+
+### 7.4 Mutable overlays
+
+Mutable data remains outside embedded assets. At minimum support upstream-equivalent behavior for:
+
+- per-user third-party extensions;
+- global third-party extensions;
+- `/css/user.css` from the data-root `_css` override when present;
+- data-root error/override content used by startup;
+- user images/files/cards/backgrounds/assets.
+
+Resolution precedence and path decoding must match the baseline.
+
+---
+
+## 8. Runtime root and CLI compatibility
+
+### 8.1 Standalone mode
+
+Default runtime root is the working/launcher directory. The familiar layout is:
+
+```text
+<runtime-root>/
+├── gotavern
+├── config.yaml
+├── data/
+│   ├── _storage/
+│   ├── cookie-secret.txt
+│   ├── default-user/
+│   └── ...
+└── public/scripts/extensions/third-party/  # writable global overlay if used
+```
+
+The static upstream frontend itself may be embedded; the URL contract remains the same even when no physical `public/` source tree exists at runtime.
+
+### 8.2 SillyTavern operational flags
+
+The server must inventory and support the pinned command-line behavior relevant to deployments, including standalone/global mode, config/data path overrides, port/listen addresses, IPv4/IPv6 selection, DNS preference, browser-launch controls, CORS proxy, CSRF disable flag, TLS paths/passphrase, whitelist, Basic Auth, keep-alive, request proxy/bypass and heartbeat. Deprecated aliases remain supported where the pinned parser supports them.
+
+Existing service definitions should require minimal edits: executable name/path, not a redesign of every runtime flag.
+
+### 8.3 GoTavern operational commands
+
+GoTavern-specific commands may be added outside the browser compatibility namespace, for example:
+
+```text
+gotavern version
+gotavern migrate ...
+gotavern doctor ...
+```
+
+No subcommand starts the normal server. Operational commands must not change the browser API contract.
+
+---
+
+## 9. Startup compatibility is a subsystem
+
+Phase 0 must create `docs/startup-inventory.md` from the pinned source and tests. At minimum inventory the effective ordered chain around:
+
+```text
+config initialization/default-key migration
+user storage initialization
+DNS result ordering
+public/user directory creation
+legacy user-data migration
+system-prompt migration
+public override migration
+security-setting verification
+group-chat metadata migration
+default/scaffold content seeding
+character disk-cache verification
+flat-secret migration
+upload cleanup
+access-log migration
+settings backup initialization
+statistics initialization
+private-address request filter initialization
+request-proxy initialization
+generated frontend availability
+404 fallback installation
+server bind
+post-start browser launch / heartbeat
+```
+
+Node server-plugin loading is the explicit exclusion; omitting it must not alter unrelated startup ordering.
+
+Every startup step is classified as:
+
+- required canonical mutation;
+- compatibility migration;
+- cache generation/verification;
+- temporary cleanup;
+- security validation;
+- operational side effect;
+- excluded Node-plugin behavior.
+
+Tests run fresh, already-current and legacy fixtures through Node and Go and compare post-start trees/observable state.
+
+### Config startup mutation must match upstream
+
+`config.yaml` is not universally immutable. The pinned SillyTavern config initialization can:
+
+- create a missing config from `default/config.yaml`;
+- migrate deprecated keys;
+- migrate corresponding environment variable names;
+- add missing default keys;
+- rewrite the destination config when those migrations/additions occur.
+
+GoTavern must reproduce these semantics closely enough for differential startup tests. This is distinct from the migration copier's safety rule: **the source installation passed to a copy migration remains read-only**. Once a destination/direct-use runtime is actually started, upstream-compatible startup mutations are allowed and sometimes required.
+
+---
+
+## 10. HTTP server and middleware
+
+Use `net/http` plus a small router only if its automatic behaviors are fully controlled. Router-generated slash redirects, path cleaning, OPTIONS responses or default 404 bodies must not leak when Express behaves differently.
+
+Every route registration should carry test/inventory metadata linking it to its upstream file and mount point.
+
+Effective middleware ordering is contract. Reproduce the pinned order for security headers, compression, response timing where observable, body parsing/limits, CORS, Basic Auth, IP whitelist, Host whitelist, access logging, cookie sessions, user binding, CSRF, public routes/static assets, login enforcement, CORS proxy, uploads, version/deprecated/private routes and final 404 handling.
+
+Pinned upstream disables Helmet CSP; GoTavern must not introduce a stricter CSP that breaks frontend extensions.
+
+### Body sizes without memory explosions
+
+The baseline accepts very large bodies. Enforce equivalent limits while streaming/spooling uploads rather than preallocating hundreds of megabytes. Large limits are contract; large resident-memory spikes are not.
+
+### Historical response shapes
+
+Centralize low-level response helpers, but never normalize heterogeneous upstream endpoint errors into one Go format. Differential tests decide the endpoint shape.
+
+---
+
+## 11. Authentication, users, sessions and CSRF
+
+Implement the pinned semantics for Basic Auth, rate limits, per-user Basic Auth, multi-user accounts, SSO-related trusted proxy behavior, account admin/public/private routes, session timeout and CSRF.
+
+Do not invent a user database. The data-root `_storage` representation and `cookie-secret.txt` are compatibility data.
+
+A high-value target is session interoperability: given the same data root/secret and baseline, cookies minted by Node should be understood by Go and vice versa where the upstream encoding allows it. If exact cross-process cookie interoperability proves impossible or intentionally implementation-specific, document the exact difference and ensure migration forces a safe re-login instead of pretending otherwise.
+
+`/csrf-token` and `x-csrf-token` behavior, including disabled mode and CORS-proxy exemption, are differential-tested.
+
+---
+
+## 12. Configuration and environment compatibility
+
+Represent YAML in two layers:
+
+1. a loss-preserving generic YAML tree;
+2. typed projections for values GoTavern consumes.
+
+Unknown keys survive rewrites. Defaults and coercions follow the pinned `getConfigValue`/CLI behavior rather than Go zero values.
+
+Phase 0 generates `docs/config-inventory.md` covering every pinned default key plus CLI/env interaction, startup migrations and whether the value is read once or dynamically.
+
+Request proxy behavior deserves exact testing rather than a generic interpretation: the pinned server uses proxy-agent/environment-style bypass semantics and has a documented interaction with the private-address filter. GoTavern's transport layer must reproduce effective routing/security behavior, including all proxy protocols it claims compatible. Unsupported SOCKS/PAC or bypass semantics are release blockers for the corresponding config capability, not silent fallbacks.
+
+---
+
+## 13. Data layout and storage
+
+### 13.1 Canonical per-user directories
+
+Preserve exact names/case/spaces from the pinned `USER_DIRECTORY_TEMPLATE`:
+
+```text
+thumbnails/
+thumbnails/bg/
+thumbnails/avatar/
+thumbnails/persona/
+worlds/
+user/
+User Avatars/
+user/images/
+groups/
+group chats/
+chats/
+characters/
+backgrounds/
+NovelAI Settings/
+KoboldAI Settings/
+OpenAI Settings/
+TextGen Settings/
+themes/
+movingUI/
+extensions/
+instruct/
+context/
+QuickReplies/
+assets/
+user/workflows/
+user/files/
+vectors/
+backups/
+sysprompt/
+reasoning/
+```
+
+Also classify data-root state such as `_storage`, `cookie-secret.txt`, `_uploads`, `_css`, `_errors`, content logs, caches, heartbeat/access-log state and any migration artifacts.
+
+### 13.2 Unknown-field preservation
+
+When mutating only part of a JSON/card structure, retain unknown fields. Do not deserialize through narrow structs and accidentally erase extension/future-upstream data.
+
+If upstream itself replaces the complete submitted object, reproduce that replacement semantics rather than inventing extra preservation.
+
+### 13.3 Atomic writes and locking
+
+Compatibility-sensitive writes use a shared keyed lock + atomic replacement layer:
+
+1. canonicalize target path;
+2. acquire a path-keyed lock;
+3. create temp file on the same filesystem;
+4. write complete data;
+5. apply permissions;
+6. flush as appropriate;
+7. atomically replace;
+8. fsync parent when required for durability;
+9. unlock.
+
+Avoid one global mutex. Define stable multi-file lock order.
+
+### 13.4 JSONL chats
+
+Preserve metadata line/message ordering/import/export/integrity/backup semantics. Reads should not rewrite chats. Large chats should be processed incrementally unless a route explicitly requires full materialization.
+
+### 13.5 Character cards
+
+Character handling includes JSON and PNG cards, V1/V2/V3 semantics, import/export, duplicate/rename/delete, attribute merge/edit, image/avatar and sprite side effects. PNG metadata updates must preserve unrelated chunks/image data unless upstream itself re-encodes that operation.
+
+Golden Node fixtures and Node↔Go↔Node mutation round trips are mandatory.
+
+---
+
+## 14. Settings, presets and default content are semantic state
+
+`/api/settings/get` is not a thin `settings.json` read. The pinned endpoint aggregates the settings file plus provider presets, world names, themes, moving UI, Quick Replies, instruct/context/system/reasoning presets and server capability/config flags.
+
+This endpoint is an early compatibility gate because the frontend and extensions derive large amounts of state from it.
+
+Match:
+
+- the fact that `settings` is returned in the upstream representation;
+- file filtering and invalid-JSON behavior;
+- naming/extension removal;
+- sort order;
+- all aggregate fields and their types;
+- request-compression/capability fields;
+- save JSON formatting when observable on disk;
+- autosave/backup throttling and snapshot behavior;
+- startup settings backup behavior.
+
+Similarly, world info, presets, themes, moving UI and Quick Replies require exact filename sanitization, list ordering, replacement/merge behavior, backups and error shapes.
+
+---
+
+## 15. Prompt semantics: test the final model input
+
+Most sophisticated roleplay semantics are constructed by the unchanged frontend before the request reaches GoTavern. That does **not** make them safe to ignore. Backend tokenization, settings aggregation, persistence, endpoint transformations and provider translation can still change the final prompt.
+
+The authoritative semantic test therefore starts with a real browser state and ends at a recording provider.
+
+The torture suite must cover combinations of:
+
+- Prompt Manager ordering and enabled/disabled entries;
+- main/auxiliary/system prompts;
+- conversation history and examples;
+- character description/personality/scenario/first message data;
+- persona;
+- group chat nudges/state;
+- Advanced Formatting;
+- instruct, context, system-prompt and reasoning templates;
+- Author's Note at multiple depths/positions;
+- World Info insertion positions, ordering and depth;
+- World Info recursive/secondary-key/probability behavior under deterministic fixtures;
+- World Info outlets/macros where supported by the baseline;
+- macros;
+- STscript pipes, local/global variables and chat metadata;
+- Quick Reply execution and nested scripts;
+- regex transformations;
+- character-specific preset selection;
+- swipes, regenerate, continue, impersonate and quiet/raw/background generation paths;
+- streaming and non-streaming;
+- reasoning/thinking;
+- tool/function calling;
+- structured output / JSON schema;
+- multimodal message parts where supported;
+- custom API URL/key/header/body include/exclude behavior;
+- reverse proxies;
+- stop strings and provider-specific sampler fields;
+- multiple swipes/candidates where supported.
+
+For every applicable scenario compare the Node and Go **provider-wire request**, returned stream interpretation, browser-visible final state and persisted chat after reload.
+
+### Context-budget edge tests
+
+Exact tokenization affects truncation, world-info inclusion and prompt assembly. Add boundary cases where a one-token difference changes what fits in context. A tokenizer that is merely close on ordinary strings is not compatible.
+
+---
+
+## 16. Provider adapters and outbound HTTP
+
+All server outbound traffic must go through a shared transport layer that implements the pinned proxy/bypass, request override, DNS/address-filter, keep-alive, TLS, redirect, cancellation and streaming policies.
+
+Endpoint/provider packages must not instantiate ad-hoc clients that bypass these policies.
+
+Do not force providers into a lowest-common-denominator model. SillyTavern has provider-specific semantics. Preserve provider-specific bodies/headers/routes and omission rules.
+
+### Provider-wire recorder
+
+Tests launch local deterministic mock providers capable of:
+
+- recording the exact incoming request;
+- simulating OpenAI-compatible, Anthropic/Claude, Google/Gemini, OpenRouter/custom and text-completion style APIs;
+- returning deterministic non-streaming results;
+- returning deliberately fragmented streams;
+- returning tool/reasoning/multimodal/provider errors;
+- delaying responses to test abort/cancellation;
+- recording connection cancellation.
+
+Run the identical browser/HTTP fixture once through Node and once through Go and compare the recording.
+
+---
+
+## 17. Streaming
+
+Never buffer a full provider stream to make implementation easier.
+
+Tests compare:
+
+- response status/content type;
+- parsed SSE/event sequence where SSE is used;
+- terminal sentinel semantics such as `[DONE]` when applicable;
+- reasoning/tool-call deltas;
+- candidate/multi-swipe behavior;
+- representative raw framing;
+- time-to-first-flush under a bounded local test;
+- error forwarding;
+- client-abort propagation.
+
+Reverse-proxy examples must disable buffering for generation routes and use appropriate long timeouts.
+
+---
+
+## 18. Tokenization
+
+Token counts are compatibility behavior.
+
+Every compatible tokenizer endpoint is validated against Node using ASCII, CJK, emoji, combining characters, special tokens, empty input, long prompts, representative chat templates and context-boundary fixtures.
+
+Use a fallback only when the pinned upstream uses the same fallback under the same condition. If exact parity for a tokenizer/model family is not available, mark it partial; do not call an approximation compatible.
+
+Release assets should embed tokenizer resources or use pure-Go/statically linkable implementations where practical so production does not need Node/Python.
+
+---
+
+## 19. Secrets
+
+`secrets.json` remains in the upstream location/format. Preserve unknown keys and `allowKeysExposure` behavior. Atomic writes, restrictive permissions where supported and comprehensive log redaction are mandatory.
+
+Provider-wire test snapshots use synthetic credentials and normalize only secret values, not structural header differences.
+
+---
+
+## 20. Frontend extension ecosystem
+
+Extensions are a core compatibility target because they exercise unstable edges ordinary core UI flows may not.
+
+### 20.1 Static/runtime ABI
+
+Serve the same browser path:
+
+```text
+/scripts/extensions/third-party/<extension>/...
+```
+
+Match per-user/global precedence, manifest discovery, content types, ESM/static loading and cache behavior. Dynamic imports and imports of upstream internal frontend modules must continue to work because the frontend is unchanged.
+
+### 20.2 Extension management API
+
+Reproduce the complete pinned `/api/extensions/**` surface, including permissions, URL/protocol checks, sanitization, global/per-user destinations, install cleanup-on-invalid-manifest, version/update, branch enumeration, switch, move and delete behavior.
+
+### 20.3 Git without an external runtime dependency
+
+GoTavern release users should not need to install `git`. Implement a built-in pure-Go HTTP(S) Git path sufficient for the pinned extension operations. A system-Git backend may remain available for parity/debugging when `git.backend` requests it, but the default/auto mode must work on a minimal release machine with no system Git.
+
+Parity tests include shallow clone, explicit branch clone, update, remote/version state, unshallow/branch discovery, branch switch and removal.
+
+---
+
+## 21. Real extension probes
+
+Real extensions are pinned test fixtures, not production special cases.
+
+Initial pinned probes:
+
+- Tavern Helper / JS-Slash-Runner: `N0VI028/JS-Slash-Runner` at revision `837a6288135cde61522a9279173b98020f08807e`;
+- LittleWhiteBox: `RT15548/LittleWhiteBox` at revision `9e71caef9ba7b3ca324ce9f1cb06a69ff54d734b`.
+
+A release also runs a non-gating smoke job against their then-current compatible default branches to detect ecosystem drift early. Reproducible gating remains pinned.
+
+### 21.1 Tavern Helper is a deep semantic probe
+
+Do not reduce its acceptance test to “manifest loaded”. Current code directly exercises character import/create/edit, avatars, settings, extension management, model status and chat-completion generation, while also importing SillyTavern frontend internals and participating in generation events/reasoning/tool-call/stream handling.
+
+Mandatory Tavern Helper scenarios include:
+
+- install from its repository through the normal UI/API;
+- reload/discovery/static imports with zero console/module errors;
+- character import/create/edit through extension paths;
+- persona/avatar operation;
+- world-info/lorebook read and mutation;
+- variables and STscript interaction;
+- UI/card rendering;
+- raw/background generation helpers;
+- custom OpenAI-compatible endpoint;
+- streamed reasoning;
+- tool calling + schema;
+- generation event order/payload checks;
+- extension update/version/branch/delete;
+- persistence followed by browser reload.
+
+`docs/extension-route-coverage.md` records statically discovered and dynamically observed backend routes. Missing routes fail the extension gate.
+
+### 21.2 LittleWhiteBox and the server-plugin boundary
+
+LittleWhiteBox's frontend directly exercises standard SillyTavern APIs such as files, world info, groups and image-generation proxy routes; these standard-API workflows are valid compatibility probes and must work unmodified.
+
+The currently inspected LittleWhiteBox repository also ships `server-plugin/littlewhitebox-server`, mounted under its own `/api/plugins/littlewhitebox-server/` namespace for features including background image/draw jobs and Exa proxying. Those capabilities are Node server-plugin functionality and therefore fall under the explicit project non-goal.
+
+The acceptance report must distinguish:
+
+- frontend-only / standard-SillyTavern-API LittleWhiteBox functionality: required to pass;
+- functionality that truly requires `littlewhitebox-server`: explicitly outside scope, reported as such;
+- any unexpected standard-API regression: release blocker.
+
+Do not add fake `/api/plugins/littlewhitebox-server/*` success responses, and do not special-case the extension in production code.
+
+---
+
+## 22. Complete upstream HTTP surface
+
+Phase 0 enumerates every route/method, but the baseline mounted private namespaces include at least:
 
 ```text
 /
@@ -179,896 +915,292 @@ At the baseline SHA, the private router composition includes these mounted names
 /api/image-metadata
 ```
 
-This list is not the API inventory. Phase 0 must enumerate every method + route under every router, plus routes declared outside `src/endpoints/**`.
+Also inventory routes outside these routers such as root/login/callback/CSRF/ping/proxy/version, public users endpoints, static/user-resource routes, and every 308 legacy redirect.
 
-Important top-level behavior from `src/server-main.js` also includes, at minimum:
+`docs/api-inventory.md` must be generated or mechanically checked against pinned source so a forgotten file cannot disappear from the plan.
 
-- `/`
-- `/login`
-- `/callback/:source?`
-- `/csrf-token`
-- `/api/ping`
-- `/proxy/:url(*)`
-- `/version`
-- public `/api/users` routes before login enforcement
-- static upstream frontend files
-- authenticated user-resource serving
-- deprecated route redirects with **308** where upstream uses 308
+---
 
-User data is also exposed through browser paths such as:
+## 23. Differential test architecture
+
+A route test alone is insufficient. For semantic workflows use a four-observer harness:
 
 ```text
-/backgrounds/*
-/characters/*
-/User%20Avatars/*
-/assets/*
-/user/images/*
-/user/files/*
-/scripts/extensions/third-party/*
+                 same browser fixture
+                        |
+            +-----------+-----------+
+            |                       |
+      Node baseline              GoTavern
+            |                       |
+       recording provider      recording provider
+            |                       |
+      fixture data tree        fixture data tree
+            |                       |
+       browser event log        browser event log
 ```
 
-The exact list and path decoding rules must be generated into `docs/api-inventory.md` from source analysis and validated by probes.
+Compare four surfaces:
+
+### A. Browser -> server
+
+Capture method/path/query/headers/body and verify the unchanged frontend generated the same logical request state in both runs.
+
+### B. Server -> provider
+
+Compare provider-wire requests after narrowly redacting nondeterministic secrets. This proves complex preset semantics actually reach the model unchanged.
+
+### C. Provider -> server -> browser
+
+Feed identical deterministic provider responses/streams and compare statuses, parsed stream events, error behavior, cancellation and final browser state.
+
+### D. Persistent side effects
+
+Diff data trees after mutations and reload both browser sessions. Unknown differences fail unless explicitly classified as allowed nondeterminism/cache/temp output.
+
+### Normalization rules
+
+Never globally sort JSON, delete fields or ignore files just to make tests green. Every normalization has a local written reason (random CSRF token, timestamp, temp filename, etc.).
 
 ---
 
-## 4. Repository layout
+## 24. Semantic torture suite
 
-Target layout:
+`docs/SEMANTIC-COMPATIBILITY.md` owns the detailed matrix. The release gate includes at least:
+
+1. **Complex OpenAI-style preset:** many Prompt Manager entries, examples, world info, Author's Note, instruct/context/system/reasoning state, custom stop/sampler fields.
+2. **Context boundary:** token budget selected so one-token drift changes history/world-info inclusion.
+3. **World Info stress:** multiple insertion locations/depths, deterministic secondary/recursive matching, ordering/outlets/macros.
+4. **STscript/Quick Reply:** local/global variables, chat metadata, nested slash commands and save/reload.
+5. **Regex:** transformations across configured scopes without double application.
+6. **Tavern Helper generation:** custom endpoint + reasoning + tools/schema + stream.
+7. **Group chat:** multiple characters/group metadata/prompt construction.
+8. **Continuation modes:** regenerate/swipe/continue/impersonate/quiet/raw generation.
+9. **Provider translations:** OpenAI-compatible, Claude, Gemini, OpenRouter and custom request overrides.
+10. **Failure semantics:** provider 4xx/5xx, malformed stream, disconnect, client cancel, expired auth/CSRF.
+
+A torture test passes only when the expected observer surfaces match. “Both produced readable prose” is not a pass criterion.
+
+---
+
+## 25. Migration architecture
+
+### 25.1 Canonical implementation
+
+The final cross-platform migration engine belongs in the Go executable:
 
 ```text
-GoTavern/
-├── cmd/
-│   ├── gotavern/                 # main server binary
-│   └── gotavern-migrate/         # optional Go migration/copy utility once implemented
-├── internal/
-│   ├── app/                      # composition root and lifecycle
-│   ├── compat/                   # compatibility contracts/helpers, no concrete IO
-│   │   ├── httpcontract/
-│   │   ├── errors/
-│   │   └── version/
-│   ├── config/                   # config.yaml compatibility projection
-│   ├── httpserver/
-│   │   ├── router/
-│   │   ├── middleware/
-│   │   ├── static/
-│   │   └── response/
-│   ├── auth/                     # basic auth, accounts, sessions, CSRF
-│   ├── userdata/                 # data-root and user-directory abstraction
-│   ├── storage/
-│   │   ├── atomicfile/
-│   │   ├── jsonfile/
-│   │   ├── jsonl/
-│   │   ├── pngcard/
-│   │   └── locks/
-│   ├── endpoints/                # modules aligned to upstream router modules
-│   │   ├── characters/
-│   │   ├── chats/
-│   │   ├── groups/
-│   │   ├── worldinfo/
-│   │   ├── settings/
-│   │   ├── extensions/
-│   │   ├── providers/
-│   │   └── ...
-│   ├── outbound/                 # shared HTTP transport/proxy/SSRF policy
-│   ├── providers/                # OpenAI/Claude/Gemini/etc adapters
-│   ├── tokenizers/
-│   ├── extensions/               # git/repository operations and extension FS
-│   ├── media/
-│   └── observability/
-├── upstream/
-│   ├── SILLYTAVERN_VERSION
-│   ├── SILLYTAVERN_COMMIT
-│   ├── public/                   # byte-identical upstream public tree
-│   ├── generated/                # build-time upstream-generated assets such as lib.js
-│   └── public.sha256             # generated tree manifest
-├── tools/
-│   ├── sync-upstream/            # deterministic baseline/vendor updater
-│   ├── inventory/                # route inventory extractor
-│   └── contract-runner/          # Node vs Go differential test harness
-├── tests/
-│   ├── contract/
-│   ├── roundtrip/
-│   ├── e2e/
-│   ├── fixtures/
-│   └── benchmarks/
-├── scripts/
-│   └── migrate-from-sillytavern.sh
-├── docs/
-│   ├── api-inventory.md
-│   ├── compat-matrix.md
-│   ├── migration.md
-│   ├── testing.md
-│   └── reports/
-├── ARCHITECTURE.md
-├── AGENTS.md
-├── Dockerfile
-├── go.mod
-└── LICENSE
+gotavern migrate ...
 ```
 
-Do not over-generalize endpoint code into a framework before route parity exists. Keeping endpoint packages visibly aligned with upstream modules makes source comparison and review easier.
+Shell/PowerShell helpers may wrap it. The existing shell copier is transitional until the Go command implements the complete matrix.
 
----
+### 25.2 Source is read-only
 
-## 5. Runtime root and direct-use mode
+Copy migration never modifies source files: no rename, chmod, cleanup, lock, config migration, backup creation or deletion in the SillyTavern source.
 
-GoTavern's default runtime root is its working directory.
+For a consistent snapshot, stop SillyTavern first or use a filesystem snapshot.
 
-Expected compatibility files include:
+### 25.3 Source discovery
+
+Support explicit forms rather than guessing dangerous paths:
 
 ```text
-<runtime-root>/
-├── config.yaml
-├── data/                         # default dataRoot
-│   ├── _storage/                 # upstream user/account node-persist data
-│   ├── cookie-secret.txt
-│   ├── default-user/
-│   └── <other users>/
-└── public/
-    └── scripts/extensions/third-party/   # optional global writable extension overlay
+--from <SillyTavern-root>
+--source-config <path>
+--source-data <path>
+--source-global
+--dest <GoTavern-runtime-root>
 ```
 
-`dataRoot` comes from `config.yaml` exactly as upstream resolves it. `./data` is only the default.
+When a source config uses an absolute/out-of-tree data root, copy the complete source data root into a deliberate destination path and patch **only the destination config** to refer to that copied location. The source remains untouched.
 
-Two supported deployment modes are required:
+### 25.4 What is copied
 
-### Direct-use mode
+At minimum:
 
-Point GoTavern at an existing SillyTavern runtime root and use its `config.yaml` + data root in place. The Node process must be stopped before GoTavern writes to that root.
+- destination copy of `config.yaml`;
+- complete configured data root, including `_storage`, cookie secret, all users and compatibility-sensitive hidden/root state;
+- global frontend-extension overlay if present;
+- relative TLS assets referenced by copied config when selected/needed;
+- other path-backed config assets discovered by the migration inventory.
 
-### Copy-migration mode
+Do not copy `node_modules`.
 
-Copy an existing installation to a new GoTavern runtime root with a migration tool/script. The source is treated as read-only. Rollback means stopping GoTavern and starting Node SillyTavern on the untouched source, or copying compatible data back after making a backup.
+Detect `plugins/` and print a clear unsupported server-plugin report rather than pretending they migrated.
 
-The copy tool must not rename, delete, chmod, rewrite, “upgrade”, migrate or clean the source.
+### 25.5 Symlinks and path safety
 
----
+Migration preflights symlinks. A symlink that would make the destination still refer into the source/outside an allowed root must fail or require an explicit policy; a “copied” runtime that secretly reads old source data is not a migration.
 
-## 6. SillyTavern user directory contract
+Preflight all destination conflicts before any write. `--force` may only replace after a destination-side backup. Provide `--dry-run` and a final manifest/count/hash verification mode.
 
-The baseline `USER_DIRECTORY_TEMPLATE` contains these paths under each user root and must be represented without renaming:
+### 25.6 Direct-use mode
 
-```text
-thumbnails/
-thumbnails/bg/
-thumbnails/avatar/
-thumbnails/persona/
-worlds/
-user/
-User Avatars/
-user/images/
-groups/
-group chats/
-chats/
-characters/
-backgrounds/
-NovelAI Settings/
-KoboldAI Settings/
-OpenAI Settings/
-TextGen Settings/
-themes/
-movingUI/
-extensions/
-instruct/
-context/
-QuickReplies/
-assets/
-user/workflows/
-user/files/
-vectors/
-backups/
-sysprompt/
-reasoning/
-```
-
-The exact names, spaces and capitalization are contract data.
-
-The data root also contains non-user state such as `_storage`, `cookie-secret.txt`, temporary upload state and generated caches. Phase 0 must classify every baseline data-root entry as canonical, cache, temporary or compatibility-sensitive before any cleanup policy is implemented.
+Advanced users may point GoTavern directly at existing compatible config/data, but Node and Go must never be writable against that root simultaneously. Direct-use mode still permits the same startup mutations the pinned Node baseline would perform.
 
 ---
 
-## 7. HTTP server architecture
+## 26. Release CI and supply chain
 
-### 7.1 Router
+A release workflow must:
 
-Use Go's standard `net/http` plus a small router with deterministic path semantics (for example `chi` if its behavior is explicitly wrapped/tested). The selected router must not leak its own automatic redirects, path cleaning, OPTIONS behavior or error body formats where they differ from Express.
+1. verify the pinned upstream SHA/version;
+2. verify `public/**` and `default/**` manifests;
+3. reproducibly build required upstream generated frontend assets;
+4. run Go format/vet/tests;
+5. run Node-vs-Go contract/startup/roundtrip/provider-wire suites;
+6. run Playwright fresh-install and migrated-install E2E;
+7. run pinned Tavern Helper and standard-API LittleWhiteBox probes;
+8. build all native release archives;
+9. smoke-run each native binary where CI runners permit;
+10. build multi-arch Docker image;
+11. generate `checksums.txt` from the final bytes;
+12. attach archives/checksums/reports to one GitHub Release.
 
-Every route registration must include contract metadata used by tests and inventory generation:
+The installer contract depends on stable asset names; changing them is a breaking distribution change.
 
-```go
-// Conceptual shape only.
-type RouteContract struct {
-    Method       string
-    Pattern      string
-    UpstreamFile string
-    Auth         AuthMode
-    CSRF         bool
-    Phase        int
-}
-```
-
-The metadata is documentation/test support, not an alternate API definition. Upstream source remains authoritative.
-
-### 7.2 Middleware ordering is contract
-
-Upstream ordering matters. The Go pipeline must reproduce the effective order discovered in `src/server-main.js`, including relevant behavior for:
-
-1. security headers;
-2. compression;
-3. response timing if observable;
-4. request body limits/decoding;
-5. CORS;
-6. Basic Auth when configured;
-7. IP whitelist;
-8. Host whitelist;
-9. access logging;
-10. cookie session parsing/signing;
-11. selected user/data-root binding;
-12. CSRF token generation/validation;
-13. public root/login/static/public user endpoints;
-14. login requirement;
-15. CORS proxy;
-16. uploads;
-17. version/deprecated routes/private endpoints.
-
-Do not “improve” middleware ordering without a parity test.
-
-### 7.3 Body limits and multipart
-
-The baseline accepts very large request bodies (upstream JSON/URL encoded limit is 500 MB and multipart field size is also large). Implement streaming/spooling so the limit does not imply allocating a 500 MB buffer.
-
-Uploads should spool to the data-root upload directory when the upstream behavior requires a temporary file. Clean-up behavior must match upstream while avoiding unbounded memory growth.
-
-### 7.4 Response writer
-
-Centralize helpers for Express-compatible outcomes:
-
-- JSON
-- text
-- empty status (`sendStatus` semantics where relevant)
-- binary/download
-- redirects
-- streamed proxy response
-- SSE/event stream
-
-Do not normalize every error into a GoTavern envelope. SillyTavern endpoints use different historical error shapes; those differences are part of compatibility.
+No release job may publish binaries if the compatibility matrix still labels a claimed built-in feature `partial` or `not implemented` while release notes call the build drop-in compatible.
 
 ---
 
-## 8. Authentication, sessions and CSRF
+## 27. Phases and gates
 
-This is compatibility-critical because a server can appear to work while extensions fail due to session/CSRF differences.
+### Phase 0 — Oracle, inventory, harness, release skeleton
 
-### 8.1 Basic Auth
+Deliver:
 
-Implement the baseline behavior for:
+- API/config/startup/data inventories;
+- pinned upstream sync/hash tooling for `public/**` and `default/**`;
+- generated frontend build reproduction;
+- Node reference container/fixture;
+- browser/server/provider/filesystem differential harness skeleton;
+- release asset naming and cross-compile workflow skeleton;
+- installer scripts able to consume those assets;
+- initial compatibility matrix.
 
-- `basicAuthMode`
-- `basicAuthUser.username/password`
-- rate limiting behavior
-- `perUserBasicAuth`
-- interaction with `enableUserAccounts`
-- forwarded client IP settings when enabled
+Gate: no feature is implemented from memory, and a CI dry run can build a native GoTavern artifact without requiring Go on the eventual target machine.
 
-Challenge status/header/body and failure behavior must be measured against Node.
+### Phase 1 — Fresh install, boot, auth and frontend
 
-### 8.2 Multi-user accounts
+Implement startup config/default seeding, CLI compatibility, static/generated assets, auth/accounts/sessions/CSRF, user binding, root/login/callback/version/ping, user/static overrides and enough settings behavior for the actual UI to boot.
 
-Do not invent a new user database.
+Gate: an empty runtime initialized from a release-style binary reaches the real frontend with zero backend stubs and its resulting default/config/data tree matches the Node reference modulo documented nondeterminism.
 
-Read/write the same user storage representation under the data root used by upstream `_storage`. Password hashing, salt handling, enabled/admin flags, recovery flows and public/private/admin route semantics must match the baseline.
+### Phase 2 — Core data and semantic state
 
-If implementing the `node-persist` file representation directly is necessary, document and test it as an on-disk compatibility codec.
+Implement settings aggregation/backups, characters/cards, chats/groups, world info, presets, avatars/backgrounds/themes/moving UI/Quick Replies/assets/files and related import/export/backup semantics.
 
-### 8.3 Sessions
+Gate: Node↔Go round trips and complex settings/world/preset fixture reloads pass with unknown fields intact.
 
-Upstream uses `cookie-session`, with the cookie secret derived from the data root (`cookie-secret.txt`). GoTavern must reproduce the browser-visible cookie/session semantics, including cookie name, signing/encoding, `SameSite=Lax`, HTTP-only behavior and configured session timeout.
+### Phase 3 — Providers, tokenizers and semantic generation
 
-A strong target is **session cookie interoperability**: a valid session minted by the baseline Node server should be understood by GoTavern and vice versa when both use the same data root/secret. If an upstream quirk prevents this, the difference must be documented and tested before claiming full auth compatibility.
+Implement secrets, outbound transport, provider helper/model endpoints, chat/text completion backends, streaming and exact tokenizers.
 
-### 8.4 CSRF
+Gate: provider-wire differential tests and initial semantic torture suite pass, including context-boundary cases. Merely receiving generated text does not satisfy the gate.
 
-Implement `/csrf-token` and the `x-csrf-token` validation behavior from upstream, including the disabled mode response (`token: "disabled"`) and proxy exemption behavior when applicable.
+### Phase 4 — Frontend extension ecosystem
 
-Do not replace this with a generic CSRF package unless differential tests prove identical observable behavior.
+Implement extension management/static overlay/Git parity and run real extension suites.
 
----
+Gate: pinned Tavern Helper deep workflow passes unmodified; pinned LittleWhiteBox standard-API workflows pass; plugin-dependent LittleWhiteBox features are accurately reported as the explicit server-plugin exclusion.
 
-## 9. Configuration compatibility
+### Phase 5 — Complete built-ins and release qualification
 
-`config.yaml` is a compatibility file, not a Go-native configuration redesign.
+Complete every remaining inventory item: image generation, speech/TTS/STT, translation, search, thumbnails, vectors, classification/caption, content manager, data-maid and all remaining built-ins.
 
-Use a two-layer representation:
-
-1. a generic YAML node/tree retained for unknown values;
-2. a typed projection for fields GoTavern actually consumes.
-
-Rules:
-
-- unknown keys are accepted and retained;
-- upstream defaults come from the pinned baseline, not Go zero values;
-- type coercions/default behavior should match upstream's `getConfigValue`/CLI resolution where observable;
-- relative paths resolve against the same effective root as upstream;
-- GoTavern must not rewrite `config.yaml` merely by starting;
-- unsupported Node-server-plugin configuration may be reported but must not corrupt the file.
-
-Important categories include server bind/protocol, TLS, whitelist, forwarded headers, Basic Auth, user accounts, session timeout, CSRF, CORS, host whitelist, private-address request filter, request proxy, backups, thumbnails, performance flags, extension settings, Git backend, import-domain allowlists and request overrides.
-
-Phase 0 must produce a field-by-field compatibility table from `default/config.yaml` and command-line resolution.
+Gate: no unexplained route/startup/config gap, full torture suite green, migrated-install rollback test green, resource benchmark reported, release archive + installer + Docker smoke tests green.
 
 ---
 
-## 10. Embedded upstream frontend
+## 28. Compatibility matrix semantics
 
-### 10.1 Build-time sync
-
-`tools/sync-upstream` must:
-
-1. read `upstream/SILLYTAVERN_COMMIT`;
-2. fetch/checkout exactly that commit;
-3. copy `public/**` without modification;
-4. generate a SHA-256 tree manifest;
-5. produce upstream-generated runtime frontend artifacts using the upstream build process where necessary;
-6. record toolchain/version metadata required to reproduce them;
-7. fail if the working copy has unaccounted frontend patches.
-
-At the 1.19.0 baseline, SillyTavern compiles `public/lib.js` through Webpack to a generated `lib.js` served from a cache/output directory. GoTavern must generate the equivalent artifact **at build/release time**, embed it, and serve it at the same browser path. Node/Webpack must not be required on the production server.
-
-### 10.2 Runtime serving
-
-Serve:
-
-1. authenticated/per-user mutable resource overlays where upstream does;
-2. third-party extension overlays;
-3. embedded generated assets;
-4. embedded upstream static assets.
-
-Path traversal protection is mandatory but must not break legitimate encoded SillyTavern resource URLs.
-
-Compression/cache headers/content types must be tested against upstream for representative files.
-
----
-
-## 11. Storage and concurrency
-
-### 11.1 Data is files first
-
-Storage adapters operate directly on SillyTavern files. They must not translate into a private schema.
-
-### 11.2 Unknown-field preservation
-
-For JSON structures where GoTavern changes only selected fields, use loss-minimizing representations such as `json.RawMessage` maps or a typed envelope with retained raw unknown properties.
-
-Do not deserialize into a narrow struct and marshal it back if that would drop extension-defined or future-upstream fields.
-
-If upstream semantics replace the entire file with the submitted object, matching that behavior is more important than preservation beyond what upstream itself preserves.
-
-### 11.3 Atomic writes
-
-All compatibility-sensitive writes use a shared atomic-file layer:
-
-1. acquire a keyed write lock for the canonical target path;
-2. create a temporary file in the **same directory/filesystem**;
-3. write the full new content;
-4. apply required permissions;
-5. flush the file where appropriate;
-6. atomically replace/rename using platform-correct semantics;
-7. fsync the parent directory on platforms where needed for durability;
-8. release the lock.
-
-Do not write a final JSON/JSONL/card file in place.
-
-### 11.4 Locking
-
-Use a sharded/keyed lock manager keyed by canonical absolute path. A global mutex is unacceptable because large chats/media uploads should not block unrelated users.
-
-For multi-file operations, define a stable lock ordering to prevent deadlocks.
-
-GoTavern should hold a data-root instance lock to discourage two writable GoTavern processes from sharing one data root. Running Node SillyTavern and GoTavern writable against the same root simultaneously is unsupported.
-
-### 11.5 JSONL chats
-
-Chat code must preserve upstream JSONL semantics exactly, including first-line metadata, message ordering, line encoding, import/export behavior, integrity checks and backup behavior.
-
-Never parse and rewrite a chat merely to read it.
-
-Large chats should be streamed line-by-line rather than loaded wholesale unless the endpoint contract requires a full in-memory response.
-
----
-
-## 12. Character cards and PNG metadata
-
-Character handling is its own compatibility subsystem.
-
-Required support:
-
-- JSON character cards;
-- PNG cards;
-- V1/V2/V3 metadata semantics used by the baseline;
-- imports/exports;
-- edit/merge attribute behavior;
-- duplicate/rename/delete;
-- avatar/image handling;
-- sprite-related behavior that the upstream route performs;
-- unknown field preservation.
-
-The PNG codec must preserve all non-target PNG chunks and image data. Updating card metadata must alter only the metadata chunk(s) required by upstream semantics and must not re-encode the bitmap unless upstream does so for that operation.
-
-Maintain golden fixtures produced by Node SillyTavern and round-trip them through GoTavern.
-
----
-
-## 13. World info, presets, settings, themes and quick replies
-
-These appear simple but are extension-sensitive.
-
-For each module:
-
-- reproduce upstream filename sanitization;
-- reproduce capitalization and extension rules;
-- reproduce sorting/listing behavior;
-- preserve unknown JSON fields as required;
-- use the exact user directory names;
-- mirror status/error behavior;
-- update backups the same way when the baseline does.
-
-World Info and settings are especially important to Tavern Helper/JS-Slash-Runner-style workflows; E2E tests must cover scripts that read/update them through normal frontend APIs.
-
----
-
-## 14. Outbound HTTP architecture
-
-All server-side outbound HTTP must go through one shared transport service so configuration and security rules cannot be accidentally bypassed.
-
-Responsibilities:
-
-- HTTP/HTTPS keep-alive setting;
-- configured proxy (`requestProxy.*`) including bypass behavior;
-- private-address/SSRF filter;
-- request overrides;
-- timeout/cancellation;
-- redirect policy;
-- TLS behavior;
-- streaming pass-through;
-- per-provider headers;
-- bounded diagnostic logging with secret redaction.
-
-Endpoint packages must not instantiate ad-hoc `http.Client` objects.
-
-Provider adapters should operate as thin translators around the upstream contract. Do not force all providers into one lowest-common-denominator request model when SillyTavern exposes provider-specific options.
-
----
-
-## 15. Generation and streaming
-
-Generation is successful only if the unmodified upstream frontend can consume it exactly as it consumes Node SillyTavern.
-
-Required provider families include all built-in families exposed by the baseline, including the chat-completion and text-completion backends and provider-specific helper/model-list endpoints. Priority starts with OpenAI-compatible, Claude/Anthropic, Gemini/Google, OpenRouter and custom endpoints, but the end-state target is the full baseline surface.
-
-### Streaming rules
-
-- Flush promptly; never buffer the full model response.
-- Preserve content type and event/data framing.
-- Preserve upstream termination semantics.
-- Propagate client cancellation to the provider request.
-- Do not gzip/buffer streams in a way that changes frontend behavior.
-- Reverse-proxy examples must disable response buffering for generation streams.
-
-Golden streaming tests should compare parsed event sequences rather than assume ordinary JSON equality.
-
----
-
-## 16. Tokenization
-
-Token counts are behavior, not an estimate.
-
-Every tokenizer endpoint marked compatible must be checked against the Node baseline on a corpus containing:
-
-- ASCII;
-- CJK;
-- emoji;
-- combining characters;
-- special tokens;
-- long prompts;
-- representative chat templates.
-
-A fallback tokenizer may exist only when upstream itself falls back in the same condition. “Close enough” counts are not compatible because prompt truncation and extension logic depend on exact counts.
-
-Prefer pure-Go or statically linkable implementations and embedded tokenizer assets so the release remains a single static binary. If an exact baseline tokenizer cannot yet be implemented, mark that route partial rather than lying about parity.
-
----
-
-## 17. Secrets
-
-`secrets.json` stays in the upstream location and format.
-
-Requirements:
-
-- read/write the same key names and structure;
-- preserve unknown secret keys;
-- honor `allowKeysExposure` semantics;
-- never print secret values in logs or contract snapshots;
-- redact Authorization/API-key headers in diagnostics;
-- keep file permissions restrictive where the platform supports it;
-- atomic writes only.
-
-Contract fixtures containing secrets must use synthetic values.
-
----
-
-## 18. Extension ecosystem
-
-Frontend extension compatibility is a first-class acceptance target, not a bonus.
-
-### 18.1 Serving
-
-The browser-visible path remains:
-
-```text
-/scripts/extensions/third-party/<extension>/...
-```
-
-Resolution must match upstream per-user/global behavior. The embedded frontend itself remains immutable.
-
-### 18.2 Management
-
-Implement the complete baseline `/api/extensions/**` behavior, including discovery, install, update, version/status, branch operations and delete/move operations present at the pinned SHA.
-
-A system `git` executable may be used initially if behavior is wrapped behind an interface and Docker/runtime requirements are explicit. A pure-Go Git implementation is allowed only if compatibility is equal or better. The final architecture should not require Node.js.
-
-Git operations must use safe argument handling and protect against path traversal/repository URL injection.
-
-### 18.3 Mandatory real-extension acceptance tests
-
-At minimum, CI/E2E acceptance fixtures must include real pinned revisions of:
-
-- Tavern Helper / JS-Slash-Runner (`N0VI028/JS-Slash-Runner`)
-- LittleWhiteBox
-
-Tests must cover more than “extension JS file loaded”:
-
-- install;
-- startup discovery;
-- static assets;
-- extension enable/load;
-- slash/script execution;
-- variable access/update;
-- World Info interaction;
-- character/chat interaction;
-- rendered frontend card/UI behavior that depends on backend calls;
-- extension update/remove.
-
-Phase 4 must record every backend route actually touched by these tests in `docs/extension-route-coverage.md` and cross-link it to `docs/api-inventory.md`.
-
-Do not special-case either extension in production code. They are compatibility probes.
-
----
-
-## 19. Deprecated routes
-
-The baseline redirects many historical endpoints to `/api/...` replacements using HTTP **308** specifically to preserve request methods.
-
-GoTavern must inventory and reproduce them. Examples include legacy character/chat/group/world-info/background/theme/avatar/quick-reply routes.
-
-Do not remove deprecated routes merely because the current frontend no longer calls them: third-party extensions may still do so.
-
----
-
-## 20. Testing strategy
-
-No module is “done” because it has unit tests. The primary acceptance method is differential compatibility testing.
-
-### 20.1 Contract harness
-
-Run two isolated servers against copies of the same deterministic fixture:
-
-```text
-fixture A -> Node SillyTavern 1.19.0 @ pinned SHA
-fixture B -> GoTavern under test
-```
-
-For each route case, send equivalent requests and compare:
-
-- status;
-- selected headers;
-- body type;
-- JSON semantic shape and ordering where relevant;
-- exact text/binary bodies where required;
-- redirects;
-- set-cookie/session behavior;
-- stream event sequence;
-- filesystem side effects.
-
-Normalize only inherently nondeterministic fields explicitly documented per test (timestamps, random CSRF tokens, temporary names, etc.). Never globally sort/remove fields to make tests pass.
-
-Every normalization rule needs a reason.
-
-### 20.2 Filesystem side-effect diff
-
-After mutating endpoint tests, compare the fixture trees. Classify every difference as:
-
-- required equivalent output;
-- expected nondeterminism;
-- cache/temp difference;
-- compatibility bug.
-
-Unknown differences fail the test.
-
-### 20.3 Round-trip tests
-
-For each canonical file type:
-
-1. Node writes -> Go reads.
-2. Go writes -> Node reads.
-3. Node reads Go output and performs another normal mutation.
-4. Go reads the result again.
-
-Fixtures must contain unknown/custom fields to detect destructive struct serialization.
-
-### 20.4 E2E
-
-Playwright runs the real unmodified embedded frontend and covers:
-
-- root/login redirect;
-- Basic Auth deployment;
-- multi-user account login;
-- CSRF-protected requests;
-- character library/open/edit;
-- chat load/save/rename/delete;
-- message generation with streaming;
-- World Info trigger;
-- group chat;
-- presets/settings;
-- extension install/load;
-- Tavern Helper script execution;
-- LittleWhiteBox critical workflow.
-
-Browser console errors and failed network requests fail the suite unless explicitly allowlisted with a linked issue.
-
-### 20.5 Performance
-
-Measure Node and Go using the same machine/container limits, dataset and scenario.
-
-Report at least:
-
-- idle RSS/PSS where available;
-- steady-state RSS after opening a representative character/chat;
-- RSS during streaming generation;
-- CPU at idle;
-- CPU/request for representative CRUD;
-- startup time;
-- open file descriptors/goroutines;
-- binary size.
-
-The target is materially below Node and stable on a 1 GB machine, but compatibility failures cannot be traded for lower memory numbers.
-
----
-
-## 21. Compatibility matrix rules
-
-`docs/compat-matrix.md` is a release gate.
-
-Each module/route family records:
+Each route/module/workflow records:
 
 - baseline SHA;
 - implementation status;
-- contract-test count/pass rate;
-- round-trip status;
-- E2E coverage;
-- known differences;
-- issue links.
+- HTTP contract tests;
+- startup side-effect tests where relevant;
+- data round-trip tests;
+- provider-wire tests where relevant;
+- browser event/E2E coverage;
+- real-extension coverage;
+- known differences with issue links.
 
-Only `compatible` means no known browser/data-contract difference for the tested baseline.
+Status meanings:
 
-A release called “drop-in compatible” requires all baseline built-in route families to be `compatible`, except explicitly declared Node server plugins.
+- `compatible`: no known material difference in tested baseline surfaces;
+- `partial`: works in some paths but has a specific known semantic/contract difference;
+- `unsupported`: deliberate scope exclusion;
+- `not implemented`: absent.
 
----
-
-## 22. Phase plan and gates
-
-### Phase 0 — Reconnaissance
-
-Deliver before broad implementation:
-
-- `docs/api-inventory.md` generated/verified from source;
-- `docs/config-inventory.md`;
-- `docs/data-layout.md`;
-- initial `docs/compat-matrix.md`;
-- baseline Node fixture/container;
-- contract harness skeleton;
-- frontend upstream sync/hash guard.
-
-Gate: no route implementation based solely on memory.
-
-### Phase 1 — Boot/login/frontend
-
-Implement:
-
-- embedded upstream frontend and generated `lib.js`;
-- config loading;
-- listen/TLS/whitelist/host whitelist/CORS basics;
-- Basic Auth;
-- user accounts/session compatibility;
-- CSRF;
-- user directory binding;
-- settings read needed to load the UI;
-- `/version`, `/api/ping`, root/login/callback behavior.
-
-Gate: Playwright can load the real frontend and login with zero backend-stub hacks.
-
-### Phase 2 — Core data CRUD
-
-Implement characters/cards, chats, groups, world info, settings, presets, avatars/backgrounds/themes/quick replies/assets/files and backups required by these flows.
-
-Gate: Node <-> Go round-trip suite passes on representative and unknown-field fixtures.
-
-### Phase 3 — Generation/providers
-
-Implement secrets, shared outbound transport/proxy/SSRF policy, provider model/helper routes, chat/text completion, streaming and tokenization.
-
-Gate: real frontend streams a response and contract tests cover representative providers using deterministic mock upstreams.
-
-### Phase 4 — Extension ecosystem
-
-Implement `/api/extensions/**`, extension overlays and Git operations; validate pinned Tavern Helper and LittleWhiteBox workflows.
-
-Gate: both real extensions pass E2E without source modifications.
-
-### Phase 5 — Remaining built-ins
-
-Complete image generation, speech/TTS/STT, translation, search/visit/transcript, thumbnails, vector endpoints, classification/caption, import/export, content manager, data-maid and every remaining inventory item.
-
-Gate: the compatibility matrix has no unexplained route gap.
+A release may be called **drop-in compatible** only when all pinned built-in SillyTavern behavior is `compatible` except the explicit arbitrary Node server-plugin exclusion, and all release/user-journey gates pass.
 
 ---
 
-## 23. Migration design
+## 29. Performance target
 
-Migration is intentionally boring because the format is already compatible.
+Measure release binaries, not debug builds, against the same Node baseline dataset/container limits.
 
-### 23.1 Copy, do not convert
+Report at least idle RSS/PSS, RSS after representative library/chat load, RSS during stream generation, idle CPU, CPU/request for CRUD, startup time, open FDs/goroutines, binary/archive size and behavior under a 1 GiB memory limit.
 
-For a standard install, migration copies:
+GoTavern should be materially lighter than Node and stable on a 1 GiB server. Compatibility cannot be traded away to win a memory chart.
 
-- `config.yaml`;
-- the complete configured data root (`data/` by default), including `_storage`, `cookie-secret.txt`, all users, extensions and caches required for compatibility;
-- optional global extension overlay `public/scripts/extensions/third-party/` when present;
-- optional TLS certificate directory when the copied config references relative files and the operator chooses to copy them.
-
-Do **not** copy Node `node_modules`.
-
-Do **not** treat `plugins/` as supported functionality. Node server plugins are outside scope. The migration report should warn if they exist.
-
-### 23.2 Source is read-only
-
-The migration implementation must perform no source mutations. No source-side backup creation, lock file, chmod, cleanup, rename or migration hook.
-
-For a consistent snapshot, the operator should stop Node SillyTavern before copying or use a filesystem snapshot. This consistency recommendation does not permit the copy tool to modify the source.
-
-### 23.3 Existing destination
-
-Never merge over an existing destination silently.
-
-Default behavior:
-
-- fail if destination `config.yaml` or data root already exists;
-- `--force` may replace only after creating a destination-side backup, never touching source;
-- provide `--dry-run`/summary in the eventual Go migration utility.
-
-### 23.4 Rollback
-
-Because formats stay upstream-compatible, rollback is process-level, not schema-level:
-
-1. stop GoTavern;
-2. back up its runtime root;
-3. either point Node SillyTavern at the GoTavern-compatible data/config or copy them into a fresh Node runtime;
-4. start the pinned/equivalent Node SillyTavern;
-5. verify login and a representative chat/character.
-
-No reverse converter should be necessary.
+Avoid loading giant chats/card libraries/body limits into memory unnecessarily. Use streaming, bounded caches and spool files while retaining upstream observable semantics.
 
 ---
 
-## 24. Deployment architecture
+## 30. Security constraints
 
-### 24.1 Binary
+Compatibility does not justify new Go-specific vulnerabilities. Require canonical path containment, symlink-aware writes/imports, archive traversal protection, bounded archive/decompression, shared SSRF/private-address policy, URL scheme validation, safe Git arguments, request-size enforcement without huge allocation, admin checks and secret redaction.
 
-Release target is one Go server binary containing the pinned upstream frontend/generated browser assets.
-
-Prefer `CGO_ENABLED=0` where feature parity permits. Any dependency that requires CGO/native shared libraries must be justified because it weakens the standalone deployment goal.
-
-### 24.2 Docker
-
-Use a multi-stage build and a minimal runtime image. Runtime needs only:
-
-- GoTavern binary;
-- CA certificates;
-- optionally `git` if the selected extension backend uses system Git;
-- writable runtime/data volumes.
-
-Do not ship Node.js in the runtime image.
-
-### 24.3 Reverse proxy
-
-Nginx/Caddy examples must preserve:
-
-- original Host and client IP headers according to the user's trusted-proxy config;
-- cookies;
-- large request bodies needed by imports/uploads;
-- Web/SSE streaming without proxy buffering;
-- long generation timeouts;
-- correct scheme forwarding.
-
-Security documentation must warn that enabling forwarded headers without a correctly configured trusted reverse proxy permits spoofing.
+When a security fix intentionally differs from pinned upstream observable behavior, document it explicitly as a deliberate security deviation and test that it does not silently break supported frontend workflows.
 
 ---
 
-## 25. Security requirements that compatibility does not waive
+## 31. Upstream baseline bumps
 
-Matching upstream does not mean adding avoidable Go-specific vulnerabilities.
+A baseline bump is a compatibility project, not a dependency update.
 
-Mandatory controls:
+Procedure:
 
-- canonical path containment for all user-controlled paths;
-- symlink-aware checks for writable/import roots;
-- archive extraction traversal protection;
-- SSRF/private-address policy shared by all outbound routes;
-- URL scheme allowlists where upstream has them;
-- no shell interpolation for Git/provider commands;
-- bounded decompression/archive expansion;
-- request-size enforcement without huge preallocation;
-- secret/header redaction;
-- permission checks for admin routes;
-- no serving files outside the selected user's allowed roots.
-
-When a safer implementation changes browser-observable behavior, first determine whether the upstream behavior is intentional and whether the difference breaks compatibility. Document deliberate security deviations explicitly.
+1. choose an exact new upstream SHA/version;
+2. regenerate `public/**`, `default/**` and generated asset manifests;
+3. regenerate API/config/startup/data inventories;
+4. diff CLI/middleware/startup/content/provider changes;
+5. run old and new Node references where needed to classify upstream behavior changes;
+6. implement Go changes;
+7. run complete new Node-vs-Go differential suites;
+8. rerun pinned and current-head extension smoke probes;
+9. update migration notes/compatibility matrix;
+10. only then ship a GoTavern release advertising the new baseline.
 
 ---
 
-## 26. Upstream update procedure
+## 32. Agent implementation rules
 
-Do not casually track upstream `release`.
+When implementing an endpoint or behavior:
 
-To move the baseline:
+1. locate the upstream entry/mount/startup caller;
+2. read the full handler plus helpers/middleware/storage/provider transforms that alter observation;
+3. add/update the appropriate inventory;
+4. add a Node reference probe/differential case;
+5. implement the smallest Go behavior that matches;
+6. compare HTTP output **and** filesystem/startup/provider-wire/browser-event side effects as applicable;
+7. add round-trip coverage for persistent mutations;
+8. update the compatibility matrix;
+9. keep `main` buildable/runnable;
+10. never mark semantic compatibility based only on a successful response or chat.
 
-1. select a new exact SillyTavern commit/version;
-2. update `SILLYTAVERN_COMMIT` and `SILLYTAVERN_VERSION` in one PR;
-3. regenerate the frontend tree/hash and generated frontend artifact;
-4. regenerate API/config inventories;
-5. diff router/middleware/data-layout changes;
-6. run the old-baseline compatibility suite to identify intentional breaks;
-7. implement new behavior;
-8. run full Node(new) vs Go differential tests;
-9. update compatibility matrix and migration notes;
-10. only then merge the baseline bump.
-
-A green Go unit-test suite without a green differential suite is insufficient for an upstream bump.
+If a behavior is unclear, run the pinned Node implementation and record it. Do not infer Express/Node/library behavior from memory when it can be measured.
 
 ---
 
-## 27. Implementation decision rules for agents
+## 33. Definition of done
 
-When implementing an endpoint:
+GoTavern reaches its stated goal when a non-developer can download/install a release on a supported machine with no Go/Node toolchain, either start fresh or migrate an ordinary/custom SillyTavern 1.19.0 deployment, keep the same reverse-proxy/browser workflow, and use the real upstream frontend with complex characters, chats, presets, world info, macros/scripts, provider options and supported frontend extensions without source modifications.
 
-1. Locate its mount point in `server-startup.js`/`server-main.js`.
-2. Read the complete upstream router handler and helper calls.
-3. Read any storage/middleware/helper code that changes observable behavior.
-4. Add/update the inventory entry.
-5. Add a Node-baseline contract case first or in the same commit.
-6. Implement the narrowest Go behavior that matches it.
-7. Compare response and filesystem side effects.
-8. Add round-trip coverage for data writes.
-9. Update `docs/compat-matrix.md`.
-10. Commit a buildable state.
+For complex roleplay workflows, Node and Go must produce equivalent final provider requests and equivalent persisted/browser state, not merely both generate text.
 
-If source inspection is incomplete, stop implementation of that endpoint rather than guessing.
+The user must be able to update GoTavern without losing mutable data and return to an equivalent SillyTavern baseline without data conversion.
 
----
-
-## 28. Definition of done for the project
-
-GoTavern reaches its stated goal only when a user can take an ordinary SillyTavern 1.19.0 server deployment, stop Node, point GoTavern at the same compatible config/data (or copy it read-only with the migration tool), open the same site through the same reverse proxy, and continue using characters, chats, worlds, presets, providers and frontend extensions without modifying the upstream frontend or extension code.
-
-They must then be able to stop GoTavern and return to SillyTavern without a data conversion step.
-
-The exception is Node.js server plugins, which are explicitly unsupported and must remain clearly documented as such.
+The single ecosystem exception remains arbitrary Node.js server plugins, whose dependent functionality must be identified and reported rather than faked.
