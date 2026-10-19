@@ -378,10 +378,11 @@ func TestStartHeartbeatMatchesPinnedNodeLifecycle(t *testing.T) {
 	if err := running.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
+	shutdownTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.AfterShutdown.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
 	time.Sleep(interval * 3)
-	stoppedTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.AfterShutdown.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
-	if !fixture.Observations.AfterShutdown.TimestampUnchangedAfter || stoppedTimestamp != updatedTimestamp {
-		t.Fatalf("heartbeat timestamp after shutdown = %d; before shutdown = %d; pinned Node unchanged=%t", stoppedTimestamp, updatedTimestamp, fixture.Observations.AfterShutdown.TimestampUnchangedAfter)
+	afterShutdownTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.AfterShutdown.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
+	if !fixture.Observations.AfterShutdown.TimestampUnchangedAfter || afterShutdownTimestamp != shutdownTimestamp {
+		t.Fatalf("heartbeat timestamp changed after Close returned: immediately %d; after waiting %d; pinned Node unchanged=%t", shutdownTimestamp, afterShutdownTimestamp, fixture.Observations.AfterShutdown.TimestampUnchangedAfter)
 	}
 }
 
