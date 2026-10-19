@@ -186,6 +186,18 @@ try {
         throw new Error(`group-metadata migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const characterDiskCacheProbe = path.join(buildRoot, '.gotavern-probe-character-disk-cache.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-character-disk-cache.mjs'), characterDiskCacheProbe);
+    const characterDiskCacheFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-character-disk-cache.json');
+    run(process.execPath, [characterDiskCacheProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstCharacterDiskCacheProbe = readFileSync(characterDiskCacheFixturePath);
+    run(process.execPath, [characterDiskCacheProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondCharacterDiskCacheProbe = readFileSync(characterDiskCacheFixturePath);
+    if (!firstCharacterDiskCacheProbe.equals(secondCharacterDiskCacheProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCharacterDiskCacheProbe), JSON.parse(secondCharacterDiskCacheProbe));
+        throw new Error(`character disk-cache oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

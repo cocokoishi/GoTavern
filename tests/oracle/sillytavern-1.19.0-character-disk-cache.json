@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned characters.js DiskCache.verify node-persist behavior",
+  "scenarios": {
+    "disabled": {
+      "errors": [],
+      "cacheDirectoryExists": false,
+      "records": [],
+      "values": {}
+    },
+    "empty": {
+      "errors": [],
+      "cacheDirectoryExists": true,
+      "records": [],
+      "values": {}
+    },
+    "prune": {
+      "errors": [],
+      "cacheDirectoryExists": true,
+      "records": [
+        {
+          "name": "jpg",
+          "value": {
+            "marker": "jpg"
+          }
+        },
+        {
+          "name": "stale",
+          "value": {
+            "marker": "stale"
+          }
+        },
+        {
+          "name": "valid",
+          "value": {
+            "marker": "valid"
+          }
+        }
+      ],
+      "values": {
+        "valid": {
+          "marker": "valid"
+        },
+        "jpg": {
+          "marker": "jpg"
+        },
+        "stale": {
+          "marker": "stale"
+        },
+        "shadow": null
+      }
+    }
+  }
+}

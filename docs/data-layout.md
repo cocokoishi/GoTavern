@@ -48,6 +48,7 @@ At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<
 |---|---|
 | `DATA_ROOT/_storage/` | User and account key/value state; creates `default-user` as admin when no handles exist. |
 | `DATA_ROOT/cookie-secret.txt` | Session signing secret; generated when missing or migrated from legacy `cookieSecret` config. |
+| `DATA_ROOT/_cache/characters/` | node-persist records used by the pinned character image disk cache; created when `performance.useDiskCache` is enabled. |
 | `DATA_ROOT/<handle>/...` | Per-user directory template above; directories created for every user at startup. `sysprompt/.migrated` records completion of the legacy instruct system-prompt migration; originals are backed up under `backups/_sysprompt/`. |
 | `DATA_ROOT/_uploads/` | Temporary multipart uploads; files are cleaned during pre-listen startup. |
 | `DATA_ROOT/_errors/` | User error-page overrides; `url-not-found.html` also supplies the final 404 body. |
@@ -64,8 +65,8 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, and group-chat metadata migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, legacy public-data migration, legacy instruct system-prompt migration, public error/CSS override migration, group-chat metadata migration, and character disk-cache verification. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
-- Content-log skip/force/update cases, settings aggregation, cache files, backup policy, remaining migration behavior, and unknown-field preservation.
+- Content-log skip/force/update cases, settings aggregation, character-cache error cases and node-persist write behavior, backup policy, remaining migration behavior, and unknown-field preservation.
 - Node-written → Go-read/write → Node-read round trips for every persistent mutation family.
