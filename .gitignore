@@ -1,0 +1,17 @@
+# Runtime state
+/config.yaml
+/data/
+/_storage/
+/_uploads/
+/logs/
+/certs/
+/dist/
+/.gotavern/
+
+# Go build/test output
+/gotavern
+/gotavern.exe
+/coverage.out
+
+# Local reference build output
+/upstream/generated/_webpack/

@@ -1,0 +1,7 @@
+# These files are compatibility assets. Preserve their pinned bytes on checkout.
+upstream/public/** -text
+upstream/default/** -text
+upstream/generated/** -text
+upstream/manifests/** -text
+upstream/SILLYTAVERN_VERSION -text
+upstream/SILLYTAVERN_COMMIT -text

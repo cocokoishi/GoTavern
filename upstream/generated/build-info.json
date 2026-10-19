@@ -1,0 +1,11 @@
+{
+  "source": "SillyTavern",
+  "version": "1.19.0",
+  "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+  "packageVersion": "1.19.0",
+  "nodeVersion": "v24.19.0",
+  "npmVersion": "11.17.0",
+  "webpackVersion": "5.105.4",
+  "output": "lib.js",
+  "sha256": "2d5fb1eedcbefe7062421e8ca54b90a23312f64df8d480c16538714c5157e0bf"
+}

@@ -1,0 +1,68 @@
+name: GoTavern CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify upstream asset manifests
+        run: |
+          go run ./tools/assetmanifest -root upstream/public -output upstream/manifests/public.sha256 -check
+          go run ./tools/assetmanifest -root upstream/default -output upstream/manifests/default.sha256 -check
+          go run ./tools/assetmanifest -root upstream/generated -output upstream/manifests/generated.sha256 -check
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build CLI
+        run: go build -trimpath -o gotavern ./cmd/gotavern
+      - name: Verify embedded assets
+        run: ./gotavern assets verify
+
+  cross-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cross-compile release target
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        shell: bash
+        run: |
+          suffix=''
+          if [ "$GOOS" = windows ]; then suffix='.exe'; fi
+          mkdir -p dist
+          go build -trimpath -ldflags='-s -w' -o "dist/gotavern-${GOOS}-${GOARCH}${suffix}" ./cmd/gotavern

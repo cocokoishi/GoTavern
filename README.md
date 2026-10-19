@@ -4,7 +4,7 @@ GoTavern is a work-in-progress **standalone Go reimplementation of the SillyTave
 
 ## Status
 
-**Pre-release. Do not use this repository as a working SillyTavern replacement yet.**
+**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** Phase 0 is in progress: the pinned frontend/default assets, generated Webpack library, source inventories, and a small metadata/asset-verification CLI are being established. No HTTP server behavior is implemented yet.
 
 The initial compatibility baseline is:
 
@@ -14,6 +14,8 @@ SillyTavern 1.19.0
 ```
 
 Implementation must satisfy the compatibility gates in [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/SEMANTIC-COMPATIBILITY.md`](docs/SEMANTIC-COMPATIBILITY.md). A server that merely opens the UI or returns chat text is not considered compatible.
+
+The exact pinned upstream `public/**` and `default/**` trees are under [`upstream/`](upstream/), with per-file SHA-256 manifests. The root `LICENSE` is copied from the pinned SillyTavern source. Inventory generation and the isolated generated-library build are documented in the tooling under [`tools/`](tools/).
 
 ## Intended user experience
 
