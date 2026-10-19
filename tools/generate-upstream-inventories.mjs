@@ -204,13 +204,17 @@ function generateRoutes() {
                 : row.method === 'GET' && row.fullPath === '/callback/:source?'
                 ? 'partial: one encoded OAuth source/query case matches the pinned 307 target, stable headers, and text/HTML response bodies; other inputs and middleware remain unimplemented'
                 : row.method === 'GET' && row.fullPath === '/login'
-                ? 'partial: fresh-start account-disabled 302 response matches for text and HTML Accept headers; account-enabled login and auto-login remain unimplemented'
+                ? 'partial: account-disabled 302 response, login page bytes/selected headers, and passwordless single-user auto-login session match pinned probes; proxy-auth integrations and cache/compression behavior remain'
                 : row.method === 'GET' && row.fullPath === '/version'
                 ? 'partial: response body/status/content type match the fresh-start oracle; shared middleware remains unimplemented'
                 : row.method === 'GET' && row.fullPath === '/csrf-token'
-                ? 'partial: default and disabled CSRF token responses match dedicated Node oracles; default mode also matches signed session cookies, token reuse, cookie expiry, and attributes; other middleware remains unimplemented'
+                ? 'partial: default and disabled CSRF token responses match dedicated Node oracles; default and account-enabled modes also match signed session cookies, token reuse, cookie expiry, and attributes; other middleware remains unimplemented'
                 : row.method === 'POST' && row.fullPath === '/api/ping'
-                ? 'partial: valid/invalid CSRF responses, empty-string token handling, and extended unknown-field session preservation match the dedicated Node oracle; account-enabled auth remains unimplemented'
+                ? 'partial: valid/invalid CSRF responses, empty-string token handling, unknown-field retention, and account-authenticated access match pinned Node probes; query-driven extension and shared middleware remain unimplemented'
+                : row.method === 'POST' && row.fullPath === '/api/users/list'
+                ? 'partial: enabled-user projection, stable creation order, public/default avatar, and JSON response match the pinned account-session probe; discreet-login is source-implemented but unprobed, as are custom avatars and remaining errors'
+                : row.method === 'POST' && row.fullPath === '/api/users/login'
+                ? 'partial: missing/unknown user responses, no-password login, session version, and Unicode-normalized scrypt vector match pinned probes; protected-password endpoint success, disabled-user and limiter errors, and malformed bodies need probes'
                 : 'not implemented';
             return `| ${row.method} | \`${row.fullPath}\` | [${row.file}:${row.line}](${sourceLink(row.file, row.line)}) | ${status} |`;
         }),
@@ -227,10 +231,10 @@ function generateRoutes() {
         '',
         '- `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.',
         '- Public `GET /callback/:source?` redirect status, target, stable headers, and text/HTML bodies match pinned observations for encoded OAuth query values; the per-request timing header is normalized out and other route-level middleware remains outside that probe.',
-        '- `GET /login` matches the pinned fresh-install account-disabled 302 redirect for text and HTML Accept headers; account-enabled login pages and auto-login paths remain unimplemented.',
+        '- `GET /login` matches the account-disabled redirect, pinned login page bytes/selected headers, and passwordless single-user auto-login session; proxy-auth integration and cache/compression behavior remain unimplemented.',
         '- Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.',
         '- The final 404 handler matches the seeded fresh-install page and a preexisting custom data-root `url-not-found.html` for GET; full middleware ordering remains unimplemented.',
-        '- `/csrf-token` and `/api/ping` match the pinned cookie-session and CSRF probes for enabled/disabled protection, signed 400-day cookies, token reuse, valid/invalid and empty-string tokens, plus session extension that preserves unknown fields; account authentication and remaining middleware still need probes.',
+        '- `/csrf-token`, `/api/ping`, `/api/users/list`, and `/api/users/login` match pinned probes for account-enabled session identity, no-password auto-login, public user listing/login, Unicode-normalized scrypt, CSRF, signed 400-day cookies, token reuse, stale-session invalidation, and unknown-field preservation; recovery/management routes and remaining middleware still need probes.',
         '- Exact authentication and the remaining route content-type, status, redirect, and error semantics require separate reference probes.',
         '',
         '## Coverage boundaries',

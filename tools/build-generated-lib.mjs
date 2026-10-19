@@ -147,6 +147,18 @@ try {
         throw new Error(`disabled CSRF oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountSessionProbe = path.join(buildRoot, '.gotavern-probe-account-session.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-session.mjs'), accountSessionProbe);
+    const accountSessionFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-session.json');
+    run(process.execPath, [accountSessionProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountSessionProbe = readFileSync(accountSessionFixturePath);
+    run(process.execPath, [accountSessionProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountSessionProbe = readFileSync(accountSessionFixturePath);
+    if (!firstAccountSessionProbe.equals(secondAccountSessionProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountSessionProbe), JSON.parse(secondAccountSessionProbe));
+        throw new Error(`account session oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

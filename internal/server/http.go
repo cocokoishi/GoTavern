@@ -17,7 +17,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/cocokoishi/gotavern/internal/commandline"
 	"github.com/cocokoishi/gotavern/upstream"
 )
 
@@ -41,12 +43,85 @@ type versionResponse struct {
 // HTTP middleware. A nil session timeout means SillyTavern's default of -1
 // (400 days).
 type HTTPHandlerOptions struct {
-	DataRoot              string
-	CookieSecret          string
-	DisableCSRF           bool
-	EnableCorsProxy       bool
-	AccountsEnabled       bool
-	SessionTimeoutSeconds *float64
+	DataRoot                string
+	CookieSecret            string
+	DisableCSRF             bool
+	EnableCorsProxy         bool
+	AccountsEnabled         bool
+	DiscreetLogin           bool
+	PreferRealIPHeader      bool
+	LoginRateLimitPoints    *float64
+	ForwardedXRealIP        *bool
+	ForwardedCFConnectingIP *bool
+	ForwardedXForwardedFor  *bool
+	SessionTimeoutSeconds   *float64
+}
+
+// HTTPHandlerOptionsFromCommandLine translates config-derived values used by
+// the pinned session, CSRF, and account middleware into handler options.
+func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTTPHandlerOptions {
+	settings := parsed.StartupSettings
+	options := HTTPHandlerOptions{
+		DataRoot:           parsed.Paths.RuntimeDataRoot,
+		DisableCSRF:        optionBoolean(parsed.Options.DisableCsrf),
+		EnableCorsProxy:    optionBoolean(parsed.Options.EnableCorsProxy),
+		AccountsEnabled:    optionBoolean(settings.EnableUserAccounts),
+		DiscreetLogin:      optionBoolean(settings.EnableDiscreetLogin),
+		PreferRealIPHeader: optionBoolean(settings.PreferRealIPHeader),
+	}
+	if timeout, ok := optionNumber(settings.SessionTimeout); ok {
+		options.SessionTimeoutSeconds = &timeout
+	}
+	if attempts, ok := optionNumber(settings.AccountsLoginMaxAttempts); ok {
+		options.LoginRateLimitPoints = &attempts
+	}
+	if enabled, ok := optionBooleanValue(settings.ForwardedXRealIP); ok {
+		options.ForwardedXRealIP = &enabled
+	}
+	if enabled, ok := optionBooleanValue(settings.ForwardedCFConnectingIP); ok {
+		options.ForwardedCFConnectingIP = &enabled
+	}
+	if enabled, ok := optionBooleanValue(settings.ForwardedXForwardedFor); ok {
+		options.ForwardedXForwardedFor = &enabled
+	}
+	return options
+}
+
+func optionBoolean(value any) bool {
+	result, _ := optionBooleanValue(value)
+	return result
+}
+
+func optionBooleanValue(value any) (bool, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return false, false
+	case bool:
+		return typed, true
+	case string:
+		return typed != "", true
+	case int:
+		return typed != 0, true
+	case int64:
+		return typed != 0, true
+	case float64:
+		return typed != 0, true
+	default:
+		return true, true
+	}
+}
+
+func optionNumber(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case int:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case float64:
+		return typed, true
+	default:
+		return 0, false
+	}
 }
 
 // NewHTTPHandler serves asset and HTTP behavior that does not require startup
@@ -84,12 +159,17 @@ func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 }
 
 func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
+	accounts := newAccountRuntime(options)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
-	mux.HandleFunc("GET /login", serveDisabledAccountsLogin)
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		accounts.serveLoginPage(w, r)
+	})
 	mux.HandleFunc("GET /csrf-token", func(w http.ResponseWriter, r *http.Request) {
 		serveCSRFToken(w, r, options)
 	})
+	mux.HandleFunc("POST /api/users/list", accounts.serveUserList)
+	mux.HandleFunc("POST /api/users/login", accounts.serveUserLogin)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
 		servePing(w, r, options)
 	})
@@ -100,27 +180,54 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		serveCallback(w, r, notFoundPage)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		serveStatic(w, r, notFoundPage)
+		serveStatic(w, r, notFoundPage, options)
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
+		var session *cookieSession
+		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
+			session = loadCookieSession(r, options)
+			r = r.WithContext(withSession(r.Context(), session))
+		}
+		var user *storedAccount
+		if options.AccountsEnabled {
+			var invalidated bool
+			var err error
+			user, invalidated, err = accounts.currentUser(session)
+			if err != nil {
+				serveStatusText(w, http.StatusInternalServerError)
+				return
+			}
+			if invalidated {
+				clearCookieSession(w, r, options)
+				serveStatusText(w, http.StatusForbidden)
+				return
+			}
+			if user != nil && r.Method == http.MethodGet && r.URL.Path == "/" {
+				session.set("touch", time.Now().UnixMilli())
+			}
+		}
+		r = withAccountState(r, accountRequestState{session: session, user: user})
+		if session != nil && session.shouldWrite() && r.URL.Path != "/csrf-token" {
+			writeCookieSession(w, r, options, session)
+		}
 		if r.URL.Path == "/csrf-token" && r.Method == http.MethodGet {
 			if options.DisableCSRF {
 				serveDisabledCSRFToken(w, r)
 				return
 			}
-			session := loadCookieSession(r, options)
-			r = r.WithContext(withSession(r.Context(), session))
 		}
 		if !options.DisableCSRF && requiresCSRFSynchronization(r, options) {
-			session := loadCookieSession(r, options)
 			storedToken, hasStoredToken := session.stringValue("csrfToken")
 			requestToken, hasRequestToken := csrfTokenFromHeader(r)
 			if !hasStoredToken || !hasRequestToken || requestToken != storedToken {
 				serveInvalidCSRFToken(w)
 				return
 			}
-			r = r.WithContext(withSession(r.Context(), session))
+		}
+		if options.AccountsEnabled && !isPublicAccountRequest(r) && user == nil {
+			serveStatusText(w, http.StatusForbidden)
+			return
 		}
 		mux.ServeHTTP(w, r)
 	})
@@ -242,7 +349,15 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
+func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte, options HTTPHandlerOptions) {
+	if options.AccountsEnabled && r.URL.Path == "/" && accountFromContext(r).user == nil {
+		location := "/login"
+		if r.URL.RawQuery != "" {
+			location += "?" + r.URL.RawQuery
+		}
+		serveRedirect(w, r, http.StatusFound, location)
+		return
+	}
 	assetPath := strings.TrimPrefix(r.URL.Path, "/")
 	if assetPath == "" {
 		assetPath = "index.html"

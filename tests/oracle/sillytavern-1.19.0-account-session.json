@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned accounts-enabled user-list, login, session identity, and authentication middleware",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-account-session-probe-secret",
+    "enableUserAccounts": true
+  },
+  "passwordHashVector": {
+    "source": "src/users.js:getPasswordHash uses crypto.scryptSync(password.normalize(), salt, 64)",
+    "password": "pássword",
+    "salt": "pinned-test-salt",
+    "hash": "xtARpehX9wDEJDYTu407jNqGG+jh8K4XAOqXgAUvoMXm3Mw/A2if+jruCEXiG0pHbNMib+2PHSVzI93GbNkWzg=="
+  },
+  "anonymousRoot": {
+    "status": 302,
+    "location": "/login",
+    "contentType": "text/plain; charset=utf-8",
+    "body": "Found. Redirecting to /login"
+  },
+  "autoLogin": {
+    "status": 302,
+    "location": "/",
+    "headers": {
+      "content-length": "23",
+      "content-type": "text/plain; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "location": "/",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2,
+    "sessionPayload": {
+      "handle": "default-user",
+      "version": "ace51448faa4fa71"
+    }
+  },
+  "loginPage": {
+    "status": 200,
+    "contentType": "text/html; charset=UTF-8",
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "public, max-age=0",
+      "content-length": "4995",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "bytes": 4995,
+    "sha256": "a9517446843f5872bc27f438a514fd16e07a72c8dc230720363e5d2cb8ae31fb"
+  },
+  "unauthenticatedVersion": {
+    "status": 403,
+    "contentType": "text/plain; charset=utf-8",
+    "bytes": 9,
+    "body": "Forbidden"
+  },
+  "csrf": {
+    "status": 200,
+    "headers": {
+      "content-length": "76",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "<weak-etag-derived-from-random-token>",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2,
+    "tokenBytes": 64
+  },
+  "userList": {
+    "status": 200,
+    "headers": {
+      "content-length": "115",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "<weak-etag-derived-from-created-timestamp>",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": [
+      {
+        "handle": "default-user",
+        "name": "User",
+        "created": "<timestamp>",
+        "avatar": "/img/default-user.png",
+        "password": false
+      }
+    ],
+    "bytes": 115
+  },
+  "missingLogin": {
+    "status": 400,
+    "headers": {
+      "content-length": "35",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Missing required fields"
+    },
+    "setCookieCount": 0
+  },
+  "unknownLogin": {
+    "status": 403,
+    "headers": {
+      "content-length": "33",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"21-xyaGftUEPjCEvi2J/U9EbrnySMk\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": "Incorrect credentials"
+    },
+    "setCookieCount": 0
+  },
+  "successfulLogin": {
+    "status": 200,
+    "headers": {
+      "content-length": "25",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"19-VTeLbkraYe+CTNuS0jcqgyJyMi0\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "handle": "default-user"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2,
+    "sessionPayload": {
+      "csrfToken": "<64-lowercase-hex>",
+      "handle": "default-user",
+      "version": "ace51448faa4fa71"
+    }
+  },
+  "authenticatedVersion": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "agent": "SillyTavern:1.19.0:Cohee#1207",
+      "pkgVersion": "1.19.0",
+      "gitRevision": "06bde939f",
+      "gitBranch": "release",
+      "commitDate": "2026-09-14 21:01:34 +0200",
+      "isLatest": true
+    }
+  },
+  "authenticatedPing": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "bytes": 0
+  },
+  "invalidatedSession": {
+    "status": 403,
+    "contentType": "text/plain; charset=utf-8",
+    "body": "Forbidden",
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2
+  }
+}

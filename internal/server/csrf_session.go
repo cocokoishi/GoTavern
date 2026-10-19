@@ -303,8 +303,8 @@ func serveInvalidCSRFToken(w http.ResponseWriter) {
 }
 
 func servePing(w http.ResponseWriter, request *http.Request, options HTTPHandlerOptions) {
-	if options.AccountsEnabled {
-		w.WriteHeader(http.StatusForbidden)
+	if options.AccountsEnabled && accountFromContext(request).user == nil {
+		serveStatusText(w, http.StatusForbidden)
 		return
 	}
 	if request.URL.Query().Get("extend") != "" {
