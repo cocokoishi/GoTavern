@@ -1,0 +1,434 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned persona-avatar deletion validates names, deletes matching files and thumbnails, authenticates, and preserves the legacy redirect",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-avatars-delete-cookie-secret",
+    "files": [
+      {
+        "directory": "avatars",
+        "name": "persona.png",
+        "kind": "file",
+        "content": "persona-original"
+      },
+      {
+        "directory": "avatars",
+        "name": "other.png",
+        "kind": "file",
+        "content": "other-original"
+      },
+      {
+        "directory": "thumbnailsPersona",
+        "name": "persona.png",
+        "kind": "file",
+        "content": "persona-thumbnail"
+      },
+      {
+        "directory": "thumbnailsPersona",
+        "name": "other.png",
+        "kind": "file",
+        "content": "other-thumbnail"
+      }
+    ],
+    "requests": {
+      "deleteAvatar": {
+        "avatar": "persona.png"
+      },
+      "missingAvatar": {
+        "avatar": "missing.png"
+      },
+      "invalidSeparator": {
+        "avatar": "../outside.png"
+      },
+      "sanitizerMismatch": {
+        "avatar": "bad?name.png"
+      }
+    },
+    "goRoundTripInput": {
+      "avatar": "go-route.png",
+      "avatarContent": "go-roundtrip-avatar",
+      "thumbnailContent": "go-roundtrip-thumbnail"
+    }
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "legacyRedirect": {
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/delete"
+    },
+    "deleteAvatar": {
+      "status": 200,
+      "headers": {
+        "content-length": "15",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"f-51rzdr5zfwWQpf+iUepheZg7siQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "result": "ok"
+      }
+    },
+    "deleteAvatarAgain": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "missingAvatar": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "invalidSeparator": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "sanitizerMismatch": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    }
+  },
+  "state": {
+    "fileStates": {
+      "initial": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "9b29935f10b6eea18b9f8d27a13cb0f6412d81b7616f9f666556d2c24ff07a81"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "eeb481223916f250fefe9d6c249fef75f3da71efb58259e621b213fdc7033142"
+          }
+        ]
+      },
+      "unauthorized": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "9b29935f10b6eea18b9f8d27a13cb0f6412d81b7616f9f666556d2c24ff07a81"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "eeb481223916f250fefe9d6c249fef75f3da71efb58259e621b213fdc7033142"
+          }
+        ]
+      },
+      "legacyRedirect": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "9b29935f10b6eea18b9f8d27a13cb0f6412d81b7616f9f666556d2c24ff07a81"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          },
+          {
+            "name": "persona.png",
+            "kind": "file",
+            "sha256": "eeb481223916f250fefe9d6c249fef75f3da71efb58259e621b213fdc7033142"
+          }
+        ]
+      },
+      "deleteAvatar": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      },
+      "deleteAvatarAgain": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      },
+      "missingAvatar": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      },
+      "invalidSeparator": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      },
+      "sanitizerMismatch": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      }
+    },
+    "accountRecordUnchanged": true,
+    "goRoundTrip": {
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-51rzdr5zfwWQpf+iUepheZg7siQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "result": "ok"
+        }
+      },
+      "nodeAvatarList": {
+        "status": 200,
+        "headers": {
+          "content-length": "13",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"d-TmmF3TBMWbwnDzx0glk/kWNY7SQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "other.png"
+        ]
+      },
+      "fileState": {
+        "avatars": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "2d2d8057249c3f90d57f984b0f96ff8b5ddab1d701693815d614ba74cd2548f8"
+          }
+        ],
+        "thumbnails": [
+          {
+            "name": "other.png",
+            "kind": "file",
+            "sha256": "33a78bd14891b4eb5773a90a63cf0ecd2c2f7c86370eda75c962d8d9bace2e66"
+          }
+        ]
+      }
+    }
+  }
+}

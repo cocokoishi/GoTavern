@@ -40,7 +40,7 @@ Tavern Helper is a deep compatibility probe because it imports SillyTavern front
 | `/api/characters/create` | POST multipart | character creation | static |
 | `/api/characters/edit` | POST multipart/form | character and lorebook-linked mutations | static |
 | `/api/avatars/upload` | POST multipart | persona/avatar write | static |
-| `/api/avatars/delete` | POST | persona/avatar delete | static |
+| `/api/avatars/delete` | POST | persona/avatar delete | covered (Node/Go differential and Node readback; browser workflow pending) |
 | `/api/settings/get` | POST | refresh aggregated SillyTavern settings/world state | static |
 | `/api/extensions/version` | POST | installed extension repo metadata | static |
 | `/api/extensions/install` | POST | extension installation | static |

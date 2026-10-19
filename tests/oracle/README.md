@@ -44,6 +44,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-avatars-get.json` captures authenticated user-avatar listing responses, MIME-based image filtering, locale collation, hidden-file and directory behavior, unchanged avatar files/account data, and the legacy 308 redirect.
 
+`sillytavern-1.19.0-avatars-delete.json` captures authenticated/CSRF-protected persona-avatar deletion, filename validation/sanitization, thumbnail invalidation, 404 and legacy 308 responses, file/account state after each operation, and a Go deletion read back by the pinned Node /api/avatars/get route.
+
 `sillytavern-1.19.0-sprites-get.json` captures authenticated Expressions sprite listing, MIME-based filtering, labels and modification-time paths, character subfolders, missing and invalid paths, and unchanged character/account data.
 
 `sillytavern-1.19.0-sprites-delete.json` captures authenticated and CSRF-protected Expressions sprite deletion, exact basename matching across extensions, label fallback, nested character folders, no-match success, missing/invalid input responses, and remaining file/account state after every operation.

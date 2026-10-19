@@ -459,6 +459,18 @@ try {
         throw new Error('avatar-list oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const avatarsDeleteProbe = path.join(buildRoot, '.gotavern-probe-avatars-delete.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-avatars-delete.mjs'), avatarsDeleteProbe);
+    const avatarsDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-avatars-delete.json');
+    run(process.execPath, [avatarsDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAvatarsDeleteProbe = readFileSync(avatarsDeleteFixturePath);
+    run(process.execPath, [avatarsDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAvatarsDeleteProbe = readFileSync(avatarsDeleteFixturePath);
+    if (!firstAvatarsDeleteProbe.equals(secondAvatarsDeleteProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAvatarsDeleteProbe), JSON.parse(secondAvatarsDeleteProbe));
+        throw new Error('avatar-delete oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const spritesGetProbe = path.join(buildRoot, '.gotavern-probe-sprites-get.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-sprites-get.mjs'), spritesGetProbe);
     const spritesGetFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-sprites-get.json');

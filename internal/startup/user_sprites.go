@@ -102,34 +102,14 @@ func userSpriteLabel(filename string) string {
 // exactly matches spriteName. The upstream route treats a non-string
 // spriteName as a valid request that simply cannot match a filename.
 func DeleteUserSpriteFiles(dataRoot, handle, name, spriteName string, matchName bool) (bool, error) {
-	directories, err := DirectoriesForUser(dataRoot, handle)
-	if err != nil {
-		return false, err
-	}
-	spriteDirectory, valid := userSpritesDirectory(directories["characters"], name)
-	if !valid {
-		return false, nil
-	}
-	userRoot, err := filepath.Abs(directories["root"])
-	if err != nil {
-		return false, err
-	}
-	lockRoot, err := canonicalPath(filepath.Dir(userRoot))
-	if err != nil {
-		return false, err
-	}
-	lock, err := acquireContentLock(lockRoot)
+	directories, resolvedUserRoot, lock, err := lockUserContentRoot(dataRoot, handle)
 	if err != nil {
 		return false, err
 	}
 	defer lock.Close()
-
-	resolvedUserRoot, err := canonicalPath(userRoot)
-	if err != nil {
-		return false, err
-	}
-	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
-		return false, fmt.Errorf("user sprite root escapes data root: %w", err)
+	spriteDirectory, valid := userSpritesDirectory(directories["characters"], name)
+	if !valid {
+		return false, nil
 	}
 	spriteDirectory, err = filepath.Abs(spriteDirectory)
 	if err != nil {
