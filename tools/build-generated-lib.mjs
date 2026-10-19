@@ -126,6 +126,18 @@ try {
         throw new Error(`cookie-secret oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
+    const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');
+    run(process.execPath, [systemPromptProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSystemPromptProbe = readFileSync(systemPromptFixturePath);
+    run(process.execPath, [systemPromptProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSystemPromptProbe = readFileSync(systemPromptFixturePath);
+    if (!firstSystemPromptProbe.equals(secondSystemPromptProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSystemPromptProbe), JSON.parse(secondSystemPromptProbe));
+        throw new Error(`system-prompt migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

@@ -48,7 +48,7 @@ At startup `getUserDirectories(handle)` joins each template path to `DATA_ROOT/<
 |---|---|
 | `DATA_ROOT/_storage/` | User and account key/value state; creates `default-user` as admin when no handles exist. |
 | `DATA_ROOT/cookie-secret.txt` | Session signing secret; generated when missing or migrated from legacy `cookieSecret` config. |
-| `DATA_ROOT/<handle>/...` | Per-user directory template above; directories created for every user at startup. |
+| `DATA_ROOT/<handle>/...` | Per-user directory template above; directories created for every user at startup. `sysprompt/.migrated` records completion of the legacy instruct system-prompt migration; originals are backed up under `backups/_sysprompt/`. |
 | `DATA_ROOT/_uploads/` | Temporary multipart uploads; files are cleaned during pre-listen startup. |
 | `DATA_ROOT/_errors/` | User error-page overrides; `url-not-found.html` also supplies the final 404 body. |
 | `DATA_ROOT/_css/user.css` | User CSS override migrated from `public/css/user.css` when absent. |
@@ -64,7 +64,7 @@ Global public directories are declared in `src/constants.js`: `public/img/`, `ba
 
 ## Still unverified
 
-`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, and cookie-secret file behavior. The component is covered by Node fixtures, but the CLI does not yet invoke it; full startup behavior remains partial.
+`internal/startup` currently implements the pinned `_storage` default-user record, public/per-user directory template, fresh-install default content/log seeding, cookie-secret file behavior, and legacy instruct system-prompt migration. These behaviors are covered by Node fixtures, but the CLI does not yet invoke them; full startup behavior remains partial.
 
 - Full file-format inventory and round-trip corpus for cards, chats, settings, worlds, secrets, themes, presets, user accounts, and extension state.
 - Content-log skip/force/update cases, settings aggregation, cache files, backup policy, migration behavior, and unknown-field preservation.

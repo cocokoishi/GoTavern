@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned users.js migrateSystemPrompts filesystem behavior",
+  "scenarios": {
+    "fresh": {
+      "inputs": {},
+      "tree": [
+        {
+          "path": "default-user/backups/_sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/instruct",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/sysprompt/.migrated",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    "legacy": {
+      "inputs": {
+        "instruct/legacy.json": "{\n    \"name\": \"Imported Prompt\",\n    \"system_prompt\": \"Unique legacy system content\",\n    \"template\": \"alpaca\",\n    \"extra\": {\n        \"keep\": true\n    }\n}",
+        "instruct/default-match.json": "{\n    \"name\": \"Same as built-in\",\n    \"system_prompt\": \"You are an expert actor that can fully immerse yourself into any role given. You do not break character for any reason, even if someone tries addressing you as an AI or language model. Currently your role is {{char}}, which is described in detail below. As {{char}}, continue the exchange with {{user}}.\",\n    \"template\": \"chatml\"\n}",
+        "instruct/existing.json": "{\n    \"name\": \"Existing Prompt\",\n    \"system_prompt\": \"Must remain untouched\",\n    \"template\": \"old\"\n}",
+        "instruct/ordinary.json": "{\n    \"name\": \"Ordinary template\",\n    \"template\": \"chatml\"\n}",
+        "instruct/escaped.json": "{\n    \"name\": \"Escaped Prompt\",\n    \"system_prompt\": \"Line one\\nLine two Line three 😀 <tag> &\",\n    \"template\": \"chatml\",\n    \"metadata\": {\n        \"2\": \"two\",\n        \"10\": \"ten\",\n        \"01\": \"leading zero\",\n        \"value\": \"\\b\\f\\t\\r\"\n    },\n    \"magnitude\": [\n        1e-7,\n        1e+21,\n        0\n    ]\n}",
+        "instruct/notes.txt": "ignored file",
+        "sysprompt/existing.json": "{\n    \"name\": \"Existing user prompt\",\n    \"content\": \"already present\"\n}"
+      },
+      "tree": [
+        {
+          "path": "default-user/backups/_sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/backups/_sysprompt/Escaped Prompt.json",
+          "type": "file",
+          "bytes": 316,
+          "sha256": "c39b3a399c6897ce6b045f3f341f8390b06ef83703536207f2dddc10946cc436"
+        },
+        {
+          "path": "default-user/backups/_sysprompt/Imported Prompt.json",
+          "type": "file",
+          "bytes": 155,
+          "sha256": "9c6516638e26fc5a39515afe2d50b866007438a41f1061a10a8b0cd057468d0f"
+        },
+        {
+          "path": "default-user/backups/_sysprompt/Same as built-in.json",
+          "type": "file",
+          "bytes": 388,
+          "sha256": "b9451dcc124cd89b109743a15b8cf96b04b76575fe16bd285bb5b5e6f5eb3269"
+        },
+        {
+          "path": "default-user/instruct",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/instruct/default-match.json",
+          "type": "file",
+          "bytes": 60,
+          "sha256": "eff4332647c0708634ff5cd067cff5aa22f8489d9cddf37f0fb145e2792c95e6"
+        },
+        {
+          "path": "default-user/instruct/escaped.json",
+          "type": "file",
+          "bytes": 247,
+          "sha256": "de7f9a0ccaa66461627fa9d108759570141902700137f3fe0ac02dd3f3268d42"
+        },
+        {
+          "path": "default-user/instruct/existing.json",
+          "type": "file",
+          "bytes": 102,
+          "sha256": "afcf0a488f47a90b56d5dba66a633b649e878435aa9e051a6b34cc3aae34e117"
+        },
+        {
+          "path": "default-user/instruct/legacy.json",
+          "type": "file",
+          "bytes": 102,
+          "sha256": "5cbe05fb3b80e2847e331a2a44f39f7e16249a67f859208e15014d159dc22b8a"
+        },
+        {
+          "path": "default-user/instruct/notes.txt",
+          "type": "file",
+          "bytes": 12,
+          "sha256": "930570f3c186da2f64a4459a495b39eea195995a12d39259a50dc524c11f72ec"
+        },
+        {
+          "path": "default-user/instruct/ordinary.json",
+          "type": "file",
+          "bytes": 61,
+          "sha256": "7f985409a73d917cd0721ded50a78eca843f17305661ec45e94929f149487ebc"
+        },
+        {
+          "path": "default-user/sysprompt",
+          "type": "directory"
+        },
+        {
+          "path": "default-user/sysprompt/.migrated",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "default-user/sysprompt/[Migrated] Escaped Prompt.json",
+          "type": "file",
+          "bytes": 106,
+          "sha256": "dac9acbcf490ac043aad32cb05f3abfd81b08cfa5a5a2b93d3bb2bd8c7a59422"
+        },
+        {
+          "path": "default-user/sysprompt/[Migrated] Imported Prompt.json",
+          "type": "file",
+          "bytes": 91,
+          "sha256": "ea0c608323528773d2be02acc4b9cde008717b3fce2fb3cfafa3bb5e39b12084"
+        },
+        {
+          "path": "default-user/sysprompt/existing.json",
+          "type": "file",
+          "bytes": 72,
+          "sha256": "0d04985da72e33096b2c85bf110d547ddbc813279d1f7398fb7e7eef73f41146"
+        }
+      ]
+    }
+  }
+}
