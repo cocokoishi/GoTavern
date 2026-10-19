@@ -19,11 +19,12 @@ type freshStartFixture struct {
 }
 
 type nodeResponse struct {
-	Status      int             `json:"status"`
-	ContentType string          `json:"contentType"`
-	Bytes       int             `json:"bytes"`
-	SHA256      string          `json:"sha256"`
-	Body        json.RawMessage `json:"body"`
+	Status        int             `json:"status"`
+	ContentType   string          `json:"contentType"`
+	ContentLength string          `json:"contentLength"`
+	Bytes         int             `json:"bytes"`
+	SHA256        string          `json:"sha256"`
+	Body          json.RawMessage `json:"body"`
 }
 
 func readFreshStartFixture(t *testing.T) freshStartFixture {
@@ -43,7 +44,7 @@ func TestPinnedNodeHTTPOracle(t *testing.T) {
 	fixture := readFreshStartFixture(t)
 	handler := NewHTTPHandler()
 
-	for _, requestPath := range []string{"/", "/lib.js"} {
+	for _, requestPath := range []string{"/", "/lib.js", "/__gotavern_missing_route__"} {
 		t.Run(requestPath, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, requestPath, nil)
 			response := httptest.NewRecorder()
@@ -109,5 +110,31 @@ func TestPinnedNodeHTTPOracleHeadResponses(t *testing.T) {
 				t.Fatal("HEAD response omitted Content-Length")
 			}
 		})
+	}
+}
+
+func TestPinnedNodeHTTPOracleHeadNotFoundResponse(t *testing.T) {
+	fixture := readFreshStartFixture(t)
+	request := httptest.NewRequest(http.MethodHead, "/__gotavern_missing_route__", nil)
+	response := httptest.NewRecorder()
+	NewHTTPHandler().ServeHTTP(response, request)
+
+	expected := fixture.HTTP.Responses["HEAD /__gotavern_missing_route__"]
+	if response.Code != expected.Status {
+		t.Fatalf("status: got %d, Node oracle has %d", response.Code, expected.Status)
+	}
+	if contentType := response.Header().Get("Content-Type"); contentType != expected.ContentType {
+		t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, expected.ContentType)
+	}
+	if contentLength := response.Header().Get("Content-Length"); contentLength != expected.ContentLength {
+		t.Fatalf("Content-Length: got %q, Node oracle has %q", contentLength, expected.ContentLength)
+	}
+	body := response.Body.Bytes()
+	if len(body) != expected.Bytes {
+		t.Fatalf("body size: got %d bytes, Node oracle has %d", len(body), expected.Bytes)
+	}
+	digest := sha256.Sum256(body)
+	if got := hex.EncodeToString(digest[:]); got != expected.SHA256 {
+		t.Fatalf("body SHA-256: got %s, Node oracle has %s", got, expected.SHA256)
 	}
 }

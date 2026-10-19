@@ -26,6 +26,14 @@
       {
         "method": "GET",
         "path": "/lib.js"
+      },
+      {
+        "method": "GET",
+        "path": "/__gotavern_missing_route__"
+      },
+      {
+        "method": "HEAD",
+        "path": "/__gotavern_missing_route__"
       }
     ],
     "responses": {
@@ -52,6 +60,19 @@
         "contentType": "application/javascript; charset=UTF-8",
         "bytes": 1947206,
         "sha256": "2d5fb1eedcbefe7062421e8ca54b90a23312f64df8d480c16538714c5157e0bf"
+      },
+      "/__gotavern_missing_route__": {
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "bytes": 204,
+        "sha256": "3c9c01243df0eb3beaa4cd0b55c8b1caa30b54fd30348bca1e8452f91a101cbe"
+      },
+      "HEAD /__gotavern_missing_route__": {
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "204",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     }
   },

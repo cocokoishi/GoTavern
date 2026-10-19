@@ -34,9 +34,19 @@ type versionResponse struct {
 // the fresh-start Node oracle. Startup, authentication, and API routes are not
 // part of this handler yet.
 func NewHTTPHandler() http.Handler {
+	page, err := upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
+	if err != nil {
+		page = nil
+	}
+	return newHTTPHandler(page)
+}
+
+func newHTTPHandler(notFoundPage []byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
-	mux.HandleFunc("GET /", serveStatic)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		serveStatic(w, r, notFoundPage)
+	})
 	return mux
 }
 
@@ -61,14 +71,14 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func serveStatic(w http.ResponseWriter, r *http.Request) {
+func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
 	assetPath := strings.TrimPrefix(r.URL.Path, "/")
 	if assetPath == "" {
 		assetPath = "index.html"
 	}
 	assetPath = path.Clean(assetPath)
 	if assetPath == "." || assetPath == ".." || strings.HasPrefix(assetPath, "../") || strings.HasPrefix(assetPath, "/") {
-		http.NotFound(w, r)
+		serveNotFound(w, r, notFoundPage)
 		return
 	}
 
@@ -76,13 +86,13 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	if assetPath == "lib.js" {
 		root = "generated"
 	} else if !fsPathIsValid(assetPath) {
-		http.NotFound(w, r)
+		serveNotFound(w, r, notFoundPage)
 		return
 	}
 
 	body, err := upstream.Assets.ReadFile(root + "/" + assetPath)
 	if err != nil {
-		http.NotFound(w, r)
+		serveNotFound(w, r, notFoundPage)
 		return
 	}
 	w.Header().Set("Content-Type", staticContentType(assetPath))
@@ -90,6 +100,15 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
+	}
+}
+
+func serveNotFound(w http.ResponseWriter, r *http.Request, page []byte) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", fmt.Sprint(len(page)))
+	w.WriteHeader(http.StatusNotFound)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(page)
 	}
 }
 

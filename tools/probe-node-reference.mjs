@@ -142,8 +142,8 @@ async function stopServer() {
     if (child.exitCode === null) child.kill();
 }
 
-async function getResponse(url) {
-    const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10000) });
+async function getResponse(url, method = 'GET') {
+    const response = await fetch(url, { method, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     const body = new Uint8Array(await response.arrayBuffer());
     return { response, body };
 }
@@ -203,6 +203,9 @@ try {
     if (libraryResult.response.status !== 200) throw new Error(`unexpected /lib.js status: ${libraryResult.response.status}`);
     const libraryHash = sha256(libraryResult.body);
     if (libraryHash !== expectedLibHash) throw new Error(`/lib.js digest ${libraryHash} differs from the vendored generated library ${expectedLibHash}`);
+    const notFoundURL = `${origin}/__gotavern_missing_route__`;
+    const notFoundResult = await getResponse(notFoundURL);
+    const notFoundHeadResult = await getResponse(notFoundURL, 'HEAD');
 
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
@@ -224,6 +227,8 @@ try {
                 { method: 'GET', path: '/version' },
                 { method: 'GET', path: '/' },
                 { method: 'GET', path: '/lib.js' },
+                { method: 'GET', path: '/__gotavern_missing_route__' },
+                { method: 'HEAD', path: '/__gotavern_missing_route__' },
             ],
             responses: {
                 '/version': versionObservation,
@@ -238,6 +243,19 @@ try {
                     contentType: libraryResult.response.headers.get('content-type'),
                     bytes: libraryResult.body.byteLength,
                     sha256: libraryHash,
+                },
+                '/__gotavern_missing_route__': {
+                    status: notFoundResult.response.status,
+                    contentType: notFoundResult.response.headers.get('content-type'),
+                    bytes: notFoundResult.body.byteLength,
+                    sha256: sha256(notFoundResult.body),
+                },
+                'HEAD /__gotavern_missing_route__': {
+                    status: notFoundHeadResult.response.status,
+                    contentType: notFoundHeadResult.response.headers.get('content-type'),
+                    contentLength: notFoundHeadResult.response.headers.get('content-length'),
+                    bytes: notFoundHeadResult.body.byteLength,
+                    sha256: sha256(notFoundHeadResult.body),
                 },
             },
         },

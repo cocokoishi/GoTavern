@@ -8,7 +8,7 @@ Route registrations found: **339**. Method/path values that depend on computed e
 
 | Method | Full path | Upstream declaration | Current status |
 |---|---|---|---|
-| GET | `/` | [src/server-main.js:214](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L214) | not implemented |
+| GET | `/` | [src/server-main.js:214](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/server-main.js#L214) | partial: fresh-start static body/status/content type match the pinned oracle; shared middleware remains unimplemented |
 | POST | `/api/anthropic/caption-image` | [src/endpoints/anthropic.js:8](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/endpoints/anthropic.js#L8) | not implemented |
 | POST | `/api/assets/character` | [src/endpoints/assets.js:315](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/endpoints/assets.js#L315) | not implemented |
 | POST | `/api/assets/delete` | [src/endpoints/assets.js:269](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/src/endpoints/assets.js#L269) | not implemented |
@@ -409,6 +409,7 @@ The pinned server installs these with `app.use` and sends HTTP 308, preserving t
 
 - `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.
 - Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.
+- The final 404 middleware matches the seeded fresh-install `url-not-found.html` response for GET and HEAD; custom data-root error-page overrides and shared middleware behavior remain unimplemented.
 - `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.
 - Exact authentication, CSRF, content-type, status, redirects, and error semantics are unimplemented and require separate reference probes.
 
