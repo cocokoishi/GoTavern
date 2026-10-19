@@ -24,6 +24,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-account-create.json` captures admin account creation and slugification, including lodash transliteration/coercion cases, duplicate normalized handles, password and passwordless records, node-persist shape, complete user-directory creation, global defaults, and every seeded user-content file digest.
 
+`sillytavern-1.19.0-account-reset-settings.json` captures protected and passwordless settings resets, authentication and password errors, repeated resets, forced default-settings reseeding when normal content checks are disabled, exact per-user tree/file digests, shared content-log effects, and unchanged account records. The oracle pins unrelated startup state for deterministic filesystem comparisons.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.

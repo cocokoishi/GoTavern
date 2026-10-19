@@ -499,6 +499,14 @@ all user directories, global defaults, and every per-user seeded file. The
 `account-create` oracle includes accent, ligature, combining-mark, non-Latin,
 array, object, and numeric slug inputs.
 
+Resetting user settings is also a persistent mutation. Compare protected-user
+password verification and passwordless-user behavior, the settings file before
+and after failure/success, forced settings reseeding when normal content checks
+are skipped, repeated resets, unrelated per-user files, the shared content log,
+and unchanged account records. The `account-reset-settings` oracle pins the
+startup stats timestamp and includes the system-prompt migration marker so the
+whole user-tree comparison isolates the route effects deterministically.
+
 ## 15. Failure semantics
 
 Happy paths miss many extension assumptions. Add differential cases for:
