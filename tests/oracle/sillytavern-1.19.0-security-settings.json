@@ -21,7 +21,8 @@
         "users": []
       },
       "exitCode": null,
-      "events": []
+      "events": [],
+      "storageRecords": []
     },
     "accountsDisabledExits": {
       "inputs": {
@@ -45,7 +46,8 @@
             "Your current SillyTavern configuration is insecure (listening to non-localhost). Enable whitelisting, basic authentication or user accounts."
           ]
         }
-      ]
+      ],
+      "storageRecords": []
     },
     "securityOverrideContinues": {
       "inputs": {
@@ -75,7 +77,8 @@
             "Security has been overridden. If it's not a trusted network, change the settings."
           ]
         }
-      ]
+      ],
+      "storageRecords": []
     },
     "stringBooleanConfig": {
       "inputs": {
@@ -105,7 +108,8 @@
             "Security has been overridden. If it's not a trusted network, change the settings."
           ]
         }
-      ]
+      ],
+      "storageRecords": []
     },
     "basicAuthMissingCredentials": {
       "inputs": {
@@ -133,7 +137,8 @@
             "Basic Authentication is enabled, but username or password is not set or empty!"
           ]
         }
-      ]
+      ],
+      "storageRecords": []
     },
     "basicAuthConfigured": {
       "inputs": {
@@ -154,7 +159,8 @@
         "users": []
       },
       "exitCode": null,
-      "events": []
+      "events": [],
+      "storageRecords": []
     },
     "whitelistBypassesAlerts": {
       "inputs": {
@@ -171,7 +177,8 @@
         "users": []
       },
       "exitCode": null,
-      "events": []
+      "events": [],
+      "storageRecords": []
     },
     "unprotectedAdminExits": {
       "inputs": {
@@ -228,6 +235,12 @@
             "If you are not using basic authentication or whitelisting, you should set a password for all admin users."
           ]
         }
+      ],
+      "storageRecords": [
+        {
+          "filename": "aa73da63e26b40a1bb701c2b4c024870ec49264ba9c8372522459568fa8b5396",
+          "body": "{\"key\":\"user:admin\",\"value\":{\"handle\":\"admin\",\"password\":\"\",\"admin\":true,\"enabled\":true}}"
+        }
       ]
     },
     "unprotectedRegularUserWarns": {
@@ -279,6 +292,12 @@
           "level": "log",
           "args": []
         }
+      ],
+      "storageRecords": [
+        {
+          "filename": "4a64ce2e847d0d28d2d9658758db6a61de98de881cfa47de6fefa2cb0338a92d",
+          "body": "{\"key\":\"user:regular\",\"value\":{\"handle\":\"regular\",\"password\":\"\",\"admin\":false,\"enabled\":true}}"
+        }
       ]
     },
     "protectedAdmin": {
@@ -303,7 +322,13 @@
         ]
       },
       "exitCode": null,
-      "events": []
+      "events": [],
+      "storageRecords": [
+        {
+          "filename": "aa73da63e26b40a1bb701c2b4c024870ec49264ba9c8372522459568fa8b5396",
+          "body": "{\"key\":\"user:admin\",\"value\":{\"handle\":\"admin\",\"password\":\"scrypt-hash\",\"admin\":true,\"enabled\":true}}"
+        }
+      ]
     },
     "disabledAdminIgnored": {
       "inputs": {
@@ -327,7 +352,13 @@
         ]
       },
       "exitCode": null,
-      "events": []
+      "events": [],
+      "storageRecords": [
+        {
+          "filename": "79ce8092d9c3a53982baf3a6a7c3cac4634a7c4643d2c605850f79d2cad0fcd8",
+          "body": "{\"key\":\"user:disabled\",\"value\":{\"handle\":\"disabled\",\"password\":\"\",\"admin\":true,\"enabled\":false}}"
+        }
+      ]
     },
     "perUserBasicAuthWithoutAccounts": {
       "inputs": {
@@ -351,7 +382,8 @@
             "Per-user basic authentication is enabled, but user accounts are disabled. This configuration may be insecure."
           ]
         }
-      ]
+      ],
+      "storageRecords": []
     }
   }
 }

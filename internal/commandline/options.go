@@ -49,12 +49,28 @@ type OptionWarnings struct {
 	InvalidIPv6Protocol bool `json:"invalidIPv6Protocol"`
 }
 
+// StartupSettings are config-derived values consumed by server-main's ordered
+// pre-listener startup chain. Generic values retain the upstream getter's
+// output instead of silently coercing malformed or unknown YAML.
+type StartupSettings struct {
+	LegacyCookieSecret      any `json:"legacyCookieSecret"`
+	EnableUserAccounts      any `json:"enableUserAccounts"`
+	SecurityOverride        any `json:"securityOverride"`
+	PerUserBasicAuth        any `json:"perUserBasicAuth"`
+	BasicAuthUsername       any `json:"basicAuthUsername"`
+	BasicAuthPassword       any `json:"basicAuthPassword"`
+	SkipContentCheck        any `json:"skipContentCheck"`
+	UseDiskCache            any `json:"useDiskCache"`
+	SettingsBackupRetention any `json:"settingsBackupRetention"`
+}
+
 // CommandLineResult combines the path side effects and option values returned
 // while server.js prepares its runtime configuration.
 type CommandLineResult struct {
-	Paths    ResolvedPaths  `json:"-"`
-	Options  ServerOptions  `json:"options"`
-	Warnings OptionWarnings `json:"warnings"`
+	Paths           ResolvedPaths   `json:"-"`
+	Options         ServerOptions   `json:"options"`
+	StartupSettings StartupSettings `json:"startupSettings"`
+	Warnings        OptionWarnings  `json:"warnings"`
 }
 
 type cliOptionKind uint8
@@ -170,7 +186,18 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		RequestProxyURL:             get("requestProxyUrl", "requestProxy.url", defaults.RequestProxyURL, cliString),
 		RequestProxyBypass:          get("requestProxyBypass", "requestProxy.bypass", defaults.RequestProxyBypass, cliArray),
 	}
-	return CommandLineResult{Paths: paths, Options: result, Warnings: warnings}, nil
+	startupSettings := StartupSettings{
+		LegacyCookieSecret:      getConfigValue(config, "cookieSecret", nil, cliString),
+		EnableUserAccounts:      getConfigValue(config, "enableUserAccounts", false, cliBoolean),
+		SecurityOverride:        getConfigValue(config, "securityOverride", false, cliBoolean),
+		PerUserBasicAuth:        getConfigValue(config, "perUserBasicAuth", false, cliBoolean),
+		BasicAuthUsername:       getConfigValue(config, "basicAuthUser.username", "", cliString),
+		BasicAuthPassword:       getConfigValue(config, "basicAuthUser.password", "", cliString),
+		SkipContentCheck:        getConfigValue(config, "skipContentCheck", false, cliBoolean),
+		UseDiskCache:            getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
+		SettingsBackupRetention: getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
+	}
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings}, nil
 }
 
 func parseServerArguments(args []string) map[string]any {

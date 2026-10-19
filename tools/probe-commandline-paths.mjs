@@ -46,6 +46,7 @@ Object.assign(process.env, JSON.parse(process.env.GOTAVERN_OPTION_ENV));
 process.argv = [process.execPath, path.join(sourceRoot, 'server.js'), ...args];
 
 const { CommandLineParser } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'command-line.js')).href);
+const { getConfigValue } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'util.js')).href);
 const globalDataDirectory = envPaths('SillyTavern', { suffix: '' }).data;
 const initialConfigPath = process.env.GOTAVERN_INITIAL_CONFIG_PATH;
 const result = new CommandLineParser().parse(process.argv);
@@ -69,6 +70,17 @@ const options = Object.fromEntries([
     'ssl', 'certPath', 'keyPath', 'keyPassphrase', 'whitelistMode', 'basicAuthMode',
     'enableKeepAlive', 'requestProxyEnabled', 'requestProxyUrl', 'requestProxyBypass',
 ].map(key => [key, result[key]]));
+const startupSettings = {
+    legacyCookieSecret: getConfigValue('cookieSecret'),
+    enableUserAccounts: getConfigValue('enableUserAccounts', false, 'boolean'),
+    securityOverride: getConfigValue('securityOverride', false, 'boolean'),
+    perUserBasicAuth: getConfigValue('perUserBasicAuth', false, 'boolean'),
+    basicAuthUsername: getConfigValue('basicAuthUser.username', ''),
+    basicAuthPassword: getConfigValue('basicAuthUser.password', ''),
+    skipContentCheck: getConfigValue('skipContentCheck', false, 'boolean'),
+    useDiskCache: getConfigValue('performance.useDiskCache', true, 'boolean'),
+    settingsBackupRetention: getConfigValue('backups.common.numberOfBackups', 50, 'number'),
+};
 const resolvedConfig = path.resolve(result.configPath);
 const configBytes = readFileSync(resolvedConfig);
 const resolvedDataRoot = path.resolve(result.dataRoot);
@@ -113,6 +125,7 @@ process.stdout.write(JSON.stringify({
     dataRootWasDirectoryBeforeParse: process.env.GOTAVERN_DATA_ROOT_PREEXISTED === 'true',
     warnings: relevantWarnings,
     options,
+    startupSettings,
     optionWarnings,
     derivedURLs,
 }));
@@ -190,6 +203,29 @@ const scenarios = [
             SILLYTAVERN_LISTEN: 'false',
             SILLYTAVERN_REQUESTPROXY_BYPASS: '["environment-host"]',
             SILLYTAVERN_ENABLEKEEPALIVE: 'false',
+        },
+    },
+    {
+        name: 'startup-settings-config-values',
+        args: [],
+        initialConfigPath: './config.yaml',
+        initialConfig: `cookieSecret: legacy-file-secret\nenableUserAccounts: true\nsecurityOverride: true\nperUserBasicAuth: true\nbasicAuthUser:\n  username: config-user\n  password: config-password\nskipContentCheck: true\nperformance:\n  useDiskCache: false\nbackups:\n  common:\n    numberOfBackups: 7\n`,
+    },
+    {
+        name: 'startup-settings-environment-overrides',
+        args: [],
+        initialConfigPath: './config.yaml',
+        initialConfig: `enableUserAccounts: false\nsecurityOverride: true\nperUserBasicAuth: false\nskipContentCheck: false\nperformance:\n  useDiskCache: true\nbackups:\n  common:\n    numberOfBackups: 9\n`,
+        optionEnvironment: {
+            SILLYTAVERN_COOKIESECRET: 'environment-secret',
+            SILLYTAVERN_ENABLEUSERACCOUNTS: 'true',
+            SILLYTAVERN_SECURITYOVERRIDE: 'false',
+            SILLYTAVERN_PERUSERBASICAUTH: 'true',
+            SILLYTAVERN_BASICAUTHUSER_USERNAME: 'environment-user',
+            SILLYTAVERN_BASICAUTHUSER_PASSWORD: 'environment-password',
+            SILLYTAVERN_SKIPCONTENTCHECK: 'true',
+            SILLYTAVERN_PERFORMANCE_USEDISKCACHE: 'false',
+            SILLYTAVERN_BACKUPS_COMMON_NUMBEROFBACKUPS: '6.5',
         },
     },
     {

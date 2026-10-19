@@ -104,7 +104,14 @@ func InitializeDataStartup(options DataStartupOptions) (DataStartupResult, error
 	}
 	result.addDiagnostics("public-override migration", publicOverrideErrors)
 
-	result.Security = VerifySecuritySettings(options.Security)
+	securitySettings := options.Security
+	if securitySettings.Users == nil && nodeConfigBoolean(securitySettings.EnableUserAccounts) {
+		securitySettings.Users, err = readSecuritySettingsUsers(options.DataRoot)
+		if err != nil {
+			return result, fmt.Errorf("read users for startup security check: %w", err)
+		}
+	}
+	result.Security = VerifySecuritySettings(securitySettings)
 	if result.Security.ExitCode != nil {
 		return result, SecurityGateError{ExitCode: *result.Security.ExitCode}
 	}

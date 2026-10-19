@@ -14,7 +14,7 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-config-init.json` captures pinned `addMissingConfigValues()` output for a missing config, a legacy YAML config with unknown fields, and a deprecated environment variable. It stores exact output YAML so Go config initialization can compare startup writes byte-for-byte.
 
-`sillytavern-1.19.0-commandline-paths.json` captures pinned `CommandLineParser` standalone/global config and data-root selection, config initialization, data-root creation or warning behavior, every returned server option, and the derived listen/browser URL helper results. Scenarios cover CLI flags, config values, `SILLYTAVERN_*` overrides, deprecated browser-launch aliases, invalid protocol fallbacks, ignored global path arguments, and forced global mode. Global paths are normalized under a fixture root; `env-paths@3.0.0` OS-specific directory layout is checked separately against the pinned package behavior.
+`sillytavern-1.19.0-commandline-paths.json` captures pinned `CommandLineParser` standalone/global config and data-root selection, config initialization, data-root creation or warning behavior, every returned server option, config-derived pre-listener startup settings, and the derived listen/browser URL helper results. Scenarios cover CLI flags, config values, `SILLYTAVERN_*` overrides, deprecated browser-launch aliases, invalid protocol fallbacks, ignored global path arguments, and forced global mode. Global paths are normalized under a fixture root; `env-paths@3.0.0` OS-specific directory layout is checked separately against the pinned package behavior.
 
 `sillytavern-1.19.0-user-storage-roundtrip.json` is produced with the pinned `node-persist@4.0.4` package and the Go startup package. It checks Node-written user/avatar records survive Go initialization byte-for-byte and remain readable by Node, then checks Node can read the Go-created default-user record. The asset/oracle rebuild job requires both Node and Go for this round-trip probe.
 
@@ -26,7 +26,7 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-public-overrides-migration.json` captures pinned error-page and user-CSS override migration, including existing data-root precedence and legacy-source retention.
 
-`sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations.
+`sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations, along with the exact Node-persist records that supplied each scenario's users. Go startup tests read the captured Node records before evaluating the security gate.
 
 `sillytavern-1.19.0-group-metadata-migration.json` captures legacy group metadata migration, per-chat headers, existing chat-header precedence, and backup files.
 

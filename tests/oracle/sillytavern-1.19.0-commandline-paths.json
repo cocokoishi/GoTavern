@@ -66,6 +66,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -144,6 +155,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -225,6 +247,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -305,6 +338,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -382,6 +426,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -458,6 +513,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -541,6 +607,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -617,6 +694,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -696,6 +784,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -780,6 +879,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -863,6 +973,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -943,6 +1064,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1022,6 +1154,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -1140,6 +1283,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1224,6 +1378,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1307,6 +1472,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1389,6 +1565,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1468,6 +1655,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1544,6 +1742,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -1626,6 +1835,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1705,6 +1925,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -1790,6 +2021,17 @@
             "environment-host"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -1804,6 +2046,192 @@
           "browserLaunchHostname": "config.example",
           "browserLaunchUrl": {
             "href": "https://config.example:8181/"
+          }
+        }
+      }
+    },
+    "startup-settings-config-values": {
+      "name": "startup-settings-config-values",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "cookieSecret: legacy-file-secret\nenableUserAccounts: true\nsecurityOverride: true\nperUserBasicAuth: true\nbasicAuthUser:\n  username: config-user\n  password: config-password\nskipContentCheck: true\nperformance:\n  useDiskCache: false\nbackups:\n  common:\n    numberOfBackups: 7\n",
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3320,
+        "configSha256": "4cda96e3bcb8be525e6507bc27b3af5d5d769252ce18a470c02591c67b5dd4f8",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": true,
+          "securityOverride": true,
+          "perUserBasicAuth": true,
+          "basicAuthUsername": "config-user",
+          "basicAuthPassword": "config-password",
+          "skipContentCheck": true,
+          "useDiskCache": false,
+          "settingsBackupRetention": 7
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
+        }
+      }
+    },
+    "startup-settings-environment-overrides": {
+      "name": "startup-settings-environment-overrides",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "enableUserAccounts: false\nsecurityOverride: true\nperUserBasicAuth: false\nskipContentCheck: false\nperformance:\n  useDiskCache: true\nbackups:\n  common:\n    numberOfBackups: 9\n",
+      "environmentDataRoot": null,
+      "optionEnvironment": {
+        "SILLYTAVERN_COOKIESECRET": "environment-secret",
+        "SILLYTAVERN_ENABLEUSERACCOUNTS": "true",
+        "SILLYTAVERN_SECURITYOVERRIDE": "false",
+        "SILLYTAVERN_PERUSERBASICAUTH": "true",
+        "SILLYTAVERN_BASICAUTHUSER_USERNAME": "environment-user",
+        "SILLYTAVERN_BASICAUTHUSER_PASSWORD": "environment-password",
+        "SILLYTAVERN_SKIPCONTENTCHECK": "true",
+        "SILLYTAVERN_PERFORMANCE_USEDISKCACHE": "false",
+        "SILLYTAVERN_BACKUPS_COMMON_NUMBEROFBACKUPS": "6.5"
+      },
+      "useIPv4": true,
+      "useIPv6": false,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3308,
+        "configSha256": "8d1d74729218dd118b756cee1636a1f9d7fc6c33b87f6c2e69a30edf373411fd",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": "environment-secret",
+          "enableUserAccounts": true,
+          "securityOverride": false,
+          "perUserBasicAuth": true,
+          "basicAuthUsername": "environment-user",
+          "basicAuthPassword": "environment-password",
+          "skipContentCheck": true,
+          "useDiskCache": false,
+          "settingsBackupRetention": 6.5
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
           }
         }
       }
@@ -1873,6 +2301,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -1964,6 +2403,17 @@
             "127.0.0.1"
           ]
         },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
+        },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
@@ -2040,6 +2490,17 @@
             "localhost",
             "127.0.0.1"
           ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": true,

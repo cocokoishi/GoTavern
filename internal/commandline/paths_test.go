@@ -51,6 +51,7 @@ type commandlinePathsResult struct {
 	DataRootWasDirectoryBeforeParse    bool                    `json:"dataRootWasDirectoryBeforeParse"`
 	Warnings                           commandlinePathWarnings `json:"warnings"`
 	Options                            map[string]any          `json:"options"`
+	StartupSettings                    map[string]any          `json:"startupSettings"`
 	OptionWarnings                     OptionWarnings          `json:"optionWarnings"`
 	DerivedURLs                        commandlineDerivedURLs  `json:"derivedURLs"`
 }
@@ -189,6 +190,17 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			}
 			if !reflect.DeepEqual(normalizedOptions, scenario.Result.Options) {
 				t.Errorf("server options = %#v, Node has %#v", normalizedOptions, scenario.Result.Options)
+			}
+			actualStartupSettings, err := json.Marshal(jsonSafe(got.StartupSettings))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var normalizedStartupSettings map[string]any
+			if err := json.Unmarshal(actualStartupSettings, &normalizedStartupSettings); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(normalizedStartupSettings, scenario.Result.StartupSettings) {
+				t.Errorf("startup settings = %#v, Node has %#v", normalizedStartupSettings, scenario.Result.StartupSettings)
 			}
 			if !reflect.DeepEqual(got.Warnings, scenario.Result.OptionWarnings) {
 				t.Errorf("server option warnings = %+v, Node has %+v", got.Warnings, scenario.Result.OptionWarnings)

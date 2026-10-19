@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -68,7 +68,11 @@ if (process.argv[2] === '--child') {
         process.exit = originalExit;
     }
 
-    console.log(JSON.stringify({ exitCode, events }));
+    const storageDirectory = path.join(dataRoot, '_storage');
+    const storageRecords = readdirSync(storageDirectory, { withFileTypes: true })
+        .filter(entry => entry.isFile() && !entry.name.startsWith('.'))
+        .map(entry => ({ filename: entry.name, body: readFileSync(path.join(storageDirectory, entry.name), 'utf8') }));
+    console.log(JSON.stringify({ exitCode, events, storageRecords }));
     process.exit(0);
 }
 
