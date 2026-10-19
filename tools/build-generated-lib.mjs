@@ -495,6 +495,18 @@ try {
         throw new Error('image-metadata index oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const imageMetadataFolderCreateProbe = path.join(buildRoot, '.gotavern-probe-image-metadata-folder-create.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-image-metadata-folder-create.mjs'), imageMetadataFolderCreateProbe);
+    const imageMetadataFolderCreateFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-image-metadata-folder-create.json');
+    run(process.execPath, [imageMetadataFolderCreateProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstImageMetadataFolderCreateProbe = readFileSync(imageMetadataFolderCreateFixturePath);
+    run(process.execPath, [imageMetadataFolderCreateProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondImageMetadataFolderCreateProbe = readFileSync(imageMetadataFolderCreateFixturePath);
+    if (!firstImageMetadataFolderCreateProbe.equals(secondImageMetadataFolderCreateProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstImageMetadataFolderCreateProbe), JSON.parse(secondImageMetadataFolderCreateProbe));
+        throw new Error('image-metadata folder-create oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const spritesDeleteProbe = path.join(buildRoot, '.gotavern-probe-sprites-delete.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-sprites-delete.mjs'), spritesDeleteProbe);
     const spritesDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-sprites-delete.json');

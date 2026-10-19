@@ -60,31 +60,39 @@ func (runtime *accountRuntime) serveImageMetadataAll(w http.ResponseWriter, requ
 }
 
 func imageMetadataPrefix(request *http.Request) (prefix string, bodyError, accessError bool) {
-	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
-	if err != nil || mediaType != "application/json" {
-		return "", false, true
-	}
-	body, err := io.ReadAll(io.LimitReader(request.Body, imageMetadataRequestBodyLimit+1))
-	if err != nil {
-		return "", true, false
-	}
-	if len(body) > imageMetadataRequestBodyLimit {
-		return "", true, false
-	}
-	if len(bytes.TrimSpace(body)) == 0 {
-		return "", false, true
-	}
-	input, err := decodeOrderedNodeJSON(body)
-	if err != nil || input.kind != 'o' && input.kind != 'a' {
-		return "", true, false
+	input, bodyError, accessError := readImageMetadataRequestBody(request)
+	if bodyError || accessError {
+		return "", bodyError, accessError
 	}
 	rawPrefix, exists := input.member("prefix")
 	if !exists || !rawPrefix.truthy() {
 		return "", false, false
 	}
-	prefix, err = rawPrefix.javascriptString()
+	prefix, err := rawPrefix.javascriptString()
 	if err != nil {
 		return "", false, true
 	}
 	return prefix, false, false
+}
+
+func readImageMetadataRequestBody(request *http.Request) (orderedNodeJSON, bool, bool) {
+	mediaType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return orderedNodeJSON{}, false, true
+	}
+	body, err := io.ReadAll(io.LimitReader(request.Body, imageMetadataRequestBodyLimit+1))
+	if err != nil {
+		return orderedNodeJSON{}, true, false
+	}
+	if len(body) > imageMetadataRequestBodyLimit {
+		return orderedNodeJSON{}, true, false
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return orderedNodeJSON{}, false, true
+	}
+	input, err := decodeOrderedNodeJSON(body)
+	if err != nil || input.kind != 'o' && input.kind != 'a' {
+		return orderedNodeJSON{}, true, false
+	}
+	return input, false, false
 }

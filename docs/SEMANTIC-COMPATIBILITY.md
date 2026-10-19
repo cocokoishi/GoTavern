@@ -396,6 +396,8 @@ The background-folder oracle covers authenticated/CSRF-protected POST /api/backg
 
 The same metadata-index oracle covers authenticated/CSRF-protected POST /api/image-metadata/all plus GET/HEAD wrong-method 404s. It compares the full index passthrough and prefix filtering, including JavaScript coercion for falsey, numeric, array, object, and shadowed-`toString` prefixes; JavaScript ordering/serialization; null and malformed index behavior; and unchanged index/account files. URL-encoded, missing-content-type, malformed/primitive JSON, and oversized body handling remain gaps.
 
+The image-metadata folder-create oracle covers POST /api/image-metadata/folders/create authentication, CSRF, GET/HEAD 404s, missing/non-string names, JavaScript whitespace trimming, duplicate names, UUIDv4 shape, missing/malformed index fallback, malformed folder-shape errors, and exact four-space index persistence with unknown-field retention. Go serializes writes under the shared user-content lock and uses atomic replacement. Its cross-process round trip creates a folder through GoTavern and reads the resulting folder list and full index through pinned Node. URL-encoded/malformed request-body parser responses and filesystem failure/race cases remain unprobed.
+
 ---
 
 ## 10. Character/card suite
