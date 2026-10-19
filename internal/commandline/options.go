@@ -64,6 +64,8 @@ type StartupSettings struct {
 	AccountsLoginMaxAttempts   any `json:"accountsLoginMaxAttempts"`
 	AccountsRecoverMaxAttempts any `json:"accountsRecoverMaxAttempts"`
 	AccountsResetMaxAttempts   any `json:"accountsResetMaxAttempts"`
+	AllowFullDataBackup        any `json:"allowFullDataBackup"`
+	AllowKeysExposure          any `json:"allowKeysExposure"`
 	ForwardedXRealIP           any `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any `json:"forwardedXForwardedFor"`
@@ -214,6 +216,8 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AccountsLoginMaxAttempts:   getConfigValue(config, "rateLimiting.accountsLoginMaxAttempts", 5, cliNumber),
 		AccountsRecoverMaxAttempts: getConfigValue(config, "rateLimiting.accountsRecoverMaxAttempts", 5, cliNumber),
 		AccountsResetMaxAttempts:   getConfigValue(config, "rateLimiting.accountsResetMaxAttempts", 5, cliNumber),
+		AllowFullDataBackup:        getConfigValue(config, "backups.allowFullDataBackup", true, cliBoolean),
+		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
 		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
 		ForwardedXForwardedFor:     getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),

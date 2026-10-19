@@ -515,6 +515,15 @@ record retention, and successful cleanup of code/limiter state. The
 `account-data-reset` oracle uses separate protected and passwordless accounts
 and normalizes startup-only settings-backup names and stats timestamps.
 
+Full-account backup is a read-only archive operation. Compare the feature gate,
+missing-handle response, self/admin authorization, ZIP attachment headers,
+included hidden files and empty directories, secret-file exclusions with
+`allowKeysExposure` both disabled and enabled, every archived path and file
+digest, and unchanged account records and source trees. The
+`account-backup` oracle exercises admin and passwordless self-service accounts;
+malformed handle/body types, traversal, symlinks, and filesystem/archive errors
+remain unprobed.
+
 ## 15. Failure semantics
 
 Happy paths miss many extension assumptions. Add differential cases for:

@@ -1,0 +1,816 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned private full-user ZIP backup authorization, config gates, archive entries, and secrets filtering",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-account-backup-probe-secret",
+    "password": "account-backup-protected-password",
+    "salt": "YWNjb3VudC1iYWNrdXAtc2FsdA=="
+  },
+  "standard": {
+    "responses": {
+      "unauthorized": {
+        "status": 403,
+        "headers": {
+          "content-length": "9",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Forbidden"
+      },
+      "missingHandle": {
+        "status": 400,
+        "headers": {
+          "content-length": "35",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Missing required fields"
+        }
+      },
+      "nonAdminOtherUser": {
+        "status": 403,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-XPDV80vbMk4yY1/PADG4jYM4rSI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Unauthorized"
+        }
+      },
+      "adminOwn": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"default-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      },
+      "adminOtherUser": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"guest-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      },
+      "guestOwn": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"guest-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      }
+    },
+    "archives": {
+      "adminOwn": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "characters/nested",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": ".hidden-root",
+            "sha256": "102df34d5149b56a31b579e318b4a69aebe60e84e2e997d17ea575e1778d7127",
+            "bytes": 11
+          },
+          {
+            "path": "backups/ordinary.json",
+            "sha256": "205f42e446835e96e760c6c4753101e0ed55ce2483fac0455baa69f09907a834",
+            "bytes": 15
+          },
+          {
+            "path": "backups/secrets_migration_notes.txt",
+            "sha256": "54b04b7828a955f530cb7709195c0f97756f7626fa7e3fa94d2c36bbaccdc33e",
+            "bytes": 24
+          },
+          {
+            "path": "characters/nested/character.json",
+            "sha256": "73d67109f051e47c97e5d94905d16ee7724673bee0a4518404348b4037a7b696",
+            "bytes": 17
+          },
+          {
+            "path": "ordinary.txt",
+            "sha256": "4561d5725266c8ecf608e56c430f4245767d40a5edc69ed4a165dbd0d293907b",
+            "bytes": 17
+          },
+          {
+            "path": "settings.json",
+            "sha256": "3dfd01c57cc81756ddf840ac80d805ebaa8bbf897da5aa4aa01dfcc6eff26421",
+            "bytes": 24
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      },
+      "adminOtherUser": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": "guest.txt",
+            "sha256": "d530573bcff3f93e682c5b9263ea785318c9d8dfab001b28b56ac553a402c2aa",
+            "bytes": 10
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      },
+      "guestOwn": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": "guest.txt",
+            "sha256": "d530573bcff3f93e682c5b9263ea785318c9d8dfab001b28b56ac553a402c2aa",
+            "bytes": 10
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      }
+    },
+    "filesystemUnchanged": true,
+    "accountRecordsUnchanged": true
+  },
+  "exposed": {
+    "responses": {
+      "unauthorized": {
+        "status": 403,
+        "headers": {
+          "content-length": "9",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Forbidden"
+      },
+      "missingHandle": {
+        "status": 400,
+        "headers": {
+          "content-length": "35",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Missing required fields"
+        }
+      },
+      "nonAdminOtherUser": {
+        "status": 403,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-XPDV80vbMk4yY1/PADG4jYM4rSI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Unauthorized"
+        }
+      },
+      "adminOwn": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"default-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      },
+      "adminOtherUser": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"guest-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      },
+      "guestOwn": {
+        "status": 200,
+        "headers": {
+          "content-disposition": "attachment; filename=\"guest-user-<timestamp>.zip\"",
+          "content-type": "application/zip",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null
+      }
+    },
+    "archives": {
+      "adminOwn": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "characters/nested",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": ".hidden-root",
+            "sha256": "102df34d5149b56a31b579e318b4a69aebe60e84e2e997d17ea575e1778d7127",
+            "bytes": 11
+          },
+          {
+            "path": "backups/ordinary.json",
+            "sha256": "205f42e446835e96e760c6c4753101e0ed55ce2483fac0455baa69f09907a834",
+            "bytes": 15
+          },
+          {
+            "path": "backups/secrets_migration_20250101.json",
+            "sha256": "f2be08ca5c0c293c1da76d10c257a93eaf5ba10eca55215ba3ff8a45f3d5ea2b",
+            "bytes": 30
+          },
+          {
+            "path": "backups/secrets_migration_notes.txt",
+            "sha256": "54b04b7828a955f530cb7709195c0f97756f7626fa7e3fa94d2c36bbaccdc33e",
+            "bytes": 24
+          },
+          {
+            "path": "characters/nested/character.json",
+            "sha256": "73d67109f051e47c97e5d94905d16ee7724673bee0a4518404348b4037a7b696",
+            "bytes": 17
+          },
+          {
+            "path": "ordinary.txt",
+            "sha256": "4561d5725266c8ecf608e56c430f4245767d40a5edc69ed4a165dbd0d293907b",
+            "bytes": 17
+          },
+          {
+            "path": "secrets.json",
+            "sha256": "b143a89cbd1ce821f712587446b476314efc672408b8b31b7eb17dac07339ad7",
+            "bytes": 37
+          },
+          {
+            "path": "settings.json",
+            "sha256": "3dfd01c57cc81756ddf840ac80d805ebaa8bbf897da5aa4aa01dfcc6eff26421",
+            "bytes": 24
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      },
+      "adminOtherUser": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": "guest.txt",
+            "sha256": "d530573bcff3f93e682c5b9263ea785318c9d8dfab001b28b56ac553a402c2aa",
+            "bytes": 10
+          },
+          {
+            "path": "secrets.json",
+            "sha256": "0f0aadd995282d056a07c9d7ca9a551d89812e009f1916571ab5b72b89dba268",
+            "bytes": 26
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      },
+      "guestOwn": {
+        "directories": [
+          "KoboldAI Settings",
+          "NovelAI Settings",
+          "OpenAI Settings",
+          "QuickReplies",
+          "TextGen Settings",
+          "User Avatars",
+          "assets",
+          "backgrounds",
+          "backups",
+          "backups/_sysprompt",
+          "characters",
+          "chats",
+          "context",
+          "empty-folder",
+          "extensions",
+          "group chats",
+          "groups",
+          "instruct",
+          "movingUI",
+          "reasoning",
+          "sysprompt",
+          "themes",
+          "thumbnails",
+          "thumbnails/avatar",
+          "thumbnails/bg",
+          "thumbnails/persona",
+          "user",
+          "user/files",
+          "user/images",
+          "user/workflows",
+          "vectors",
+          "worlds"
+        ],
+        "files": [
+          {
+            "path": "guest.txt",
+            "sha256": "d530573bcff3f93e682c5b9263ea785318c9d8dfab001b28b56ac553a402c2aa",
+            "bytes": 10
+          },
+          {
+            "path": "secrets.json",
+            "sha256": "0f0aadd995282d056a07c9d7ca9a551d89812e009f1916571ab5b72b89dba268",
+            "bytes": 26
+          },
+          {
+            "path": "stats.json",
+            "sha256": "1a57a1f0fa9db0e0ac7dffe5174e08d93c36f3ecf6d744e98a7e47f0ba312144",
+            "bytes": 27
+          },
+          {
+            "path": "sysprompt/.migrated",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          }
+        ]
+      }
+    },
+    "filesystemUnchanged": true,
+    "accountRecordsUnchanged": true
+  },
+  "disabled": {
+    "responses": {
+      "unauthorized": {
+        "status": 403,
+        "headers": {
+          "content-length": "9",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Forbidden"
+      },
+      "missingHandle": {
+        "status": 403,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-QShMgsHW9mOZIfBshaqpdU/1M9U\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Full data backup is disabled"
+        }
+      },
+      "nonAdminOtherUser": {
+        "status": 403,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-QShMgsHW9mOZIfBshaqpdU/1M9U\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Full data backup is disabled"
+        }
+      },
+      "adminOwn": {
+        "status": 403,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-QShMgsHW9mOZIfBshaqpdU/1M9U\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Full data backup is disabled"
+        }
+      },
+      "adminOtherUser": {
+        "status": 403,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-QShMgsHW9mOZIfBshaqpdU/1M9U\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Full data backup is disabled"
+        }
+      },
+      "guestOwn": {
+        "status": 403,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-QShMgsHW9mOZIfBshaqpdU/1M9U\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Full data backup is disabled"
+        }
+      }
+    },
+    "archives": {},
+    "filesystemUnchanged": true,
+    "accountRecordsUnchanged": true
+  }
+}

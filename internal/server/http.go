@@ -68,6 +68,8 @@ type HTTPHandlerOptions struct {
 	DiscreetLogin              bool
 	PreferRealIPHeader         bool
 	SkipContentCheck           bool
+	AllowFullDataBackup        *bool
+	AllowKeysExposure          bool
 	LoginRateLimitPoints       *float64
 	RecoveryRateLimitPoints    *float64
 	ResetRateLimitPoints       *float64
@@ -102,6 +104,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		DiscreetLogin:        optionBoolean(settings.EnableDiscreetLogin),
 		PreferRealIPHeader:   optionBoolean(settings.PreferRealIPHeader),
 		SkipContentCheck:     optionBoolean(settings.SkipContentCheck),
+		AllowKeysExposure:    optionBoolean(settings.AllowKeysExposure),
 	}
 	if timeout, ok := optionNumber(settings.SessionTimeout); ok {
 		options.SessionTimeoutSeconds = &timeout
@@ -114,6 +117,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if attempts, ok := optionNumber(settings.AccountsResetMaxAttempts); ok {
 		options.ResetRateLimitPoints = &attempts
+	}
+	if allowed, ok := optionBooleanValue(settings.AllowFullDataBackup); ok {
+		options.AllowFullDataBackup = &allowed
 	}
 	if attempts, ok := optionNumber(settings.BasicAuthMaxAttempts); ok {
 		options.BasicAuthRateLimit = &attempts
@@ -243,6 +249,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/change-avatar", accounts.serveUserChangeAvatar)
 	mux.HandleFunc("POST /api/users/change-name", accounts.serveUserChangeName)
 	mux.HandleFunc("POST /api/users/change-password", accounts.serveUserChangePassword)
+	mux.HandleFunc("POST /api/users/backup", accounts.serveUserBackup)
 	mux.HandleFunc("POST /api/users/reset-settings", accounts.serveUserResetSettings)
 	mux.HandleFunc("POST /api/users/reset-step1", accounts.serveUserResetStep1)
 	mux.HandleFunc("POST /api/users/reset-step2", accounts.serveUserResetStep2)

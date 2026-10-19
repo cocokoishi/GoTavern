@@ -28,6 +28,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-account-data-reset.json` captures authenticated reset-code issuance and replacement, protected/passwordless code validation, per-IP attempt throttling and lockout, complete user-directory removal/recreation, default-content reseeding, global content state, and unchanged account records. Startup settings-backup names and stats timestamps are normalized for deterministic trees.
 
+`sillytavern-1.19.0-account-backup.json` captures full-account ZIP backups for admin and passwordless self-service accounts, authorization/configuration errors, hidden files and empty directories, default secret exclusions and the `allowKeysExposure` override, archive entry paths and file digests, and unchanged source trees/account records.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.
