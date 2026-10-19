@@ -235,6 +235,12 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/change-avatar", accounts.serveUserChangeAvatar)
 	mux.HandleFunc("POST /api/users/change-name", accounts.serveUserChangeName)
 	mux.HandleFunc("POST /api/users/change-password", accounts.serveUserChangePassword)
+	mux.HandleFunc("POST /api/users/get", accounts.serveUserAdminGet)
+	mux.HandleFunc("POST /api/users/disable", accounts.serveUserAdminDisable)
+	mux.HandleFunc("POST /api/users/enable", accounts.serveUserAdminEnable)
+	mux.HandleFunc("POST /api/users/promote", accounts.serveUserAdminPromote)
+	mux.HandleFunc("POST /api/users/demote", accounts.serveUserAdminDemote)
+	mux.HandleFunc("POST /api/users/delete", accounts.serveUserAdminDelete)
 	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {

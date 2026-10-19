@@ -1,9 +1,11 @@
 package startup
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -582,5 +584,36 @@ func TestSetNodePersistRecordMatchesPinnedNodePersistSetItemShape(t *testing.T) 
 	}
 	if want := `{"key":"avatar:new-user","value":""}`; string(created) != want {
 		t.Fatalf("new node-persist setItem record = %s; pinned shape is %s", created, want)
+	}
+}
+
+func TestRemoveNodePersistRecordRemovesOnlyTheSelectedKey(t *testing.T) {
+	dataRoot := t.TempDir()
+	storageDir := filepath.Join(dataRoot, storageFolder)
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	removedKey := "user:removed-user"
+	remainingKey := "user:remaining-user"
+	removedPath := filepath.Join(storageDir, storeFilename(removedKey))
+	remainingPath := filepath.Join(storageDir, storeFilename(remainingKey))
+	if err := os.WriteFile(removedPath, []byte(`{"key":"user:removed-user","value":{"handle":"removed-user"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	remaining := []byte(`{"key":"user:remaining-user","value":{"handle":"remaining-user"}}`)
+	if err := os.WriteFile(remainingPath, remaining, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveNodePersistRecord(dataRoot, removedKey); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(removedPath); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("removed record stat error = %v; expected it to be absent", err)
+	}
+	if got, err := os.ReadFile(remainingPath); err != nil || !bytes.Equal(got, remaining) {
+		t.Fatalf("unrelated record after removal = %s, %v; want %s", got, err, remaining)
+	}
+	if err := RemoveNodePersistRecord(dataRoot, "user:missing-user"); err != nil {
+		t.Fatalf("removing a missing node-persist key: %v", err)
 	}
 }

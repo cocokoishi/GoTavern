@@ -1,5 +1,5 @@
-// Command user-store-avatar-fixture creates a node-persist avatar record with
-// the same shared lock and atomic replacement used by account mutations.
+// Command user-store-avatar-fixture exercises locked account-store set/remove
+// operations used by avatar changes and account deletion.
 package main
 
 import (
@@ -29,10 +29,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	const deletedKey = "user:delete-roundtrip"
+	if err := startup.RemoveNodePersistRecord(os.Args[1], deletedKey); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	if err := json.NewEncoder(os.Stdout).Encode(struct {
-		Key    string `json:"key"`
-		Avatar string `json:"avatar"`
-	}{Key: key, Avatar: avatar}); err != nil {
+		Key        string `json:"key"`
+		Avatar     string `json:"avatar"`
+		DeletedKey string `json:"deletedKey"`
+	}{Key: key, Avatar: avatar, DeletedKey: deletedKey}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

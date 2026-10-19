@@ -65,6 +65,16 @@ type accountMeViewModel struct {
 	Created  json.RawMessage `json:"created,omitempty"`
 }
 
+type adminUserViewModel struct {
+	Handle   json.RawMessage `json:"handle,omitempty"`
+	Name     json.RawMessage `json:"name,omitempty"`
+	Avatar   string          `json:"avatar"`
+	Admin    json.RawMessage `json:"admin,omitempty"`
+	Enabled  json.RawMessage `json:"enabled,omitempty"`
+	Created  json.RawMessage `json:"created,omitempty"`
+	Password bool            `json:"password"`
+}
+
 type accountRequestContextKey struct{}
 
 type accountRequestState struct {
@@ -998,6 +1008,171 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 		}
 	}
 	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserAdminGet(w http.ResponseWriter, request *http.Request) {
+	if _, ok := readAccountRequestBody(request); !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !requireAccountAdmin(w, request) {
+		return
+	}
+	accounts, err := loadStoredAccounts(runtime.options.DataRoot)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	ordered := make([]storedAccount, 0, len(accounts))
+	for _, account := range accounts {
+		ordered = append(ordered, account)
+	}
+	sort.SliceStable(ordered, func(left, right int) bool {
+		leftCreated := jsNumericValue(ordered[left].raw("created"))
+		rightCreated := jsNumericValue(ordered[right].raw("created"))
+		if leftCreated == rightCreated {
+			return ordered[left].string("handle") < ordered[right].string("handle")
+		}
+		return leftCreated < rightCreated
+	})
+	viewModels := make([]adminUserViewModel, 0, len(ordered))
+	for _, account := range ordered {
+		viewModels = append(viewModels, adminUserViewModel{
+			Handle:   account.raw("handle"),
+			Name:     account.raw("name"),
+			Avatar:   runtime.userAvatar(account),
+			Admin:    account.raw("admin"),
+			Enabled:  account.raw("enabled"),
+			Created:  account.raw("created"),
+			Password: nodeTruthyJSON(account.raw("password")),
+		})
+	}
+	respondJSON(w, http.StatusOK, viewModels)
+}
+
+func (runtime *accountRuntime) serveUserAdminDisable(w http.ResponseWriter, request *http.Request) {
+	runtime.serveUserAdminBooleanMutation(w, request, "enabled", false, true, "Cannot disable yourself")
+}
+
+func (runtime *accountRuntime) serveUserAdminEnable(w http.ResponseWriter, request *http.Request) {
+	runtime.serveUserAdminBooleanMutation(w, request, "enabled", true, false, "")
+}
+
+func (runtime *accountRuntime) serveUserAdminPromote(w http.ResponseWriter, request *http.Request) {
+	runtime.serveUserAdminBooleanMutation(w, request, "admin", true, false, "")
+}
+
+func (runtime *accountRuntime) serveUserAdminDemote(w http.ResponseWriter, request *http.Request) {
+	runtime.serveUserAdminBooleanMutation(w, request, "admin", false, true, "Cannot demote yourself")
+}
+
+func (runtime *accountRuntime) serveUserAdminBooleanMutation(w http.ResponseWriter, request *http.Request, field string, value, preventSelf bool, selfError string) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !requireAccountAdmin(w, request) {
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	state := accountFromContext(request)
+	if preventSelf && requestHandleMatches(input["handle"], state.user.string("handle")) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": selfError})
+		return
+	}
+	handle := nodeStringValue(input["handle"])
+	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	} else if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	encoded, _ := json.Marshal(value)
+	if err := startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, func(current json.RawMessage) (json.RawMessage, error) {
+		return replaceJSONObjectMembers(current, []string{field}, map[string]json.RawMessage{field: encoded})
+	}); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserAdminDelete(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !requireAccountAdmin(w, request) {
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	state := accountFromContext(request)
+	if requestHandleMatches(input["handle"], state.user.string("handle")) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Cannot delete yourself"})
+		return
+	}
+	if requestHandleMatches(input["handle"], "default-user") {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Sorry, but the default user cannot be deleted. It is required as a fallback."})
+		return
+	}
+	if runtime.options.DataRoot == "" {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	handle := nodeStringValue(input["handle"])
+	purge := nodeTruthyJSON(input["purge"])
+	var userRoot string
+	if purge {
+		directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, handle)
+		if err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		dataRoot, err := filepath.Abs(runtime.options.DataRoot)
+		if err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		userRoot = filepath.Clean(directories["root"])
+		if userRoot == filepath.Clean(dataRoot) {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+	}
+	if err := startup.RemoveNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if purge {
+		if err := os.RemoveAll(userRoot); err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+	}
+	serveNoContent(w)
+}
+
+func requireAccountAdmin(w http.ResponseWriter, request *http.Request) bool {
+	state := accountFromContext(request)
+	if state.user == nil || !nodeTruthyJSON(state.user.raw("admin")) {
+		serveStatusText(w, http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func requestHandleMatches(raw json.RawMessage, handle string) bool {
+	var requestHandle string
+	return json.Unmarshal(raw, &requestHandle) == nil && requestHandle == handle
 }
 
 func accountCanChangeTarget(current *storedAccount, target json.RawMessage) bool {

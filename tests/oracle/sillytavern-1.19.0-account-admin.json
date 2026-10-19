@@ -1,0 +1,774 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned account admin list, enable/disable, promote/demote, and delete behavior",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-account-admin-probe-secret"
+  },
+  "responses": {
+    "usersBefore": {
+      "status": 200,
+      "headers": {
+        "content-encoding": "gzip",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4c3-le8QbYi7iPCrCsyXPa98XhFHFI0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "transfer-encoding": "chunked",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "handle": "default-user",
+          "name": "Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000000,
+          "password": false
+        },
+        {
+          "handle": "second-admin",
+          "name": "Second Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000001,
+          "password": false
+        },
+        {
+          "handle": "regular-user",
+          "name": "Regular User",
+          "avatar": "data:image/png;base64,AQ==",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000002,
+          "password": false
+        },
+        {
+          "handle": "disabled-user",
+          "name": "Disabled User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": false,
+          "created": 1700000000003,
+          "password": false
+        },
+        {
+          "handle": "promote-user",
+          "name": "Promote User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000004,
+          "password": false
+        },
+        {
+          "handle": "demote-user",
+          "name": "Demote User",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000005,
+          "password": false
+        },
+        {
+          "handle": "retain-user",
+          "name": "Retain Directory User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000006,
+          "password": false
+        },
+        {
+          "handle": "purge-user",
+          "name": "Purge Directory User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000007,
+          "password": false
+        }
+      ]
+    },
+    "nonAdminGet": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "missingDisable": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Missing required fields"
+      }
+    },
+    "selfDisable": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-EOM3sN8bU3QnbDjpZR0mwzxiia8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Cannot disable yourself"
+      }
+    },
+    "unknownDisable": {
+      "status": 404,
+      "headers": {
+        "content-length": "26",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "User not found"
+      }
+    },
+    "disable": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "loginDisabled": {
+      "status": 403,
+      "headers": {
+        "content-length": "28",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1c-VLmqyh049bVOvudSdSeLpqxcWok\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "User is disabled"
+      }
+    },
+    "missingEnable": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Missing required fields"
+      }
+    },
+    "unknownEnable": {
+      "status": 404,
+      "headers": {
+        "content-length": "26",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "User not found"
+      }
+    },
+    "enable": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "missingPromote": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Missing required fields"
+      }
+    },
+    "unknownPromote": {
+      "status": 404,
+      "headers": {
+        "content-length": "26",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "User not found"
+      }
+    },
+    "promote": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "missingDemote": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Missing required fields"
+      }
+    },
+    "selfDemote": {
+      "status": 400,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-qfF9zxEw+aYL54nCnN1b7//KcSA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Cannot demote yourself"
+      }
+    },
+    "unknownDemote": {
+      "status": 404,
+      "headers": {
+        "content-length": "26",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1a-hq/hT0ORGTkTfyRpVCZ/JB/r8Eg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "User not found"
+      }
+    },
+    "demote": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "usersAfterRoleChanges": {
+      "status": 200,
+      "headers": {
+        "content-encoding": "gzip",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4c3-TtPJ7w5tcL0kylmJfQyydKTiURQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "transfer-encoding": "chunked",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "handle": "default-user",
+          "name": "Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000000,
+          "password": false
+        },
+        {
+          "handle": "second-admin",
+          "name": "Second Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000001,
+          "password": false
+        },
+        {
+          "handle": "regular-user",
+          "name": "Regular User",
+          "avatar": "data:image/png;base64,AQ==",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000002,
+          "password": false
+        },
+        {
+          "handle": "disabled-user",
+          "name": "Disabled User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": false,
+          "created": 1700000000003,
+          "password": false
+        },
+        {
+          "handle": "promote-user",
+          "name": "Promote User",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000004,
+          "password": false
+        },
+        {
+          "handle": "demote-user",
+          "name": "Demote User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000005,
+          "password": false
+        },
+        {
+          "handle": "retain-user",
+          "name": "Retain Directory User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000006,
+          "password": false
+        },
+        {
+          "handle": "purge-user",
+          "name": "Purge Directory User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000007,
+          "password": false
+        }
+      ]
+    },
+    "missingDelete": {
+      "status": 400,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-ZSAZ2GCL6qg6GsgSjw9e1IKVoT0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Missing required fields"
+      }
+    },
+    "selfDelete": {
+      "status": 400,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-4bss2zBArCNtQl9PUy29Al99Qtw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Cannot delete yourself"
+      }
+    },
+    "defaultDelete": {
+      "status": 400,
+      "headers": {
+        "content-length": "88",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"58-8KSVSvuiXGnUHhao+cjufUNnxBI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": "Sorry, but the default user cannot be deleted. It is required as a fallback."
+      }
+    },
+    "unknownDelete": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "deleteRetain": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "deletePurge": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "usersAfterDeletes": {
+      "status": 200,
+      "headers": {
+        "content-length": "903",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"387-oyCva4rq6tHXU17RrMPmT1w0A58\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "handle": "default-user",
+          "name": "Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000000,
+          "password": false
+        },
+        {
+          "handle": "second-admin",
+          "name": "Second Admin",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000001,
+          "password": false
+        },
+        {
+          "handle": "regular-user",
+          "name": "Regular User",
+          "avatar": "data:image/png;base64,AQ==",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000002,
+          "password": false
+        },
+        {
+          "handle": "disabled-user",
+          "name": "Disabled User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": false,
+          "created": 1700000000003,
+          "password": false
+        },
+        {
+          "handle": "promote-user",
+          "name": "Promote User",
+          "avatar": "/img/default-user.png",
+          "admin": true,
+          "enabled": true,
+          "created": 1700000000004,
+          "password": false
+        },
+        {
+          "handle": "demote-user",
+          "name": "Demote User",
+          "avatar": "/img/default-user.png",
+          "admin": false,
+          "enabled": true,
+          "created": 1700000000005,
+          "password": false
+        }
+      ]
+    }
+  },
+  "persisted": {
+    "remainingHandles": [
+      "default-user",
+      "second-admin",
+      "regular-user",
+      "disabled-user",
+      "promote-user",
+      "demote-user"
+    ],
+    "disabledUserEnabled": false,
+    "regularUserEnabled": true,
+    "promotedAdmin": true,
+    "demotedAdmin": false,
+    "unknownFieldPreserved": true,
+    "retainRecordExists": false,
+    "purgeRecordExists": false,
+    "retainDirectoryExists": true,
+    "purgeDirectoryExists": false
+  }
+}

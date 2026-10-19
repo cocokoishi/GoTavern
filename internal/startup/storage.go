@@ -263,6 +263,44 @@ func SetNodePersistRecord(dataRoot, key string, value json.RawMessage) error {
 	return nil
 }
 
+// RemoveNodePersistRecord removes one node-persist key under the shared user
+// storage lock. A missing key is a successful no-op, like node-persist's
+// removeItem operation.
+func RemoveNodePersistRecord(dataRoot, key string) error {
+	if key == "" {
+		return errors.New("node-persist record removal requires a key")
+	}
+	absoluteRoot, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return fmt.Errorf("resolve data root: %w", err)
+	}
+	storageDir := filepath.Join(absoluteRoot, storageFolder)
+	if _, err := os.Stat(storageDir); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect user storage directory: %w", err)
+	}
+	canonicalDir, err := canonicalPath(storageDir)
+	if err != nil {
+		return fmt.Errorf("resolve user storage directory: %w", err)
+	}
+	lock, err := acquireStorageLock(canonicalDir)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+
+	target := filepath.Join(storageDir, storeFilename(key))
+	if err := os.Remove(target); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("remove node-persist record %s: %w", key, err)
+	}
+	if directory, err := os.Open(storageDir); err == nil {
+		_ = directory.Sync()
+		_ = directory.Close()
+	}
+	return nil
+}
+
 // DirectoriesForUser returns the paths declared by SillyTavern's pinned
 // USER_DIRECTORY_TEMPLATE for one user.
 func DirectoriesForUser(dataRoot, handle string) (UserDirectories, error) {

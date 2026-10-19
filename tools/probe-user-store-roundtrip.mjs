@@ -172,18 +172,27 @@ async function verifyGoRecoveryUpdateSurvivesNode() {
 async function verifyGoAvatarSetSurvivesNode() {
     const dataRoot = path.join(tempRoot, 'go-avatar-set');
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
+    const deletedKey = 'user:delete-roundtrip';
+    await initStorage(dataRoot);
+    await storage.setItem(deletedKey, {
+        handle: 'delete-roundtrip', name: 'Node-created account for Go removal', created: 1700000000003,
+        password: '', admin: false, enabled: true, salt: '', futureField: { keep: true },
+    });
     const written = runGoAvatarWriter(dataRoot);
     await initStorage(dataRoot);
     const avatar = await storage.getItem(written.key);
+    const deleted = await storage.getItem(written.deletedKey);
     const filePath = storagePath(dataRoot, written.key);
     const record = JSON.parse(readFileSync(filePath, 'utf8'));
     assert.equal(avatar, written.avatar, 'pinned node-persist could not read the Go-created avatar record');
+    assert.equal(deleted, undefined, 'pinned node-persist still reads the Go-removed user record');
     assert.deepEqual(Object.keys(record), ['key', 'value']);
     assert.equal(record.key, written.key);
     assert.equal(record.value, written.avatar);
     assert.equal(Object.hasOwn(record, 'ttl'), false);
     return {
         nodeReadGoCreatedAvatar: avatar,
+        nodeObservesGoRemovedUserRecord: deleted === undefined,
         recordKeys: Object.keys(record),
         ttlPresent: Object.hasOwn(record, 'ttl'),
         recordPath: `_storage/${path.basename(filePath)}`,
