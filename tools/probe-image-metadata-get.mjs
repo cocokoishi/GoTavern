@@ -312,6 +312,10 @@ try {
         wrongMethod: capture(await request(origin + route, 'GET', { Cookie: sessionCookie })),
         wrongMethodHead: capture(await request(origin + route, 'HEAD', { Cookie: sessionCookie })),
         wrongMethodOptions: capture(await request(origin + route, 'OPTIONS', { Cookie: sessionCookie })),
+        wrongMethodOptionsWithRequestHeaders: capture(await request(origin + route, 'OPTIONS', {
+            Origin: 'null', 'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type,x-csrf-token',
+        })),
         trailingSlashPost: capture(await request(origin + route + '/', 'POST', {
             Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
         }, '{}')),

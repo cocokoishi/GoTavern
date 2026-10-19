@@ -86,6 +86,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -203,6 +214,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -321,6 +343,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -439,6 +472,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -554,6 +598,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -669,6 +724,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -789,6 +855,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -904,6 +981,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1021,6 +1109,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1142,6 +1241,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1263,6 +1373,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1381,6 +1502,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1499,6 +1631,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1654,6 +1797,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1776,6 +1930,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -1897,6 +2062,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2017,6 +2193,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2134,6 +2321,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2249,6 +2447,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2368,6 +2577,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2486,6 +2706,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2608,6 +2839,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2723,6 +2965,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
@@ -2838,6 +3091,17 @@
           "requestCompressionMin": "1.5kb",
           "requestCompressionMax": "3.5mb",
           "requestCompressionTimeout": 1234.5,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -2960,6 +3224,17 @@
           "requestCompressionMin": "2kb",
           "requestCompressionMax": "4mb",
           "requestCompressionTimeout": 2000.5,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3092,6 +3367,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": false,
           "forwardedCFConnectingIP": true,
           "forwardedXForwardedFor": false,
@@ -3109,6 +3395,140 @@
           "skipContentCheck": true,
           "useDiskCache": false,
           "settingsBackupRetention": 6.5
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
+        }
+      }
+    },
+    "cors-settings-config-and-environment-precedence": {
+      "name": "cors-settings-config-and-environment-precedence",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "cors:\n  enabled: false\n  origin: https://config.example\n  methods: [GET]\n  allowedHeaders: [X-Config]\n  exposedHeaders: [X-Expose]\n  credentials: false\n  maxAge: 10\n",
+      "environmentDataRoot": null,
+      "optionEnvironment": {
+        "SILLYTAVERN_CORS_ENABLED": "true",
+        "SILLYTAVERN_CORS_METHODS": "[\"POST\",\"PATCH\"]",
+        "SILLYTAVERN_CORS_CREDENTIALS": "true",
+        "SILLYTAVERN_CORS_MAXAGE": "45"
+      },
+      "useIPv4": true,
+      "useIPv6": false,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3339,
+        "configSha256": "6c9c47bf1b449cb0b59e38e8f4e75fb72868b52fa40806a925a2c17389568d0a",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "startupSettings": {
+          "legacyCookieSecret": null,
+          "sessionTimeout": -1,
+          "enableUserAccounts": false,
+          "enableDiscreetLogin": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "preferRealIPHeader": false,
+          "basicAuthMaxAttempts": 5,
+          "accountsLoginMaxAttempts": 5,
+          "accountsRecoverMaxAttempts": 5,
+          "accountsResetMaxAttempts": 5,
+          "allowFullDataBackup": true,
+          "allowKeysExposure": false,
+          "extensionsEnabled": true,
+          "extensionsAutoUpdate": true,
+          "requestCompressionEnabled": false,
+          "requestCompressionMin": "256kb",
+          "requestCompressionMax": "8mb",
+          "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": "https://config.example",
+          "corsMethods": [
+            "POST",
+            "PATCH"
+          ],
+          "corsAllowedHeaders": [
+            "X-Config"
+          ],
+          "corsExposedHeaders": [
+            "X-Expose"
+          ],
+          "corsCredentials": true,
+          "corsMaxAge": 45,
+          "forwardedXRealIP": true,
+          "forwardedCFConnectingIP": false,
+          "forwardedXForwardedFor": true,
+          "enableForwardedWhitelist": true,
+          "whitelist": [
+            "::1",
+            "127.0.0.1"
+          ],
+          "whitelistDockerHosts": true,
+          "hostWhitelistEnabled": false,
+          "hostWhitelistScan": true,
+          "hostWhitelistHosts": [],
+          "basicAuthUsername": "user",
+          "basicAuthPassword": "password",
+          "skipContentCheck": false,
+          "useDiskCache": true,
+          "settingsBackupRetention": 50
         },
         "optionWarnings": {
           "invalidIPv4Protocol": false,
@@ -3214,6 +3634,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3342,6 +3773,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,
@@ -3457,6 +3899,17 @@
           "requestCompressionMin": "256kb",
           "requestCompressionMax": "8mb",
           "requestCompressionTimeout": 4000,
+          "corsEnabled": true,
+          "corsOrigin": [
+            "null"
+          ],
+          "corsMethods": [
+            "OPTIONS"
+          ],
+          "corsAllowedHeaders": [],
+          "corsExposedHeaders": [],
+          "corsCredentials": false,
+          "corsMaxAge": null,
           "forwardedXRealIP": true,
           "forwardedCFConnectingIP": false,
           "forwardedXForwardedFor": true,

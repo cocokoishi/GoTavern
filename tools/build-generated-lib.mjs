@@ -579,6 +579,18 @@ try {
         throw new Error('image-metadata get oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const corsMiddlewareProbe = path.join(buildRoot, '.gotavern-probe-cors-middleware.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-cors-middleware.mjs'), corsMiddlewareProbe);
+    const corsMiddlewareFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-cors-middleware.json');
+    run(process.execPath, [corsMiddlewareProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstCorsMiddlewareProbe = readFileSync(corsMiddlewareFixturePath);
+    run(process.execPath, [corsMiddlewareProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondCorsMiddlewareProbe = readFileSync(corsMiddlewareFixturePath);
+    if (!firstCorsMiddlewareProbe.equals(secondCorsMiddlewareProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCorsMiddlewareProbe), JSON.parse(secondCorsMiddlewareProbe));
+        throw new Error('CORS middleware oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const spritesDeleteProbe = path.join(buildRoot, '.gotavern-probe-sprites-delete.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-sprites-delete.mjs'), spritesDeleteProbe);
     const spritesDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-sprites-delete.json');

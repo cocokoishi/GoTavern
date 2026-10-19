@@ -175,10 +175,6 @@ func TestPinnedNodeImageMetadataFolderDelete(t *testing.T) {
 		if !exists {
 			t.Fatalf("folder-delete fixture has no response %q", label)
 		}
-		if label == "wrongMethodOptions" {
-			assertImageMetadataFolderDeleteOptionsGap(t, got, want)
-			continue
-		}
 		assertImageMetadataFolderDeleteResponse(t, label, got, want)
 	}
 
@@ -215,15 +211,5 @@ func assertImageMetadataFolderDeleteResponse(t *testing.T, label string, got *ht
 	gotHeaders := stableAccountBackupHeaders(got.Header())
 	if got.Code != want.Status || !reflect.DeepEqual(gotHeaders, want.Headers) || !reflect.DeepEqual(gotBody, want.Body) {
 		t.Fatalf("image-metadata folder-delete response %s differs from pinned Node:\n status=%d want=%d\n headers=%#v want=%#v\n body=%#v want=%#v", label, got.Code, want.Status, gotHeaders, want.Headers, gotBody, want.Body)
-	}
-}
-
-func assertImageMetadataFolderDeleteOptionsGap(t *testing.T, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
-	t.Helper()
-	if want.Status != http.StatusNoContent || want.Headers["access-control-allow-methods"] != "OPTIONS" {
-		t.Fatalf("pinned folder-delete OPTIONS response changed: status=%d headers=%#v", want.Status, want.Headers)
-	}
-	if got.Code != http.StatusNotFound {
-		t.Fatalf("Go folder-delete OPTIONS status = %d; documented current CORS gap expects 404", got.Code)
 	}
 }

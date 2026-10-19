@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned cors@2.8.5 applies configured CORS headers before route dispatch and terminates enabled OPTIONS requests with status 204; when disabled, Express automatic OPTIONS handling remains active for registered routes",
+  "inputs": {
+    "cors": {
+      "enabled": true,
+      "origin": [
+        "https://allowed.example",
+        "null"
+      ],
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "allowedHeaders": [
+        "Content-Type",
+        "X-Custom"
+      ],
+      "exposedHeaders": [
+        "X-Exposed"
+      ],
+      "credentials": true,
+      "maxAge": 600
+    },
+    "corsDisabled": {
+      "enabled": false
+    },
+    "allowedHeaders": {
+      "Origin": "https://allowed.example",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type,x-custom"
+    },
+    "deniedHeaders": {
+      "Origin": "https://denied.example",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type,x-custom"
+    }
+  },
+  "responses": {
+    "allowedPreflight": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-headers": "Content-Type,X-Custom",
+        "access-control-allow-methods": "POST,PUT",
+        "access-control-allow-origin": "https://allowed.example",
+        "access-control-expose-headers": "X-Exposed",
+        "access-control-max-age": "600",
+        "content-length": "0",
+        "vary": "Origin"
+      }
+    },
+    "deniedPreflight": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-headers": "Content-Type,X-Custom",
+        "access-control-allow-methods": "POST,PUT",
+        "access-control-expose-headers": "X-Exposed",
+        "access-control-max-age": "600",
+        "content-length": "0",
+        "vary": "Origin"
+      }
+    },
+    "preflightWithoutOrigin": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-headers": "Content-Type,X-Custom",
+        "access-control-allow-methods": "POST,PUT",
+        "access-control-expose-headers": "X-Exposed",
+        "access-control-max-age": "600",
+        "content-length": "0",
+        "vary": "Origin"
+      }
+    },
+    "allowedActualRequest": {
+      "status": 200,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": "https://allowed.example",
+        "access-control-expose-headers": "X-Exposed",
+        "vary": "Origin, Accept-Encoding"
+      }
+    },
+    "deniedActualRequest": {
+      "status": 200,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-expose-headers": "X-Exposed",
+        "vary": "Origin, Accept-Encoding"
+      }
+    },
+    "disabledPreflight": {
+      "status": 200,
+      "headers": {
+        "allow": "POST",
+        "vary": "Accept-Encoding"
+      }
+    },
+    "disabledActualRequest": {
+      "status": 200,
+      "headers": {
+        "vary": "Accept-Encoding"
+      }
+    }
+  }
+}

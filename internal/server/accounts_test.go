@@ -414,6 +414,7 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	allowFullDataBackup := false
 	settingsBackupRetention := 2.5
 	requestCompressionTimeout := 1234.5
+	corsMaxAge := float64(45)
 	timeout := float64(900)
 	parsed := commandline.CommandLineResult{
 		Paths: commandline.ResolvedPaths{RuntimeDataRoot: filepath.Join(t.TempDir(), "data")},
@@ -438,6 +439,13 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 			RequestCompressionMin:      "1.5kb",
 			RequestCompressionMax:      "3.5mb",
 			RequestCompressionTimeout:  requestCompressionTimeout,
+			CorsEnabled:                true,
+			CorsOrigin:                 []any{"https://allowed.example"},
+			CorsMethods:                []any{"POST", "PATCH"},
+			CorsAllowedHeaders:         []any{"X-Token"},
+			CorsExposedHeaders:         []any{"ETag"},
+			CorsCredentials:            true,
+			CorsMaxAge:                 corsMaxAge,
 			SessionTimeout:             timeout,
 			ForwardedXRealIP:           false,
 			ForwardedCFConnectingIP:    true,
@@ -456,6 +464,14 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	}
 	if options.SettingsBackupRetention == nil || *options.SettingsBackupRetention != settingsBackupRetention {
 		t.Fatalf("handler settings-backup retention = %+v", options.SettingsBackupRetention)
+	}
+	if !options.CorsSettingsConfigured || options.CorsEnabled == nil || !*options.CorsEnabled ||
+		!reflect.DeepEqual(options.CorsOrigin, []any{"https://allowed.example"}) ||
+		!reflect.DeepEqual(options.CorsMethods, []any{"POST", "PATCH"}) ||
+		!reflect.DeepEqual(options.CorsAllowedHeaders, []any{"X-Token"}) ||
+		!reflect.DeepEqual(options.CorsExposedHeaders, []any{"ETag"}) ||
+		options.CorsCredentials == nil || !*options.CorsCredentials || options.CorsMaxAge != corsMaxAge {
+		t.Fatalf("handler CORS options = %+v", options)
 	}
 	if options.ExtensionsEnabled == nil || *options.ExtensionsEnabled || options.ExtensionsAutoUpdate == nil || *options.ExtensionsAutoUpdate ||
 		options.RequestCompressionEnabled == nil || !*options.RequestCompressionEnabled || options.RequestCompressionMin != "1.5kb" ||

@@ -212,10 +212,6 @@ func TestPinnedNodeImageMetadataFolderAssignments(t *testing.T) {
 			if !exists {
 				t.Fatalf("%s fixture has no response %q", operation, label)
 			}
-			if label == "wrongMethodOptions" {
-				assertImageMetadataFolderAssignmentOptionsGap(t, operation, got, want)
-				continue
-			}
 			assertImageMetadataFolderAssignmentResponse(t, operation+" "+label, got, want)
 		}
 	}
@@ -264,15 +260,5 @@ func assertImageMetadataFolderAssignmentResponse(t *testing.T, label string, got
 	gotHeaders := stableAccountBackupHeaders(got.Header())
 	if got.Code != want.Status || !reflect.DeepEqual(gotHeaders, want.Headers) || !reflect.DeepEqual(gotBody, want.Body) {
 		t.Fatalf("image-metadata folder-assignment response %s differs from pinned Node:\n status=%d want=%d\n headers=%#v want=%#v\n body=%#v want=%#v", label, got.Code, want.Status, gotHeaders, want.Headers, gotBody, want.Body)
-	}
-}
-
-func assertImageMetadataFolderAssignmentOptionsGap(t *testing.T, operation string, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
-	t.Helper()
-	if want.Status != http.StatusNoContent || want.Headers["access-control-allow-methods"] != "OPTIONS" {
-		t.Fatalf("pinned folder-%s OPTIONS response changed: status=%d headers=%#v", operation, want.Status, want.Headers)
-	}
-	if got.Code != http.StatusNotFound {
-		t.Fatalf("Go folder-%s OPTIONS status = %d; documented current CORS gap expects 404", operation, got.Code)
 	}
 }

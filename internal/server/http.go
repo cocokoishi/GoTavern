@@ -86,10 +86,18 @@ type HTTPHandlerOptions struct {
 	ForwardedCFConnectingIP    *bool
 	ForwardedXForwardedFor     *bool
 	SessionTimeoutSeconds      *float64
+	CorsSettingsConfigured     bool
+	CorsEnabled                *bool
+	CorsOrigin                 any
+	CorsMethods                any
+	CorsAllowedHeaders         any
+	CorsExposedHeaders         any
+	CorsCredentials            *bool
+	CorsMaxAge                 any
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
-// the pinned Basic Auth, session, CSRF, and account middleware into handler options.
+// the pinned CORS, Basic Auth, session, CSRF, and account middleware into handler options.
 func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTTPHandlerOptions {
 	settings := parsed.StartupSettings
 	options := HTTPHandlerOptions{
@@ -123,6 +131,20 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if enabled, ok := optionBooleanValue(settings.RequestCompressionEnabled); ok {
 		options.RequestCompressionEnabled = &enabled
+	}
+	if settings.CorsEnabled != nil {
+		options.CorsSettingsConfigured = true
+		options.CorsOrigin = settings.CorsOrigin
+		options.CorsMethods = settings.CorsMethods
+		options.CorsAllowedHeaders = settings.CorsAllowedHeaders
+		options.CorsExposedHeaders = settings.CorsExposedHeaders
+		options.CorsMaxAge = settings.CorsMaxAge
+		if enabled, ok := optionBooleanValue(settings.CorsEnabled); ok {
+			options.CorsEnabled = &enabled
+		}
+		if credentials, ok := optionBooleanValue(settings.CorsCredentials); ok {
+			options.CorsCredentials = &credentials
+		}
 	}
 	if timeout, ok := optionNumber(settings.RequestCompressionTimeout); ok {
 		options.RequestCompressionTimeout = timeout
@@ -258,6 +280,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	accounts := newAccountRuntime(options)
 	basicAuth := newBasicAuthRuntime(options)
 	hostWhitelist := newHostWhitelistRuntime(options)
+	corsSettings := pinnedCORSSettingsFromOptions(options)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
@@ -413,6 +436,10 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
+		setPinnedCORSBaseVary(w.Header(), corsSettings)
+		if servePinnedCORS(w, r, corsSettings) {
+			return
+		}
 		if options.BasicAuthEnabled && !basicAuth.authenticate(w, r, options) {
 			return
 		}

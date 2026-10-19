@@ -196,6 +196,13 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 		"wrongMethodHead":    serve(http.MethodHead, route, sessionCookie, "", nil),
 		"wrongMethodOptions": serve(http.MethodOptions, route, sessionCookie, "", nil),
 	}
+	optionsWithHeadersRequest := httptest.NewRequest(http.MethodOptions, route, nil)
+	optionsWithHeadersRequest.Header.Set("Origin", "null")
+	optionsWithHeadersRequest.Header.Set("Access-Control-Request-Method", "POST")
+	optionsWithHeadersRequest.Header.Set("Access-Control-Request-Headers", "content-type,x-csrf-token")
+	optionsWithHeadersResponse := httptest.NewRecorder()
+	handler.ServeHTTP(optionsWithHeadersResponse, optionsWithHeadersRequest)
+	responses["wrongMethodOptionsWithRequestHeaders"] = optionsWithHeadersResponse
 	fixedIndexTime := time.Date(2001, time.February, 3, 4, 5, 6, 0, time.UTC)
 	for label, probeCase := range fixture.Inputs.Cases {
 		rawIndex, exists := fixture.Inputs.Indexes[probeCase.Index]
@@ -255,8 +262,6 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 			t.Fatalf("metadata-get fixture has no response %q", label)
 		}
 		switch label {
-		case "wrongMethodOptions":
-			assertImageMetadataGetOptionsGap(t, got, want)
 		case "singleUnsupportedBmp":
 			assertImageMetadataUnsupportedFormatGap(t, label, got, want)
 		default:
@@ -425,16 +430,6 @@ func assertImageMetadataGetAddedTimestamps(t *testing.T, userRoot string, respon
 		if actualTimestamp != expectedTimestamp {
 			t.Fatalf("generated metadata addedTimestamp for %q = %.0f; expected pinned birthtime/mtime rule %.0f", relativePath, actualTimestamp, expectedTimestamp)
 		}
-	}
-}
-
-func assertImageMetadataGetOptionsGap(t *testing.T, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
-	t.Helper()
-	if want.Status != http.StatusNoContent || want.Headers["access-control-allow-methods"] != "OPTIONS" {
-		t.Fatalf("pinned metadata-get OPTIONS response changed: status=%d headers=%#v", want.Status, want.Headers)
-	}
-	if got.Code != http.StatusNotFound {
-		t.Fatalf("Go metadata-get OPTIONS status = %d; documented current CORS gap expects 404", got.Code)
 	}
 }
 

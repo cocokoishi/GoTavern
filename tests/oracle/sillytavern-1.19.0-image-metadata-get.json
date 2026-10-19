@@ -266,6 +266,28 @@
       },
       "body": null
     },
+    "wrongMethodOptionsWithRequestHeaders": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-headers": "content-type,x-csrf-token",
+        "access-control-allow-methods": "OPTIONS",
+        "access-control-allow-origin": "null",
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Access-Control-Request-Headers",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
     "trailingSlashPost": {
       "status": 400,
       "headers": {

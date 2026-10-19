@@ -72,6 +72,13 @@ type StartupSettings struct {
 	RequestCompressionMin      any `json:"requestCompressionMin"`
 	RequestCompressionMax      any `json:"requestCompressionMax"`
 	RequestCompressionTimeout  any `json:"requestCompressionTimeout"`
+	CorsEnabled                any `json:"corsEnabled"`
+	CorsOrigin                 any `json:"corsOrigin"`
+	CorsMethods                any `json:"corsMethods"`
+	CorsAllowedHeaders         any `json:"corsAllowedHeaders"`
+	CorsExposedHeaders         any `json:"corsExposedHeaders"`
+	CorsCredentials            any `json:"corsCredentials"`
+	CorsMaxAge                 any `json:"corsMaxAge"`
 	ForwardedXRealIP           any `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any `json:"forwardedXForwardedFor"`
@@ -230,6 +237,13 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
 		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),
 		RequestCompressionTimeout:  getConfigValue(config, "performance.requestCompression.timeout", 3000, cliNumber),
+		CorsEnabled:                getConfigValue(config, "cors.enabled", true, cliBoolean),
+		CorsOrigin:                 getConfigValue(config, "cors.origin", "null", cliString),
+		CorsMethods:                getConfigValue(config, "cors.methods", []any{"OPTIONS"}, cliArray),
+		CorsAllowedHeaders:         getConfigValue(config, "cors.allowedHeaders", []any{}, cliArray),
+		CorsExposedHeaders:         getConfigValue(config, "cors.exposedHeaders", []any{}, cliArray),
+		CorsCredentials:            getConfigValue(config, "cors.credentials", false, cliBoolean),
+		CorsMaxAge:                 getConfigValue(config, "cors.maxAge", nil, cliNumber),
 		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
 		ForwardedXForwardedFor:     getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),
