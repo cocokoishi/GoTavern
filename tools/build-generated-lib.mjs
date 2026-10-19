@@ -222,6 +222,18 @@ try {
         throw new Error(`upload-cleanup oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accessLogProbe = path.join(buildRoot, '.gotavern-probe-access-log-migration.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-access-log-migration.mjs'), accessLogProbe);
+    const accessLogFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-access-log-migration.json');
+    run(process.execPath, [accessLogProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccessLogProbe = readFileSync(accessLogFixturePath);
+    run(process.execPath, [accessLogProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccessLogProbe = readFileSync(accessLogFixturePath);
+    if (!firstAccessLogProbe.equals(secondAccessLogProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccessLogProbe), JSON.parse(secondAccessLogProbe));
+        throw new Error(`access-log migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

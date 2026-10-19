@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned migrateAccessLog() source/destination precedence and error behavior",
+  "scenarios": {
+    "absent": {
+      "input": {},
+      "first": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": []
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": []
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          }
+        }
+      }
+    },
+    "legacyOnly": {
+      "input": {
+        "sourceContents": "legacy access data\n"
+      },
+      "first": {
+        "logs": [
+          "Migrated access.log to new location: <data-root>/access.log"
+        ],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "legacy access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy access data\n",
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "legacy access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy access data\n",
+            "entries": []
+          }
+        }
+      }
+    },
+    "destinationOnly": {
+      "input": {
+        "destinationContents": "current access data\n"
+      },
+      "first": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "current access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "current access data\n",
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "current access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "current access data\n",
+            "entries": []
+          }
+        }
+      }
+    },
+    "destinationPrecedence": {
+      "input": {
+        "sourceContents": "legacy data\n",
+        "destinationContents": "current data\n"
+      },
+      "first": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "current data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "current data\n",
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "current data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "current data\n",
+            "entries": []
+          }
+        }
+      }
+    },
+    "sameRoot": {
+      "input": {
+        "sameRoot": true,
+        "sourceContents": "single access data\n"
+      },
+      "first": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "single access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "single access data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "single access data\n",
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "file",
+                "contents": "single access data\n"
+              }
+            ]
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "single access data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "file",
+            "contents": "single access data\n",
+            "entries": []
+          }
+        }
+      }
+    },
+    "directorySource": {
+      "input": {
+        "sourceKind": "directory"
+      },
+      "first": {
+        "logs": [
+          "Migrated access.log to new location: <data-root>/access.log"
+        ],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "directory",
+                "contents": null
+              },
+              {
+                "path": "access.log/legacy-entry.txt",
+                "type": "file",
+                "contents": "nested legacy log entry"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "legacy-entry.txt",
+                "type": "file",
+                "contents": "nested legacy log entry"
+              }
+            ]
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 0,
+        "infos": [],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "access.log",
+                "type": "directory",
+                "contents": null
+              },
+              {
+                "path": "access.log/legacy-entry.txt",
+                "type": "file",
+                "contents": "nested legacy log entry"
+              }
+            ]
+          },
+          "source": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          },
+          "destination": {
+            "exists": true,
+            "type": "directory",
+            "contents": null,
+            "entries": [
+              {
+                "path": "legacy-entry.txt",
+                "type": "file",
+                "contents": "nested legacy log entry"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "invalidDataRoot": {
+      "input": {
+        "dataRootKind": "file",
+        "dataRootContents": "not a directory",
+        "sourceContents": "legacy access data\n"
+      },
+      "first": {
+        "logs": [],
+        "errorCount": 1,
+        "infos": [
+          "Please move access.log to the data directory manually."
+        ],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "file",
+            "contents": "not a directory",
+            "entries": []
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy access data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          }
+        }
+      },
+      "second": {
+        "logs": [],
+        "errorCount": 1,
+        "infos": [
+          "Please move access.log to the data directory manually."
+        ],
+        "destinationPath": "<data-root>/access.log",
+        "filesystem": {
+          "dataRoot": {
+            "exists": true,
+            "type": "file",
+            "contents": "not a directory",
+            "entries": []
+          },
+          "source": {
+            "exists": true,
+            "type": "file",
+            "contents": "legacy access data\n",
+            "entries": []
+          },
+          "destination": {
+            "exists": false,
+            "type": "",
+            "contents": null,
+            "entries": []
+          }
+        }
+      }
+    }
+  }
+}

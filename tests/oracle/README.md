@@ -34,6 +34,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-upload-cleanup.json` captures pinned pre-listen upload-directory handling for absent, empty, dirty, nested-directory, and non-directory paths.
 
+`sillytavern-1.19.0-access-log-migration.json` captures pinned legacy access-log moves, destination precedence, same-path no-op, directory sources, and caught move failures.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh
