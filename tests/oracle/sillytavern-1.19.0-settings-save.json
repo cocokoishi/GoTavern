@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned settings/save JSON.parse/stringify formatting and throttled snapshot behavior",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-settings-save-cookie-secret",
+    "firstRequestBody": "{\"10\":\"ten\",\"2\":\"two\",\"z\":1e+20,\"tiny\":1e-6,\"negativeZero\":-0,\"nested\":{\"b\":true,\"a\":[null,\"x\"]}}",
+    "secondRequestBody": "[{\"later\":\"after throttle\",\"first\":{\"nested\":2}},true]"
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "first": {
+      "status": 200,
+      "headers": {
+        "content-length": "15",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"f-51rzdr5zfwWQpf+iUepheZg7siQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "result": "ok"
+      }
+    },
+    "second": {
+      "status": 200,
+      "headers": {
+        "content-length": "15",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"f-51rzdr5zfwWQpf+iUepheZg7siQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "result": "ok"
+      }
+    }
+  },
+  "state": {
+    "settingsAfterFirst": "{\n    \"2\": \"two\",\n    \"10\": \"ten\",\n    \"z\": 100000000000000000000,\n    \"tiny\": 0.000001,\n    \"negativeZero\": 0,\n    \"nested\": {\n        \"b\": true,\n        \"a\": [\n            null,\n            \"x\"\n        ]\n    }\n}",
+    "backupsAfterFirst": [
+      {
+        "name": "settings_default-user_<timestamp>.json",
+        "bytes": "{\n    \"2\": \"two\",\n    \"10\": \"ten\",\n    \"z\": 100000000000000000000,\n    \"tiny\": 0.000001,\n    \"negativeZero\": 0,\n    \"nested\": {\n        \"b\": true,\n        \"a\": [\n            null,\n            \"x\"\n        ]\n    }\n}"
+      }
+    ],
+    "settingsAfterSecond": "[\n    {\n        \"later\": \"after throttle\",\n        \"first\": {\n            \"nested\": 2\n        }\n    },\n    true\n]",
+    "backupsAfterSecond": [
+      {
+        "name": "settings_default-user_<timestamp>.json",
+        "bytes": "{\n    \"2\": \"two\",\n    \"10\": \"ten\",\n    \"z\": 100000000000000000000,\n    \"tiny\": 0.000001,\n    \"negativeZero\": 0,\n    \"nested\": {\n        \"b\": true,\n        \"a\": [\n            null,\n            \"x\"\n        ]\n    }\n}"
+      }
+    ],
+    "accountRecordUnchanged": true,
+    "roundTrip": {
+      "verified": true,
+      "settings": "{\n    \"2\": \"two\",\n    \"10\": \"ten\",\n    \"z\": 100000000000000000000,\n    \"tiny\": 0.000001,\n    \"negativeZero\": 0,\n    \"nested\": {\n        \"b\": true,\n        \"a\": [\n            null,\n            \"x\"\n        ]\n    }\n}"
+    }
+  }
+}

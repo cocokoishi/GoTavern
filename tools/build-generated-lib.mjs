@@ -399,6 +399,18 @@ try {
         throw new Error(`settings-get oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const settingsSaveProbe = path.join(buildRoot, '.gotavern-probe-settings-save.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-settings-save.mjs'), settingsSaveProbe);
+    const settingsSaveFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-settings-save.json');
+    run(process.execPath, [settingsSaveProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSettingsSaveProbe = readFileSync(settingsSaveFixturePath);
+    run(process.execPath, [settingsSaveProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSettingsSaveProbe = readFileSync(settingsSaveFixturePath);
+    if (!firstSettingsSaveProbe.equals(secondSettingsSaveProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSettingsSaveProbe), JSON.parse(secondSettingsSaveProbe));
+        throw new Error(`settings-save oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');

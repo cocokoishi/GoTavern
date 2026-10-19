@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 const settingsFilename = "settings.json"
@@ -47,11 +50,70 @@ func backupUserSettings(directories UserDirectories, maxBackups int) error {
 	} else if err != nil {
 		return fmt.Errorf("inspect settings root %s: %w", absoluteUserRoot, err)
 	}
-	lockRoot, err := canonicalPath(filepath.Dir(absoluteUserRoot))
+	_, lock, err := lockSettingsUser(absoluteUserRoot)
 	if err != nil {
-		return fmt.Errorf("resolve settings backup lock root: %w", err)
+		return err
 	}
-	lock, err := acquireContentLock(lockRoot)
+	defer lock.Close()
+	return backupUserSettingsLocked(directories, absoluteUserRoot, float64(maxBackups))
+}
+
+// SaveSettings atomically replaces a user's settings and optionally creates
+// the duplicate-aware autosave snapshot while holding the shared data-root
+// lock. The caller supplies the already JavaScript-stringified settings JSON.
+func SaveSettings(dataRoot, handle string, body []byte, retention float64, makeSnapshot bool) (bool, error) {
+	directories, err := DirectoriesForUser(dataRoot, handle)
+	if err != nil {
+		return false, err
+	}
+	absoluteUserRoot, err := filepath.Abs(directories["root"])
+	if err != nil {
+		return false, fmt.Errorf("resolve settings root %s: %w", directories["root"], err)
+	}
+	if _, err := os.Stat(absoluteUserRoot); err != nil {
+		return false, fmt.Errorf("inspect settings root %s: %w", absoluteUserRoot, err)
+	}
+	lockRoot, lock, err := lockSettingsUser(absoluteUserRoot)
+	if err != nil {
+		return false, err
+	}
+	defer lock.Close()
+	resolvedUserRoot, err := canonicalPath(absoluteUserRoot)
+	if err != nil {
+		return false, fmt.Errorf("resolve settings user root: %w", err)
+	}
+	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
+		return false, fmt.Errorf("settings user root escapes data root: %w", err)
+	}
+	settingsPath := filepath.Join(absoluteUserRoot, settingsFilename)
+	if err := ensureResolvedContained(absoluteUserRoot, settingsPath); err != nil {
+		return false, fmt.Errorf("settings file escapes user root: %w", err)
+	}
+	if err := atomicReplace(settingsPath, body); err != nil {
+		return false, fmt.Errorf("write settings file for %s: %w", handle, err)
+	}
+	if !makeSnapshot {
+		return true, nil
+	}
+	return true, backupUserSettingsLocked(directories, absoluteUserRoot, retention)
+}
+
+// BackupUserSettings creates a duplicate-aware settings snapshot for one user.
+func BackupUserSettings(dataRoot, handle string, retention float64) error {
+	directories, err := DirectoriesForUser(dataRoot, handle)
+	if err != nil {
+		return err
+	}
+	absoluteUserRoot, err := filepath.Abs(directories["root"])
+	if err != nil {
+		return fmt.Errorf("resolve settings root %s: %w", directories["root"], err)
+	}
+	if _, err := os.Stat(absoluteUserRoot); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect settings root %s: %w", absoluteUserRoot, err)
+	}
+	lockRoot, lock, err := lockSettingsUser(absoluteUserRoot)
 	if err != nil {
 		return err
 	}
@@ -63,7 +125,31 @@ func backupUserSettings(directories UserDirectories, maxBackups int) error {
 	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
 		return fmt.Errorf("settings user root escapes data root: %w", err)
 	}
+	return backupUserSettingsLocked(directories, absoluteUserRoot, retention)
+}
 
+func lockSettingsUser(absoluteUserRoot string) (string, *flock.Flock, error) {
+	lockRoot, err := canonicalPath(filepath.Dir(absoluteUserRoot))
+	if err != nil {
+		return "", nil, fmt.Errorf("resolve settings backup lock root: %w", err)
+	}
+	lock, err := acquireContentLock(lockRoot)
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedUserRoot, err := canonicalPath(absoluteUserRoot)
+	if err != nil {
+		_ = lock.Close()
+		return "", nil, fmt.Errorf("resolve settings user root: %w", err)
+	}
+	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
+		_ = lock.Close()
+		return "", nil, fmt.Errorf("settings user root escapes data root: %w", err)
+	}
+	return lockRoot, lock, nil
+}
+
+func backupUserSettingsLocked(directories UserDirectories, absoluteUserRoot string, retention float64) error {
 	handle := filepath.Base(absoluteUserRoot)
 	backupsDirectory := directories["backups"]
 	if backupsDirectory == "" {
@@ -134,7 +220,7 @@ func backupUserSettings(directories UserDirectories, maxBackups int) error {
 			return fmt.Errorf("set settings backup permissions for %s: %w", handle, err)
 		}
 	}
-	if err := removeOldSettingsBackups(absoluteBackups, "settings_"+handle, maxBackups); err != nil {
+	if err := removeOldSettingsBackups(absoluteBackups, "settings_"+handle, retention); err != nil {
 		return fmt.Errorf("remove old settings backups for %s: %w", handle, err)
 	}
 	return nil
@@ -198,7 +284,7 @@ func settingsFilesEqual(leftPath, rightPath string) (bool, error) {
 	return strings.ToValidUTF8(string(left), "\uFFFD") == strings.ToValidUTF8(string(right), "\uFFFD"), nil
 }
 
-func removeOldSettingsBackups(directory, prefix string, limit int) error {
+func removeOldSettingsBackups(directory, prefix string, limit float64) error {
 	entries, err := readDirectoryInNativeOrder(directory)
 	if err != nil {
 		return err
@@ -215,8 +301,11 @@ func removeOldSettingsBackups(directory, prefix string, limit int) error {
 		}
 		files = append(files, settingsBackupFile{name: entry.Name(), path: filePath, sortTime: info.ModTime()})
 	}
+	if math.IsNaN(limit) || float64(len(files)) <= limit {
+		return nil
+	}
 	sort.SliceStable(files, func(left, right int) bool { return files[left].sortTime.Before(files[right].sortTime) })
-	for len(files) > limit {
+	for float64(len(files)) > limit {
 		if len(files) == 0 {
 			break
 		}

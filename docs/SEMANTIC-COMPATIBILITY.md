@@ -363,7 +363,14 @@ contents, valid-JSON-only preset aggregation, world names, config flags, and
 request-compression values. The response body and ETag match; pinned Node uses
 gzip/chunked framing that Go does not yet reproduce. Locale edge ordering,
 JavaScript stringify edge cases, and filesystem failures remain unprobed.
-`settings/save` and its autosave throttle remain separate contracts.
+The `settings/save` oracle checks parsed request JSON, JavaScript's four-space
+stringification (including numeric-key and number formatting), authenticated
+responses, atomic settings writes, the immediate duplicate-aware snapshot, and
+the no-snapshot window for a second save inside the ten-minute throttle. A Go
+test exercises the trailing snapshot with the latest settings body. Its
+round-trip probe sends a save through GoTavern and reads the same file through
+the pinned Node `/api/settings/get` route. Malformed and oversized bodies,
+filesystem failures, and real ten-minute timing remain unprobed.
 
 ---
 

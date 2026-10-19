@@ -289,6 +289,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/settings/get-snapshots", accounts.serveSettingsGetSnapshots)
 	mux.HandleFunc("POST /api/settings/get", accounts.serveSettingsGet)
+	mux.HandleFunc("POST /api/settings/save", accounts.serveSettingsSave)
 	mux.HandleFunc("POST /api/settings/load-snapshot", accounts.serveSettingsLoadSnapshot)
 	mux.HandleFunc("POST /api/settings/make-snapshot", accounts.serveSettingsMakeSnapshot)
 	mux.HandleFunc("POST /api/settings/restore-snapshot", accounts.serveSettingsRestoreSnapshot)

@@ -83,16 +83,19 @@ type accountRequestState struct {
 }
 
 type accountRuntime struct {
-	options        HTTPHandlerOptions
-	limiter        *memoryLoginLimiter
-	recoverLimiter *memoryLoginLimiter
-	resetLimiter   *memoryLoginLimiter
-	defaultUser    storedAccount
-	createMu       sync.Mutex
-	recoveryMu     sync.Mutex
-	recoveryCodes  map[string]recoveryCodeEntry
-	resetMu        sync.Mutex
-	resetCodes     map[string]recoveryCodeEntry
+	options          HTTPHandlerOptions
+	limiter          *memoryLoginLimiter
+	recoverLimiter   *memoryLoginLimiter
+	resetLimiter     *memoryLoginLimiter
+	defaultUser      storedAccount
+	createMu         sync.Mutex
+	recoveryMu       sync.Mutex
+	recoveryCodes    map[string]recoveryCodeEntry
+	resetMu          sync.Mutex
+	resetCodes       map[string]recoveryCodeEntry
+	settingsSaveMu   sync.Mutex
+	settingsSaves    map[string]*settingsSaveThrottle
+	settingsSaveWait time.Duration
 }
 
 type recoveryCodeEntry struct {
@@ -148,13 +151,15 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 		defaultUser.fields[key] = encoded
 	}
 	return &accountRuntime{
-		options:        options,
-		limiter:        &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
-		recoverLimiter: &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
-		resetLimiter:   &memoryLoginLimiter{points: resetPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
-		defaultUser:    defaultUser,
-		recoveryCodes:  make(map[string]recoveryCodeEntry),
-		resetCodes:     make(map[string]recoveryCodeEntry),
+		options:          options,
+		limiter:          &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
+		recoverLimiter:   &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
+		resetLimiter:     &memoryLoginLimiter{points: resetPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
+		defaultUser:      defaultUser,
+		recoveryCodes:    make(map[string]recoveryCodeEntry),
+		resetCodes:       make(map[string]recoveryCodeEntry),
+		settingsSaves:    make(map[string]*settingsSaveThrottle),
+		settingsSaveWait: 10 * time.Minute,
 	}
 }
 
