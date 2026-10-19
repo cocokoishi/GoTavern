@@ -29,6 +29,15 @@ type corsMiddlewareFixture struct {
 		CorsDisabled struct {
 			Enabled bool `json:"enabled"`
 		} `json:"corsDisabled"`
+		CorsWildcard struct {
+			Enabled        bool `json:"enabled"`
+			Origin         any  `json:"origin"`
+			Methods        any  `json:"methods"`
+			AllowedHeaders any  `json:"allowedHeaders"`
+			ExposedHeaders any  `json:"exposedHeaders"`
+			Credentials    bool `json:"credentials"`
+			MaxAge         any  `json:"maxAge"`
+		} `json:"corsWildcard"`
 		AllowedHeaders map[string]string `json:"allowedHeaders"`
 		DeniedHeaders  map[string]string `json:"deniedHeaders"`
 	} `json:"inputs"`
@@ -145,6 +154,48 @@ func TestPinnedNodeCORSMiddleware(t *testing.T) {
 			}
 			if probeCase.automaticOptions && response.Body.String() != want.Body {
 				t.Fatalf("disabled CORS response %s body=%q want=%q", probeCase.name, response.Body.String(), want.Body)
+			}
+		})
+	}
+	wildcard := fixture.Inputs.CorsWildcard
+	wildcardEnabled := wildcard.Enabled
+	wildcardCredentials := wildcard.Credentials
+	wildcardHandler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{
+		CorsSettingsConfigured: true,
+		CorsEnabled:            &wildcardEnabled,
+		CorsOrigin:             wildcard.Origin,
+		CorsMethods:            wildcard.Methods,
+		CorsAllowedHeaders:     wildcard.AllowedHeaders,
+		CorsExposedHeaders:     wildcard.ExposedHeaders,
+		CorsCredentials:        &wildcardCredentials,
+		CorsMaxAge:             wildcard.MaxAge,
+	})
+	for _, probeCase := range []struct {
+		name    string
+		method  string
+		route   string
+		headers map[string]string
+	}{
+		{name: "wildcardActualRequest", method: http.MethodGet, route: "/version", headers: map[string]string{"Origin": "https://any.example"}},
+		{name: "wildcardWithoutOrigin", method: http.MethodGet, route: "/version"},
+		{name: "wildcardPreflight", method: http.MethodOptions, route: "/api/image-metadata", headers: map[string]string{
+			"Origin": "https://any.example", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "x-wildcard",
+		}},
+	} {
+		t.Run(probeCase.name, func(t *testing.T) {
+			request := httptest.NewRequest(probeCase.method, probeCase.route, nil)
+			for key, value := range probeCase.headers {
+				request.Header.Set(key, value)
+			}
+			response := httptest.NewRecorder()
+			wildcardHandler.ServeHTTP(response, request)
+			want, exists := fixture.Responses[probeCase.name]
+			if !exists {
+				t.Fatalf("CORS oracle has no response %q", probeCase.name)
+			}
+			gotHeaders := stableCORSHeaders(response.Header(), probeCase.method == http.MethodOptions)
+			if response.Code != want.Status || !reflect.DeepEqual(gotHeaders, want.Headers) {
+				t.Fatalf("CORS wildcard response %s differs from pinned Node: status=%d want=%d headers=%#v want=%#v", probeCase.name, response.Code, want.Status, gotHeaders, want.Headers)
 			}
 		})
 	}

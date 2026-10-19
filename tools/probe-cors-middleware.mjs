@@ -154,6 +154,40 @@ try {
     responses.disabledActualRequest = await request(disabledOrigin + '/version', 'GET', { Origin: 'https://allowed.example' });
     await stopServer();
 
+    writeFileSync(configPath, [
+        'enableUserAccounts: false',
+        'skipContentCheck: true',
+        'cors:',
+        '  enabled: true',
+        '  origin: "*"',
+        '  methods: [POST, GET]',
+        '  allowedHeaders: [X-Wildcard]',
+        '  exposedHeaders: [X-Exposed-Wildcard]',
+        '  credentials: true',
+        '  maxAge: 60',
+        '',
+    ].join('\n'));
+    const wildcardPort = await choosePort();
+    const wildcardOrigin = 'http://127.0.0.1:' + wildcardPort;
+    child = spawn(process.execPath, [
+        'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
+        '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
+        '--listen', 'false', '--port', String(wildcardPort), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
+    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => logs.push(chunk));
+    child.stderr.on('data', chunk => logs.push(chunk));
+    await waitForServer(wildcardOrigin);
+    responses.wildcardActualRequest = await request(wildcardOrigin + '/version', 'GET', { Origin: 'https://any.example' });
+    responses.wildcardWithoutOrigin = await request(wildcardOrigin + '/version', 'GET');
+    responses.wildcardPreflight = await request(wildcardOrigin + '/api/image-metadata', 'OPTIONS', {
+        Origin: 'https://any.example',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'x-wildcard',
+    });
+    await stopServer();
+
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -169,6 +203,15 @@ try {
                 maxAge: 600,
             },
             corsDisabled: { enabled: false },
+            corsWildcard: {
+                enabled: true,
+                origin: '*',
+                methods: ['POST', 'GET'],
+                allowedHeaders: ['X-Wildcard'],
+                exposedHeaders: ['X-Exposed-Wildcard'],
+                credentials: true,
+                maxAge: 60,
+            },
             allowedHeaders,
             deniedHeaders,
         },
