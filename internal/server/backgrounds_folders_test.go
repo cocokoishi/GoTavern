@@ -23,8 +23,9 @@ type backgroundsFoldersFixture struct {
 		CookieSecret string                     `json:"cookieSecret"`
 		Indexes      map[string]json.RawMessage `json:"indexes"`
 	} `json:"inputs"`
-	Responses map[string]accountMutationResponseFixture `json:"responses"`
-	State     struct {
+	Responses                        map[string]accountMutationResponseFixture `json:"responses"`
+	ImageMetadataFoldersGetResponses map[string]accountMutationResponseFixture `json:"imageMetadataFoldersGetResponses"`
+	State                            struct {
 		IndexUnchanged         map[string]bool `json:"indexUnchanged"`
 		AccountRecordUnchanged bool            `json:"accountRecordUnchanged"`
 	} `json:"state"`
@@ -79,7 +80,7 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	indexPath := filepath.Join(directories["root"], backgroundImageMetadataFile)
+	indexPath := filepath.Join(directories["root"], imageMetadataIndexFilename)
 
 	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{
 		InstallRoot: installRoot, DataRoot: dataRoot, CookieSecret: fixture.Inputs.CookieSecret,
@@ -130,6 +131,12 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 		"wrongMethod":     serve(http.MethodGet, "/api/backgrounds/folders", sessionCookie, "", nil),
 		"wrongMethodHead": serve(http.MethodHead, "/api/backgrounds/folders", sessionCookie, "", nil),
 	}
+	imageMetadataFoldersGetResponses := map[string]*httptest.ResponseRecorder{
+		"unauthorized":    serve(http.MethodPost, "/api/image-metadata/folders/get", csrfCookie, csrf.Token, []byte(`{}`)),
+		"invalidCSRF":     serve(http.MethodPost, "/api/image-metadata/folders/get", sessionCookie, "", []byte(`{}`)),
+		"wrongMethod":     serve(http.MethodGet, "/api/image-metadata/folders/get", sessionCookie, "", nil),
+		"wrongMethodHead": serve(http.MethodHead, "/api/image-metadata/folders/get", sessionCookie, "", nil),
+	}
 	indexUnchanged := make(map[string]bool, len(fixture.Inputs.Indexes))
 	for label, rawContent := range fixture.Inputs.Indexes {
 		if bytes.Equal(bytes.TrimSpace(rawContent), []byte("null")) {
@@ -152,6 +159,7 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 			t.Fatal(beforeErr)
 		}
 		responses[label] = serve(http.MethodPost, "/api/backgrounds/folders", sessionCookie, csrf.Token, []byte(`{}`))
+		imageMetadataFoldersGetResponses[label] = serve(http.MethodPost, "/api/image-metadata/folders/get", sessionCookie, csrf.Token, []byte(`{}`))
 		after, afterErr := os.ReadFile(indexPath)
 		if os.IsNotExist(afterErr) {
 			after = nil
@@ -176,6 +184,13 @@ func TestPinnedNodeBackgroundFoldersListing(t *testing.T) {
 			t.Fatalf("background-folders fixture has no response %q", label)
 		}
 		assertAvatarResponse(t, "background folders "+label, got, want)
+	}
+	for label, got := range imageMetadataFoldersGetResponses {
+		want, exists := fixture.ImageMetadataFoldersGetResponses[label]
+		if !exists {
+			t.Fatalf("image-metadata folder-list fixture has no response %q", label)
+		}
+		assertAvatarResponse(t, "image-metadata folders get "+label, got, want)
 	}
 	if !reflect.DeepEqual(indexUnchanged, fixture.State.IndexUnchanged) {
 		t.Fatalf("index state = %#v; pinned Node has %#v", indexUnchanged, fixture.State.IndexUnchanged)

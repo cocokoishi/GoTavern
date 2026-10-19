@@ -50,7 +50,7 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-sprites-delete.json` captures authenticated and CSRF-protected Expressions sprite deletion, exact basename matching across extensions, label fallback, nested character folders, no-match success, missing/invalid input responses, and remaining file/account state after every operation.
 
-`sillytavern-1.19.0-backgrounds-folders.json` captures authenticated and CSRF-protected background virtual-folder listing, folder passthrough, image filename assignments and basename collisions, malformed-index fallback, malformed index-shape errors, and unchanged metadata/account files.
+`sillytavern-1.19.0-backgrounds-folders.json` captures authenticated and CSRF-protected background virtual-folder listing and `/api/image-metadata/folders/get`, folder passthrough, image filename assignments and basename collisions, malformed-index fallback and shape errors, wrong-method 404s, and unchanged metadata/account files.
 
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 

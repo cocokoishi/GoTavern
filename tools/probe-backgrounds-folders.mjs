@@ -203,6 +203,19 @@ try {
         wrongMethod: capture(await request(origin + '/api/backgrounds/folders', 'GET', { Cookie: sessionCookie })),
         wrongMethodHead: capture(await request(origin + '/api/backgrounds/folders', 'HEAD', { Cookie: sessionCookie })),
     };
+    const imageMetadataFoldersGetResponses = {
+        unauthorized: capture(await request(origin + '/api/image-metadata/folders/get', 'POST', {
+            Cookie: csrfCookie,
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+        }, '{}')),
+        invalidCSRF: capture(await request(origin + '/api/image-metadata/folders/get', 'POST', {
+            Cookie: sessionCookie,
+            'Content-Type': 'application/json',
+        }, '{}')),
+        wrongMethod: capture(await request(origin + '/api/image-metadata/folders/get', 'GET', { Cookie: sessionCookie })),
+        wrongMethodHead: capture(await request(origin + '/api/image-metadata/folders/get', 'HEAD', { Cookie: sessionCookie })),
+    };
     const indexUnchanged = {};
     for (const [name, content] of Object.entries(indexes)) {
         if (content === null) {
@@ -216,6 +229,11 @@ try {
             'Content-Type': 'application/json',
             'X-CSRF-Token': token,
         }, '{}'));
+        imageMetadataFoldersGetResponses[name] = capture(await request(origin + '/api/image-metadata/folders/get', 'POST', {
+            Cookie: sessionCookie,
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+        }, '{}'));
         const after = existsSync(indexPath) ? readFileSync(indexPath) : null;
         indexUnchanged[name] = before === null ? after === null : after !== null && before.equals(after);
     }
@@ -223,9 +241,10 @@ try {
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned background-folder listing maps virtual folders and image assignments from image-metadata.json with authenticated read-only behavior',
+        probe: 'pinned background and image-metadata folder-list routes read virtual folders and image assignments with authenticated read-only behavior',
         inputs: { cookieSecret: COOKIE_SECRET, indexes },
         responses,
+        imageMetadataFoldersGetResponses,
         state: { indexUnchanged, accountRecordUnchanged },
     };
     await stopServer();

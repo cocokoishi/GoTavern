@@ -15,7 +15,7 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-const backgroundImageMetadataFile = "image-metadata.json"
+const imageMetadataIndexFilename = "image-metadata.json"
 
 type orderedNodeJSON struct {
 	kind   byte
@@ -40,13 +40,7 @@ func (runtime *accountRuntime) serveBackgroundFolders(w http.ResponseWriter, req
 		return
 	}
 
-	index := defaultBackgroundMetadataIndex()
-	indexBytes, err := os.ReadFile(filepath.Join(directories["root"], backgroundImageMetadataFile))
-	if err == nil {
-		if parsed, parseErr := decodeOrderedNodeJSON(indexBytes); parseErr == nil {
-			index = parsed
-		}
-	}
+	index := readImageMetadataIndex(directories["root"])
 
 	if index.kind == 'n' {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
@@ -94,7 +88,42 @@ func (runtime *accountRuntime) serveBackgroundFolders(w http.ResponseWriter, req
 	}})
 }
 
-func defaultBackgroundMetadataIndex() orderedNodeJSON {
+func (runtime *accountRuntime) serveImageMetadataFoldersGet(w http.ResponseWriter, request *http.Request) {
+	account, ok := runtime.settingsRequestAccount(w, request)
+	if !ok {
+		return
+	}
+	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+		return
+	}
+
+	index := readImageMetadataIndex(directories["root"])
+	if index.kind == 'n' {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+		return
+	}
+	folders, hasFolders := index.member("folders")
+	if !hasFolders || !folders.truthy() {
+		folders = orderedNodeJSON{kind: 'a', array: []orderedNodeJSON{}}
+	}
+	respondOrderedNodeJSON(w, http.StatusOK, folders)
+}
+
+func readImageMetadataIndex(userRoot string) orderedNodeJSON {
+	index := defaultImageMetadataIndex()
+	indexBytes, err := os.ReadFile(filepath.Join(userRoot, imageMetadataIndexFilename))
+	if err != nil {
+		return index
+	}
+	if parsed, parseErr := decodeOrderedNodeJSON(indexBytes); parseErr == nil {
+		return parsed
+	}
+	return index
+}
+
+func defaultImageMetadataIndex() orderedNodeJSON {
 	return orderedNodeJSON{kind: 'o', object: []orderedNodeJSONEntry{
 		{key: "version", value: orderedNodeJSON{kind: 'v', scalar: float64(1)}},
 		{key: "images", value: orderedNodeJSON{kind: 'o', object: []orderedNodeJSONEntry{}}},
