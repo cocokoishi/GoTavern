@@ -49,6 +49,19 @@ const { CommandLineParser } = await import(pathToFileURL(path.join(sourceRoot, '
 const globalDataDirectory = envPaths('SillyTavern', { suffix: '' }).data;
 const initialConfigPath = process.env.GOTAVERN_INITIAL_CONFIG_PATH;
 const result = new CommandLineParser().parse(process.argv);
+const useIPv4 = process.env.GOTAVERN_USE_IPV4 === 'true';
+const useIPv6 = process.env.GOTAVERN_USE_IPV6 === 'true';
+const captureURL = callback => {
+    try { return { href: callback().href }; }
+    catch (error) { return { errorName: error.name, errorMessage: error.message }; }
+};
+const browserLaunchHostname = await result.getBrowserLaunchHostname({ useIPv6, useIPv4 });
+const derivedURLs = {
+    ipv4ListenUrl: captureURL(() => result.getIPv4ListenUrl()),
+    ipv6ListenUrl: captureURL(() => result.getIPv6ListenUrl()),
+    browserLaunchHostname,
+    browserLaunchUrl: captureURL(() => result.getBrowserLaunchUrl(browserLaunchHostname)),
+};
 const options = Object.fromEntries([
     'port', 'listen', 'listenAddressIPv6', 'listenAddressIPv4', 'enableIPv4', 'enableIPv6',
     'dnsPreferIPv6', 'heartbeatInterval', 'browserLaunchEnabled', 'browserLaunchHostname',
@@ -101,6 +114,7 @@ process.stdout.write(JSON.stringify({
     warnings: relevantWarnings,
     options,
     optionWarnings,
+    derivedURLs,
 }));
 `;
 
@@ -129,6 +143,34 @@ const scenarios = [
             '--enableKeepAlive', '--requestProxyEnabled', '--requestProxyUrl', 'socks5://127.0.0.1:1080',
             '--requestProxyBypass', 'localhost', '127.0.0.1',
         ],
+    },
+    {
+        name: 'listen-mode-derived-urls',
+        args: ['--listen', '--listenAddressIPv4', '192.0.2.24', '--listenAddressIPv6', '[::]'],
+        useIPv4: true,
+        useIPv6: true,
+    },
+    {
+        name: 'listen-mode-invalid-address-fallbacks',
+        args: ['--listen', '--listenAddressIPv4', 'localhost', '--listenAddressIPv6', '[::]'],
+        useIPv4: true,
+        useIPv6: true,
+    },
+    {
+        name: 'browser-launch-zero-port-normalizes-hostname',
+        args: ['--browserLaunchPort', '0', '--browserLaunchHostname', 'Example.COM'],
+    },
+    {
+        name: 'browser-launch-auto-dual-protocol',
+        args: ['--browserLaunchAvoidLocalhost'],
+        useIPv4: true,
+        useIPv6: true,
+    },
+    {
+        name: 'browser-launch-auto-no-detected-protocol',
+        args: [],
+        useIPv4: false,
+        useIPv6: false,
     },
     {
         name: 'yargs-boolean-inline-coercion',
@@ -213,6 +255,8 @@ function runScenario(scenario) {
         GOTAVERN_FORCE_GLOBAL: scenario.forceGlobal ? 'true' : 'false',
         GOTAVERN_DATA_ROOT_ENV: scenario.environmentDataRoot ?? '',
         GOTAVERN_OPTION_ENV: JSON.stringify(scenario.optionEnvironment ?? {}),
+        GOTAVERN_USE_IPV4: String(scenario.useIPv4 ?? true),
+        GOTAVERN_USE_IPV6: String(scenario.useIPv6 ?? false),
         GOTAVERN_INITIAL_CONFIG_PATH: initialConfigAbsolute,
         GOTAVERN_INITIAL_CONFIG_SHA256: initialConfigSha256,
         GOTAVERN_DATA_ROOT_PREEXISTED: scenario.existingDataRoot ? 'true' : 'false',
@@ -229,6 +273,8 @@ function runScenario(scenario) {
         initialConfig: scenario.initialConfig ?? null,
         environmentDataRoot: scenario.environmentDataRoot ?? null,
         optionEnvironment: scenario.optionEnvironment ?? {},
+        useIPv4: scenario.useIPv4 ?? true,
+        useIPv6: scenario.useIPv6 ?? false,
         forceGlobal: scenario.forceGlobal ?? false,
         blockerFile: scenario.blockerFile ?? null,
         existingDataRoot: scenario.existingDataRoot ?? null,

@@ -29,6 +29,8 @@ type commandlinePathsScenario struct {
 	EnvironmentDataRoot *string                `json:"environmentDataRoot"`
 	OptionEnvironment   map[string]string      `json:"optionEnvironment"`
 	ForceGlobal         bool                   `json:"forceGlobal"`
+	UseIPv4             bool                   `json:"useIPv4"`
+	UseIPv6             bool                   `json:"useIPv6"`
 	BlockerFile         *string                `json:"blockerFile"`
 	ExistingDataRoot    *string                `json:"existingDataRoot"`
 	Result              commandlinePathsResult `json:"result"`
@@ -50,6 +52,20 @@ type commandlinePathsResult struct {
 	Warnings                           commandlinePathWarnings `json:"warnings"`
 	Options                            map[string]any          `json:"options"`
 	OptionWarnings                     OptionWarnings          `json:"optionWarnings"`
+	DerivedURLs                        commandlineDerivedURLs  `json:"derivedURLs"`
+}
+
+type commandlineDerivedURLs struct {
+	IPv4ListenURL         commandlineURLCapture `json:"ipv4ListenUrl"`
+	IPv6ListenURL         commandlineURLCapture `json:"ipv6ListenUrl"`
+	BrowserLaunchHostname any                   `json:"browserLaunchHostname"`
+	BrowserLaunchURL      commandlineURLCapture `json:"browserLaunchUrl"`
+}
+
+type commandlineURLCapture struct {
+	Href         string `json:"href,omitempty"`
+	ErrorName    string `json:"errorName,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 type commandlinePathWarnings struct {
@@ -177,8 +193,25 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if !reflect.DeepEqual(got.Warnings, scenario.Result.OptionWarnings) {
 				t.Errorf("server option warnings = %+v, Node has %+v", got.Warnings, scenario.Result.OptionWarnings)
 			}
+			browserLaunchHostname := got.Options.ResolveBrowserLaunchHostname(scenario.UseIPv6, scenario.UseIPv4)
+			derivedURLs := commandlineDerivedURLs{
+				IPv4ListenURL:         captureCommandLineURL(got.Options.IPv4ListenURL()),
+				IPv6ListenURL:         captureCommandLineURL(got.Options.IPv6ListenURL()),
+				BrowserLaunchHostname: browserLaunchHostname,
+				BrowserLaunchURL:      captureCommandLineURL(got.Options.BrowserLaunchURL(browserLaunchHostname)),
+			}
+			if !reflect.DeepEqual(derivedURLs, scenario.Result.DerivedURLs) {
+				t.Errorf("derived server URLs = %+v, Node has %+v", derivedURLs, scenario.Result.DerivedURLs)
+			}
 		})
 	}
+}
+
+func captureCommandLineURL(href string, err error) commandlineURLCapture {
+	if err != nil {
+		return commandlineURLCapture{ErrorName: "TypeError", ErrorMessage: err.Error()}
+	}
+	return commandlineURLCapture{Href: href}
 }
 
 func clearOptionEnvironment(t *testing.T) {

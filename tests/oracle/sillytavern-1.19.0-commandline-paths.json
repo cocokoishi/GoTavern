@@ -14,6 +14,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -67,6 +69,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -79,6 +93,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -132,6 +148,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -145,6 +173,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -198,6 +228,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -211,6 +253,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -264,6 +308,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -274,6 +330,8 @@
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -327,6 +385,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -337,6 +407,8 @@
       "initialConfig": "dataRoot: ./existing-data\n",
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": "./existing-data",
@@ -390,6 +462,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -405,6 +489,8 @@
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -458,6 +544,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -468,6 +566,8 @@
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": "./from-env",
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -521,6 +621,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -533,6 +645,8 @@
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": "./from-env",
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -586,6 +700,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -602,6 +728,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -655,6 +783,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -671,6 +811,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": true,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -724,6 +866,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -737,6 +891,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": "./file-blocker",
       "existingDataRoot": null,
@@ -790,6 +946,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -803,6 +971,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -856,6 +1026,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -906,6 +1088,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -959,6 +1143,423 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "https://192.0.2.4:9111/"
+          },
+          "ipv6ListenUrl": {
+            "errorName": "TypeError",
+            "errorMessage": "Invalid URL"
+          },
+          "browserLaunchHostname": "launch.example",
+          "browserLaunchUrl": {
+            "href": "https://launch.example:9999/"
+          }
+        }
+      }
+    },
+    "listen-mode-derived-urls": {
+      "name": "listen-mode-derived-urls",
+      "args": [
+        "--listen",
+        "--listenAddressIPv4",
+        "192.0.2.24",
+        "--listenAddressIPv6",
+        "[::]"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": true,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": true,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "192.0.2.24",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://192.0.2.24:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::]:8000/"
+          },
+          "browserLaunchHostname": "localhost",
+          "browserLaunchUrl": {
+            "href": "http://localhost:8000/"
+          }
+        }
+      }
+    },
+    "listen-mode-invalid-address-fallbacks": {
+      "name": "listen-mode-invalid-address-fallbacks",
+      "args": [
+        "--listen",
+        "--listenAddressIPv4",
+        "localhost",
+        "--listenAddressIPv6",
+        "[::]"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": true,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": true,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "localhost",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://0.0.0.0:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::]:8000/"
+          },
+          "browserLaunchHostname": "localhost",
+          "browserLaunchUrl": {
+            "href": "http://localhost:8000/"
+          }
+        }
+      }
+    },
+    "browser-launch-zero-port-normalizes-hostname": {
+      "name": "browser-launch-zero-port-normalizes-hostname",
+      "args": [
+        "--browserLaunchPort",
+        "0",
+        "--browserLaunchHostname",
+        "Example.COM"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "Example.COM",
+          "browserLaunchPort": 0,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "Example.COM",
+          "browserLaunchUrl": {
+            "href": "http://example.com:0/"
+          }
+        }
+      }
+    },
+    "browser-launch-auto-dual-protocol": {
+      "name": "browser-launch-auto-dual-protocol",
+      "args": [
+        "--browserLaunchAvoidLocalhost"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": true,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": true,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "[::1]",
+          "browserLaunchUrl": {
+            "href": "http://[::1]:8000/"
+          }
+        }
+      }
+    },
+    "browser-launch-auto-no-detected-protocol": {
+      "name": "browser-launch-auto-no-detected-protocol",
+      "args": [],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "useIPv4": false,
+      "useIPv6": false,
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "auto",
+          "browserLaunchUrl": {
+            "href": "http://auto:8000/"
+          }
         }
       }
     },
@@ -973,6 +1574,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1026,6 +1629,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "https://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "https://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "https://127.0.0.1:8000/"
+          }
         }
       }
     },
@@ -1039,6 +1654,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1092,6 +1709,21 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "errorName": "TypeError",
+            "errorMessage": "Invalid URL"
+          },
+          "ipv6ListenUrl": {
+            "errorName": "TypeError",
+            "errorMessage": "Invalid URL"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "errorName": "TypeError",
+            "errorMessage": "Invalid URL"
+          }
         }
       }
     },
@@ -1107,6 +1739,8 @@
         "SILLYTAVERN_REQUESTPROXY_BYPASS": "[\"environment-host\"]",
         "SILLYTAVERN_ENABLEKEEPALIVE": "false"
       },
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1159,6 +1793,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "https://127.0.0.1:4321/"
+          },
+          "ipv6ListenUrl": {
+            "href": "https://[::1]:4321/"
+          },
+          "browserLaunchHostname": "config.example",
+          "browserLaunchUrl": {
+            "href": "https://config.example:8181/"
+          }
         }
       }
     },
@@ -1176,6 +1822,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1229,6 +1877,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "legacy.example",
+          "browserLaunchUrl": {
+            "href": "http://legacy.example:5050/"
+          }
         }
       }
     },
@@ -1252,6 +1912,8 @@
       "initialConfig": null,
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1305,6 +1967,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": false,
           "invalidIPv6Protocol": false
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "current.example",
+          "browserLaunchUrl": {
+            "href": "http://current.example:7070/"
+          }
         }
       }
     },
@@ -1315,6 +1989,8 @@
       "initialConfig": "protocol:\n  ipv4: enabled\n  ipv6: disabled\n",
       "environmentDataRoot": null,
       "optionEnvironment": {},
+      "useIPv4": true,
+      "useIPv6": false,
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -1368,6 +2044,18 @@
         "optionWarnings": {
           "invalidIPv4Protocol": true,
           "invalidIPv6Protocol": true
+        },
+        "derivedURLs": {
+          "ipv4ListenUrl": {
+            "href": "http://127.0.0.1:8000/"
+          },
+          "ipv6ListenUrl": {
+            "href": "http://[::1]:8000/"
+          },
+          "browserLaunchHostname": "127.0.0.1",
+          "browserLaunchUrl": {
+            "href": "http://127.0.0.1:8000/"
+          }
         }
       }
     }
