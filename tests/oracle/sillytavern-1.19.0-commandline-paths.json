@@ -4,7 +4,7 @@
     "version": "1.19.0",
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
-  "probe": "pinned CommandLineParser config/data path selection, precedence, and directory creation",
+  "probe": "pinned CommandLineParser config/data path effects and server options across CLI, config, and environment precedence",
   "source": "src/command-line.js: CommandLineParser.parse/getDefaultConfig",
   "scenarios": {
     "standalone-default": {
@@ -13,6 +13,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -33,6 +34,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -44,6 +78,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -64,6 +99,171 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "standalone-global-disabled-separated": {
+      "name": "standalone-global-disabled-separated",
+      "args": [
+        "--global",
+        "false"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "standalone-missing-path-flag-values": {
+      "name": "standalone-missing-path-flag-values",
+      "args": [
+        "--configPath",
+        "--dataRoot"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -73,6 +273,7 @@
       "initialConfigPath": "./config.yaml",
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -93,6 +294,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -102,6 +336,7 @@
       "initialConfigPath": "./config.yaml",
       "initialConfig": "dataRoot: ./existing-data\n",
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": "./existing-data",
@@ -122,6 +357,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -136,6 +404,7 @@
       "initialConfigPath": "./custom.yaml",
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -156,6 +425,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -165,6 +467,7 @@
       "initialConfigPath": "./config.yaml",
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": "./from-env",
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -185,6 +488,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -196,6 +532,7 @@
       "initialConfigPath": "./config.yaml",
       "initialConfig": "dataRoot: ./from-config\n",
       "environmentDataRoot": "./from-env",
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -216,6 +553,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -231,6 +601,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -251,6 +622,39 @@
           "ignoredConfigPath": true,
           "ignoredDataRoot": true,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -266,6 +670,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": true,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -286,6 +691,39 @@
           "ignoredConfigPath": true,
           "ignoredDataRoot": true,
           "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -298,6 +736,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": "./file-blocker",
       "existingDataRoot": null,
@@ -318,6 +757,39 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": true
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
         }
       }
     },
@@ -330,6 +802,7 @@
       "initialConfigPath": null,
       "initialConfig": null,
       "environmentDataRoot": null,
+      "optionEnvironment": {},
       "forceGlobal": false,
       "blockerFile": null,
       "existingDataRoot": null,
@@ -350,6 +823,551 @@
           "ignoredConfigPath": false,
           "ignoredDataRoot": false,
           "failedDataRootCreation": true
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "all-cli-server-options": {
+      "name": "all-cli-server-options",
+      "args": [
+        "--port",
+        "9111",
+        "--listen",
+        "--listenAddressIPv6",
+        "::1",
+        "--listenAddressIPv4",
+        "192.0.2.4",
+        "--enableIPv4",
+        "auto",
+        "--enableIPv6",
+        "true",
+        "--dnsPreferIPv6",
+        "--heartbeatInterval",
+        "17",
+        "--browserLaunchEnabled",
+        "false",
+        "--browserLaunchHostname",
+        "launch.example",
+        "--browserLaunchPort",
+        "9999",
+        "--browserLaunchAvoidLocalhost",
+        "--corsProxy",
+        "--disableCsrf",
+        "--ssl",
+        "--certPath",
+        "./tls/cert.pem",
+        "--keyPath",
+        "./tls/key.pem",
+        "--keyPassphrase",
+        "a pass phrase",
+        "--whitelist=false",
+        "--basicAuthMode",
+        "--enableKeepAlive",
+        "--requestProxyEnabled",
+        "--requestProxyUrl",
+        "socks5://127.0.0.1:1080",
+        "--requestProxyBypass",
+        "localhost",
+        "127.0.0.1"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 9111,
+          "listen": true,
+          "listenAddressIPv6": "::1",
+          "listenAddressIPv4": "192.0.2.4",
+          "enableIPv4": "auto",
+          "enableIPv6": true,
+          "dnsPreferIPv6": true,
+          "heartbeatInterval": 17,
+          "browserLaunchEnabled": false,
+          "browserLaunchHostname": "launch.example",
+          "browserLaunchPort": 9999,
+          "browserLaunchAvoidLocalhost": true,
+          "enableCorsProxy": true,
+          "disableCsrf": true,
+          "ssl": true,
+          "certPath": "./tls/cert.pem",
+          "keyPath": "./tls/key.pem",
+          "keyPassphrase": "a pass phrase",
+          "whitelistMode": false,
+          "basicAuthMode": true,
+          "enableKeepAlive": true,
+          "requestProxyEnabled": true,
+          "requestProxyUrl": "socks5://127.0.0.1:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "yargs-boolean-inline-coercion": {
+      "name": "yargs-boolean-inline-coercion",
+      "args": [
+        "--listen=1",
+        "--ssl=true",
+        "--basicAuthMode=invalid"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": true,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "yargs-number-coercion": {
+      "name": "yargs-number-coercion",
+      "args": [
+        "--port=invalid",
+        "--heartbeatInterval="
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": null,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "config-and-environment-options": {
+      "name": "config-and-environment-options",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "port: 1234\nlisten: true\nlistenAddress:\n  ipv4: 192.0.2.10\n  ipv6: '2001:db8::10'\nprotocol:\n  ipv4: false\n  ipv6: auto\ndnsPreferIPv6: true\nheartbeatInterval: 9\nbrowserLaunch:\n  enabled: false\n  hostname: config.example\n  port: 8181\n  avoidLocalhost: true\nenableCorsProxy: true\ndisableCsrfProtection: true\nssl:\n  enabled: true\n  certPath: config-cert.pem\n  keyPath: config-key.pem\n  keyPassphrase: config-pass\nwhitelistMode: false\nbasicAuthMode: true\nenableKeepAlive: true\nrequestProxy:\n  enabled: true\n  url: http://config-proxy:8080\n  bypass: [config-host]\n",
+      "environmentDataRoot": null,
+      "optionEnvironment": {
+        "SILLYTAVERN_PORT": "4321",
+        "SILLYTAVERN_LISTEN": "false",
+        "SILLYTAVERN_REQUESTPROXY_BYPASS": "[\"environment-host\"]",
+        "SILLYTAVERN_ENABLEKEEPALIVE": "false"
+      },
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "a44bef22cbdca048455e48aa1ed463f7a043d7b987bded54ca83610ebd1f0817",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 4321,
+          "listen": false,
+          "listenAddressIPv6": "2001:db8::10",
+          "listenAddressIPv4": "192.0.2.10",
+          "enableIPv4": false,
+          "enableIPv6": "auto",
+          "dnsPreferIPv6": true,
+          "heartbeatInterval": 9,
+          "browserLaunchEnabled": false,
+          "browserLaunchHostname": "config.example",
+          "browserLaunchPort": 8181,
+          "browserLaunchAvoidLocalhost": true,
+          "enableCorsProxy": true,
+          "disableCsrf": true,
+          "ssl": true,
+          "certPath": "config-cert.pem",
+          "keyPath": "config-key.pem",
+          "keyPassphrase": "config-pass",
+          "whitelistMode": false,
+          "basicAuthMode": true,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": true,
+          "requestProxyUrl": "http://config-proxy:8080",
+          "requestProxyBypass": [
+            "environment-host"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "deprecated-browser-option-fallbacks": {
+      "name": "deprecated-browser-option-fallbacks",
+      "args": [
+        "--autorun",
+        "--autorunHostname",
+        "legacy.example",
+        "--autorunPortOverride",
+        "5050",
+        "--avoidLocalhost"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "legacy.example",
+          "browserLaunchPort": 5050,
+          "browserLaunchAvoidLocalhost": true,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "canonical-browser-options-win-over-deprecated": {
+      "name": "canonical-browser-options-win-over-deprecated",
+      "args": [
+        "--autorun",
+        "--browserLaunchEnabled=false",
+        "--autorunHostname",
+        "legacy.example",
+        "--browserLaunchHostname",
+        "current.example",
+        "--autorunPortOverride",
+        "5050",
+        "--browserLaunchPort",
+        "7070",
+        "--avoidLocalhost",
+        "--browserLaunchAvoidLocalhost=false"
+      ],
+      "initialConfigPath": null,
+      "initialConfig": null,
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3310,
+        "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+        "configCreated": true,
+        "configUpdated": false,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": false,
+          "browserLaunchHostname": "current.example",
+          "browserLaunchPort": 7070,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": false,
+          "invalidIPv6Protocol": false
+        }
+      }
+    },
+    "invalid-protocol-values-fall-back": {
+      "name": "invalid-protocol-values-fall-back",
+      "args": [],
+      "initialConfigPath": "./config.yaml",
+      "initialConfig": "protocol:\n  ipv4: enabled\n  ipv6: disabled\n",
+      "environmentDataRoot": null,
+      "optionEnvironment": {},
+      "forceGlobal": false,
+      "blockerFile": null,
+      "existingDataRoot": null,
+      "result": {
+        "global": false,
+        "configPath": "./config.yaml",
+        "configFileRelativeToCwd": "config.yaml",
+        "dataRoot": "./data",
+        "dataRootCreationRelativeToCwd": "data",
+        "runtimeDataRootRelativeToServerDirectory": "data",
+        "configBytes": 3316,
+        "configSha256": "28bd8d007c5112bd5a5de130bc1a0c9577d8559e2f4e9af4edeaad1ba36c3a30",
+        "configCreated": false,
+        "configUpdated": true,
+        "dataRootIsDirectory": true,
+        "dataRootWasDirectoryBeforeParse": false,
+        "warnings": {
+          "ignoredConfigPath": false,
+          "ignoredDataRoot": false,
+          "failedDataRootCreation": false
+        },
+        "options": {
+          "port": 8000,
+          "listen": false,
+          "listenAddressIPv6": "[::]",
+          "listenAddressIPv4": "0.0.0.0",
+          "enableIPv4": true,
+          "enableIPv6": false,
+          "dnsPreferIPv6": false,
+          "heartbeatInterval": 0,
+          "browserLaunchEnabled": true,
+          "browserLaunchHostname": "auto",
+          "browserLaunchPort": -1,
+          "browserLaunchAvoidLocalhost": false,
+          "enableCorsProxy": false,
+          "disableCsrf": false,
+          "ssl": false,
+          "certPath": "./certs/cert.pem",
+          "keyPath": "./certs/privkey.pem",
+          "keyPassphrase": "",
+          "whitelistMode": true,
+          "basicAuthMode": false,
+          "enableKeepAlive": false,
+          "requestProxyEnabled": false,
+          "requestProxyUrl": "socks5://username:password@example.com:1080",
+          "requestProxyBypass": [
+            "localhost",
+            "127.0.0.1"
+          ]
+        },
+        "optionWarnings": {
+          "invalidIPv4Protocol": true,
+          "invalidIPv6Protocol": true
         }
       }
     }

@@ -37,14 +37,25 @@ const warnings = [];
 console.warn = (...values) => warnings.push(values.map(String).join(' '));
 console.log = () => {};
 if (process.env.GOTAVERN_FORCE_GLOBAL === 'true') globalThis.FORCE_GLOBAL_MODE = true;
+for (const key of Object.keys(process.env)) {
+    if (key.startsWith('SILLYTAVERN_')) delete process.env[key];
+}
 delete process.env.SILLYTAVERN_DATAROOT;
 if (process.env.GOTAVERN_DATA_ROOT_ENV !== '') process.env.SILLYTAVERN_DATAROOT = process.env.GOTAVERN_DATA_ROOT_ENV;
+Object.assign(process.env, JSON.parse(process.env.GOTAVERN_OPTION_ENV));
 process.argv = [process.execPath, path.join(sourceRoot, 'server.js'), ...args];
 
 const { CommandLineParser } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'command-line.js')).href);
 const globalDataDirectory = envPaths('SillyTavern', { suffix: '' }).data;
 const initialConfigPath = process.env.GOTAVERN_INITIAL_CONFIG_PATH;
 const result = new CommandLineParser().parse(process.argv);
+const options = Object.fromEntries([
+    'port', 'listen', 'listenAddressIPv6', 'listenAddressIPv4', 'enableIPv4', 'enableIPv6',
+    'dnsPreferIPv6', 'heartbeatInterval', 'browserLaunchEnabled', 'browserLaunchHostname',
+    'browserLaunchPort', 'browserLaunchAvoidLocalhost', 'enableCorsProxy', 'disableCsrf',
+    'ssl', 'certPath', 'keyPath', 'keyPassphrase', 'whitelistMode', 'basicAuthMode',
+    'enableKeepAlive', 'requestProxyEnabled', 'requestProxyUrl', 'requestProxyBypass',
+].map(key => [key, result[key]]));
 const resolvedConfig = path.resolve(result.configPath);
 const configBytes = readFileSync(resolvedConfig);
 const resolvedDataRoot = path.resolve(result.dataRoot);
@@ -67,6 +78,10 @@ const relevantWarnings = {
     ignoredDataRoot: warnings.some(value => value.includes('--dataRoot') && value.includes('ignored in global mode')),
     failedDataRootCreation: warnings.some(value => value.includes('Failed to create data root directory')),
 };
+const optionWarnings = {
+    invalidIPv4Protocol: warnings.some(value => value.includes('protocol: ipv4') && value.includes('option invalid')),
+    invalidIPv6Protocol: warnings.some(value => value.includes('protocol: ipv6') && value.includes('option invalid')),
+};
 const configWasPresent = initialConfigPath !== '' && path.resolve(initialConfigPath) === resolvedConfig;
 const initialConfigHash = process.env.GOTAVERN_INITIAL_CONFIG_SHA256;
 const configSha256 = createHash('sha256').update(configBytes).digest('hex');
@@ -84,12 +99,16 @@ process.stdout.write(JSON.stringify({
     dataRootIsDirectory,
     dataRootWasDirectoryBeforeParse: process.env.GOTAVERN_DATA_ROOT_PREEXISTED === 'true',
     warnings: relevantWarnings,
+    options,
+    optionWarnings,
 }));
 `;
 
 const scenarios = [
     { name: 'standalone-default', args: [] },
     { name: 'standalone-global-disabled', args: ['--global=false'] },
+    { name: 'standalone-global-disabled-separated', args: ['--global', 'false'] },
+    { name: 'standalone-missing-path-flag-values', args: ['--configPath', '--dataRoot'] },
     { name: 'standalone-config-data-root', args: [], initialConfigPath: './config.yaml', initialConfig: 'dataRoot: ./from-config\n' },
     { name: 'standalone-existing-data-root', args: [], initialConfigPath: './config.yaml', initialConfig: 'dataRoot: ./existing-data\n', existingDataRoot: './existing-data' },
     { name: 'standalone-cli-precedence', args: ['--configPath', './custom.yaml', '--dataRoot', './from-cli'], initialConfigPath: './custom.yaml', initialConfig: 'dataRoot: ./from-config\n' },
@@ -99,6 +118,52 @@ const scenarios = [
     { name: 'forced-global', args: ['--global=false', '--configPath', './ignored-config.yaml', '--dataRoot', './ignored-data'], forceGlobal: true },
     { name: 'failed-data-root-create', args: ['--dataRoot', './file-blocker/child'], blockerFile: './file-blocker' },
     { name: 'empty-data-root', args: ['--dataRoot', ''] },
+    {
+        name: 'all-cli-server-options',
+        args: [
+            '--port', '9111', '--listen', '--listenAddressIPv6', '::1', '--listenAddressIPv4', '192.0.2.4',
+            '--enableIPv4', 'auto', '--enableIPv6', 'true', '--dnsPreferIPv6', '--heartbeatInterval', '17',
+            '--browserLaunchEnabled', 'false', '--browserLaunchHostname', 'launch.example', '--browserLaunchPort', '9999',
+            '--browserLaunchAvoidLocalhost', '--corsProxy', '--disableCsrf', '--ssl', '--certPath', './tls/cert.pem',
+            '--keyPath', './tls/key.pem', '--keyPassphrase', 'a pass phrase', '--whitelist=false', '--basicAuthMode',
+            '--enableKeepAlive', '--requestProxyEnabled', '--requestProxyUrl', 'socks5://127.0.0.1:1080',
+            '--requestProxyBypass', 'localhost', '127.0.0.1',
+        ],
+    },
+    {
+        name: 'yargs-boolean-inline-coercion',
+        args: ['--listen=1', '--ssl=true', '--basicAuthMode=invalid'],
+    },
+    {
+        name: 'yargs-number-coercion',
+        args: ['--port=invalid', '--heartbeatInterval='],
+    },
+    {
+        name: 'config-and-environment-options',
+        args: [],
+        initialConfigPath: './config.yaml',
+        initialConfig: `port: 1234\nlisten: true\nlistenAddress:\n  ipv4: 192.0.2.10\n  ipv6: '2001:db8::10'\nprotocol:\n  ipv4: false\n  ipv6: auto\ndnsPreferIPv6: true\nheartbeatInterval: 9\nbrowserLaunch:\n  enabled: false\n  hostname: config.example\n  port: 8181\n  avoidLocalhost: true\nenableCorsProxy: true\ndisableCsrfProtection: true\nssl:\n  enabled: true\n  certPath: config-cert.pem\n  keyPath: config-key.pem\n  keyPassphrase: config-pass\nwhitelistMode: false\nbasicAuthMode: true\nenableKeepAlive: true\nrequestProxy:\n  enabled: true\n  url: http://config-proxy:8080\n  bypass: [config-host]\n`,
+        optionEnvironment: {
+            SILLYTAVERN_PORT: '4321',
+            SILLYTAVERN_LISTEN: 'false',
+            SILLYTAVERN_REQUESTPROXY_BYPASS: '["environment-host"]',
+            SILLYTAVERN_ENABLEKEEPALIVE: 'false',
+        },
+    },
+    {
+        name: 'deprecated-browser-option-fallbacks',
+        args: ['--autorun', '--autorunHostname', 'legacy.example', '--autorunPortOverride', '5050', '--avoidLocalhost'],
+    },
+    {
+        name: 'canonical-browser-options-win-over-deprecated',
+        args: ['--autorun', '--browserLaunchEnabled=false', '--autorunHostname', 'legacy.example', '--browserLaunchHostname', 'current.example', '--autorunPortOverride', '5050', '--browserLaunchPort', '7070', '--avoidLocalhost', '--browserLaunchAvoidLocalhost=false'],
+    },
+    {
+        name: 'invalid-protocol-values-fall-back',
+        args: [],
+        initialConfigPath: './config.yaml',
+        initialConfig: 'protocol:\n  ipv4: enabled\n  ipv6: disabled\n',
+    },
 ];
 
 function globalEnvironment(globalBase) {
@@ -147,6 +212,7 @@ function runScenario(scenario) {
         GOTAVERN_ARGS: JSON.stringify(scenario.args),
         GOTAVERN_FORCE_GLOBAL: scenario.forceGlobal ? 'true' : 'false',
         GOTAVERN_DATA_ROOT_ENV: scenario.environmentDataRoot ?? '',
+        GOTAVERN_OPTION_ENV: JSON.stringify(scenario.optionEnvironment ?? {}),
         GOTAVERN_INITIAL_CONFIG_PATH: initialConfigAbsolute,
         GOTAVERN_INITIAL_CONFIG_SHA256: initialConfigSha256,
         GOTAVERN_DATA_ROOT_PREEXISTED: scenario.existingDataRoot ? 'true' : 'false',
@@ -162,6 +228,7 @@ function runScenario(scenario) {
         initialConfigPath: scenario.initialConfigPath ?? null,
         initialConfig: scenario.initialConfig ?? null,
         environmentDataRoot: scenario.environmentDataRoot ?? null,
+        optionEnvironment: scenario.optionEnvironment ?? {},
         forceGlobal: scenario.forceGlobal ?? false,
         blockerFile: scenario.blockerFile ?? null,
         existingDataRoot: scenario.existingDataRoot ?? null,
@@ -174,7 +241,7 @@ try {
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned CommandLineParser config/data path selection, precedence, and directory creation',
+    probe: 'pinned CommandLineParser config/data path effects and server options across CLI, config, and environment precedence',
         source: 'src/command-line.js: CommandLineParser.parse/getDefaultConfig',
         scenarios: Object.fromEntries(captured.map(item => [item.name, item])),
     };

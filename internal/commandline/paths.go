@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/cocokoishi/gotavern/internal/configinit"
@@ -261,21 +260,22 @@ func parsePathArguments(args []string) (pathArguments, error) {
 		case "global":
 			value := true
 			if hasInlineValue {
-				parsed, err := strconv.ParseBool(strings.ToLower(inlineValue))
-				if err != nil {
-					return result, fmt.Errorf("parse --global value %q: expected true or false", inlineValue)
-				}
-				value = parsed
+				value = strings.EqualFold(inlineValue, "true")
+			} else if index+1 < len(args) && (strings.EqualFold(args[index+1], "true") || strings.EqualFold(args[index+1], "false")) {
+				value = strings.EqualFold(args[index+1], "true")
+				index++
 			}
 			result.global = &value
 		case "configPath":
-			value, next := argumentValue(args, index, inlineValue, hasInlineValue)
-			result.configPath = &value
-			index = next
+			if value, next, present := optionalArgumentValue(args, index, inlineValue, hasInlineValue); present {
+				result.configPath = &value
+				index = next
+			}
 		case "dataRoot":
-			value, next := argumentValue(args, index, inlineValue, hasInlineValue)
-			result.dataRoot = &value
-			index = next
+			if value, next, present := optionalArgumentValue(args, index, inlineValue, hasInlineValue); present {
+				result.dataRoot = &value
+				index = next
+			}
 		default:
 			index = skipUnrelatedArgument(args, index, name, hasInlineValue)
 		}
@@ -283,14 +283,14 @@ func parsePathArguments(args []string) (pathArguments, error) {
 	return result, nil
 }
 
-func argumentValue(args []string, index int, inlineValue string, hasInlineValue bool) (string, int) {
+func optionalArgumentValue(args []string, index int, inlineValue string, hasInlineValue bool) (string, int, bool) {
 	if hasInlineValue {
-		return inlineValue, index
+		return inlineValue, index, true
 	}
 	if index+1 < len(args) && !strings.HasPrefix(args[index+1], "--") {
-		return args[index+1], index + 1
+		return args[index+1], index + 1, true
 	}
-	return "", index
+	return "", index, false
 }
 
 func skipUnrelatedArgument(args []string, index int, name string, hasInlineValue bool) int {
