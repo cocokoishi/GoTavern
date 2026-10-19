@@ -72,6 +72,7 @@ const options = Object.fromEntries([
 ].map(key => [key, result[key]]));
 const startupSettings = {
     legacyCookieSecret: getConfigValue('cookieSecret'),
+    sessionTimeout: getConfigValue('sessionTimeout', -1, 'number'),
     enableUserAccounts: getConfigValue('enableUserAccounts', false, 'boolean'),
     securityOverride: getConfigValue('securityOverride', false, 'boolean'),
     perUserBasicAuth: getConfigValue('perUserBasicAuth', false, 'boolean'),

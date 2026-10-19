@@ -54,6 +54,7 @@ type OptionWarnings struct {
 // output instead of silently coercing malformed or unknown YAML.
 type StartupSettings struct {
 	LegacyCookieSecret      any `json:"legacyCookieSecret"`
+	SessionTimeout          any `json:"sessionTimeout"`
 	EnableUserAccounts      any `json:"enableUserAccounts"`
 	SecurityOverride        any `json:"securityOverride"`
 	PerUserBasicAuth        any `json:"perUserBasicAuth"`
@@ -188,6 +189,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 	}
 	startupSettings := StartupSettings{
 		LegacyCookieSecret:      getConfigValue(config, "cookieSecret", nil, cliString),
+		SessionTimeout:          getConfigValue(config, "sessionTimeout", -1, cliNumber),
 		EnableUserAccounts:      getConfigValue(config, "enableUserAccounts", false, cliBoolean),
 		SecurityOverride:        getConfigValue(config, "securityOverride", false, cliBoolean),
 		PerUserBasicAuth:        getConfigValue(config, "perUserBasicAuth", false, cliBoolean),

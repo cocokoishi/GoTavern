@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned disableCsrfProtection route and request behavior",
+  "csrfToken": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "headers": {
+      "content-length": "20",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"14-B7XiznSNgCHW4WjqkKtTG8Hq+Rw\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "token": "disabled"
+    },
+    "setCookieCount": 0
+  },
+  "pingWithoutToken": {
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

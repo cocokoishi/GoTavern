@@ -37,33 +37,62 @@ type versionResponse struct {
 	IsLatest    bool   `json:"isLatest"`
 }
 
-// NewHTTPHandler serves the pinned frontend, public callback redirect, version
-// response, account-disabled login redirect, and seeded 404 page captured in
-// the fresh-start Node oracle. It follows the pinned fresh-start config, where
-// user accounts are disabled. Other auth settings and API routes are absent.
+// HTTPHandlerOptions selects the startup-derived behavior used by the pinned
+// HTTP middleware. A nil session timeout means SillyTavern's default of -1
+// (400 days).
+type HTTPHandlerOptions struct {
+	DataRoot              string
+	CookieSecret          string
+	DisableCSRF           bool
+	EnableCorsProxy       bool
+	AccountsEnabled       bool
+	SessionTimeoutSeconds *float64
+}
+
+// NewHTTPHandler serves asset and HTTP behavior that does not require startup
+// state. Session routes should use NewHTTPHandlerWithOptions after startup has
+// initialized the cookie secret in the data root.
 func NewHTTPHandler() http.Handler {
 	page, err := upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
 	if err != nil {
 		page = nil
 	}
-	return newHTTPHandler(page)
+	return newHTTPHandler(page, HTTPHandlerOptions{})
 }
 
-// NewHTTPHandlerWithDataRoot reads the final 404 page once when the handler is
-// constructed, matching server-main's apply404Middleware startup behavior.
-// Other server settings retain the pinned fresh-start defaults.
+// NewHTTPHandlerWithDataRoot reads the custom 404 page and cookie secret once
+// when the handler is constructed. Other server settings use pinned defaults.
 func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
-	var page []byte
-	if dataRoot != "" {
-		page, _ = os.ReadFile(filepath.Join(dataRoot, "_errors", "url-not-found.html"))
-	}
-	return newHTTPHandler(page)
+	return NewHTTPHandlerWithOptions(HTTPHandlerOptions{DataRoot: dataRoot})
 }
 
-func newHTTPHandler(notFoundPage []byte) http.Handler {
+// NewHTTPHandlerWithOptions reads the cookie secret and custom error page from
+// the initialized data root. The caller is responsible for running pinned
+// startup first, including cookie-secret creation and configuration parsing.
+func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
+	var page []byte
+	if options.DataRoot != "" {
+		page, _ = os.ReadFile(filepath.Join(options.DataRoot, "_errors", "url-not-found.html"))
+	} else {
+		page, _ = upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
+	}
+	if options.CookieSecret == "" && options.DataRoot != "" {
+		secret, _ := os.ReadFile(filepath.Join(options.DataRoot, "cookie-secret.txt"))
+		options.CookieSecret = string(secret)
+	}
+	return newHTTPHandler(page, options)
+}
+
+func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
 	mux.HandleFunc("GET /login", serveDisabledAccountsLogin)
+	mux.HandleFunc("GET /csrf-token", func(w http.ResponseWriter, r *http.Request) {
+		serveCSRFToken(w, r, options)
+	})
+	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
+		servePing(w, r, options)
+	})
 	mux.HandleFunc("GET /callback", func(w http.ResponseWriter, r *http.Request) {
 		serveCallback(w, r, notFoundPage)
 	})
@@ -75,6 +104,24 @@ func newHTTPHandler(notFoundPage []byte) http.Handler {
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
+		if r.URL.Path == "/csrf-token" && r.Method == http.MethodGet {
+			if options.DisableCSRF {
+				serveDisabledCSRFToken(w, r)
+				return
+			}
+			session := loadCookieSession(r, options)
+			r = r.WithContext(withSession(r.Context(), session))
+		}
+		if !options.DisableCSRF && requiresCSRFSynchronization(r, options) {
+			session := loadCookieSession(r, options)
+			storedToken, hasStoredToken := session.stringValue("csrfToken")
+			requestToken, hasRequestToken := csrfTokenFromHeader(r)
+			if !hasStoredToken || !hasRequestToken || requestToken != storedToken {
+				serveInvalidCSRFToken(w)
+				return
+			}
+			r = r.WithContext(withSession(r.Context(), session))
+		}
 		mux.ServeHTTP(w, r)
 	})
 }

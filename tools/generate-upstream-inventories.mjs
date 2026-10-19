@@ -207,6 +207,10 @@ function generateRoutes() {
                 ? 'partial: fresh-start account-disabled 302 response matches for text and HTML Accept headers; account-enabled login and auto-login remain unimplemented'
                 : row.method === 'GET' && row.fullPath === '/version'
                 ? 'partial: response body/status/content type match the fresh-start oracle; shared middleware remains unimplemented'
+                : row.method === 'GET' && row.fullPath === '/csrf-token'
+                ? 'partial: default and disabled CSRF token responses match dedicated Node oracles; default mode also matches signed session cookies, token reuse, cookie expiry, and attributes; other middleware remains unimplemented'
+                : row.method === 'POST' && row.fullPath === '/api/ping'
+                ? 'partial: valid/invalid CSRF responses, empty-string token handling, and extended unknown-field session preservation match the dedicated Node oracle; account-enabled auth remains unimplemented'
                 : 'not implemented';
             return `| ${row.method} | \`${row.fullPath}\` | [${row.file}:${row.line}](${sourceLink(row.file, row.line)}) | ${status} |`;
         }),
@@ -226,8 +230,8 @@ function generateRoutes() {
         '- `GET /login` matches the pinned fresh-install account-disabled 302 redirect for text and HTML Accept headers; account-enabled login pages and auto-login paths remain unimplemented.',
         '- Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.',
         '- The final 404 handler matches the seeded fresh-install page and a preexisting custom data-root `url-not-found.html` for GET; full middleware ordering remains unimplemented.',
-        '- `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.',
-        '- Exact authentication, CSRF, content-type, status, redirects, and error semantics are unimplemented and require separate reference probes.',
+        '- `/csrf-token` and `/api/ping` match the pinned cookie-session and CSRF probes for enabled/disabled protection, signed 400-day cookies, token reuse, valid/invalid and empty-string tokens, plus session extension that preserves unknown fields; account authentication and remaining middleware still need probes.',
+        '- Exact authentication and the remaining route content-type, status, redirect, and error semantics require separate reference probes.',
         '',
         '## Coverage boundaries',
         '',

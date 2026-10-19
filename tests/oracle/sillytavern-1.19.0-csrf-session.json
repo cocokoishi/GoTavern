@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned cookie-session signing, csrf-sync token persistence, and protected ping behavior",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-csrf-session-probe-secret",
+    "sessionTimeout": -1
+  },
+  "cookieName": "session-<first-8-hex-of-sha256(os.hostname())>",
+  "keygrip": {
+    "input": "session-probe=eyJjc3JmVG9rZW4iOiJwcm9iZSJ9",
+    "signature": "0RiNs9bFz9Evgb-QMJInWy8lthw",
+    "algorithm": "HMAC-SHA1/base64url-no-padding"
+  },
+  "csrfToken": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "headers": {
+      "content-length": "76",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "<weak-etag-derived-from-random-token>",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "token": "<64-lowercase-hex>"
+    },
+    "tokenBytes": 64,
+    "sessionPayload": {
+      "csrfToken": "<64-lowercase-hex>"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2
+  },
+  "repeatedToken": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "tokenMatchesFirst": true,
+    "setCookieCount": 0
+  },
+  "validPing": {
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "invalidPing": {
+    "status": 403,
+    "contentType": "text/html; charset=utf-8",
+    "headers": {
+      "content-length": "201",
+      "content-security-policy": "default-src 'none'",
+      "content-type": "text/html; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "bytes": 201,
+    "sha256": "a80d4f25067e11c786e3dc5ec4a66e1f2913f59ee19d2c0ae4fd5ee3331724ad",
+    "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>ForbiddenError: Invalid CSRF token. Please refresh the page and try again.</pre>\n</body>\n</html>\n"
+  },
+  "extendedPing": {
+    "status": 204,
+    "headers": {
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "setCookie": [
+      "session-<host-hash>=<base64-session-json>; path=/; expires=<timestamp>; samesite=lax; httponly",
+      "session-<host-hash>.sig=<signature>; path=/; expires=<timestamp>; samesite=lax; httponly"
+    ],
+    "setCookieCount": 2,
+    "sessionPayload": {
+      "futureField": {
+        "enabled": true,
+        "values": [
+          1,
+          "two"
+        ]
+      },
+      "csrfToken": "preserved-token",
+      "touch": "<unix-milliseconds>"
+    }
+  },
+  "emptyStringToken": {
+    "csrfTokenStatus": 200,
+    "csrfTokenBody": {
+      "token": ""
+    },
+    "csrfTokenSetCookieCount": 0,
+    "pingStatus": 204,
+    "pingBytes": 0
+  }
+}

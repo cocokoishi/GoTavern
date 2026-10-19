@@ -126,6 +126,27 @@ try {
         throw new Error(`cookie-secret oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const csrfSessionProbe = path.join(buildRoot, '.gotavern-probe-csrf-session.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-csrf-session.mjs'), csrfSessionProbe);
+    const csrfSessionFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-csrf-session.json');
+    run(process.execPath, [csrfSessionProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstCsrfSessionProbe = readFileSync(csrfSessionFixturePath);
+    run(process.execPath, [csrfSessionProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondCsrfSessionProbe = readFileSync(csrfSessionFixturePath);
+    if (!firstCsrfSessionProbe.equals(secondCsrfSessionProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCsrfSessionProbe), JSON.parse(secondCsrfSessionProbe));
+        throw new Error(`CSRF session oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+    const disabledCsrfFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-csrf-disabled.json');
+    run(process.execPath, [csrfSessionProbe, buildRoot, repositoryRoot, 'disabled'], buildRoot);
+    const firstDisabledCsrfProbe = readFileSync(disabledCsrfFixturePath);
+    run(process.execPath, [csrfSessionProbe, buildRoot, repositoryRoot, 'disabled'], buildRoot);
+    const secondDisabledCsrfProbe = readFileSync(disabledCsrfFixturePath);
+    if (!firstDisabledCsrfProbe.equals(secondDisabledCsrfProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstDisabledCsrfProbe), JSON.parse(secondDisabledCsrfProbe));
+        throw new Error(`disabled CSRF oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

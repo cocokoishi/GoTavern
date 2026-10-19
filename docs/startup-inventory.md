@@ -16,7 +16,7 @@ This order follows the pinned startup call path. It is an implementation checkli
 
 ## Server initialization chain
 
-Before the promise chain below runs, `server-main.js` constructs the Express middleware stack. In particular, `cookieSession(...)` calls `getCookieSecret(DATA_ROOT)` while the module is being evaluated; this reads a non-empty `cookie-secret.txt`, migrates a legacy config secret, or generates and writes a new secret. Multer also creates `DATA_ROOT/_uploads`. `internal/startup.InitializeDataStartup` now reproduces these data effects and the ordered pre-listener data chain through statistics initialization. It requires the caller to have resolved and created `DATA_ROOT`, as `server.js` does. CLI/config integration and the later middleware/listener steps remain separate work.
+Before the promise chain below runs, `server-main.js` constructs the Express middleware stack. In particular, `cookieSession(...)` calls `getCookieSecret(DATA_ROOT)` while the module is being evaluated; this reads a non-empty `cookie-secret.txt`, migrates a legacy config secret, or generates and writes a new secret. Multer also creates `DATA_ROOT/_uploads`. `internal/startup.InitializeDataStartup` now reproduces these data effects and the ordered pre-listener data chain through statistics initialization. `internal/server.NewHTTPHandlerWithOptions` matches the captured cookie-session signing, CSRF-token persistence, and `/api/ping` checks after startup has initialized the cookie secret. The HTTP handler is not yet wired to an executable startup/listener path, and account-enabled middleware remains unimplemented.
 
 | Order | Operation | Observed filesystem / runtime contract | Source | GoTavern status |
 |---:|---|---|---|---|
