@@ -34,6 +34,28 @@ function runNpm(args, cwd, options = {}) {
     return execFileSync('npm', args, { cwd, encoding: 'utf8', stdio: 'inherit', ...options });
 }
 
+function changedJSONPaths(left, right, location = '$', output = []) {
+    if (Object.is(left, right) || output.length >= 40) return output;
+    if (Array.isArray(left) && Array.isArray(right)) {
+        if (left.length !== right.length) output.push(`${location}.length`);
+        for (let index = 0; index < Math.min(left.length, right.length); index++) {
+            changedJSONPaths(left[index], right[index], `${location}[${index}]`, output);
+        }
+        return output;
+    }
+    if (left && right && typeof left === 'object' && typeof right === 'object' && !Array.isArray(left) && !Array.isArray(right)) {
+        const keys = [...new Set([...Object.keys(left), ...Object.keys(right)])].sort();
+        for (const key of keys) {
+            if (!(key in left) || !(key in right)) output.push(`${location}.${key}`);
+            else changedJSONPaths(left[key], right[key], `${location}.${key}`, output);
+            if (output.length >= 40) break;
+        }
+        return output;
+    }
+    output.push(location);
+    return output;
+}
+
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: upstreamRoot, encoding: 'utf8' }).trim();
 if (sourceCommit !== PINNED_COMMIT) {
     throw new Error(`upstream checkout is ${sourceCommit}; expected ${PINNED_COMMIT}`);
@@ -90,6 +112,18 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
     run(process.execPath, [compilerPath, tempOutput], buildRoot);
 
     copyFileSync(tempOutput, outputPath);
+    const probeScript = path.join(buildRoot, '.gotavern-probe-node.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-node-reference.mjs'), probeScript);
+    run(process.execPath, [probeScript, buildRoot, repositoryRoot], buildRoot);
+    const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-fresh-start.json');
+    const firstProbe = readFileSync(fixturePath);
+    run(process.execPath, [probeScript, buildRoot, repositoryRoot], buildRoot);
+    const secondProbe = readFileSync(fixturePath);
+    if (!firstProbe.equals(secondProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstProbe), JSON.parse(secondProbe));
+        throw new Error(`fresh-start oracle changed across identical pinned Node runs at: ${paths.join(', ')}; add only source-verified normalization rules`);
+    }
+
     const packageJson = JSON.parse(readFileSync(path.join(buildRoot, 'package.json'), 'utf8'));
     const webpackPackage = JSON.parse(readFileSync(path.join(buildRoot, 'node_modules', 'webpack', 'package.json'), 'utf8'));
     const digest = createHash('sha256').update(readFileSync(outputPath)).digest('hex');

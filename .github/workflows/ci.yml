@@ -9,6 +9,31 @@ permissions:
   contents: read
 
 jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: SillyTavern/SillyTavern
+          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+          path: .reference/SillyTavern
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Pin npm build tool
+        run: |
+          npm install --global npm@11.17.0 --no-audit --no-fund
+          test "$(npm --version)" = 11.17.0
+      - name: Test observer comparison harness
+        run: node --test tests/oracle/compare-observations.test.mjs
+      - name: Rebuild pinned assets, inventories, and Node oracle
+        run: node tools/build-generated-lib.mjs .reference/SillyTavern
+      - name: Verify generated results are committed
+        run: |
+          git diff --exit-code -- docs/api-inventory.md docs/config-inventory.md upstream/generated tests/oracle/sillytavern-1.19.0-fresh-start.json
+
   verify:
     runs-on: ubuntu-latest
     steps:
