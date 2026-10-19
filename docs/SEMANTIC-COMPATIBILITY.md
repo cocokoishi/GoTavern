@@ -404,6 +404,8 @@ The image-metadata folder-update oracle covers POST /api/image-metadata/folders/
 
 The image-metadata folder-delete oracle covers POST /api/image-metadata/folders/delete authentication, CSRF, GET/HEAD 404s, string-ID validation, first-match folder removal, removal of the first matching folder ID from each image, duplicate IDs, array/object image collections, malformed index fallback and shape errors, and exact four-space persistence with unknown-field retention. Go serializes deletion under the shared user-content lock and uses atomic replacement. Its cross-process round trip deletes a folder through GoTavern and reads the updated folder list and full index through pinned Node. Pinned CORS answers OPTIONS with 204 and `Access-Control-Allow-Methods: OPTIONS`, while Go currently returns 404; parser responses and filesystem failure/race cases remain incomplete.
 
+The image-metadata assignment oracle covers POST /api/image-metadata/folders/assign and `/unassign` authentication, CSRF, GET/HEAD 404s, ID/path validation, POSIX normalization and traversal checks, missing-file skips, folder existence ordering, metadata stub creation, deduplicated assignment, one-at-a-time removal, raw unassign keys, malformed metadata shapes, and exact four-space persistence with unknown-field retention. Both handlers use the shared user-content lock and atomic replacement. Go assign and unassign operations are read back through pinned Node. Pinned CORS answers OPTIONS with 204 while Go returns 404; parser responses, remaining filesystem failures/races, and browser `imageFolderMap` state updates remain incomplete.
+
 ---
 
 ## 10. Character/card suite

@@ -543,6 +543,18 @@ try {
         throw new Error('image-metadata folder-delete oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const imageMetadataFolderAssignmentsProbe = path.join(buildRoot, '.gotavern-probe-image-metadata-folder-assignments.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-image-metadata-folder-assignments.mjs'), imageMetadataFolderAssignmentsProbe);
+    const imageMetadataFolderAssignmentsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-image-metadata-folder-assignments.json');
+    run(process.execPath, [imageMetadataFolderAssignmentsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstImageMetadataFolderAssignmentsProbe = readFileSync(imageMetadataFolderAssignmentsFixturePath);
+    run(process.execPath, [imageMetadataFolderAssignmentsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondImageMetadataFolderAssignmentsProbe = readFileSync(imageMetadataFolderAssignmentsFixturePath);
+    if (!firstImageMetadataFolderAssignmentsProbe.equals(secondImageMetadataFolderAssignmentsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstImageMetadataFolderAssignmentsProbe), JSON.parse(secondImageMetadataFolderAssignmentsProbe));
+        throw new Error('image-metadata folder-assignments oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const spritesDeleteProbe = path.join(buildRoot, '.gotavern-probe-sprites-delete.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-sprites-delete.mjs'), spritesDeleteProbe);
     const spritesDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-sprites-delete.json');
