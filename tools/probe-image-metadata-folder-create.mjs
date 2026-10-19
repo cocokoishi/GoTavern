@@ -273,7 +273,7 @@ try {
     writeFileSync(indexPath, goRoundTripInput.index);
     const goPort = await choosePort();
     goServerOrigin = 'http://127.0.0.1:' + goPort;
-    goChild = spawn('go', ['run', './tools/image-metadata-create-roundtrip', dataRoot, String(goPort)], {
+    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort)], {
         cwd: repositoryRoot,
         stdio: ['ignore', 'pipe', 'pipe'],
     });

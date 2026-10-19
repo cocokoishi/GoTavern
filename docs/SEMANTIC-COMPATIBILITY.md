@@ -398,6 +398,8 @@ The same metadata-index oracle covers authenticated/CSRF-protected POST /api/ima
 
 The image-metadata folder-create oracle covers POST /api/image-metadata/folders/create authentication, CSRF, GET/HEAD 404s, missing/non-string names, JavaScript whitespace trimming, duplicate names, UUIDv4 shape, missing/malformed index fallback, malformed folder-shape errors, and exact four-space index persistence with unknown-field retention. Go serializes writes under the shared user-content lock and uses atomic replacement. Its cross-process round trip creates a folder through GoTavern and reads the resulting folder list and full index through pinned Node. URL-encoded/malformed request-body parser responses and filesystem failure/race cases remain unprobed.
 
+The image-metadata thumbnail oracle covers POST /api/image-metadata/folders/set-thumbnails authentication, CSRF, GET/HEAD 404s, batch validation, strict ID comparisons, duplicate updates, skipped unknown folders, malformed index fallback and shape errors, and exact four-space index persistence with unknown-field retention. Go serializes batch updates under the shared user-content lock and uses atomic replacement. Its cross-process round trip updates a folder through GoTavern and reads the resulting folder list and full index through pinned Node. URL-encoded/malformed request-body parser responses and filesystem failure/race cases remain unprobed.
+
 ---
 
 ## 10. Character/card suite

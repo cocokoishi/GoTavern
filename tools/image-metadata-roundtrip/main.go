@@ -15,7 +15,7 @@ import (
 
 func main() {
 	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: image-metadata-create-roundtrip <data-root> <port>")
+		fmt.Fprintln(os.Stderr, "usage: image-metadata-roundtrip <data-root> <port>")
 		os.Exit(2)
 	}
 	dataRoot, err := filepath.Abs(os.Args[1])
