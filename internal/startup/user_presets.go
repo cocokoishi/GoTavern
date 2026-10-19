@@ -18,7 +18,12 @@ func UserPresetFilename(nameJSON []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return sanitizeUserPresetFilename(nodeString(value) + ".json"), nil
+	return SanitizeUserFilename(nodeString(value) + ".json"), nil
+}
+
+// SanitizeUserFilename applies the pinned sanitize-filename 1.6.3 behavior.
+func SanitizeUserFilename(filename string) string {
+	return sanitizeUserPresetFilename(filename)
 }
 
 // SaveQuickReplyPreset atomically writes one preset while holding the shared

@@ -388,6 +388,8 @@ The moving UI oracle covers authenticated preset save, JSON formatting, name coe
 
 The user-avatar oracle covers authenticated listing, pinned mime-db 1.54.0 image-extension filtering, en-US Intl.Collator order, hidden-file and directory behavior, response headers, and the legacy method-preserving 308 redirect. The API does not mutate avatar files or account data. Permission failures, other platform locale settings, symlink entries, and non-image MIME edge cases remain unprobed.
 
+The Expressions sprite-list oracle covers authenticated GET /api/sprites/get requests, image-only extension filtering, derived labels, second-resolution modification-time URLs, character subfolders, missing/invalid paths, and unchanged character/account data. It compares the complete JSON response and stable HTTP headers with pinned Node. Browser rendering and retrieval of the returned /characters/... paths remain a separate extension/static-asset probe; extended query-object coercion, unusual Unicode casing, cross-platform directory-enumeration order, symlinks, and filesystem races remain unprobed.
+
 ---
 
 ## 10. Character/card suite

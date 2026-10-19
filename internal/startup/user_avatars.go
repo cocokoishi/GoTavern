@@ -11,11 +11,11 @@ import (
 	"golang.org/x/text/language"
 )
 
-// userAvatarImageExtensions is derived from the pinned mime-db 1.54.0
-// dependency used by SillyTavern's getImages helper.
-const userAvatarImageExtensions = "3ds apng avci avcs avif azv b16 bmp btf btif cgm cmx dds dib djv djvu dng dpx drle dwg dxf emf exr fbs fh fh4 fh5 fh7 fhc fits fpx fst g3 gif heic heics heif heifs hej2 ico ief jaii jais jfif jhc jls jng jp2 jpe jpeg jpf jpg jpg2 jpgm jph jpm jpx jxl jxr jxra jxrs jxs jxsc jxsi jxss ktx ktx2 mdi mmr npx pbm pct pcx pgm pic png pnm ppm psd pti ras rgb rlc sgi sid sub svg svgz t38 tap tfx tga tif tiff uvg uvi uvvg uvvi vtf wbmp wdp webp wmf xbm xif xpm xwd"
+// pinnedMimeDBImageExtensions is derived from the pinned mime-db 1.54.0
+// dependency used by SillyTavern's mime-types lookup.
+const pinnedMimeDBImageExtensions = "3ds apng avci avcs avif azv b16 bmp btf btif cgm cmx dds dib djv djvu dng dpx drle dwg dxf emf exr fbs fh fh4 fh5 fh7 fhc fits fpx fst g3 gif heic heics heif heifs hej2 ico ief jaii jais jfif jhc jls jng jp2 jpe jpeg jpf jpg jpg2 jpgm jph jpm jpx jxl jxr jxra jxrs jxs jxsc jxsi jxss ktx ktx2 mdi mmr npx pbm pct pcx pgm pic png pnm ppm psd pti ras rgb rlc sgi sid sub svg svgz t38 tap tfx tga tif tiff uvg uvi uvvg uvvi vtf wbmp wdp webp wmf xbm xif xpm xwd"
 
-var userAvatarImageExtensionSet = makeUserAvatarImageExtensionSet()
+var pinnedMimeDBImageExtensionSet = makePinnedMimeDBImageExtensionSet()
 
 func UserAvatarImages(dataRoot, handle string) ([]string, error) {
 	directories, err := DirectoriesForUser(dataRoot, handle)
@@ -32,8 +32,7 @@ func UserAvatarImages(dataRoot, handle string) ([]string, error) {
 		if !entry.Type().IsRegular() {
 			continue
 		}
-		extension := nodeAvatarExtension(entry.Name())
-		if _, supported := userAvatarImageExtensionSet[extension]; supported {
+		if IsPinnedMimeImageFilename(entry.Name()) {
 			images = append(images, entry.Name())
 		}
 	}
@@ -44,15 +43,20 @@ func UserAvatarImages(dataRoot, handle string) ([]string, error) {
 	return images, nil
 }
 
-func nodeAvatarExtension(filename string) string {
+// IsPinnedMimeImageFilename reports whether the pinned mime-types 3.0.2 /
+// mime-db 1.54.0 lookup recognizes filename as an image. mime-types recognizes
+// a dotfile such as .png by treating its leading dot as an extension separator.
+func IsPinnedMimeImageFilename(filename string) bool {
 	base := filepath.Base(filename)
 	extension := filepath.Ext("x" + base)
-	return strings.TrimPrefix(strings.ToLower(extension), ".")
+	extension = strings.TrimPrefix(strings.ToLower(extension), ".")
+	_, supported := pinnedMimeDBImageExtensionSet[extension]
+	return supported
 }
 
-func makeUserAvatarImageExtensionSet() map[string]struct{} {
+func makePinnedMimeDBImageExtensionSet() map[string]struct{} {
 	extensions := make(map[string]struct{})
-	for _, extension := range strings.Fields(userAvatarImageExtensions) {
+	for _, extension := range strings.Fields(pinnedMimeDBImageExtensions) {
 		extensions[extension] = struct{}{}
 	}
 	return extensions

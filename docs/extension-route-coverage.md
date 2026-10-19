@@ -169,6 +169,12 @@ This does **not** excuse failures in LittleWhiteBox features that use normal bui
 
 ---
 
+## Expressions extension
+
+The pinned Expressions extension calls GET /api/sprites/get?name=... to list sprite files for a character. GoTavern's Node differential fixture covers this route's authentication, MIME filtering, labels, modification-time paths, and character subfolders. Browser rendering and retrieval of the returned asset paths remain untested.
+
+---
+
 ## Dynamic capture procedure
 
 Playwright should instrument `fetch`/XHR/network observation externally from the test harness without modifying shipped `public/**` or extension source.

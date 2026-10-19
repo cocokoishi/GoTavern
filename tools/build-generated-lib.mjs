@@ -459,6 +459,18 @@ try {
         throw new Error('avatar-list oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const spritesGetProbe = path.join(buildRoot, '.gotavern-probe-sprites-get.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-sprites-get.mjs'), spritesGetProbe);
+    const spritesGetFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-sprites-get.json');
+    run(process.execPath, [spritesGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSpritesGetProbe = readFileSync(spritesGetFixturePath);
+    run(process.execPath, [spritesGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSpritesGetProbe = readFileSync(spritesGetFixturePath);
+    if (!firstSpritesGetProbe.equals(secondSpritesGetProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSpritesGetProbe), JSON.parse(secondSpritesGetProbe));
+        throw new Error('sprite-list oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');

@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned Expressions sprite listing filters image MIME types, maps labels and mtimes, handles nested paths, authenticates, and does not mutate data",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-sprites-get-cookie-secret",
+    "modifiedAtUnixSeconds": 1700000000,
+    "files": [
+      {
+        "path": "Alice/joy.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/joy-1.PNG",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/joy.expressive.jpg",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Sad.gif",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/emoji🙂-tiny.avif",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/.hidden.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/folder.png",
+        "kind": "directory"
+      },
+      {
+        "path": "Alice/note.txt",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/no-extension",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/annoyed.webp",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/annoyed-1.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/other.svg",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/ignore.txt",
+        "kind": "file"
+      }
+    ]
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "base": {
+      "status": 200,
+      "headers": {
+        "content-length": "588",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24c-kDlfPOeA1jgNSxxuvby2d0XxGoQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "label": ".hidden",
+          "path": "/characters/Alice/.hidden.png?t=20231114221320"
+        },
+        {
+          "label": ".png",
+          "path": "/characters/Alice/.png?t=20231114221320"
+        },
+        {
+          "label": "emoji🙂",
+          "path": "/characters/Alice/emoji🙂-tiny.avif?t=20231114221320"
+        },
+        {
+          "label": "folder",
+          "path": "/characters/Alice/folder.png?t=20231114221320"
+        },
+        {
+          "label": "joy",
+          "path": "/characters/Alice/joy-1.PNG?t=20231114221320"
+        },
+        {
+          "label": "joy",
+          "path": "/characters/Alice/joy.expressive.jpg?t=20231114221320"
+        },
+        {
+          "label": "joy",
+          "path": "/characters/Alice/joy.png?t=20231114221320"
+        },
+        {
+          "label": "sad",
+          "path": "/characters/Alice/Sad.gif?t=20231114221320"
+        }
+      ]
+    },
+    "nested": {
+      "status": 200,
+      "headers": {
+        "content-length": "264",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"108-vcUcVBI9stP4Fpw99m+VTByZWgA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "label": "annoyed",
+          "path": "/characters/Alice/Expressions/annoyed-1.png?t=20231114221320"
+        },
+        {
+          "label": "annoyed",
+          "path": "/characters/Alice/Expressions/annoyed.webp?t=20231114221320"
+        },
+        {
+          "label": "other",
+          "path": "/characters/Alice/Expressions/other.svg?t=20231114221320"
+        }
+      ]
+    },
+    "extraSubfolderSegment": {
+      "status": 200,
+      "headers": {
+        "content-length": "288",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"120-+YaZZ7QiEoA1oSxdtJ/d2SE7RDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "label": "annoyed",
+          "path": "/characters/Alice/Expressions/ignored/annoyed-1.png?t=20231114221320"
+        },
+        {
+          "label": "annoyed",
+          "path": "/characters/Alice/Expressions/ignored/annoyed.webp?t=20231114221320"
+        },
+        {
+          "label": "other",
+          "path": "/characters/Alice/Expressions/ignored/other.svg?t=20231114221320"
+        }
+      ]
+    },
+    "invalidSubfolder": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": []
+    },
+    "missing": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": []
+    },
+    "absentName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": []
+    }
+  },
+  "state": {
+    "fileState": [
+      {
+        "path": "Alice",
+        "kind": "directory",
+        "mtime": "2023-11-14T22:13:20.000Z"
+      },
+      {
+        "path": "Alice/.hidden.png",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "a66e4785f4ff7e46b4f3ae7bfe6b94ff2d29cebc45cdc21671c955adc478c7d9"
+      },
+      {
+        "path": "Alice/.png",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "03394529e3705449ddd12d0f70bb86dd5ffa9d561793e1afeea17d64169389f3"
+      },
+      {
+        "path": "Alice/Expressions",
+        "kind": "directory",
+        "mtime": "2023-11-14T22:13:20.000Z"
+      },
+      {
+        "path": "Alice/Expressions/annoyed-1.png",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "04838f8acdf96db3a752dbe1d132ce3e64c53a6a61f928073865b42333a3fd7d"
+      },
+      {
+        "path": "Alice/Expressions/annoyed.webp",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "3b2f0a1869cd07f339d6db2bd43c4cc5c72bb0c97d5cc329dd0b5d788aad2c97"
+      },
+      {
+        "path": "Alice/Expressions/ignore.txt",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "22b55d3a884a1ba1641ef9c51b7f0fe010181285a047a87cb26f1cf95ecf2e64"
+      },
+      {
+        "path": "Alice/Expressions/other.svg",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "7a00e7941b2cbc0a2896a853e4016a6456e0fbb64d9e15999341d5501504f33f"
+      },
+      {
+        "path": "Alice/Sad.gif",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "64d3de1f329bd06d8cfd55496be8057ca3352e948637882169cce13450cfc919"
+      },
+      {
+        "path": "Alice/emoji🙂-tiny.avif",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "e8bd1029f7b37ba3a943da826f45e8fb349bb2e3755d93ad83fc6494c88b8e22"
+      },
+      {
+        "path": "Alice/folder.png",
+        "kind": "directory",
+        "mtime": "2023-11-14T22:13:20.000Z"
+      },
+      {
+        "path": "Alice/joy-1.PNG",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "58a5f1f35360dc966141201b7f3fb713cd2891e24cbf59a72cc10e5f2b3bb10b"
+      },
+      {
+        "path": "Alice/joy.expressive.jpg",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "5be13f544bd113475acaabfed709f17a04ff7f809667a457927bc0d54f4c47c6"
+      },
+      {
+        "path": "Alice/joy.png",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "e6817281dc60ff02c7583f0b56fc2604740969887307ff1123c474df261c9e9d"
+      },
+      {
+        "path": "Alice/no-extension",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "187bcfedc9ce36a76df9a351d4a2209e7aa4c218eaad8a4a6ea37bb4b12eb40d"
+      },
+      {
+        "path": "Alice/note.txt",
+        "kind": "file",
+        "mtime": "2023-11-14T22:13:20.000Z",
+        "sha256": "3c39fa2b9dad415c0e65e9813ee4555f1e9be107a26a528d09fa8d2431e1fd5b"
+      }
+    ],
+    "filesUnchanged": true,
+    "accountRecordUnchanged": true
+  }
+}
