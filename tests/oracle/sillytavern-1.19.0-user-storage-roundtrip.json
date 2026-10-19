@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "node-persist account-store Node-to-Go-to-Node round trip",
+  "implementation": "pinned node-persist@4.0.4",
+  "scenarios": {
+    "nodeWritten": {
+      "nodeCreatedUserRecordPreserved": true,
+      "nodeCreatedAvatarRecordPreserved": true,
+      "goObservedHandles": [
+        "roundtrip"
+      ],
+      "nodeReadBackUser": {
+        "handle": "roundtrip",
+        "name": "Node-created account",
+        "created": 1700000000000,
+        "password": "pinned-test-hash",
+        "admin": false,
+        "enabled": true,
+        "salt": "pinned-test-salt",
+        "unknownField": {
+          "preserve": [
+            "existing",
+            7,
+            true
+          ]
+        }
+      },
+      "nodeReadBackAvatar": "data:image/png;base64,AA==",
+      "defaultUserAdded": false
+    },
+    "goWritten": {
+      "goObservedHandles": [
+        "default-user"
+      ],
+      "nodeReadGoCreatedUser": {
+        "handle": "default-user",
+        "name": "User",
+        "created": "<timestamp>",
+        "password": "",
+        "admin": true,
+        "enabled": true,
+        "salt": ""
+      },
+      "nodePersistKeys": [
+        "key",
+        "value"
+      ],
+      "ttlPresent": false,
+      "recordPath": "_storage/3a5bb37ab86ac047d8ef481ee2e7bd3683d694ff8502a7cfe6951af849015dcc"
+    }
+  }
+}

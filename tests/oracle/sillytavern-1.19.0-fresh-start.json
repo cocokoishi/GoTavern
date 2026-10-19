@@ -7,7 +7,7 @@
   "probe": "empty runtime HTTP and startup-tree smoke observation",
   "normalization": {
     "data/cookie-secret.txt": "generated secret value is omitted; path and size are retained",
-    "data/_storage/**": "account store can contain generated timestamps; paths and sizes are retained",
+    "data/_storage/**": "account store paths and sizes are retained; user record values are recorded with only generated created timestamps normalized",
     "data/_webpack/** except output/lib.js": "Webpack cache artifacts are runtime-generated; paths are retained while size and contents are omitted",
     "data/<handle>/stats.json": "startup statistics are time-dependent; path and size are retained",
     "data/<handle>/backups/settings_<handle>_<timestamp>.json": "the upstream startup backup name contains a local timestamp; path is normalized and content hash is retained"
@@ -1489,6 +1489,177 @@
         "bytes": 8734,
         "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd"
       }
-    ]
+    ],
+    "userStore": {
+      "observed": true,
+      "implementation": "node-persist@4.0.4; SHA-256 key filenames; ttl disabled",
+      "userRecords": [
+        {
+          "path": "_storage/3a5bb37ab86ac047d8ef481ee2e7bd3683d694ff8502a7cfe6951af849015dcc",
+          "record": {
+            "key": "user:default-user",
+            "value": {
+              "handle": "default-user",
+              "name": "User",
+              "created": "<timestamp>",
+              "password": "",
+              "admin": true,
+              "enabled": true,
+              "salt": ""
+            }
+          }
+        }
+      ]
+    },
+    "startupDirectories": {
+      "user": [
+        {
+          "key": "root",
+          "path": "default-user"
+        },
+        {
+          "key": "thumbnails",
+          "path": "default-user/thumbnails"
+        },
+        {
+          "key": "thumbnailsBg",
+          "path": "default-user/thumbnails/bg"
+        },
+        {
+          "key": "thumbnailsAvatar",
+          "path": "default-user/thumbnails/avatar"
+        },
+        {
+          "key": "thumbnailsPersona",
+          "path": "default-user/thumbnails/persona"
+        },
+        {
+          "key": "worlds",
+          "path": "default-user/worlds"
+        },
+        {
+          "key": "user",
+          "path": "default-user/user"
+        },
+        {
+          "key": "avatars",
+          "path": "default-user/User Avatars"
+        },
+        {
+          "key": "userImages",
+          "path": "default-user/user/images"
+        },
+        {
+          "key": "groups",
+          "path": "default-user/groups"
+        },
+        {
+          "key": "groupChats",
+          "path": "default-user/group chats"
+        },
+        {
+          "key": "chats",
+          "path": "default-user/chats"
+        },
+        {
+          "key": "characters",
+          "path": "default-user/characters"
+        },
+        {
+          "key": "backgrounds",
+          "path": "default-user/backgrounds"
+        },
+        {
+          "key": "novelAI_Settings",
+          "path": "default-user/NovelAI Settings"
+        },
+        {
+          "key": "koboldAI_Settings",
+          "path": "default-user/KoboldAI Settings"
+        },
+        {
+          "key": "openAI_Settings",
+          "path": "default-user/OpenAI Settings"
+        },
+        {
+          "key": "textGen_Settings",
+          "path": "default-user/TextGen Settings"
+        },
+        {
+          "key": "themes",
+          "path": "default-user/themes"
+        },
+        {
+          "key": "movingUI",
+          "path": "default-user/movingUI"
+        },
+        {
+          "key": "extensions",
+          "path": "default-user/extensions"
+        },
+        {
+          "key": "instruct",
+          "path": "default-user/instruct"
+        },
+        {
+          "key": "context",
+          "path": "default-user/context"
+        },
+        {
+          "key": "quickreplies",
+          "path": "default-user/QuickReplies"
+        },
+        {
+          "key": "assets",
+          "path": "default-user/assets"
+        },
+        {
+          "key": "comfyWorkflows",
+          "path": "default-user/user/workflows"
+        },
+        {
+          "key": "files",
+          "path": "default-user/user/files"
+        },
+        {
+          "key": "vectors",
+          "path": "default-user/vectors"
+        },
+        {
+          "key": "backups",
+          "path": "default-user/backups"
+        },
+        {
+          "key": "sysprompt",
+          "path": "default-user/sysprompt"
+        },
+        {
+          "key": "reasoning",
+          "path": "default-user/reasoning"
+        }
+      ],
+      "public": [
+        {
+          "key": "images",
+          "path": "public/img"
+        },
+        {
+          "key": "backups",
+          "path": "backups"
+        },
+        {
+          "key": "sounds",
+          "path": "public/sounds"
+        },
+        {
+          "key": "extensions",
+          "path": "public/scripts/extensions"
+        },
+        {
+          "key": "globalExtensions",
+          "path": "public/scripts/extensions/third-party"
+        }
+      ]
+    }
   }
 }

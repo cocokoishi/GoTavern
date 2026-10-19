@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, wr
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
@@ -86,6 +87,38 @@ function snapshotTree(root, relativeRoot = '') {
     return result;
 }
 
+function persistedUserRecords() {
+    const directory = path.join(dataRoot, '_storage');
+    return readdirSync(directory, { withFileTypes: true })
+        .filter(entry => entry.isFile() && !entry.name.startsWith('.'))
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map(entry => ({
+            path: `_storage/${entry.name}`,
+            record: JSON.parse(readFileSync(path.join(directory, entry.name), 'utf8')),
+        }))
+        .filter(item => typeof item.record.key === 'string' && item.record.key.startsWith('user:'))
+        .map(item => {
+            if (item.record.value && Number.isFinite(item.record.value.created)) {
+                item.record.value.created = '<timestamp>';
+            }
+            return item;
+        });
+}
+
+function startupDirectories(userDirectoryTemplate, publicDirectories) {
+    const user = Object.entries(userDirectoryTemplate).map(([key, relative]) => {
+        const absolute = path.join(dataRoot, 'default-user', relative);
+        if (!statSync(absolute).isDirectory()) throw new Error(`missing pinned user directory ${absolute}`);
+        return { key, path: path.relative(dataRoot, absolute).replaceAll(path.sep, '/') };
+    });
+    const publicPaths = Object.entries(publicDirectories).map(([key, relative]) => {
+        const absolute = path.join(sourceRoot, relative);
+        if (!statSync(absolute).isDirectory()) throw new Error(`missing pinned public directory ${absolute}`);
+        return { key, path: path.relative(sourceRoot, absolute).replaceAll(path.sep, '/') };
+    });
+    return { user, public: publicPaths };
+}
+
 async function stopServer() {
     if (!child || child.exitCode !== null) return;
     child.kill('SIGINT');
@@ -159,13 +192,14 @@ try {
     if (libraryHash !== expectedLibHash) throw new Error(`/lib.js digest ${libraryHash} differs from the vendored generated library ${expectedLibHash}`);
 
     await stopServer();
+    const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
         probe: 'empty runtime HTTP and startup-tree smoke observation',
         normalization: {
             'data/cookie-secret.txt': 'generated secret value is omitted; path and size are retained',
-            'data/_storage/**': 'account store can contain generated timestamps; paths and sizes are retained',
+            'data/_storage/**': 'account store paths and sizes are retained; user record values are recorded with only generated created timestamps normalized',
             'data/_webpack/** except output/lib.js': 'Webpack cache artifacts are runtime-generated; paths are retained while size and contents are omitted',
             'data/<handle>/stats.json': 'startup statistics are time-dependent; path and size are retained',
             'data/<handle>/backups/settings_<handle>_<timestamp>.json': 'the upstream startup backup name contains a local timestamp; path is normalized and content hash is retained',
@@ -203,6 +237,12 @@ try {
                 sha256: sha256(readFileSync(configPath)),
             },
             dataRoot: snapshotTree(dataRoot),
+            userStore: {
+                observed: true,
+                implementation: 'node-persist@4.0.4; SHA-256 key filenames; ttl disabled',
+                userRecords: persistedUserRecords(),
+            },
+            startupDirectories: startupDirectories(USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES),
         },
     };
     const outputDirectory = path.join(outputRoot, 'tests', 'oracle');

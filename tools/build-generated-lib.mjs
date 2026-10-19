@@ -102,6 +102,18 @@ try {
     run('git', ['checkout', '--force', '-B', 'release', PINNED_COMMIT], buildRoot);
     runNpm(['ci', '--no-audit', '--no-fund'], buildRoot);
 
+    const userStoreProbe = path.join(buildRoot, '.gotavern-probe-user-store-roundtrip.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-user-store-roundtrip.mjs'), userStoreProbe);
+    const userStoreFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-user-storage-roundtrip.json');
+    run(process.execPath, [userStoreProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstUserStoreProbe = readFileSync(userStoreFixturePath);
+    run(process.execPath, [userStoreProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondUserStoreProbe = readFileSync(userStoreFixturePath);
+    if (!firstUserStoreProbe.equals(secondUserStoreProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstUserStoreProbe), JSON.parse(secondUserStoreProbe));
+        throw new Error(`user-store round-trip oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);
