@@ -147,9 +147,9 @@ const cases = {
         index: 'generationBase', body: { paths: ['backgrounds/pixels.png', 'backgrounds/flat.gif', 'backgrounds/missing.png'], type: 'persona' },
         generatedPaths: ['backgrounds/pixels.png', 'backgrounds/flat.gif'],
     },
-    singleUnsupportedBmp: {
-        index: 'generationBase', body: { path: 'backgrounds/unsupported.bmp', type: 'bg' },
-        generatedPaths: ['backgrounds/unsupported.bmp'], goUnsupported: true,
+    singleGeneratedBmp: {
+        index: 'generationBase', body: { path: 'backgrounds/bitmap.bmp', type: 'bg' },
+        generatedPaths: ['backgrounds/bitmap.bmp'],
     },
     batchCachedMissingAndOutside: { index: 'populated', body: { paths: ['backgrounds/cached.png', 'backgrounds/missing.png', '../escape.png'], type: 'persona' } },
     bothPathAndEmptyPaths: { index: 'populated', body: { path: 'backgrounds/cached.png', paths: [], type: 'avatar' } },
@@ -246,7 +246,7 @@ try {
         'backgrounds/roundtrip.png': PNG.sync.write(pixelsImage).toString('base64'),
         'backgrounds/photo.jpg': jpegBytes.toString('base64'),
         'backgrounds/flat.gif': (await flatGifImage.getBuffer(JimpMime.gif)).toString('base64'),
-        'backgrounds/unsupported.bmp': (await bmpImage.getBuffer(JimpMime.bmp)).toString('base64'),
+        'backgrounds/bitmap.bmp': (await bmpImage.getBuffer(JimpMime.bmp)).toString('base64'),
     };
     for (const [relativePath, base64] of Object.entries(generatedFiles)) {
         const fullPath = path.join(userRoot, ...relativePath.split('/'));

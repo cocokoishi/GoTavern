@@ -21,7 +21,6 @@ type imageMetadataGetCase struct {
 	Index          string          `json:"index"`
 	Body           json.RawMessage `json:"body"`
 	GeneratedPaths []string        `json:"generatedPaths"`
-	GoUnsupported  bool            `json:"goUnsupported"`
 }
 
 type imageMetadataGetFixture struct {
@@ -225,7 +224,7 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 		}
 		got := serve(http.MethodPost, route, sessionCookie, csrf.Token, probeCase.Body)
 		responses[label] = got
-		if len(probeCase.GeneratedPaths) > 0 && !probeCase.GoUnsupported {
+		if len(probeCase.GeneratedPaths) > 0 {
 			assertImageMetadataGetAddedTimestamps(t, userRoot, got, probeCase.GeneratedPaths)
 		}
 		afterMtime, err := os.Stat(indexPath)
@@ -233,11 +232,7 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 			t.Fatal(err)
 		}
 		unchanged := beforeMtime.ModTime().Equal(afterMtime.ModTime())
-		if probeCase.GoUnsupported {
-			if !unchanged {
-				t.Fatalf("unsupported-format metadata request %s unexpectedly wrote the index", label)
-			}
-		} else if unchanged != fixture.State.MtimeUnchanged[label] {
+		if unchanged != fixture.State.MtimeUnchanged[label] {
 			t.Fatalf("metadata-get mtime state for %s disagrees with pinned Node", label)
 		}
 		gotContent := normalizedImageMetadataIndexFile(t, indexPath)
@@ -245,28 +240,17 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 			gotContent = normalizedImageMetadataGetIndexFile(t, indexPath, probeCase.GeneratedPaths)
 		}
 		wantContent, hasWant := fixture.State.FileContentsAfter[label]
-		if probeCase.GoUnsupported {
-			wantContent = &content
-			hasWant = true
-		}
 		if !hasWant || !reflect.DeepEqual(gotContent, wantContent) {
 			t.Fatalf("metadata-get index after %s = %q; pinned Node has %q", label, imageMetadataContent(gotContent), imageMetadataContent(wantContent))
 		}
-		if !probeCase.GoUnsupported {
-			assertImageMetadataGetResponse(t, label, got, fixture.Responses[label])
-		}
+		assertImageMetadataGetResponse(t, label, got, fixture.Responses[label])
 	}
 	for label, got := range responses {
 		want, exists := fixture.Responses[label]
 		if !exists {
 			t.Fatalf("metadata-get fixture has no response %q", label)
 		}
-		switch label {
-		case "singleUnsupportedBmp":
-			assertImageMetadataUnsupportedFormatGap(t, label, got, want)
-		default:
-			assertImageMetadataGetResponse(t, label, got, want)
-		}
+		assertImageMetadataGetResponse(t, label, got, want)
 	}
 	if fixture.Inputs.GoRoundTrip.Index == "" || len(fixture.Inputs.GoRoundTrip.Body) == 0 || len(fixture.Inputs.GoRoundTrip.GeneratedPaths) == 0 {
 		t.Fatal("image-metadata get oracle has no Go-to-Node round-trip input")
@@ -430,15 +414,5 @@ func assertImageMetadataGetAddedTimestamps(t *testing.T, userRoot string, respon
 		if actualTimestamp != expectedTimestamp {
 			t.Fatalf("generated metadata addedTimestamp for %q = %.0f; expected pinned birthtime/mtime rule %.0f", relativePath, actualTimestamp, expectedTimestamp)
 		}
-	}
-}
-
-func assertImageMetadataUnsupportedFormatGap(t *testing.T, label string, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
-	t.Helper()
-	if want.Status != http.StatusOK {
-		t.Fatalf("pinned supported-format metadata response %s changed: status=%d body=%#v", label, want.Status, want.Body)
-	}
-	if got.Code != http.StatusNotImplemented || !strings.Contains(got.Body.String(), imageMetadataGenerationUnsupportedMessage) {
-		t.Fatalf("Go unsupported-format response %s = %d %q", label, got.Code, got.Body.String())
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
+	_ "golang.org/x/image/bmp"
 )
 
 var errImageMetadataFormatUnsupported = errors.New("image metadata format is not implemented")
@@ -86,6 +87,7 @@ func generateImageMetadata(filePath string, typeValue orderedNodeJSON) (orderedN
 	return metadata, false, nil
 }
 
+// jimpCompatibleAverageColor preserves fractional row averages until Jimp's final byte rounding.
 func jimpCompatibleAverageColor(source image.Image) string {
 	width := source.Bounds().Dx()
 	height := source.Bounds().Dy()
@@ -93,7 +95,7 @@ func jimpCompatibleAverageColor(source image.Image) string {
 		return "#808080"
 	}
 
-	rowColors := make([][4]uint8, height)
+	rowColors := make([][4]float64, height)
 	for y := 0; y < height; y++ {
 		var red, green, blue, alpha uint64
 		var visiblePixels uint64
@@ -108,30 +110,35 @@ func jimpCompatibleAverageColor(source image.Image) string {
 			green += uint64(pixel.G)
 			blue += uint64(pixel.B)
 		}
-		row := [4]uint8{0, 0, 0, uint8(alpha / uint64(width))}
+		row := [4]float64{0, 0, 0, float64(alpha) / float64(width)}
 		if visiblePixels > 0 {
-			row[0] = uint8(red / visiblePixels)
-			row[1] = uint8(green / visiblePixels)
-			row[2] = uint8(blue / visiblePixels)
+			row[0] = float64(red) / float64(visiblePixels)
+			row[1] = float64(green) / float64(visiblePixels)
+			row[2] = float64(blue) / float64(visiblePixels)
 		}
 		rowColors[y] = row
 	}
 
-	var red, green, blue uint64
+	var red, green, blue float64
 	var visibleRows uint64
 	for _, row := range rowColors {
 		if row[3] == 0 {
 			continue
 		}
 		visibleRows++
-		red += uint64(row[0])
-		green += uint64(row[1])
-		blue += uint64(row[2])
+		red += row[0]
+		green += row[1]
+		blue += row[2]
 	}
 	if visibleRows == 0 {
 		return "#000000"
 	}
-	return fmt.Sprintf("#%02x%02x%02x", red/visibleRows, green/visibleRows, blue/visibleRows)
+	return fmt.Sprintf(
+		"#%02x%02x%02x",
+		uint8(math.Round(red/float64(visibleRows))),
+		uint8(math.Round(green/float64(visibleRows))),
+		uint8(math.Round(blue/float64(visibleRows))),
+	)
 }
 
 func imageMetadataThumbnailResolution(typeValue orderedNodeJSON) float64 {
