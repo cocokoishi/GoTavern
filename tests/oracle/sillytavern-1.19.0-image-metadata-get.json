@@ -163,6 +163,28 @@
         2
       ]
     },
+    "thumbnailDimensionShapeCases": [
+      {
+        "type": "bg",
+        "dimensions": "not-an-array",
+        "thumbnailResolution": 0
+      },
+      {
+        "type": "avatar",
+        "dimensions": [
+          48
+        ],
+        "thumbnailResolution": 0
+      },
+      {
+        "type": "persona",
+        "dimensions": {
+          "width": 80,
+          "height": 45
+        },
+        "thumbnailResolution": 0
+      }
+    ],
     "goRoundTrip": {
       "index": "{\n    \"version\": 8,\n    \"images\": {},\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}",
       "body": {

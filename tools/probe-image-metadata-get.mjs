@@ -89,6 +89,30 @@ function cookieHeader(cookies) {
     return cookies.map(cookie => cookie.split(';', 1)[0]).join('; ');
 }
 
+async function captureThumbnailDimensionShapeCases() {
+    const values = { bg: 'not-an-array', avatar: [48], persona: { width: 80, height: 45 } };
+    const environment = Object.fromEntries(Object.keys(values).map(type => {
+        const key = 'SILLYTAVERN_THUMBNAILS_DIMENSIONS_' + type.toUpperCase();
+        return [key, process.env[key]];
+    }));
+    try {
+        for (const [type, value] of Object.entries(values)) {
+            process.env['SILLYTAVERN_THUMBNAILS_DIMENSIONS_' + type.toUpperCase()] = JSON.stringify(value);
+        }
+        const sourceModule = await import(pathToFileURL(path.join(sourceRoot, 'src', 'endpoints', 'image-metadata.js')).href);
+        return Object.entries(values).map(([type, dimensions]) => ({
+            type,
+            dimensions,
+            thumbnailResolution: sourceModule.getThumbnailResolution(type),
+        }));
+    } finally {
+        for (const [key, value] of Object.entries(environment)) {
+            if (value === undefined) delete process.env[key];
+            else process.env[key] = value;
+        }
+    }
+}
+
 function seedUser(key, value) {
     writeFileSync(path.join(dataRoot, '_storage', sha256(key)), JSON.stringify({ key, value }));
 }
@@ -350,7 +374,11 @@ try {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
         probe: 'pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF/24-bit BMP, apply configured thumbnail dimensions and JavaScript Number coercion, and read Go-generated metadata back through the pinned Node endpoint',
-        inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles, thumbnailDimensions: THUMBNAIL_DIMENSIONS },
+        inputs: {
+            cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles,
+            thumbnailDimensions: THUMBNAIL_DIMENSIONS,
+            thumbnailDimensionShapeCases: await captureThumbnailDimensionShapeCases(),
+        },
         responses,
         state: {
             fileContentsAfter,

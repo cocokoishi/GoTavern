@@ -29,14 +29,19 @@ type imageMetadataGetFixture struct {
 		Commit  string `json:"commit"`
 	} `json:"baseline"`
 	Inputs struct {
-		CookieSecret        string                          `json:"cookieSecret"`
-		Indexes             map[string]json.RawMessage      `json:"indexes"`
-		Cases               map[string]imageMetadataGetCase `json:"cases"`
-		GeneratedFiles      map[string]string               `json:"generatedFiles"`
-		ThumbnailDimensions map[string]any                  `json:"thumbnailDimensions"`
-		CachedMtime         float64                         `json:"cachedMtime"`
-		UncachedMtime       float64                         `json:"uncachedMtime"`
-		GoRoundTrip         struct {
+		CookieSecret                 string                          `json:"cookieSecret"`
+		Indexes                      map[string]json.RawMessage      `json:"indexes"`
+		Cases                        map[string]imageMetadataGetCase `json:"cases"`
+		GeneratedFiles               map[string]string               `json:"generatedFiles"`
+		ThumbnailDimensions          map[string]any                  `json:"thumbnailDimensions"`
+		ThumbnailDimensionShapeCases []struct {
+			Type                string  `json:"type"`
+			Dimensions          any     `json:"dimensions"`
+			ThumbnailResolution float64 `json:"thumbnailResolution"`
+		} `json:"thumbnailDimensionShapeCases"`
+		CachedMtime   float64 `json:"cachedMtime"`
+		UncachedMtime float64 `json:"uncachedMtime"`
+		GoRoundTrip   struct {
 			Index          string          `json:"index"`
 			Body           json.RawMessage `json:"body"`
 			GeneratedPaths []string        `json:"generatedPaths"`
@@ -67,8 +72,14 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 	if fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
 		t.Fatalf("image-metadata get oracle baseline = %+v", fixture.Baseline)
 	}
-	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Inputs.Cases) == 0 || len(fixture.Inputs.GeneratedFiles) == 0 || len(fixture.Inputs.ThumbnailDimensions) == 0 {
+	if fixture.Inputs.CookieSecret == "" || len(fixture.Inputs.Indexes) == 0 || len(fixture.Inputs.Cases) == 0 || len(fixture.Inputs.GeneratedFiles) == 0 || len(fixture.Inputs.ThumbnailDimensions) == 0 || len(fixture.Inputs.ThumbnailDimensionShapeCases) == 0 {
 		t.Fatal("image-metadata get oracle is missing required inputs")
+	}
+	for _, shapeCase := range fixture.Inputs.ThumbnailDimensionShapeCases {
+		got := imageMetadataThumbnailResolution(orderedNodeJSON{kind: 's', scalar: shapeCase.Type}, map[string]any{shapeCase.Type: shapeCase.Dimensions})
+		if got != shapeCase.ThumbnailResolution {
+			t.Errorf("thumbnail resolution for %s dimensions %#v = %v; pinned Node has %v", shapeCase.Type, shapeCase.Dimensions, got, shapeCase.ThumbnailResolution)
+		}
 	}
 
 	dataRoot := t.TempDir()
