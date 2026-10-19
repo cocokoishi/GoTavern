@@ -274,6 +274,31 @@ func (runtime *accountRuntime) serveLoginPage(w http.ResponseWriter, request *ht
 				}
 			}
 		}
+		state := accountFromContext(request)
+		if runtime.options.BasicAuthMode && runtime.options.PerUserBasicAuth && state.user == nil {
+			parts := strings.Split(request.Header.Get("Authorization"), " ")
+			if len(parts) >= 2 && parts[0] == "Basic" && parts[1] != "" {
+				username, password := decodeBasicCredentials(parts[1])
+				if account, found := accounts[username]; found {
+					matched, err := storedAccountMatchesBasicAuth(account, password)
+					if err != nil {
+						serveStatusText(w, http.StatusInternalServerError)
+						return
+					}
+					if matched {
+						if state.session == nil || runtime.options.CookieSecret == "" {
+							serveStatusText(w, http.StatusInternalServerError)
+							return
+						}
+						state.session.set("handle", username)
+						state.session.set("version", account.version())
+						writeCookieSession(w, request, runtime.options, state.session)
+						serveRedirect(w, request, http.StatusFound, "/")
+						return
+					}
+				}
+			}
+		}
 	}
 	serveStaticAsset(w, request, "login.html")
 }

@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -63,14 +65,28 @@ func (runtime *basicAuthRuntime) authenticate(writer http.ResponseWriter, reques
 		serveBasicAuthRateLimited(writer, request, retryAfter)
 		return false
 	}
+	runtime.mu.Unlock()
 
 	username, password := decodeBasicCredentials(parts[1])
-	if basicAuthCredentialMatches(username, password, options) {
+	matched, err := basicAuthCredentialMatches(username, password, options)
+	if err != nil {
+		serveStatusText(writer, http.StatusInternalServerError)
+		return false
+	}
+	if matched {
+		runtime.mu.Lock()
 		delete(runtime.entries, key)
 		runtime.mu.Unlock()
 		return true
 	}
 
+	now = time.Now()
+	runtime.mu.Lock()
+	entry, found = runtime.entries[key]
+	if found && !now.Before(entry.expires) {
+		delete(runtime.entries, key)
+		found = false
+	}
 	if !found {
 		entry = basicAuthEntry{expires: now.Add(basicAuthWindow)}
 	}
@@ -98,10 +114,49 @@ func basicAuthRateLimitKey(request *http.Request, options HTTPHandlerOptions) st
 	return clientIP
 }
 
-func basicAuthCredentialMatches(username, password string, options HTTPHandlerOptions) bool {
+func basicAuthCredentialMatches(username, password string, options HTTPHandlerOptions) (bool, error) {
+	if options.PerUserBasicAuth && options.AccountsEnabled {
+		account, err := findPerUserBasicAuthAccount(username, password, options.DataRoot)
+		return account != nil, err
+	}
 	configuredUsername, usernameIsString := options.BasicAuthUsername.(string)
 	configuredPassword, passwordIsString := options.BasicAuthPassword.(string)
-	return usernameIsString && passwordIsString && username == configuredUsername && password == configuredPassword
+	return usernameIsString && passwordIsString && username == configuredUsername && password == configuredPassword, nil
+}
+
+func findPerUserBasicAuthAccount(username, password, dataRoot string) (*storedAccount, error) {
+	accounts, err := loadStoredAccounts(dataRoot)
+	if err != nil {
+		return nil, err
+	}
+	account, found := accounts[username]
+	if !found {
+		return nil, nil
+	}
+	matched, err := storedAccountMatchesBasicAuth(account, password)
+	if err != nil || !matched {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func storedAccountMatchesBasicAuth(account storedAccount, password string) (bool, error) {
+	if !nodeTruthyJSON(account.raw("enabled")) || !nodeTruthyJSON(account.raw("password")) {
+		return false, nil
+	}
+	var salt string
+	if len(account.raw("salt")) == 0 || json.Unmarshal(account.raw("salt"), &salt) != nil {
+		return false, errors.New("per-user Basic Auth account has a non-string salt")
+	}
+	computedHash, err := upstreamPasswordHash(password, salt)
+	if err != nil {
+		return false, err
+	}
+	var storedHash string
+	if json.Unmarshal(account.raw("password"), &storedHash) != nil {
+		return false, nil
+	}
+	return computedHash == storedHash, nil
 }
 
 func decodeBasicCredentials(value string) (string, string) {

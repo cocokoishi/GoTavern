@@ -53,6 +53,8 @@ type HTTPHandlerOptions struct {
 	ForbiddenPage           []byte
 	PreserveForbiddenPage   bool
 	BasicAuthEnabled        bool
+	BasicAuthMode           bool
+	PerUserBasicAuth        bool
 	BasicAuthUsername       any
 	BasicAuthPassword       any
 	BasicAuthRateLimit      *float64
@@ -67,7 +69,7 @@ type HTTPHandlerOptions struct {
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
-// the pinned session, CSRF, and account middleware into handler options.
+// the pinned Basic Auth, session, CSRF, and account middleware into handler options.
 func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTTPHandlerOptions {
 	settings := parsed.StartupSettings
 	options := HTTPHandlerOptions{
@@ -78,6 +80,8 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		ForwardedWhitelist: optionBoolean(settings.EnableForwardedWhitelist),
 		Whitelist:          stringList(settings.Whitelist),
 		BasicAuthEnabled:   optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
+		BasicAuthMode:      optionBoolean(parsed.Options.BasicAuthMode),
+		PerUserBasicAuth:   optionBoolean(settings.PerUserBasicAuth),
 		BasicAuthUsername:  settings.BasicAuthUsername,
 		BasicAuthPassword:  settings.BasicAuthPassword,
 		AccountsEnabled:    optionBoolean(settings.EnableUserAccounts),

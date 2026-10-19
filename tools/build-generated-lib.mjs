@@ -333,6 +333,18 @@ try {
         throw new Error(`Basic Auth oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const perUserBasicAuthProbe = path.join(buildRoot, '.gotavern-probe-per-user-basic-auth.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-per-user-basic-auth.mjs'), perUserBasicAuthProbe);
+    const perUserBasicAuthFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-per-user-basic-auth.json');
+    run(process.execPath, [perUserBasicAuthProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstPerUserBasicAuthProbe = readFileSync(perUserBasicAuthFixturePath);
+    run(process.execPath, [perUserBasicAuthProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondPerUserBasicAuthProbe = readFileSync(perUserBasicAuthFixturePath);
+    if (!firstPerUserBasicAuthProbe.equals(secondPerUserBasicAuthProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstPerUserBasicAuthProbe), JSON.parse(secondPerUserBasicAuthProbe));
+        throw new Error(`per-user Basic Auth oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const serverProtocolsProbe = path.join(buildRoot, '.gotavern-probe-server-protocols.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-server-protocols.mjs'), serverProtocolsProbe);
     const serverProtocolsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-server-protocols.json');

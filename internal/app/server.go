@@ -136,10 +136,6 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if optionEnabled(parsed.StartupSettings.HostWhitelistEnabled) {
 		return nil, &StartupError{Code: 1, Message: "hostWhitelist.enabled is configured, but the pinned host-validation middleware is not implemented"}
 	}
-	if optionEnabled(parsed.Options.Listen) && optionEnabled(parsed.Options.BasicAuthMode) && optionEnabled(parsed.StartupSettings.PerUserBasicAuth) && optionEnabled(parsed.StartupSettings.EnableUserAccounts) {
-		return nil, &StartupError{Code: 1, Message: "perUserBasicAuth is enabled with accounts, but the pinned Basic Auth user-store middleware is not implemented"}
-	}
-
 	addresses := options.InterfaceAddresses
 	if addresses == nil {
 		addresses = systemInterfaceAddresses()

@@ -196,17 +196,12 @@ func TestStartFreshServerMatchesPinnedNodeHTTPResponses(t *testing.T) {
 	})
 }
 
-func TestStartStopsWhenUnimplementedSecurityMiddlewareIsEnabled(t *testing.T) {
+func TestStartStopsWhenHostWhitelistIsEnabledButUnimplemented(t *testing.T) {
 	for _, scenario := range []struct {
 		name      string
 		config    string
 		wantError string
 	}{
-		{
-			name:      "per-user basic auth",
-			config:    "listen: true\nbasicAuthMode: true\nwhitelistMode: true\nperUserBasicAuth: true\nenableUserAccounts: true\n",
-			wantError: "perUserBasicAuth is enabled with accounts",
-		},
 		{
 			name:      "host whitelist",
 			config:    "hostWhitelist:\n  enabled: true\n",
