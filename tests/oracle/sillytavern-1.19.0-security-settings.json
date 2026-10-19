@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned users.js verifySecuritySettings logs and process exit behavior",
+  "scenarios": {
+    "listenDisabled": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": false,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": []
+    },
+    "accountsDisabledExits": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": 1,
+      "events": [
+        {
+          "level": "error",
+          "args": [
+            "Your current SillyTavern configuration is insecure (listening to non-localhost). Enable whitelisting, basic authentication or user accounts."
+          ]
+        }
+      ]
+    },
+    "securityOverrideContinues": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": true,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": [
+        {
+          "level": "error",
+          "args": [
+            "Your current SillyTavern configuration is insecure (listening to non-localhost). Enable whitelisting, basic authentication or user accounts."
+          ]
+        },
+        {
+          "level": "warn",
+          "args": [
+            "Security has been overridden. If it's not a trusted network, change the settings."
+          ]
+        }
+      ]
+    },
+    "stringBooleanConfig": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": "false",
+          "securityOverride": "true",
+          "perUserBasicAuth": "false"
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": [
+        {
+          "level": "error",
+          "args": [
+            "Your current SillyTavern configuration is insecure (listening to non-localhost). Enable whitelisting, basic authentication or user accounts."
+          ]
+        },
+        {
+          "level": "warn",
+          "args": [
+            "Security has been overridden. If it's not a trusted network, change the settings."
+          ]
+        }
+      ]
+    },
+    "basicAuthMissingCredentials": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUser": {
+            "username": "",
+            "password": ""
+          }
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": true,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": [
+        {
+          "level": "warn",
+          "args": [
+            "Basic Authentication is enabled, but username or password is not set or empty!"
+          ]
+        }
+      ]
+    },
+    "basicAuthConfigured": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false,
+          "basicAuthUser": {
+            "username": "user",
+            "password": "pass"
+          }
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": true,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": []
+    },
+    "whitelistBypassesAlerts": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": true
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": []
+    },
+    "unprotectedAdminExits": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": true,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": [
+          {
+            "handle": "admin",
+            "password": "",
+            "admin": true,
+            "enabled": true
+          }
+        ]
+      },
+      "exitCode": 1,
+      "events": [
+        {
+          "level": "warn",
+          "args": [
+            "A friendly reminder that the following users are not password protected:"
+          ]
+        },
+        {
+          "level": "warn",
+          "args": [
+            "admin (admin)"
+          ]
+        },
+        {
+          "level": "log",
+          "args": []
+        },
+        {
+          "level": "warn",
+          "args": [
+            "Consider setting a password in the admin panel or by using the recover.js script."
+          ]
+        },
+        {
+          "level": "log",
+          "args": []
+        },
+        {
+          "level": "error",
+          "args": [
+            "If you are not using basic authentication or whitelisting, you should set a password for all admin users."
+          ]
+        }
+      ]
+    },
+    "unprotectedRegularUserWarns": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": true,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": [
+          {
+            "handle": "regular",
+            "password": "",
+            "admin": false,
+            "enabled": true
+          }
+        ]
+      },
+      "exitCode": null,
+      "events": [
+        {
+          "level": "warn",
+          "args": [
+            "A friendly reminder that the following users are not password protected:"
+          ]
+        },
+        {
+          "level": "warn",
+          "args": [
+            "regular "
+          ]
+        },
+        {
+          "level": "log",
+          "args": []
+        },
+        {
+          "level": "warn",
+          "args": [
+            "Consider setting a password in the admin panel or by using the recover.js script."
+          ]
+        },
+        {
+          "level": "log",
+          "args": []
+        }
+      ]
+    },
+    "protectedAdmin": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": true,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": [
+          {
+            "handle": "admin",
+            "password": "scrypt-hash",
+            "admin": true,
+            "enabled": true
+          }
+        ]
+      },
+      "exitCode": null,
+      "events": []
+    },
+    "disabledAdminIgnored": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": true,
+          "securityOverride": false,
+          "perUserBasicAuth": false
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": false,
+          "whitelistMode": false
+        },
+        "users": [
+          {
+            "handle": "disabled",
+            "password": "",
+            "admin": true,
+            "enabled": false
+          }
+        ]
+      },
+      "exitCode": null,
+      "events": []
+    },
+    "perUserBasicAuthWithoutAccounts": {
+      "inputs": {
+        "config": {
+          "enableUserAccounts": false,
+          "securityOverride": false,
+          "perUserBasicAuth": true
+        },
+        "args": {
+          "listen": true,
+          "basicAuthMode": true,
+          "whitelistMode": false
+        },
+        "users": []
+      },
+      "exitCode": null,
+      "events": [
+        {
+          "level": "error",
+          "args": [
+            "Per-user basic authentication is enabled, but user accounts are disabled. This configuration may be insecure."
+          ]
+        }
+      ]
+    }
+  }
+}

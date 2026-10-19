@@ -162,6 +162,18 @@ try {
         throw new Error(`public-overrides migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const securitySettingsProbe = path.join(buildRoot, '.gotavern-probe-security-settings.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-security-settings.mjs'), securitySettingsProbe);
+    const securitySettingsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-security-settings.json');
+    run(process.execPath, [securitySettingsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstSecuritySettingsProbe = readFileSync(securitySettingsFixturePath);
+    run(process.execPath, [securitySettingsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondSecuritySettingsProbe = readFileSync(securitySettingsFixturePath);
+    if (!firstSecuritySettingsProbe.equals(secondSecuritySettingsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstSecuritySettingsProbe), JSON.parse(secondSecuritySettingsProbe));
+        throw new Error(`security-settings oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

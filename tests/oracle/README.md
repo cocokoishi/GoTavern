@@ -24,6 +24,10 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-public-overrides-migration.json` captures pinned error-page and user-CSS override migration, including existing data-root precedence and legacy-source retention.
 
+`sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations.
+
+`sillytavern-1.19.0-security-settings.json` records pinned security-gate warnings and exit behavior for listen, whitelist, Basic Auth, account, password, and override combinations.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh
