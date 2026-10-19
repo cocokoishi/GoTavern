@@ -288,6 +288,18 @@ try {
         throw new Error(`command-line paths oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const serverProtocolsProbe = path.join(buildRoot, '.gotavern-probe-server-protocols.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-server-protocols.mjs'), serverProtocolsProbe);
+    const serverProtocolsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-server-protocols.json');
+    run(process.execPath, [serverProtocolsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstServerProtocolsProbe = readFileSync(serverProtocolsFixturePath);
+    run(process.execPath, [serverProtocolsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondServerProtocolsProbe = readFileSync(serverProtocolsFixturePath);
+    if (!firstServerProtocolsProbe.equals(secondServerProtocolsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstServerProtocolsProbe), JSON.parse(secondServerProtocolsProbe));
+        throw new Error(`server-protocol oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const compiler = `
 import { copyFileSync } from 'node:fs';
 import path from 'node:path';

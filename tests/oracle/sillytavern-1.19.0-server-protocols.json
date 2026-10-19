@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned ServerStartup protocol selection from configured flags and interface addresses",
+  "source": "src/server-main.js protocol precondition; src/server-startup.js: ServerStartup.start; src/util.js: getHasIP",
+  "scenarios": {
+    "both-disabled": {
+      "options": {
+        "enableIPv4": false,
+        "enableIPv6": false,
+        "listen": false
+      },
+      "interfaces": [],
+      "result": {
+        "stderr": [
+          "Both IPv6 and IPv4 are disabled or not detected"
+        ],
+        "listenCalls": [],
+        "exitCode": 1
+      }
+    },
+    "auto-dual-no-loopback": {
+      "options": {
+        "enableIPv4": "auto",
+        "enableIPv6": "auto",
+        "listen": false
+      },
+      "interfaces": [
+        {
+          "family": "IPv4",
+          "address": "192.0.2.15"
+        },
+        {
+          "family": "IPv6",
+          "address": "2001:db8::15"
+        }
+      ],
+      "result": {
+        "stderr": [
+          "Both IPv6 and IPv4 are not detected"
+        ],
+        "listenCalls": [],
+        "exitCode": 1
+      }
+    },
+    "auto-v4-loopback": {
+      "options": {
+        "enableIPv4": "auto",
+        "enableIPv6": false,
+        "listen": false
+      },
+      "interfaces": [
+        {
+          "family": "IPv4",
+          "address": "127.0.0.1"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "127.0.0.1",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": true,
+        "useIPv6": false,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "auto-v6-loopback": {
+      "options": {
+        "enableIPv4": false,
+        "enableIPv6": "auto",
+        "listen": false
+      },
+      "interfaces": [
+        {
+          "family": "IPv6",
+          "address": "::1"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "::1",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": false,
+        "useIPv6": true,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "auto-dual-loopback": {
+      "options": {
+        "enableIPv4": "auto",
+        "enableIPv6": "auto",
+        "listen": false
+      },
+      "interfaces": [
+        {
+          "family": "IPv4",
+          "address": "127.0.0.1"
+        },
+        {
+          "family": "IPv6",
+          "address": "::1"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "::1",
+            "port": 8000,
+            "ipv6Only": true
+          },
+          {
+            "host": "127.0.0.1",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": true,
+        "useIPv6": true,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "listen-v4-public-interface": {
+      "options": {
+        "enableIPv4": "auto",
+        "enableIPv6": false,
+        "listen": true
+      },
+      "interfaces": [
+        {
+          "family": "IPv4",
+          "address": "198.51.100.23"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": true,
+        "useIPv6": false,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "listen-v6-public-interface": {
+      "options": {
+        "enableIPv4": false,
+        "enableIPv6": "auto",
+        "listen": true
+      },
+      "interfaces": [
+        {
+          "family": "IPv6",
+          "address": "2001:db8::23"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "::",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": false,
+        "useIPv6": true,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "explicit-v4-without-interfaces": {
+      "options": {
+        "enableIPv4": true,
+        "enableIPv6": false,
+        "listen": true
+      },
+      "interfaces": [],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": true,
+        "useIPv6": false,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    },
+    "mixed-explicit-v4-auto-v6-no-local": {
+      "options": {
+        "enableIPv4": true,
+        "enableIPv6": "auto",
+        "listen": false
+      },
+      "interfaces": [
+        {
+          "family": "IPv4",
+          "address": "127.0.0.1"
+        }
+      ],
+      "result": {
+        "stderr": [],
+        "listenCalls": [
+          {
+            "host": "127.0.0.1",
+            "port": 8000,
+            "ipv6Only": true
+          }
+        ],
+        "useIPv4": true,
+        "useIPv6": false,
+        "v4Failed": false,
+        "v6Failed": false
+      }
+    }
+  }
+}
