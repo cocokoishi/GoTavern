@@ -372,6 +372,16 @@ round-trip probe sends a save through GoTavern and reads the same file through
 the pinned Node `/api/settings/get` route. Malformed and oversized bodies,
 filesystem failures, and real ten-minute timing remain unprobed.
 
+The Quick Replies oracle covers authenticated save and delete, JSON formatting,
+name truthiness/coercion, `sanitize-filename@1.6.3` illegal/control-character
+removal, Unicode byte truncation, overwrite/removal state, and missing-name or
+missing-file responses. It also verifies that the pinned Node aggregation route
+reads a Quick Reply written by GoTavern. The deprecated save/delete paths keep
+their POST method through 308 redirects. Reserved names that sanitize to an
+empty path, trailing-character edges, malformed body-parser responses, alias
+subpaths/warnings, symlink or directory targets, and filesystem failures remain
+unprobed.
+
 ---
 
 ## 10. Character/card suite

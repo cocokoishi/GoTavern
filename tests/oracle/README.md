@@ -36,6 +36,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-settings-save.json` captures authenticated `/api/settings/save` responses, JavaScript's four-space JSON serialization including integer-key ordering, exponent and negative-zero normalization, atomic settings bytes, the immediate autosnapshot, a second save inside the ten-minute throttle window, and unchanged account data. Its round trip sends a settings save through GoTavern and reads it back through the pinned Node `/api/settings/get` route.
 
+`sillytavern-1.19.0-quick-replies.json` captures authenticated Quick Replies save/delete responses, JavaScript JSON formatting, filename coercion and sanitization, Unicode truncation, deprecated method-preserving redirects, overwrite/removal file states, and unchanged account data. Its round trip writes through GoTavern and reads the preset through pinned Node `/api/settings/get`.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.

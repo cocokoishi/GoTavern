@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned Quick Replies save/delete authentication, filename sanitization, JSON formatting, and file mutation behavior",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-quick-replies-cookie-secret",
+    "mainBody": "{\"name\":\"Main\",\"preserve\":{\"z\":1e+20,\"a\":-0},\"quickReplies\":[{\"label\":\"hello\"}]}",
+    "overwriteBody": "{\"name\":\"Main\",\"unknown\":{\"keep\":true},\"quickReplies\":[{\"label\":\"updated\",\"enabled\":false}]}",
+    "sanitizedBody": "{\"name\":\"A/../bad?:*|\\\"<>\",\"payload\":\"sanitized name\"}",
+    "longBody": "{\"name\":\"🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂\",\"payload\":\"utf8 truncation\"}",
+    "arrayNameBody": "{\"name\":[\"one\",\"two\"],\"payload\":\"array coercion\"}",
+    "objectNameBody": "{\"name\":{\"value\":true},\"payload\":\"object coercion\"}",
+    "invalidCharactersBody": "{\"name\":\"/\\\\?<>:*|\\\"\",\"payload\":\"invalid characters removed\"}",
+    "controlCharactersBody": "{\"name\":\"control\\u0000characters\",\"payload\":\"control characters removed\"}",
+    "missingNameBody": "{}",
+    "falsyNameBody": "{\"name\":0}",
+    "deleteMainBody": "{\"name\":\"Main\"}",
+    "deleteMissingBody": "{\"name\":\"not-created\"}",
+    "deleteSanitizedBody": "{\"name\":\"A/../bad?:*|\\\"<>\",\"payload\":\"sanitized name\"}"
+  },
+  "responses": {
+    "unauthorizedSave": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "legacySaveRedirect": {
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/save"
+    },
+    "legacyDeleteRedirect": {
+      "status": 308,
+      "headers": {
+        "content-length": "60",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/delete"
+    },
+    "saveMain": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "overwriteMain": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveSanitized": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveLong": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveArrayName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveObjectName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveInvalidCharacters": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveControlCharacters": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "saveMissingName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveFalsyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "deleteMain": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteMissing": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteSanitized": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    }
+  },
+  "state": {
+    "afterMain": [
+      {
+        "name": "Main.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"Main\",\n    \"preserve\": {\n        \"z\": 100000000000000000000,\n        \"a\": 0\n    },\n    \"quickReplies\": [\n        {\n            \"label\": \"hello\"\n        }\n    ]\n}"
+      }
+    ],
+    "afterOverwrite": [
+      {
+        "name": "Main.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"Main\",\n    \"unknown\": {\n        \"keep\": true\n    },\n    \"quickReplies\": [\n        {\n            \"label\": \"updated\",\n            \"enabled\": false\n        }\n    ]\n}"
+      }
+    ],
+    "afterSaves": [
+      {
+        "name": ".json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"/\\\\?<>:*|\\\"\",\n    \"payload\": \"invalid characters removed\"\n}"
+      },
+      {
+        "name": "A..bad.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"A/../bad?:*|\\\"<>\",\n    \"payload\": \"sanitized name\"\n}"
+      },
+      {
+        "name": "Main.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"Main\",\n    \"unknown\": {\n        \"keep\": true\n    },\n    \"quickReplies\": [\n        {\n            \"label\": \"updated\",\n            \"enabled\": false\n        }\n    ]\n}"
+      },
+      {
+        "name": "[object Object].json",
+        "kind": "file",
+        "content": "{\n    \"name\": {\n        \"value\": true\n    },\n    \"payload\": \"object coercion\"\n}"
+      },
+      {
+        "name": "controlcharacters.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"control\\u0000characters\",\n    \"payload\": \"control characters removed\"\n}"
+      },
+      {
+        "name": "one,two.json",
+        "kind": "file",
+        "content": "{\n    \"name\": [\n        \"one\",\n        \"two\"\n    ],\n    \"payload\": \"array coercion\"\n}"
+      },
+      {
+        "name": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+        "kind": "file",
+        "content": "{\n    \"name\": \"🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂\",\n    \"payload\": \"utf8 truncation\"\n}"
+      }
+    ],
+    "afterDeletes": [
+      {
+        "name": ".json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"/\\\\?<>:*|\\\"\",\n    \"payload\": \"invalid characters removed\"\n}"
+      },
+      {
+        "name": "[object Object].json",
+        "kind": "file",
+        "content": "{\n    \"name\": {\n        \"value\": true\n    },\n    \"payload\": \"object coercion\"\n}"
+      },
+      {
+        "name": "controlcharacters.json",
+        "kind": "file",
+        "content": "{\n    \"name\": \"control\\u0000characters\",\n    \"payload\": \"control characters removed\"\n}"
+      },
+      {
+        "name": "one,two.json",
+        "kind": "file",
+        "content": "{\n    \"name\": [\n        \"one\",\n        \"two\"\n    ],\n    \"payload\": \"array coercion\"\n}"
+      },
+      {
+        "name": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+        "kind": "file",
+        "content": "{\n    \"name\": \"🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂\",\n    \"payload\": \"utf8 truncation\"\n}"
+      }
+    ],
+    "accountRecordUnchanged": true,
+    "roundTrip": {
+      "verified": true,
+      "preset": {
+        "name": "Go-written",
+        "roundtrip": "visible to pinned Node"
+      }
+    }
+  }
+}

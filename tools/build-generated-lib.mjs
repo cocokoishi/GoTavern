@@ -411,6 +411,18 @@ try {
         throw new Error(`settings-save oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const quickRepliesProbe = path.join(buildRoot, '.gotavern-probe-quick-replies.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-quick-replies.mjs'), quickRepliesProbe);
+    const quickRepliesFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-quick-replies.json');
+    run(process.execPath, [quickRepliesProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstQuickRepliesProbe = readFileSync(quickRepliesFixturePath);
+    run(process.execPath, [quickRepliesProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondQuickRepliesProbe = readFileSync(quickRepliesFixturePath);
+    if (!firstQuickRepliesProbe.equals(secondQuickRepliesProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstQuickRepliesProbe), JSON.parse(secondQuickRepliesProbe));
+        throw new Error(`Quick Replies oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');
