@@ -13,7 +13,7 @@ func (runtime *accountRuntime) serveQuickReplySave(w http.ResponseWriter, reques
 	if !ok {
 		return
 	}
-	body, input, ok := readQuickReplyRequestBody(request)
+	body, input, ok := readUserPresetRequestBody(request)
 	if !ok {
 		serveStatusText(w, http.StatusBadRequest)
 		return
@@ -23,7 +23,7 @@ func (runtime *accountRuntime) serveQuickReplySave(w http.ResponseWriter, reques
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
-	filename, err := startup.QuickReplyFilename(name)
+	filename, err := startup.UserPresetFilename(name)
 	if err != nil {
 		serveStatusText(w, http.StatusBadRequest)
 		return
@@ -45,7 +45,7 @@ func (runtime *accountRuntime) serveQuickReplyDelete(w http.ResponseWriter, requ
 	if !ok {
 		return
 	}
-	_, input, ok := readQuickReplyRequestBody(request)
+	_, input, ok := readUserPresetRequestBody(request)
 	if !ok {
 		serveStatusText(w, http.StatusBadRequest)
 		return
@@ -55,7 +55,7 @@ func (runtime *accountRuntime) serveQuickReplyDelete(w http.ResponseWriter, requ
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
-	filename, err := startup.QuickReplyFilename(name)
+	filename, err := startup.UserPresetFilename(name)
 	if err != nil {
 		serveStatusText(w, http.StatusBadRequest)
 		return
@@ -67,7 +67,7 @@ func (runtime *accountRuntime) serveQuickReplyDelete(w http.ResponseWriter, requ
 	serveStatusText(w, http.StatusOK)
 }
 
-func readQuickReplyRequestBody(request *http.Request) ([]byte, map[string]json.RawMessage, bool) {
+func readUserPresetRequestBody(request *http.Request) ([]byte, map[string]json.RawMessage, bool) {
 	body, err := io.ReadAll(io.LimitReader(request.Body, 500<<20))
 	if err != nil {
 		return nil, nil, false

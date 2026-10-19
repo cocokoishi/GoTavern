@@ -423,6 +423,18 @@ try {
         throw new Error(`Quick Replies oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const themesProbe = path.join(buildRoot, '.gotavern-probe-themes.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-themes.mjs'), themesProbe);
+    const themesFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-themes.json');
+    run(process.execPath, [themesProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstThemesProbe = readFileSync(themesFixturePath);
+    run(process.execPath, [themesProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondThemesProbe = readFileSync(themesFixturePath);
+    if (!firstThemesProbe.equals(secondThemesProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstThemesProbe), JSON.parse(secondThemesProbe));
+        throw new Error('theme oracle changed across identical pinned Node runs at: ' + paths.join(', '));
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');

@@ -382,6 +382,8 @@ empty path, trailing-character edges, malformed body-parser responses, alias
 subpaths/warnings, symlink or directory targets, and filesystem failures remain
 unprobed.
 
+The themes oracle covers authenticated save/delete, the 404 for a missing theme, JSON formatting, filename coercion and sanitization, Unicode truncation, overwrite/removal state, the deprecated POST-preserving 308 save redirect, and unchanged account data. It also verifies that pinned Node reads a Go-created theme through /api/settings/get. Reserved names that sanitize to an empty path, malformed body-parser responses, alias subpaths/warnings, symlink or directory targets, and filesystem failures remain unprobed.
+
 ---
 
 ## 10. Character/card suite

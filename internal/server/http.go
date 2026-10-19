@@ -295,6 +295,11 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/settings/restore-snapshot", accounts.serveSettingsRestoreSnapshot)
 	mux.HandleFunc("POST /api/quick-replies/save", accounts.serveQuickReplySave)
 	mux.HandleFunc("POST /api/quick-replies/delete", accounts.serveQuickReplyDelete)
+	mux.HandleFunc("POST /api/themes/save", accounts.serveThemeSave)
+	mux.HandleFunc("POST /api/themes/delete", accounts.serveThemeDelete)
+	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {
+		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/themes/save")
+	})
 	mux.HandleFunc("/savequickreply", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/quick-replies/save")
 	})

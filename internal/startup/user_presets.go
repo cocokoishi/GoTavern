@@ -1,7 +1,6 @@
 package startup
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,20 +11,29 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// QuickReplyFilename applies the pinned sanitize-filename 1.6.3 behavior to
-// `${String(name)}.json`, as used by the SillyTavern quick-reply endpoints.
-func QuickReplyFilename(nameJSON []byte) (string, error) {
+// UserPresetFilename applies the pinned sanitize-filename 1.6.3 behavior to
+// the JavaScript String(name) plus ".json" filename used by preset endpoints.
+func UserPresetFilename(nameJSON []byte) (string, error) {
 	value, err := decodeOrderedJSON(nameJSON)
 	if err != nil {
 		return "", err
 	}
-	return sanitizeQuickReplyFilename(nodeString(value) + ".json"), nil
+	return sanitizeUserPresetFilename(nodeString(value) + ".json"), nil
 }
 
 // SaveQuickReplyPreset atomically writes one preset while holding the shared
 // data-root lock used by startup data mutations.
 func SaveQuickReplyPreset(dataRoot, handle, filename string, body []byte) error {
-	directory, lock, err := lockQuickReplyDirectory(dataRoot, handle)
+	return saveUserPreset(dataRoot, handle, "quickreplies", filename, body)
+}
+
+// SaveThemePreset atomically writes one theme while holding the shared data-root lock.
+func SaveThemePreset(dataRoot, handle, filename string, body []byte) error {
+	return saveUserPreset(dataRoot, handle, "themes", filename, body)
+}
+
+func saveUserPreset(dataRoot, handle, directoryKey, filename string, body []byte) error {
+	directory, lock, err := lockUserPresetDirectory(dataRoot, handle, directoryKey)
 	if err != nil {
 		return err
 	}
@@ -40,7 +48,17 @@ func SaveQuickReplyPreset(dataRoot, handle, filename string, body []byte) error 
 // DeleteQuickReplyPreset removes an existing preset. Missing presets succeed
 // without mutation, matching the pinned existsSync/unlinkSync sequence.
 func DeleteQuickReplyPreset(dataRoot, handle, filename string) error {
-	directory, lock, err := lockQuickReplyDirectory(dataRoot, handle)
+	return deleteUserPreset(dataRoot, handle, "quickreplies", filename, true)
+}
+
+// DeleteThemePreset removes one theme and reports missing files to preserve the
+// pinned endpoint's 404 response.
+func DeleteThemePreset(dataRoot, handle, filename string) error {
+	return deleteUserPreset(dataRoot, handle, "themes", filename, false)
+}
+
+func deleteUserPreset(dataRoot, handle, directoryKey, filename string, missingOK bool) error {
+	directory, lock, err := lockUserPresetDirectory(dataRoot, handle, directoryKey)
 	if err != nil {
 		return err
 	}
@@ -49,33 +67,34 @@ func DeleteQuickReplyPreset(dataRoot, handle, filename string) error {
 	if err := ensureContained(directory, target); err != nil {
 		return err
 	}
-	if _, err := os.Stat(target); errors.Is(err, fs.ErrNotExist) {
-		return nil
-	} else if err != nil {
-		return nil
+	if _, err := os.Stat(target); err != nil {
+		if missingOK {
+			return nil
+		}
+		return fs.ErrNotExist
 	}
 	entry, err := os.Lstat(target)
 	if err != nil {
 		return err
 	}
 	if entry.IsDir() {
-		return fmt.Errorf("unlink quick reply preset %s: path is a directory", filename)
+		return fmt.Errorf("unlink user preset %s: path is a directory", filename)
 	}
 	return os.Remove(target)
 }
 
-func lockQuickReplyDirectory(dataRoot, handle string) (string, *flock.Flock, error) {
+func lockUserPresetDirectory(dataRoot, handle, directoryKey string) (string, *flock.Flock, error) {
 	directories, err := DirectoriesForUser(dataRoot, handle)
 	if err != nil {
 		return "", nil, err
 	}
 	userRoot, err := filepath.Abs(directories["root"])
 	if err != nil {
-		return "", nil, fmt.Errorf("resolve quick-reply user root: %w", err)
+		return "", nil, fmt.Errorf("resolve user preset root: %w", err)
 	}
 	lockRoot, err := canonicalPath(filepath.Dir(userRoot))
 	if err != nil {
-		return "", nil, fmt.Errorf("resolve quick-reply lock root: %w", err)
+		return "", nil, fmt.Errorf("resolve user preset lock root: %w", err)
 	}
 	lock, err := acquireContentLock(lockRoot)
 	if err != nil {
@@ -84,29 +103,34 @@ func lockQuickReplyDirectory(dataRoot, handle string) (string, *flock.Flock, err
 	resolvedUserRoot, err := canonicalPath(userRoot)
 	if err != nil {
 		_ = lock.Close()
-		return "", nil, fmt.Errorf("resolve quick-reply user root: %w", err)
+		return "", nil, fmt.Errorf("resolve user preset root: %w", err)
 	}
 	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
 		_ = lock.Close()
-		return "", nil, fmt.Errorf("quick-reply user root escapes data root: %w", err)
+		return "", nil, fmt.Errorf("user preset root escapes data root: %w", err)
 	}
-	directory, err := filepath.Abs(directories["quickreplies"])
+	directoryPath, exists := directories[directoryKey]
+	if !exists {
+		_ = lock.Close()
+		return "", nil, fmt.Errorf("unknown user preset directory %q", directoryKey)
+	}
+	directory, err := filepath.Abs(directoryPath)
 	if err != nil {
 		_ = lock.Close()
-		return "", nil, fmt.Errorf("resolve quick-reply directory: %w", err)
+		return "", nil, fmt.Errorf("resolve user preset directory: %w", err)
 	}
 	if err := ensureResolvedContained(resolvedUserRoot, directory); err != nil {
 		_ = lock.Close()
-		return "", nil, fmt.Errorf("quick-reply directory escapes user root: %w", err)
+		return "", nil, fmt.Errorf("user preset directory escapes user root: %w", err)
 	}
 	return directory, lock, nil
 }
 
-func sanitizeQuickReplyFilename(input string) string {
+func sanitizeUserPresetFilename(input string) string {
 	var cleaned strings.Builder
 	cleaned.Grow(len(input))
 	for _, character := range input {
-		if isQuickReplyIllegal(character) || character <= 0x1f || (character >= 0x80 && character <= 0x9f) {
+		if isUserPresetIllegal(character) || character <= 0x1f || (character >= 0x80 && character <= 0x9f) {
 			continue
 		}
 		cleaned.WriteRune(character)
@@ -115,14 +139,14 @@ func sanitizeQuickReplyFilename(input string) string {
 	if strings.Trim(filename, ".") == "" {
 		filename = ""
 	}
-	if isWindowsReservedQuickReplyName(filename) {
+	if isWindowsReservedUserPresetName(filename) {
 		filename = ""
 	}
 	filename = strings.TrimRight(filename, ". ")
-	return truncateQuickReplyUTF8(filename, 255)
+	return truncateUserPresetUTF8(filename, 255)
 }
 
-func isQuickReplyIllegal(character rune) bool {
+func isUserPresetIllegal(character rune) bool {
 	switch character {
 	case '/', '?', '<', '>', '\\', ':', '*', '|', '"':
 		return true
@@ -131,7 +155,7 @@ func isQuickReplyIllegal(character rune) bool {
 	}
 }
 
-func isWindowsReservedQuickReplyName(filename string) bool {
+func isWindowsReservedUserPresetName(filename string) bool {
 	base := filename
 	if index := strings.IndexByte(base, '.'); index >= 0 {
 		base = base[:index]
@@ -146,7 +170,7 @@ func isWindowsReservedQuickReplyName(filename string) bool {
 	return false
 }
 
-func truncateQuickReplyUTF8(input string, maxBytes int) string {
+func truncateUserPresetUTF8(input string, maxBytes int) string {
 	if len(input) <= maxBytes {
 		return input
 	}
