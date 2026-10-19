@@ -230,6 +230,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	})
 	mux.HandleFunc("POST /api/users/list", accounts.serveUserList)
 	mux.HandleFunc("POST /api/users/login", accounts.serveUserLogin)
+	mux.HandleFunc("POST /api/users/logout", accounts.serveUserLogout)
+	mux.HandleFunc("GET /api/users/me", accounts.serveUserMe)
 	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -260,7 +262,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 			return
 		}
 		var session *cookieSession
-		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
+		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (r.URL.Path == "/api/users/logout" && r.Method == http.MethodPost) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
 			session = loadCookieSession(r, options)
 			r = r.WithContext(withSession(r.Context(), session))
 		}

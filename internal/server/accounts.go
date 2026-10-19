@@ -56,6 +56,15 @@ type publicUser struct {
 	Password bool            `json:"password"`
 }
 
+type accountMeViewModel struct {
+	Handle   json.RawMessage `json:"handle,omitempty"`
+	Name     json.RawMessage `json:"name,omitempty"`
+	Avatar   string          `json:"avatar"`
+	Admin    json.RawMessage `json:"admin,omitempty"`
+	Password bool            `json:"password"`
+	Created  json.RawMessage `json:"created,omitempty"`
+}
+
 type accountRequestContextKey struct{}
 
 type accountRequestState struct {
@@ -67,6 +76,7 @@ type accountRuntime struct {
 	options        HTTPHandlerOptions
 	limiter        *memoryLoginLimiter
 	recoverLimiter *memoryLoginLimiter
+	defaultUser    storedAccount
 	recoveryMu     sync.Mutex
 	recoveryCodes  map[string]recoveryCodeEntry
 }
@@ -103,10 +113,24 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 	if recoverPoints <= 0 {
 		recoverPoints = 9007199254740991
 	}
+	defaultUser := storedAccount{fields: map[string]json.RawMessage{}}
+	for key, value := range map[string]any{
+		"handle":   "default-user",
+		"name":     "User",
+		"created":  time.Now().UnixMilli(),
+		"password": "",
+		"admin":    true,
+		"enabled":  true,
+		"salt":     "",
+	} {
+		encoded, _ := json.Marshal(value)
+		defaultUser.fields[key] = encoded
+	}
 	return &accountRuntime{
 		options:        options,
 		limiter:        &memoryLoginLimiter{points: points, duration: time.Minute, entries: make(map[string]loginAttemptWindow)},
 		recoverLimiter: &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
+		defaultUser:    defaultUser,
 		recoveryCodes:  make(map[string]recoveryCodeEntry),
 	}
 }
@@ -755,6 +779,36 @@ func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, requ
 	runtime.recoveryMu.Lock()
 	delete(runtime.recoveryCodes, account.string("handle"))
 	runtime.recoveryMu.Unlock()
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserMe(w http.ResponseWriter, request *http.Request) {
+	state := accountFromContext(request)
+	account := state.user
+	if account == nil && !runtime.options.AccountsEnabled {
+		account = &runtime.defaultUser
+	}
+	if account == nil {
+		serveStatusText(w, http.StatusForbidden)
+		return
+	}
+	respondJSON(w, http.StatusOK, accountMeViewModel{
+		Handle:   account.raw("handle"),
+		Name:     account.raw("name"),
+		Avatar:   runtime.userAvatar(*account),
+		Admin:    account.raw("admin"),
+		Password: nodeTruthyJSON(account.raw("password")),
+		Created:  account.raw("created"),
+	})
+}
+
+func (runtime *accountRuntime) serveUserLogout(w http.ResponseWriter, request *http.Request) {
+	state := accountFromContext(request)
+	if state.session == nil || runtime.options.CookieSecret == "" {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	clearCookieSession(w, request, runtime.options)
 	serveNoContent(w)
 }
 

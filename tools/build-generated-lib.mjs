@@ -171,6 +171,18 @@ try {
         throw new Error(`account recovery oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountPrivateProbe = path.join(buildRoot, '.gotavern-probe-account-private.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-private.mjs'), accountPrivateProbe);
+    const accountPrivateFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-private.json');
+    run(process.execPath, [accountPrivateProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountPrivateProbe = readFileSync(accountPrivateFixturePath);
+    run(process.execPath, [accountPrivateProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountPrivateProbe = readFileSync(accountPrivateFixturePath);
+    if (!firstAccountPrivateProbe.equals(secondAccountPrivateProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountPrivateProbe), JSON.parse(secondAccountPrivateProbe));
+        throw new Error(`account-private oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');
