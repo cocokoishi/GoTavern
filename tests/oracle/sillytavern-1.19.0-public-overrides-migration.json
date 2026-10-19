@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned users.js migratePublicOverrides filesystem behavior",
+  "scenarios": {
+    "noOverrides": {
+      "inputs": {
+        "sources": {},
+        "destinations": {},
+        "readOnlySources": [],
+        "readOnlyDestinations": []
+      },
+      "tree": []
+    },
+    "mixed": {
+      "inputs": {
+        "sources": {
+          "public/error/forbidden-by-whitelist.html": "<html>pinned override probe: forbidden</html>",
+          "public/error/host-not-allowed.html": "<html>pinned override probe: host</html>",
+          "public/error/unauthorized.html": "<html>legacy unauthorized</html>",
+          "public/error/url-not-found.html": "<html>legacy 404</html>",
+          "public/css/user.css": "body { --legacy-user-css: true; }"
+        },
+        "destinations": {
+          "data/_errors/unauthorized.html": "<html>existing user override</html>"
+        },
+        "readOnlySources": [
+          "public/error/forbidden-by-whitelist.html"
+        ],
+        "readOnlyDestinations": [
+          "data/_errors/unauthorized.html"
+        ]
+      },
+      "tree": [
+        {
+          "path": "data/_css",
+          "type": "directory"
+        },
+        {
+          "path": "data/_css/user.css",
+          "type": "file",
+          "bytes": 33,
+          "sha256": "a81eb0e57a380c7936196c1e3ab3673d382be2ee2b0c2c3a36e9d310c5930af5",
+          "ownerWritable": true
+        },
+        {
+          "path": "data/_errors",
+          "type": "directory"
+        },
+        {
+          "path": "data/_errors/forbidden-by-whitelist.html",
+          "type": "file",
+          "bytes": 45,
+          "sha256": "c8a90d64510ebe144a58beeef146aa3e6094716a1218205b300565774b924b82",
+          "ownerWritable": true
+        },
+        {
+          "path": "data/_errors/host-not-allowed.html",
+          "type": "file",
+          "bytes": 40,
+          "sha256": "97e4d768cdb0ac3d4b63d06688800310909281ae51c01d465f67d6bf2cda4296",
+          "ownerWritable": true
+        },
+        {
+          "path": "data/_errors/unauthorized.html",
+          "type": "file",
+          "bytes": 35,
+          "sha256": "4ab332f6f80f5284092867d2cf489eabd4dd9e1ce00d5af68062f4975f56e2ca",
+          "ownerWritable": false
+        },
+        {
+          "path": "data/_errors/url-not-found.html",
+          "type": "file",
+          "bytes": 23,
+          "sha256": "085228a24cca249e81a63613db0f3efbfce5a7ebd3d8c3280944921bdc428c1b",
+          "ownerWritable": true
+        },
+        {
+          "path": "public/error",
+          "type": "directory"
+        },
+        {
+          "path": "public/error/unauthorized.html",
+          "type": "file",
+          "bytes": 32,
+          "sha256": "646889f27669f948186c3b23c145cba19e66fd930a1ebd22ae8f7d87a8b585ae",
+          "ownerWritable": true
+        }
+      ]
+    }
+  }
+}

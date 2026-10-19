@@ -24,10 +24,11 @@ type systemPromptMigrationOracle struct {
 }
 
 type migrationTreeEntry struct {
-	Path   string `json:"path"`
-	Type   string `json:"type"`
-	Bytes  int    `json:"bytes,omitempty"`
-	SHA256 string `json:"sha256,omitempty"`
+	Path          string `json:"path"`
+	Type          string `json:"type"`
+	Bytes         int    `json:"bytes,omitempty"`
+	SHA256        string `json:"sha256,omitempty"`
+	OwnerWritable *bool  `json:"ownerWritable,omitempty"`
 }
 
 func TestMigrateSystemPromptsMatchesPinnedNode(t *testing.T) {

@@ -150,6 +150,18 @@ try {
         throw new Error(`user-data migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const publicOverridesProbe = path.join(buildRoot, '.gotavern-probe-public-overrides-migration.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-public-overrides-migration.mjs'), publicOverridesProbe);
+    const publicOverridesFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-public-overrides-migration.json');
+    run(process.execPath, [publicOverridesProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstPublicOverridesProbe = readFileSync(publicOverridesFixturePath);
+    run(process.execPath, [publicOverridesProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondPublicOverridesProbe = readFileSync(publicOverridesFixturePath);
+    if (!firstPublicOverridesProbe.equals(secondPublicOverridesProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstPublicOverridesProbe), JSON.parse(secondPublicOverridesProbe));
+        throw new Error(`public-overrides migration oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);
     run(process.execPath, [inventoryScript, buildRoot, repositoryRoot], buildRoot);

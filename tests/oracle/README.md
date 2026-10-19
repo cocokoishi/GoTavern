@@ -22,6 +22,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-user-data-migration.json` captures the pinned legacy `public/` data migration after directory initialization, including destination merging, dated backups, deletion of successfully moved sources, and the no-legacy fast path.
 
+`sillytavern-1.19.0-public-overrides-migration.json` captures pinned error-page and user-CSS override migration, including existing data-root precedence and legacy-source retention.
+
 Observer captures use the `http`, `provider`, `providerResponse`, `browserEvents`, and `filesystem` top-level fields. Compare two captures with:
 
 ```sh
