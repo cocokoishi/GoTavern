@@ -232,6 +232,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/login", accounts.serveUserLogin)
 	mux.HandleFunc("POST /api/users/logout", accounts.serveUserLogout)
 	mux.HandleFunc("GET /api/users/me", accounts.serveUserMe)
+	mux.HandleFunc("POST /api/users/change-avatar", accounts.serveUserChangeAvatar)
+	mux.HandleFunc("POST /api/users/change-name", accounts.serveUserChangeName)
+	mux.HandleFunc("POST /api/users/change-password", accounts.serveUserChangePassword)
 	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +265,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 			return
 		}
 		var session *cookieSession
-		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (r.URL.Path == "/api/users/logout" && r.Method == http.MethodPost) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
+		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (r.Method == http.MethodPost && (r.URL.Path == "/api/users/logout" || r.URL.Path == "/api/users/change-password")) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {
 			session = loadCookieSession(r, options)
 			r = r.WithContext(withSession(r.Context(), session))
 		}
@@ -283,6 +286,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 			if user != nil && r.Method == http.MethodGet && r.URL.Path == "/" {
 				session.set("touch", time.Now().UnixMilli())
 			}
+		} else {
+			user = &accounts.defaultUser
 		}
 		r = withAccountState(r, accountRequestState{session: session, user: user})
 		if session != nil && session.shouldWrite() && r.URL.Path != "/csrf-token" {

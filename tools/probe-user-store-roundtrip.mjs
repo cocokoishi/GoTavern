@@ -55,6 +55,15 @@ function runGoRecoveryUpdater(dataRoot) {
     return JSON.parse(output);
 }
 
+function runGoAvatarWriter(dataRoot) {
+    const output = execFileSync('go', ['run', './tools/user-store-avatar-fixture', dataRoot], {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return JSON.parse(output);
+}
+
 async function verifyNodeWrittenRecordSurvivesGo() {
     const dataRoot = path.join(tempRoot, 'node-written');
     const user = {
@@ -160,6 +169,27 @@ async function verifyGoRecoveryUpdateSurvivesNode() {
     };
 }
 
+async function verifyGoAvatarSetSurvivesNode() {
+    const dataRoot = path.join(tempRoot, 'go-avatar-set');
+    mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
+    const written = runGoAvatarWriter(dataRoot);
+    await initStorage(dataRoot);
+    const avatar = await storage.getItem(written.key);
+    const filePath = storagePath(dataRoot, written.key);
+    const record = JSON.parse(readFileSync(filePath, 'utf8'));
+    assert.equal(avatar, written.avatar, 'pinned node-persist could not read the Go-created avatar record');
+    assert.deepEqual(Object.keys(record), ['key', 'value']);
+    assert.equal(record.key, written.key);
+    assert.equal(record.value, written.avatar);
+    assert.equal(Object.hasOwn(record, 'ttl'), false);
+    return {
+        nodeReadGoCreatedAvatar: avatar,
+        recordKeys: Object.keys(record),
+        ttlPresent: Object.hasOwn(record, 'ttl'),
+        recordPath: `_storage/${path.basename(filePath)}`,
+    };
+}
+
 function safeCleanup() {
     const resolved = path.resolve(tempRoot);
     const parent = path.resolve(os.tmpdir());
@@ -179,6 +209,7 @@ try {
         scenarios: {
             nodeWritten: await verifyNodeWrittenRecordSurvivesGo(),
             goRecoveryUpdate: await verifyGoRecoveryUpdateSurvivesNode(),
+            goAvatarSet: await verifyGoAvatarSetSurvivesNode(),
             goWritten: await verifyNodeReadsGoCreatedRecord(),
         },
     };

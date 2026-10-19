@@ -549,3 +549,38 @@ func TestUpdateNodePersistRecordPreservesFieldsAndSerializesConcurrentUpdates(t 
 		t.Errorf("unknown user field = %s", got)
 	}
 }
+
+func TestSetNodePersistRecordMatchesPinnedNodePersistSetItemShape(t *testing.T) {
+	dataRoot := t.TempDir()
+	storageDir := filepath.Join(dataRoot, storageFolder)
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	existingKey := "avatar:profile<user>&"
+	existingPath := filepath.Join(storageDir, storeFilename(existingKey))
+	if err := os.WriteFile(existingPath, []byte(`{"key":"avatar:profile<user>&","value":"old","ttl":123,"unknownRecordField":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetNodePersistRecord(dataRoot, existingKey, json.RawMessage(`"data:image/svg+xml,<svg/>"`)); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := os.ReadFile(existingPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"key":"avatar:profile<user>&","value":"data:image/svg+xml,<svg/>"}`; string(updated) != want {
+		t.Fatalf("node-persist setItem replacement = %s; pinned shape is %s", updated, want)
+	}
+
+	createdKey := "avatar:new-user"
+	if err := SetNodePersistRecord(dataRoot, createdKey, json.RawMessage(`""`)); err != nil {
+		t.Fatal(err)
+	}
+	created, err := os.ReadFile(filepath.Join(storageDir, storeFilename(createdKey)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"key":"avatar:new-user","value":""}`; string(created) != want {
+		t.Fatalf("new node-persist setItem record = %s; pinned shape is %s", created, want)
+	}
+}

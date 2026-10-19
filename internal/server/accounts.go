@@ -812,6 +812,242 @@ func (runtime *accountRuntime) serveUserLogout(w http.ResponseWriter, request *h
 	serveNoContent(w)
 }
 
+func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	state := accountFromContext(request)
+	if state.user == nil {
+		serveStatusText(w, http.StatusForbidden)
+		return
+	}
+	if !accountCanChangeTarget(state.user, input["handle"]) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "Unauthorized"})
+		return
+	}
+	var avatar string
+	if json.Unmarshal(input["avatar"], &avatar) != nil {
+		// The pinned handler calls startsWith directly. Missing and non-string
+		// avatar values throw and are converted to its generic 500 response.
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if !strings.HasPrefix(avatar, "data:image/") && avatar != "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid data URL"})
+		return
+	}
+	handle := nodeStringValue(input["handle"])
+	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	} else if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	avatarJSON, err := marshalNodeJSON(avatar)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if err := startup.SetNodePersistRecord(runtime.options.DataRoot, avatarStoragePrefix+handle, avatarJSON); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !nodeTruthyJSON(input["name"]) || !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	state := accountFromContext(request)
+	if state.user == nil {
+		serveStatusText(w, http.StatusForbidden)
+		return
+	}
+	if !accountCanChangeTarget(state.user, input["handle"]) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "Unauthorized"})
+		return
+	}
+	handle := nodeStringValue(input["handle"])
+	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	} else if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	if err := startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, func(current json.RawMessage) (json.RawMessage, error) {
+		return replaceJSONObjectMembers(current, []string{"name"}, map[string]json.RawMessage{"name": input["name"]})
+	}); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	serveNoContent(w)
+}
+
+func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, request *http.Request) {
+	input, ok := readAccountRequestBody(request)
+	if !ok {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	if !nodeTruthyJSON(input["handle"]) {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required fields"})
+		return
+	}
+	state := accountFromContext(request)
+	if state.user == nil {
+		serveStatusText(w, http.StatusForbidden)
+		return
+	}
+	if !accountCanChangeTarget(state.user, input["handle"]) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "Unauthorized"})
+		return
+	}
+	handle := nodeStringValue(input["handle"])
+	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if !found {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+	if !nodeTruthyJSON(account.raw("enabled")) {
+		respondJSON(w, http.StatusForbidden, map[string]string{"error": "User is disabled"})
+		return
+	}
+	isAdmin := nodeTruthyJSON(state.user.raw("admin"))
+	if !isAdmin && nodeTruthyJSON(account.raw("password")) {
+		var oldPassword string
+		if json.Unmarshal(input["oldPassword"], &oldPassword) != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		computedHash, err := upstreamPasswordHash(oldPassword, account.string("salt"))
+		if err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(computedHash), []byte(account.string("password"))) != 1 {
+			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Incorrect password"})
+			return
+		}
+	}
+	password := ""
+	salt := ""
+	if nodeTruthyJSON(input["newPassword"]) {
+		if json.Unmarshal(input["newPassword"], &password) != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		saltBytes := make([]byte, 16)
+		if _, err := rand.Read(saltBytes); err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		salt = base64.StdEncoding.EncodeToString(saltBytes)
+	}
+	passwordHash := ""
+	if password != "" {
+		passwordHash, err = upstreamPasswordHash(password, salt)
+		if err != nil {
+			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+	}
+	passwordJSON, _ := json.Marshal(passwordHash)
+	saltJSON, _ := json.Marshal(salt)
+	updatedAccount := storedAccount{}
+	if err := startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, func(current json.RawMessage) (json.RawMessage, error) {
+		updatedValue, err := replaceJSONObjectMembers(current, []string{"password", "salt"}, map[string]json.RawMessage{
+			"password": passwordJSON,
+			"salt":     saltJSON,
+		})
+		if err != nil {
+			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(updatedValue, &fields); err != nil || fields == nil {
+			return nil, errors.New("updated user record is not a JSON object")
+		}
+		updatedAccount = storedAccount{fields: fields}
+		return updatedValue, nil
+	}); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if state.session != nil {
+		if sessionHandle, hasHandle := state.session.stringValue("handle"); hasHandle && sessionHandle == account.string("handle") {
+			state.session.set("version", updatedAccount.version())
+			writeCookieSession(w, request, runtime.options, state.session)
+		}
+	}
+	serveNoContent(w)
+}
+
+func accountCanChangeTarget(current *storedAccount, target json.RawMessage) bool {
+	if !nodeTruthyJSON(current.raw("admin")) {
+		var targetHandle string
+		if json.Unmarshal(target, &targetHandle) != nil || targetHandle != current.string("handle") {
+			return false
+		}
+	}
+	return true
+}
+
+func nodeStringValue(raw json.RawMessage) string {
+	var value any
+	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
+		return "undefined"
+	}
+	switch typed := value.(type) {
+	case nil:
+		return "null"
+	case string:
+		return typed
+	case bool:
+		return strconv.FormatBool(typed)
+	case float64:
+		if typed == 0 {
+			return "0"
+		}
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case []any:
+		parts := make([]string, len(typed))
+		for index, item := range typed {
+			if item == nil {
+				continue
+			}
+			encoded, err := json.Marshal(item)
+			if err != nil {
+				parts[index] = "[object Object]"
+				continue
+			}
+			if json.Unmarshal(encoded, &parts[index]) != nil {
+				parts[index] = string(encoded)
+			}
+		}
+		return strings.Join(parts, ",")
+	default:
+		return "[object Object]"
+	}
+}
+
 func (runtime *accountRuntime) recoveryCode(handle string, now time.Time) string {
 	runtime.recoveryMu.Lock()
 	defer runtime.recoveryMu.Unlock()

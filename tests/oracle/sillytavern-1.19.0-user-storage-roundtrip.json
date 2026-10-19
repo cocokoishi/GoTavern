@@ -52,6 +52,15 @@
       "nodeReadHashMatchesPinnedScrypt": true,
       "unknownFieldsPreserved": true
     },
+    "goAvatarSet": {
+      "nodeReadGoCreatedAvatar": "data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+      "recordKeys": [
+        "key",
+        "value"
+      ],
+      "ttlPresent": false,
+      "recordPath": "_storage/d01294ae102639e5aeb77ab67c8212bb1c9f295d379d601624a5d16741c79820"
+    },
     "goWritten": {
       "goObservedHandles": [
         "default-user"

@@ -183,6 +183,18 @@ try {
         throw new Error(`account-private oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const accountMutationsProbe = path.join(buildRoot, '.gotavern-probe-account-mutations.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-account-mutations.mjs'), accountMutationsProbe);
+    const accountMutationsFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-account-mutations.json');
+    run(process.execPath, [accountMutationsProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstAccountMutationsProbe = readFileSync(accountMutationsFixturePath);
+    run(process.execPath, [accountMutationsProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondAccountMutationsProbe = readFileSync(accountMutationsFixturePath);
+    if (!firstAccountMutationsProbe.equals(secondAccountMutationsProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstAccountMutationsProbe), JSON.parse(secondAccountMutationsProbe));
+        throw new Error(`account-mutations oracle changed across identical Node runs at: ${paths.join(', ')}`);
+    }
+
     const systemPromptProbe = path.join(buildRoot, '.gotavern-probe-system-prompt-migration.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-system-prompt-migration.mjs'), systemPromptProbe);
     const systemPromptFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-system-prompt-migration.json');

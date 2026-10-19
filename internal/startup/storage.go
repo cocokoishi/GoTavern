@@ -212,6 +212,57 @@ func UpdateNodePersistRecord(dataRoot, key string, update func(json.RawMessage) 
 	return nil
 }
 
+// SetNodePersistRecord writes one node-persist key using the same file shape
+// and shared lock as startup and account updates. The upstream setItem
+// operation replaces the record wrapper and resets its TTL to the store
+// default, so this intentionally writes only key and value.
+func SetNodePersistRecord(dataRoot, key string, value json.RawMessage) error {
+	if key == "" || !json.Valid(value) {
+		return errors.New("node-persist record set requires a key and valid JSON value")
+	}
+	absoluteRoot, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return fmt.Errorf("resolve data root: %w", err)
+	}
+	storageDir := filepath.Join(absoluteRoot, storageFolder)
+	if err := os.MkdirAll(storageDir, 0o777); err != nil {
+		return fmt.Errorf("create user storage directory: %w", err)
+	}
+	canonicalDir, err := canonicalPath(storageDir)
+	if err != nil {
+		return fmt.Errorf("resolve user storage directory: %w", err)
+	}
+	lock, err := acquireStorageLock(canonicalDir)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+
+	encodedKey, err := marshalNodeJSONString(key)
+	if err != nil {
+		return err
+	}
+	body := make([]byte, 0, len(encodedKey)+len(value)+18)
+	body = append(body, `{"key":`...)
+	body = append(body, encodedKey...)
+	body = append(body, `,"value":`...)
+	body = append(body, value...)
+	body = append(body, '}')
+	target := filepath.Join(storageDir, storeFilename(key))
+	if _, err := os.Lstat(target); err == nil {
+		if err := atomicReplace(target, body); err != nil {
+			return fmt.Errorf("write node-persist record %s: %w", key, err)
+		}
+		return nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("inspect node-persist record %s: %w", key, err)
+	}
+	if err := atomicCreate(target, body); err != nil {
+		return fmt.Errorf("write node-persist record %s: %w", key, err)
+	}
+	return nil
+}
+
 // DirectoriesForUser returns the paths declared by SillyTavern's pinned
 // USER_DIRECTORY_TEMPLATE for one user.
 func DirectoriesForUser(dataRoot, handle string) (UserDirectories, error) {
