@@ -92,7 +92,7 @@ Pinned `getConfigValue(key, default, type)` first reads `SILLYTAVERN_` plus the 
 | `performance.requestCompression.enabled` | `false` | `src/endpoints/settings.js:17` |
 | `performance.requestCompression.minPayloadSize` | `"256kb"` | `src/endpoints/settings.js:18` |
 | `performance.requestCompression.maxPayloadSize` | `"8mb"` | `src/endpoints/settings.js:19` |
-| `performance.requestCompression.timeout` | `4000` | `src/endpoints/settings.js:20` |
+| `performance.requestCompression.timeout` | `3000` | `src/endpoints/settings.js:20` |
 | `cacheBuster.enabled` | `false` | `src/middleware/cacheBuster.js:28` |
 | `cacheBuster.userAgentPattern` | `""` | `src/middleware/cacheBuster.js:29` |
 | `allowKeysExposure` | `false` | `src/endpoints/secrets.js:108` |

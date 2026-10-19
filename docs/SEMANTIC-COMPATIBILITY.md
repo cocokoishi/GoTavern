@@ -358,7 +358,12 @@ backup creation, configured retention, a missing-settings no-op, and unchanged
 account records. The `settings-snapshots` oracle normalizes change times and
 generated timestamp text only. It also checks that Node reads a Go-created
 snapshot and Go restores a Node-created snapshot. `settings/get` and
-`settings/save` remain separate contracts.
+`settings/get` has its own oracle for raw settings, provider preset names and
+contents, valid-JSON-only preset aggregation, world names, config flags, and
+request-compression values. The response body and ETag match; pinned Node uses
+gzip/chunked framing that Go does not yet reproduce. Locale edge ordering,
+JavaScript stringify edge cases, and filesystem failures remain unprobed.
+`settings/save` and its autosave throttle remain separate contracts.
 
 ---
 

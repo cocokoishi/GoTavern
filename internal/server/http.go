@@ -71,6 +71,12 @@ type HTTPHandlerOptions struct {
 	AllowFullDataBackup        *bool
 	AllowKeysExposure          bool
 	SettingsBackupRetention    *float64
+	ExtensionsEnabled          *bool
+	ExtensionsAutoUpdate       *bool
+	RequestCompressionEnabled  *bool
+	RequestCompressionMin      any
+	RequestCompressionMax      any
+	RequestCompressionTimeout  any
 	LoginRateLimitPoints       *float64
 	RecoveryRateLimitPoints    *float64
 	ResetRateLimitPoints       *float64
@@ -87,25 +93,39 @@ type HTTPHandlerOptions struct {
 func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTTPHandlerOptions {
 	settings := parsed.StartupSettings
 	options := HTTPHandlerOptions{
-		DataRoot:             parsed.Paths.RuntimeDataRoot,
-		DisableCSRF:          optionBoolean(parsed.Options.DisableCsrf),
-		EnableCorsProxy:      optionBoolean(parsed.Options.EnableCorsProxy),
-		WhitelistEnabled:     optionBoolean(parsed.Options.WhitelistMode),
-		ForwardedWhitelist:   optionBoolean(settings.EnableForwardedWhitelist),
-		Whitelist:            stringList(settings.Whitelist),
-		HostWhitelistEnabled: optionBoolean(settings.HostWhitelistEnabled),
-		HostWhitelistScan:    optionBoolean(settings.HostWhitelistScan),
-		HostWhitelistHosts:   stringList(settings.HostWhitelistHosts),
-		BasicAuthEnabled:     optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
-		BasicAuthMode:        optionBoolean(parsed.Options.BasicAuthMode),
-		PerUserBasicAuth:     optionBoolean(settings.PerUserBasicAuth),
-		BasicAuthUsername:    settings.BasicAuthUsername,
-		BasicAuthPassword:    settings.BasicAuthPassword,
-		AccountsEnabled:      optionBoolean(settings.EnableUserAccounts),
-		DiscreetLogin:        optionBoolean(settings.EnableDiscreetLogin),
-		PreferRealIPHeader:   optionBoolean(settings.PreferRealIPHeader),
-		SkipContentCheck:     optionBoolean(settings.SkipContentCheck),
-		AllowKeysExposure:    optionBoolean(settings.AllowKeysExposure),
+		DataRoot:              parsed.Paths.RuntimeDataRoot,
+		DisableCSRF:           optionBoolean(parsed.Options.DisableCsrf),
+		EnableCorsProxy:       optionBoolean(parsed.Options.EnableCorsProxy),
+		WhitelistEnabled:      optionBoolean(parsed.Options.WhitelistMode),
+		ForwardedWhitelist:    optionBoolean(settings.EnableForwardedWhitelist),
+		Whitelist:             stringList(settings.Whitelist),
+		HostWhitelistEnabled:  optionBoolean(settings.HostWhitelistEnabled),
+		HostWhitelistScan:     optionBoolean(settings.HostWhitelistScan),
+		HostWhitelistHosts:    stringList(settings.HostWhitelistHosts),
+		BasicAuthEnabled:      optionBoolean(parsed.Options.Listen) && optionBoolean(parsed.Options.BasicAuthMode),
+		BasicAuthMode:         optionBoolean(parsed.Options.BasicAuthMode),
+		PerUserBasicAuth:      optionBoolean(settings.PerUserBasicAuth),
+		BasicAuthUsername:     settings.BasicAuthUsername,
+		BasicAuthPassword:     settings.BasicAuthPassword,
+		AccountsEnabled:       optionBoolean(settings.EnableUserAccounts),
+		DiscreetLogin:         optionBoolean(settings.EnableDiscreetLogin),
+		PreferRealIPHeader:    optionBoolean(settings.PreferRealIPHeader),
+		SkipContentCheck:      optionBoolean(settings.SkipContentCheck),
+		AllowKeysExposure:     optionBoolean(settings.AllowKeysExposure),
+		RequestCompressionMin: settings.RequestCompressionMin,
+		RequestCompressionMax: settings.RequestCompressionMax,
+	}
+	if enabled, ok := optionBooleanValue(settings.ExtensionsEnabled); ok {
+		options.ExtensionsEnabled = &enabled
+	}
+	if enabled, ok := optionBooleanValue(settings.ExtensionsAutoUpdate); ok {
+		options.ExtensionsAutoUpdate = &enabled
+	}
+	if enabled, ok := optionBooleanValue(settings.RequestCompressionEnabled); ok {
+		options.RequestCompressionEnabled = &enabled
+	}
+	if timeout, ok := optionNumber(settings.RequestCompressionTimeout); ok {
+		options.RequestCompressionTimeout = timeout
 	}
 	if timeout, ok := optionNumber(settings.SessionTimeout); ok {
 		options.SessionTimeoutSeconds = &timeout
@@ -268,6 +288,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/users/recover-step1", accounts.serveUserRecoverStep1)
 	mux.HandleFunc("POST /api/users/recover-step2", accounts.serveUserRecoverStep2)
 	mux.HandleFunc("POST /api/settings/get-snapshots", accounts.serveSettingsGetSnapshots)
+	mux.HandleFunc("POST /api/settings/get", accounts.serveSettingsGet)
 	mux.HandleFunc("POST /api/settings/load-snapshot", accounts.serveSettingsLoadSnapshot)
 	mux.HandleFunc("POST /api/settings/make-snapshot", accounts.serveSettingsMakeSnapshot)
 	mux.HandleFunc("POST /api/settings/restore-snapshot", accounts.serveSettingsRestoreSnapshot)

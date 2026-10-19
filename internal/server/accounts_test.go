@@ -413,6 +413,7 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	resetAttempts := 4.5
 	allowFullDataBackup := false
 	settingsBackupRetention := 2.5
+	requestCompressionTimeout := 1234.5
 	timeout := float64(900)
 	parsed := commandline.CommandLineResult{
 		Paths: commandline.ResolvedPaths{RuntimeDataRoot: filepath.Join(t.TempDir(), "data")},
@@ -431,6 +432,12 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 			AllowFullDataBackup:        allowFullDataBackup,
 			AllowKeysExposure:          true,
 			SettingsBackupRetention:    settingsBackupRetention,
+			ExtensionsEnabled:          false,
+			ExtensionsAutoUpdate:       false,
+			RequestCompressionEnabled:  true,
+			RequestCompressionMin:      "1.5kb",
+			RequestCompressionMax:      "3.5mb",
+			RequestCompressionTimeout:  requestCompressionTimeout,
 			SessionTimeout:             timeout,
 			ForwardedXRealIP:           false,
 			ForwardedCFConnectingIP:    true,
@@ -449,6 +456,11 @@ func TestHTTPHandlerOptionsFromCommandLineCarriesAccountConfiguration(t *testing
 	}
 	if options.SettingsBackupRetention == nil || *options.SettingsBackupRetention != settingsBackupRetention {
 		t.Fatalf("handler settings-backup retention = %+v", options.SettingsBackupRetention)
+	}
+	if options.ExtensionsEnabled == nil || *options.ExtensionsEnabled || options.ExtensionsAutoUpdate == nil || *options.ExtensionsAutoUpdate ||
+		options.RequestCompressionEnabled == nil || !*options.RequestCompressionEnabled || options.RequestCompressionMin != "1.5kb" ||
+		options.RequestCompressionMax != "3.5mb" || options.RequestCompressionTimeout != requestCompressionTimeout {
+		t.Fatalf("handler settings-view options = %+v", options)
 	}
 	if options.ForwardedXRealIP == nil || *options.ForwardedXRealIP || options.ForwardedCFConnectingIP == nil || !*options.ForwardedCFConnectingIP || options.ForwardedXForwardedFor == nil || *options.ForwardedXForwardedFor {
 		t.Fatalf("handler forwarded-header options = %+v", options)

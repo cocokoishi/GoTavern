@@ -66,6 +66,12 @@ type StartupSettings struct {
 	AccountsResetMaxAttempts   any `json:"accountsResetMaxAttempts"`
 	AllowFullDataBackup        any `json:"allowFullDataBackup"`
 	AllowKeysExposure          any `json:"allowKeysExposure"`
+	ExtensionsEnabled          any `json:"extensionsEnabled"`
+	ExtensionsAutoUpdate       any `json:"extensionsAutoUpdate"`
+	RequestCompressionEnabled  any `json:"requestCompressionEnabled"`
+	RequestCompressionMin      any `json:"requestCompressionMin"`
+	RequestCompressionMax      any `json:"requestCompressionMax"`
+	RequestCompressionTimeout  any `json:"requestCompressionTimeout"`
 	ForwardedXRealIP           any `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any `json:"forwardedXForwardedFor"`
@@ -218,6 +224,12 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AccountsResetMaxAttempts:   getConfigValue(config, "rateLimiting.accountsResetMaxAttempts", 5, cliNumber),
 		AllowFullDataBackup:        getConfigValue(config, "backups.allowFullDataBackup", true, cliBoolean),
 		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
+		ExtensionsEnabled:          getConfigValue(config, "extensions.enabled", true, cliBoolean),
+		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", true, cliBoolean),
+		RequestCompressionEnabled:  getConfigValue(config, "performance.requestCompression.enabled", false, cliBoolean),
+		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
+		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),
+		RequestCompressionTimeout:  getConfigValue(config, "performance.requestCompression.timeout", 3000, cliNumber),
 		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),
 		ForwardedXForwardedFor:     getConfigValue(config, "forwardedHeaders.xForwardedFor", true, cliBoolean),
