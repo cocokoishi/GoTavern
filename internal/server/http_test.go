@@ -285,3 +285,61 @@ func TestPinnedNodeCallbackRedirectMatchesPinnedServer(t *testing.T) {
 		})
 	}
 }
+
+func TestPinnedNodeDefaultLoginRedirectMatchesPinnedServer(t *testing.T) {
+	fixture := readFreshStartFixture(t)
+	requestPath := "/login?noauto=1"
+	observations := []struct {
+		name       string
+		accept     string
+		fixtureKey string
+	}{
+		{
+			name:       "default accept",
+			fixtureKey: "GET " + requestPath,
+		},
+		{
+			name:       "html accept",
+			accept:     "text/html",
+			fixtureKey: "GET " + requestPath + " (Accept: text/html)",
+		},
+	}
+
+	for _, observation := range observations {
+		t.Run(observation.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, requestPath, nil)
+			if observation.accept != "" {
+				request.Header.Set("Accept", observation.accept)
+			}
+			response := httptest.NewRecorder()
+			NewHTTPHandler().ServeHTTP(response, request)
+
+			expected := fixture.HTTP.Responses[observation.fixtureKey]
+			if response.Code != expected.Status {
+				t.Fatalf("status: got %d, Node oracle has %d", response.Code, expected.Status)
+			}
+			assertPinnedHeaders(t, response.Header(), expected.Headers)
+			if location := response.Header().Get("Location"); location != expected.Location {
+				t.Fatalf("Location: got %q, Node oracle has %q", location, expected.Location)
+			}
+			if contentType := response.Header().Get("Content-Type"); contentType != expected.ContentType {
+				t.Fatalf("Content-Type: got %q, Node oracle has %q", contentType, expected.ContentType)
+			}
+			if contentLength := response.Header().Get("Content-Length"); contentLength != expected.ContentLength {
+				t.Fatalf("Content-Length: got %q, Node oracle has %q", contentLength, expected.ContentLength)
+			}
+			var expectedBody string
+			if err := json.Unmarshal(expected.Body, &expectedBody); err != nil {
+				t.Fatal(err)
+			}
+			body := response.Body.Bytes()
+			if len(body) != expected.Bytes || string(body) != expectedBody {
+				t.Fatalf("redirect body = %q (%d bytes), pinned Node has %q (%d bytes)", body, len(body), expectedBody, expected.Bytes)
+			}
+			digest := sha256.Sum256(body)
+			if got := hex.EncodeToString(digest[:]); got != expected.SHA256 {
+				t.Fatalf("body SHA-256: got %s, Node oracle has %s", got, expected.SHA256)
+			}
+		})
+	}
+}

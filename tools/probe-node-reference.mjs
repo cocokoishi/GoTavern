@@ -222,6 +222,9 @@ try {
     const callbackPath = '/callback/openrouter?code=a%2Fb&state=probe+state';
     const callbackResult = await getResponse(`${origin}${callbackPath}`);
     const callbackHTMLResult = await getResponse(`${origin}${callbackPath}`, 'GET', { Accept: 'text/html' });
+    const loginPath = '/login?noauto=1';
+    const loginResult = await getResponse(`${origin}${loginPath}`);
+    const loginHTMLResult = await getResponse(`${origin}${loginPath}`, 'GET', { Accept: 'text/html' });
 
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
@@ -247,6 +250,8 @@ try {
                 { method: 'HEAD', path: '/__gotavern_missing_route__' },
                 { method: 'GET', path: callbackPath },
                 { method: 'GET', path: callbackPath, headers: { Accept: 'text/html' } },
+                { method: 'GET', path: loginPath },
+                { method: 'GET', path: loginPath, headers: { Accept: 'text/html' } },
             ],
             responses: {
                 '/version': versionObservation,
@@ -296,6 +301,26 @@ try {
                     bytes: callbackHTMLResult.body.byteLength,
                     sha256: sha256(callbackHTMLResult.body),
                     body: Buffer.from(callbackHTMLResult.body).toString('utf8'),
+                },
+                [`GET ${loginPath}`]: {
+                    headers: stableHeaders(loginResult.response),
+                    status: loginResult.response.status,
+                    location: loginResult.response.headers.get('location'),
+                    contentType: loginResult.response.headers.get('content-type'),
+                    contentLength: loginResult.response.headers.get('content-length'),
+                    bytes: loginResult.body.byteLength,
+                    sha256: sha256(loginResult.body),
+                    body: Buffer.from(loginResult.body).toString('utf8'),
+                },
+                [`GET ${loginPath} (Accept: text/html)`]: {
+                    headers: stableHeaders(loginHTMLResult.response),
+                    status: loginHTMLResult.response.status,
+                    location: loginHTMLResult.response.headers.get('location'),
+                    contentType: loginHTMLResult.response.headers.get('content-type'),
+                    contentLength: loginHTMLResult.response.headers.get('content-length'),
+                    bytes: loginHTMLResult.body.byteLength,
+                    sha256: sha256(loginHTMLResult.body),
+                    body: Buffer.from(loginHTMLResult.body).toString('utf8'),
                 },
             },
         },

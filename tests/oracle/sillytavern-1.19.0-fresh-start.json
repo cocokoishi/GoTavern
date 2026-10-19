@@ -45,6 +45,17 @@
         "headers": {
           "Accept": "text/html"
         }
+      },
+      {
+        "method": "GET",
+        "path": "/login?noauto=1"
+      },
+      {
+        "method": "GET",
+        "path": "/login?noauto=1",
+        "headers": {
+          "Accept": "text/html"
+        }
       }
     ],
     "responses": {
@@ -170,6 +181,58 @@
         "bytes": 110,
         "sha256": "54738eb115c07c6bdcda3922c6df4bd41ac10b6217d38925d38d73d734ea41ce",
         "body": "<p>Temporary Redirect. Redirecting to /?source=openrouter&amp;query=code%3Da%252Fb%26state%3Dprobe%2Bstate</p>"
+      },
+      "GET /login?noauto=1": {
+        "headers": {
+          "content-length": "23",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "location": "/",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 302,
+        "location": "/",
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "23",
+        "bytes": 23,
+        "sha256": "4a420424a2c575891b5947fe46615eb7968fc4e8d212361d6a631dc01407558b",
+        "body": "Found. Redirecting to /"
+      },
+      "GET /login?noauto=1 (Accept: text/html)": {
+        "headers": {
+          "content-length": "30",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "location": "/",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "status": 302,
+        "location": "/",
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "30",
+        "bytes": 30,
+        "sha256": "1b44f175f3f3b06f5d33d3599a36e40e8c2aa9e8c1b594779cf81d91978c3e7d",
+        "body": "<p>Found. Redirecting to /</p>"
       }
     }
   },

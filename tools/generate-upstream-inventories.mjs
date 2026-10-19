@@ -201,6 +201,10 @@ function generateRoutes() {
         ...rows.map(row => {
             const status = row.method === 'GET' && row.fullPath === '/'
                 ? 'partial: fresh-start static body/status/content type match the pinned oracle; shared middleware remains unimplemented'
+                : row.method === 'GET' && row.fullPath === '/callback/:source?'
+                ? 'partial: one encoded OAuth source/query case matches the pinned 307 target, stable headers, and text/HTML response bodies; other inputs and middleware remain unimplemented'
+                : row.method === 'GET' && row.fullPath === '/login'
+                ? 'partial: fresh-start account-disabled 302 response matches for text and HTML Accept headers; account-enabled login and auto-login remain unimplemented'
                 : row.method === 'GET' && row.fullPath === '/version'
                 ? 'partial: response body/status/content type match the fresh-start oracle; shared middleware remains unimplemented'
                 : 'not implemented';
@@ -219,6 +223,7 @@ function generateRoutes() {
         '',
         '- `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.',
         '- Public `GET /callback/:source?` redirect status, target, stable headers, and text/HTML bodies match pinned observations for encoded OAuth query values; the per-request timing header is normalized out and other route-level middleware remains outside that probe.',
+        '- `GET /login` matches the pinned fresh-install account-disabled 302 redirect for text and HTML Accept headers; account-enabled login pages and auto-login paths remain unimplemented.',
         '- Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.',
         '- The final 404 handler matches the seeded fresh-install page and a preexisting custom data-root `url-not-found.html` for GET; full middleware ordering remains unimplemented.',
         '- `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.',

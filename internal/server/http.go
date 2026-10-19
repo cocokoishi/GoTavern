@@ -37,9 +37,10 @@ type versionResponse struct {
 	IsLatest    bool   `json:"isLatest"`
 }
 
-// NewHTTPHandler serves the pinned frontend, callback redirect, version
-// response, and seeded 404 page captured in the fresh-start Node oracle.
-// Authentication and the remaining API routes are not part of this handler.
+// NewHTTPHandler serves the pinned frontend, public callback redirect, version
+// response, account-disabled login redirect, and seeded 404 page captured in
+// the fresh-start Node oracle. It follows the pinned fresh-start config, where
+// user accounts are disabled. Other auth settings and API routes are absent.
 func NewHTTPHandler() http.Handler {
 	page, err := upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
 	if err != nil {
@@ -50,6 +51,7 @@ func NewHTTPHandler() http.Handler {
 
 // NewHTTPHandlerWithDataRoot reads the final 404 page once when the handler is
 // constructed, matching server-main's apply404Middleware startup behavior.
+// Other server settings retain the pinned fresh-start defaults.
 func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
 	var page []byte
 	if dataRoot != "" {
@@ -61,6 +63,7 @@ func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
 func newHTTPHandler(notFoundPage []byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /version", serveVersion)
+	mux.HandleFunc("GET /login", serveDisabledAccountsLogin)
 	mux.HandleFunc("GET /callback", func(w http.ResponseWriter, r *http.Request) {
 		serveCallback(w, r, notFoundPage)
 	})
@@ -120,8 +123,15 @@ func serveCallback(w http.ResponseWriter, r *http.Request, notFoundPage []byte) 
 	if r.URL.RawQuery != "" {
 		params = append(params, "query="+urlSearchParamEscape(r.URL.RawQuery))
 	}
-	location := "/?" + strings.Join(params, "&")
-	message := "Temporary Redirect. Redirecting to " + location
+	serveRedirect(w, r, http.StatusTemporaryRedirect, "/?"+strings.Join(params, "&"))
+}
+
+func serveDisabledAccountsLogin(w http.ResponseWriter, r *http.Request) {
+	serveRedirect(w, r, http.StatusFound, "/")
+}
+
+func serveRedirect(w http.ResponseWriter, r *http.Request, status int, location string) {
+	message := http.StatusText(status) + ". Redirecting to " + location
 	contentType := "text/plain; charset=utf-8"
 	body := message
 	if acceptsHTMLRedirect(r.Header.Get("Accept")) {
@@ -132,7 +142,7 @@ func serveCallback(w http.ResponseWriter, r *http.Request, notFoundPage []byte) 
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	w.Header().Set("Vary", "Origin, Accept, Accept-Encoding")
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(status)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write([]byte(body))
 	}
