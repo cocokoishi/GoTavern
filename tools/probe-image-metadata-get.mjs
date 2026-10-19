@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-// Capture pinned cached image metadata reads and unsupported generation cases.
+// Capture pinned image metadata cache reads, generation, and persistence behavior.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
@@ -26,7 +28,10 @@ const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-image-metadata-
 const dataRoot = path.join(runtimeRoot, 'data');
 const configPath = path.join(runtimeRoot, 'config.yaml');
 const logs = [];
+const goLogs = [];
 let child;
+let goChild;
+let goServerOrigin = '';
 
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
@@ -97,11 +102,25 @@ async function stopServer() {
     if (child.exitCode === null) child.kill();
 }
 
-async function waitForServer(origin) {
+async function stopGoServer() {
+    if (!goChild || goChild.exitCode !== null) return;
+    try {
+        await request(goServerOrigin + '/_gotavern-probe/shutdown', 'POST');
+    } catch {
+        // The process may already be stopping after a failed probe.
+    }
+    await Promise.race([
+        new Promise(resolve => goChild.once('exit', resolve)),
+        new Promise(resolve => setTimeout(resolve, 5000)),
+    ]);
+    if (goChild.exitCode === null) goChild.kill();
+}
+
+async function waitForServer(origin, processRef = child, output = logs, label = 'pinned Node server') {
     const deadline = Date.now() + 180000;
     let lastError;
     while (Date.now() < deadline) {
-        if (child.exitCode !== null) throw new Error('pinned Node server exited early:\n' + logs.join('').slice(-10000));
+        if (processRef.exitCode !== null) throw new Error(label + ' exited early:\n' + output.join('').slice(-10000));
         try {
             const result = await request(origin + '/login?noauto=1');
             if (result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html')) return;
@@ -111,11 +130,27 @@ async function waitForServer(origin) {
         }
         await new Promise(resolve => setTimeout(resolve, 300));
     }
-    throw new Error('pinned Node server did not become ready: ' + (lastError?.stack ?? 'none') + '\n' + logs.join('').slice(-10000));
+    throw new Error(label + ' did not become ready: ' + (lastError?.stack ?? 'none') + '\n' + output.join('').slice(-10000));
 }
 
 const cases = {
     singleCached: { index: 'populated', body: { path: 'backgrounds/cached.png', type: 'bg' } },
+    singleGeneratedPng: {
+        index: 'generationBase', body: { path: 'backgrounds/pixels.png', type: 'bg' },
+        generatedPaths: ['backgrounds/pixels.png'],
+    },
+    singleGeneratedJpeg: {
+        index: 'generationBase', body: { path: 'backgrounds/photo.jpg', type: 'avatar' },
+        generatedPaths: ['backgrounds/photo.jpg'],
+    },
+    batchGeneratedPngAndGif: {
+        index: 'generationBase', body: { paths: ['backgrounds/pixels.png', 'backgrounds/flat.gif', 'backgrounds/missing.png'], type: 'persona' },
+        generatedPaths: ['backgrounds/pixels.png', 'backgrounds/flat.gif'],
+    },
+    singleUnsupportedBmp: {
+        index: 'generationBase', body: { path: 'backgrounds/unsupported.bmp', type: 'bg' },
+        generatedPaths: ['backgrounds/unsupported.bmp'], goUnsupported: true,
+    },
     batchCachedMissingAndOutside: { index: 'populated', body: { paths: ['backgrounds/cached.png', 'backgrounds/missing.png', '../escape.png'], type: 'persona' } },
     bothPathAndEmptyPaths: { index: 'populated', body: { path: 'backgrounds/cached.png', paths: [], type: 'avatar' } },
     singleMissing: { index: 'populated', body: { path: 'backgrounds/missing.png' } },
@@ -138,8 +173,28 @@ function writeIndex(indexPath, indexes, name, fixedDate) {
     }
 }
 
-function indexContent(indexPath) {
-    return existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : null;
+function indexContent(indexPath, generatedPaths = []) {
+    if (!existsSync(indexPath)) return null;
+    const content = readFileSync(indexPath, 'utf8');
+    if (!generatedPaths.length) return content;
+    const index = JSON.parse(content);
+    for (const generatedPath of generatedPaths) {
+        const metadata = index.images?.[generatedPath];
+        if (metadata && Object.hasOwn(metadata, 'addedTimestamp')) metadata.addedTimestamp = '__ADDED_TIMESTAMP__';
+    }
+    return JSON.stringify(index, null, 4);
+}
+
+function normalizeResponseAddedTimestamps(response, generatedPaths = []) {
+    if (generatedPaths.length && response.headers?.etag) response.headers.etag = '__ADDED_TIMESTAMP_ETAG__';
+    const body = response.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return response;
+    const metadataValues = Object.hasOwn(body, 'addedTimestamp') ? [body] : Object.values(body);
+    for (const metadata of metadataValues) {
+        if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) continue;
+        if (generatedPaths.length && typeof metadata.addedTimestamp === 'number') metadata.addedTimestamp = '__ADDED_TIMESTAMP__';
+    }
+    return response;
 }
 
 try {
@@ -168,6 +223,37 @@ try {
     const backgroundsRoot = path.join(userRoot, 'backgrounds');
     mkdirSync(backgroundsRoot, { recursive: true });
     const fixedDate = new Date('2001-02-03T04:05:06.123Z');
+    const { Jimp, JimpMime } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'jimp.js')).href);
+    const requireUpstream = createRequire(path.join(sourceRoot, 'package.json'));
+    const { PNG } = requireUpstream('pngjs');
+    const pixelsImage = new PNG({ width: 3, height: 2 });
+    const rgbaPixels = [
+        [255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255],
+        [255, 255, 255, 255], [255, 255, 0, 0], [0, 0, 0, 255],
+    ];
+    rgbaPixels.forEach((pixel, index) => pixelsImage.data.set(pixel, index * 4));
+    const jpegPixels = Buffer.alloc(3 * 2 * 4);
+    for (let index = 0; index < 3 * 2; index++) jpegPixels.set([96, 154, 210, 255], index * 4);
+    const jpegBytes = requireUpstream('jpeg-js').encode({ data: jpegPixels, width: 3, height: 2 }, 100).data;
+    const flatGifImage = new Jimp({ width: 2, height: 1, color: 0xff0000ff });
+    flatGifImage.setPixelColor(0x0000ffff, 1, 0);
+    const bmpImage = new Jimp({ width: 2, height: 2, color: 0xff0000ff });
+    bmpImage.setPixelColor(0x0000ffff, 1, 0);
+    bmpImage.setPixelColor(0x00ff00ff, 0, 1);
+    bmpImage.setPixelColor(0xffffffff, 1, 1);
+    const generatedFiles = {
+        'backgrounds/pixels.png': PNG.sync.write(pixelsImage).toString('base64'),
+        'backgrounds/roundtrip.png': PNG.sync.write(pixelsImage).toString('base64'),
+        'backgrounds/photo.jpg': jpegBytes.toString('base64'),
+        'backgrounds/flat.gif': (await flatGifImage.getBuffer(JimpMime.gif)).toString('base64'),
+        'backgrounds/unsupported.bmp': (await bmpImage.getBuffer(JimpMime.bmp)).toString('base64'),
+    };
+    for (const [relativePath, base64] of Object.entries(generatedFiles)) {
+        const fullPath = path.join(userRoot, ...relativePath.split('/'));
+        mkdirSync(path.dirname(fullPath), { recursive: true });
+        writeFileSync(fullPath, Buffer.from(base64, 'base64'));
+        utimesSync(fullPath, fixedDate, fixedDate);
+    }
     writeFileSync(path.join(backgroundsRoot, 'cached.png'), 'cached bytes');
     writeFileSync(path.join(backgroundsRoot, 'uncached.png'), 'not an image');
     utimesSync(path.join(backgroundsRoot, 'cached.png'), fixedDate, fixedDate);
@@ -190,6 +276,17 @@ try {
                 'backgrounds/uncached.png': { hash: 'old', mtime: uncachedMtime - 1000, folderIds: ['beta'], oldField: true },
             },
             folders: [{ id: 'forest', name: 'Forest', thumbnailFile: 'cached.png' }],
+            unknownRoot: { preserve: true },
+        }, null, 4),
+        generationBase: JSON.stringify({
+            version: 7,
+            images: {
+                'backgrounds/pixels.png': {
+                    hash: 'stale', mtime: cachedMtime - 1000, folderIds: ['preserve-this-folder'],
+                    unknownCacheField: { dropWhenRegenerated: true },
+                },
+            },
+            folders: [{ id: 'retain', name: 'Keep this folder', thumbnailFile: '' }],
             unknownRoot: { preserve: true },
         }, null, 4),
         nullImages: '{"version":5,"images":null,"folders":[]}',
@@ -228,25 +325,66 @@ try {
     for (const [name, probeCase] of Object.entries(cases)) {
         writeIndex(indexPath, indexes, probeCase.index, indexFixedDate);
         const beforeMtime = statSync(indexPath).mtimeMs;
-        responses[name] = capture(await request(origin + route, 'POST', {
+        responses[name] = normalizeResponseAddedTimestamps(capture(await request(origin + route, 'POST', {
             Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
-        }, JSON.stringify(probeCase.body)));
+        }, JSON.stringify(probeCase.body))), probeCase.generatedPaths);
         mtimeUnchanged[name] = beforeMtime === statSync(indexPath).mtimeMs;
-        fileContentsAfter[name] = indexContent(indexPath);
+        fileContentsAfter[name] = indexContent(indexPath, probeCase.generatedPaths);
     }
 
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned metadata reads return unchanged cached values when mtime matches; uncached image decoding and metadata generation remain unsupported in Go',
-        inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime },
+        probe: 'pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF; Go-generated metadata is read back through the pinned Node endpoint',
+        inputs: { cookieSecret: COOKIE_SECRET, indexes, cases, cachedMtime, uncachedMtime, generatedFiles },
         responses,
         state: {
             fileContentsAfter,
             mtimeUnchanged,
             accountRecordUnchanged: accountRecordBefore.equals(readFileSync(accountRecordPath)),
+            goRoundTrip: null,
         },
     };
+    const goRoundTripInput = {
+        index: JSON.stringify({
+            version: 8,
+            images: {},
+            folders: [{ id: 'keep', name: 'Round trip', thumbnailFile: '' }],
+            unknownRoot: { retain: true },
+        }, null, 4),
+        body: { path: 'backgrounds/roundtrip.png', type: 'bg' },
+        generatedPaths: ['backgrounds/roundtrip.png'],
+    };
+    const goRoundTripPath = path.join(backgroundsRoot, 'roundtrip.png');
+    writeFileSync(goRoundTripPath, Buffer.from(generatedFiles['backgrounds/pixels.png'], 'base64'));
+    utimesSync(goRoundTripPath, fixedDate, fixedDate);
+    writeFileSync(indexPath, goRoundTripInput.index);
+    const goPort = await choosePort();
+    goServerOrigin = 'http://127.0.0.1:' + goPort;
+    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort)], {
+        cwd: repositoryRoot, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    goChild.stdout.setEncoding('utf8');
+    goChild.stderr.setEncoding('utf8');
+    goChild.stdout.on('data', chunk => goLogs.push(chunk));
+    goChild.stderr.on('data', chunk => goLogs.push(chunk));
+    await waitForServer(goServerOrigin, goChild, goLogs, 'GoTavern image-metadata probe server');
+    const goResponse = normalizeResponseAddedTimestamps(capture(await request(goServerOrigin + route, 'POST', {
+        Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+    }, JSON.stringify(goRoundTripInput.body))), goRoundTripInput.generatedPaths);
+    if (goResponse.status !== 200) {
+        throw new Error('GoTavern generated image metadata returned ' + goResponse.status + ': ' + JSON.stringify(goResponse.body) + '\n' + goLogs.join('').slice(-10000));
+    }
+    const nodeReadback = normalizeResponseAddedTimestamps(capture(await request(origin + route, 'POST', {
+        Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+    }, JSON.stringify(goRoundTripInput.body))), goRoundTripInput.generatedPaths);
+    fixture.inputs.goRoundTrip = goRoundTripInput;
+    fixture.state.goRoundTrip = {
+        goResponse,
+        nodeReadback,
+        fileContent: indexContent(indexPath, goRoundTripInput.generatedPaths),
+    };
+    await stopGoServer();
     await stopServer();
     const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-image-metadata-get.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });
@@ -256,6 +394,7 @@ try {
     console.error(error);
     process.exitCode = 1;
 } finally {
+    await stopGoServer();
     await stopServer();
     safeCleanup();
 }

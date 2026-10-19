@@ -66,7 +66,32 @@ func (runtimeServer *accountRuntime) serveImageMetadataGet(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, metadata)
 			return
 		}
-		respondJSON(w, http.StatusNotImplemented, map[string]string{"error": imageMetadataGenerationUnsupportedMessage})
+		typeValue, _ := input.member("type")
+		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue)
+		if unsupported {
+			respondJSON(w, http.StatusNotImplemented, map[string]string{"error": imageMetadataGenerationUnsupportedMessage})
+			return
+		}
+		if generationErr != nil {
+			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Could not generate metadata for file."})
+			return
+		}
+		indexPath := nodeImageMetadataIndexPath(relativePath)
+		pending := []generatedImageMetadata{{
+			path: indexPath, responsePaths: []string{relativePath},
+			mtime: nodeStatMtimeMilliseconds(stat.ModTime()), metadata: generated,
+		}}
+		generatedResults, persistErr := persistGeneratedImageMetadata(runtimeServer.options.DataRoot, account.string("handle"), pending)
+		if persistErr != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+			return
+		}
+		result, exists := generatedResults[indexPath]
+		if !exists {
+			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Could not generate metadata for file."})
+			return
+		}
+		respondOrderedNodeJSON(w, http.StatusOK, result)
 		return
 	}
 	if !hasPaths || !paths.truthy() || paths.kind != 'a' {
@@ -93,23 +118,87 @@ func (runtimeServer *accountRuntime) serveImageMetadataGet(w http.ResponseWriter
 		validPaths = append(validPaths, relativePath)
 	}
 	index := readImageMetadataIndex(userRoot)
+	workingIndex := index
+	typeValue, _ := input.member("type")
+	pathValues := make(map[string]orderedNodeJSON, len(validPaths))
+	pending := make([]generatedImageMetadata, 0, len(validPaths))
+	pendingByPath := make(map[string]int, len(validPaths))
 	for _, relativePath := range validPaths {
 		fullPath := filepath.Join(userRoot, filepath.FromSlash(relativePath))
 		stat, statErr := os.Stat(fullPath)
 		if statErr != nil {
-			results.setMember(relativePath, imageMetadataErrorValue("File not found or could not process."))
+			pathValues[relativePath] = imageMetadataErrorValue("File not found or could not process.")
 			continue
 		}
-		metadata, cached, cacheErr := cachedImageMetadata(index, relativePath, stat.ModTime())
+		metadata, cached, cacheErr := cachedImageMetadata(workingIndex, relativePath, stat.ModTime())
 		if cacheErr {
 			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
 			return
 		}
+		indexPath := nodeImageMetadataIndexPath(relativePath)
 		if cached {
-			results.setMember(relativePath, metadata)
+			pathValues[relativePath] = metadata
+			if pendingIndex, exists := pendingByPath[indexPath]; exists {
+				pending[pendingIndex].responsePaths = append(pending[pendingIndex].responsePaths, relativePath)
+			}
 			continue
 		}
-		results.setMember(relativePath, imageMetadataErrorValue(imageMetadataGenerationUnsupportedMessage))
+		generated, unsupported, generationErr := generateImageMetadata(fullPath, typeValue)
+		if unsupported {
+			pathValues[relativePath] = imageMetadataErrorValue(imageMetadataGenerationUnsupportedMessage)
+			continue
+		}
+		if generationErr != nil {
+			pathValues[relativePath] = imageMetadataErrorValue("File not found or could not process.")
+			continue
+		}
+		cachedEntry, hasCachedEntry, cacheError := imageMetadataAtPath(workingIndex, indexPath)
+		if cacheError {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+			return
+		}
+		if hasCachedEntry {
+			generated = preserveImageMetadataFolderIDs(generated, cachedEntry)
+		}
+		mtime := nodeStatMtimeMilliseconds(stat.ModTime())
+		generated.setMember("mtime", orderedNodeJSON{kind: 'v', scalar: mtime})
+		if !setImageMetadataAtPath(&workingIndex, indexPath, generated) {
+			pathValues[relativePath] = imageMetadataErrorValue("File not found or could not process.")
+			continue
+		}
+		pathValues[relativePath] = generated
+		if pendingIndex, exists := pendingByPath[indexPath]; exists {
+			pending[pendingIndex].metadata = generated
+			pending[pendingIndex].mtime = mtime
+			pending[pendingIndex].responsePaths = append(pending[pendingIndex].responsePaths, relativePath)
+			continue
+		}
+		pendingByPath[indexPath] = len(pending)
+		pending = append(pending, generatedImageMetadata{
+			path: indexPath, responsePaths: []string{relativePath}, mtime: mtime, metadata: generated,
+		})
+	}
+	if len(pending) > 0 {
+		generatedResults, persistErr := persistGeneratedImageMetadata(runtimeServer.options.DataRoot, account.string("handle"), pending)
+		if persistErr != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+			return
+		}
+		for _, update := range pending {
+			metadata, exists := generatedResults[update.path]
+			if !exists {
+				respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error."})
+				return
+			}
+			for _, responsePath := range update.responsePaths {
+				pathValues[responsePath] = metadata
+			}
+		}
+	}
+	for _, relativePath := range validPaths {
+		if metadata, exists := pathValues[relativePath]; exists {
+			results.setMember(relativePath, metadata)
+		}
 	}
 	respondOrderedNodeJSON(w, http.StatusOK, results)
 }
@@ -126,6 +215,13 @@ func nodeMetadataPathString(value orderedNodeJSON) (string, bool) {
 		pathValue = strings.ReplaceAll(pathValue, `\`, "/")
 	}
 	return pathValue, true
+}
+
+func nodeImageMetadataIndexPath(relativePath string) string {
+	if runtime.GOOS == "windows" {
+		return strings.ReplaceAll(relativePath, `\`, "/")
+	}
+	return relativePath
 }
 
 func nodeMetadataResultKey(value orderedNodeJSON) string {

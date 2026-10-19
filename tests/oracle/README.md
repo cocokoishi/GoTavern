@@ -64,7 +64,7 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-image-metadata-cleanup.json` captures authenticated/CSRF-protected orphan cleanup, missing and out-of-root paths, array/object image indexes, exact removal order and file bytes, no-write mtime preservation, and Go cleanup read back by pinned Node. Its captured OPTIONS response records the current CORS gap.
 
-`sillytavern-1.19.0-image-metadata-get.json` captures authenticated/CSRF-protected single and batch metadata reads, cached-value passthrough when file mtimes match, missing/outside paths, request validation, trailing-slash and unknown-subpath routing, unchanged index/account state, and the explicit uncached-generation and OPTIONS gaps.
+`sillytavern-1.19.0-image-metadata-get.json` captures authenticated/CSRF-protected single and batch metadata reads, cached-value passthrough, generated PNG/JPEG/GIF metadata, stale-entry replacement, folder-ID retention, atomic index persistence, and a Go-write/Node-readback round trip. It also records missing/outside paths, request validation, trailing-slash and unknown-subpath routing, unchanged account state, the BMP decoder gap, and the OPTIONS gap.
 
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 

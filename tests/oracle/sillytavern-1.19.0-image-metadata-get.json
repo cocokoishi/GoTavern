@@ -4,11 +4,12 @@
     "version": "1.19.0",
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
-  "probe": "pinned metadata reads return unchanged cached values when mtime matches; uncached image decoding and metadata generation remain unsupported in Go",
+  "probe": "pinned metadata reads preserve cached values by mtime and generate metadata for PNG/JPEG/GIF; Go-generated metadata is read back through the pinned Node endpoint",
   "inputs": {
     "cookieSecret": "gotavern-pinned-image-metadata-get-cookie-secret",
     "indexes": {
       "populated": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "generationBase": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "nullImages": "{\"version\":5,\"images\":null,\"folders\":[]}",
       "missingImages": "{\"version\":6,\"folders\":[]}"
     },
@@ -19,6 +20,52 @@
           "path": "backgrounds/cached.png",
           "type": "bg"
         }
+      },
+      "singleGeneratedPng": {
+        "index": "generationBase",
+        "body": {
+          "path": "backgrounds/pixels.png",
+          "type": "bg"
+        },
+        "generatedPaths": [
+          "backgrounds/pixels.png"
+        ]
+      },
+      "singleGeneratedJpeg": {
+        "index": "generationBase",
+        "body": {
+          "path": "backgrounds/photo.jpg",
+          "type": "avatar"
+        },
+        "generatedPaths": [
+          "backgrounds/photo.jpg"
+        ]
+      },
+      "batchGeneratedPngAndGif": {
+        "index": "generationBase",
+        "body": {
+          "paths": [
+            "backgrounds/pixels.png",
+            "backgrounds/flat.gif",
+            "backgrounds/missing.png"
+          ],
+          "type": "persona"
+        },
+        "generatedPaths": [
+          "backgrounds/pixels.png",
+          "backgrounds/flat.gif"
+        ]
+      },
+      "singleUnsupportedBmp": {
+        "index": "generationBase",
+        "body": {
+          "path": "backgrounds/unsupported.bmp",
+          "type": "bg"
+        },
+        "generatedPaths": [
+          "backgrounds/unsupported.bmp"
+        ],
+        "goUnsupported": true
       },
       "batchCachedMissingAndOutside": {
         "index": "populated",
@@ -95,7 +142,24 @@
       }
     },
     "cachedMtime": 981173106123,
-    "uncachedMtime": 981173106123
+    "uncachedMtime": 981173106123,
+    "generatedFiles": {
+      "backgrounds/pixels.png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVR4AQXBAQEAAAjDIG7/zhNEEnVKjHmOrAj8shvh6QAAAABJRU5ErkJggg==",
+      "backgrounds/roundtrip.png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVR4AQXBAQEAAAjDIG7/zhNEEnVKjHmOrAj8shvh6QAAAABJRU5ErkJggg==",
+      "backgrounds/photo.jpg": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAf/AABEIAAIAAwMBEQACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APeK/wBMD/O8/wD/2Q==",
+      "backgrounds/flat.gif": "R0lGODlhAgABAIAAAAUE+/8AACH/C05FVFNDQVBFMi4wAwEAAAAh+QQICAAAACwAAAAAAgABAAACAgwKADs=",
+      "backgrounds/unsupported.bmp": "Qk1IAAAAAAAAADYAAAAoAAAAAgAAAAIAAAABABgAAAAAABIAAAAAAAAAAAAAAAAAAAAAAAAAAP8A////AQEAAP//AAABAQEB"
+    },
+    "goRoundTrip": {
+      "index": "{\n    \"version\": 8,\n    \"images\": {},\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}",
+      "body": {
+        "path": "backgrounds/roundtrip.png",
+        "type": "bg"
+      },
+      "generatedPaths": [
+        "backgrounds/roundtrip.png"
+      ]
+    }
   },
   "responses": {
     "unauthorized": {
@@ -279,6 +343,145 @@
         "unknownCacheField": {
           "preserve": true
         }
+      }
+    },
+    "singleGeneratedPng": {
+      "status": 200,
+      "headers": {
+        "content-length": "255",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "__ADDED_TIMESTAMP_ETAG__",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+        "aspectRatio": 1.5,
+        "isAnimated": false,
+        "dominantColor": "#6a6a6a",
+        "folderIds": [
+          "preserve-this-folder"
+        ],
+        "addedTimestamp": "__ADDED_TIMESTAMP__",
+        "thumbnailResolution": 14400,
+        "mtime": 981173106123
+      }
+    },
+    "singleGeneratedJpeg": {
+      "status": 200,
+      "headers": {
+        "content-length": "233",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "__ADDED_TIMESTAMP_ETAG__",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "hash": "0cd982aa47bdb3ac6a52c24fcaaa4dba5bcbc16c3968bc6c7f9f44530aea1468",
+        "aspectRatio": 1.5,
+        "isAnimated": false,
+        "dominantColor": "#5f9ad2",
+        "folderIds": [],
+        "addedTimestamp": "__ADDED_TIMESTAMP__",
+        "thumbnailResolution": 13824,
+        "mtime": 981173106123
+      }
+    },
+    "batchGeneratedPngAndGif": {
+      "status": 200,
+      "headers": {
+        "content-length": "611",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "__ADDED_TIMESTAMP_ETAG__",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "backgrounds/pixels.png": {
+          "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+          "aspectRatio": 1.5,
+          "isAnimated": false,
+          "dominantColor": "#6a6a6a",
+          "folderIds": [
+            "preserve-this-folder"
+          ],
+          "addedTimestamp": "__ADDED_TIMESTAMP__",
+          "thumbnailResolution": 13824,
+          "mtime": 981173106123
+        },
+        "backgrounds/flat.gif": {
+          "hash": "30b82ef9ee940aa9c2cad54c10fd123d26be1a0f253086468499a950aa7e77d2",
+          "aspectRatio": 2,
+          "isAnimated": true,
+          "dominantColor": "#808080",
+          "folderIds": [],
+          "addedTimestamp": "__ADDED_TIMESTAMP__",
+          "thumbnailResolution": 13824,
+          "mtime": 981173106123
+        },
+        "backgrounds/missing.png": {
+          "error": "File not found or could not process."
+        }
+      }
+    },
+    "singleUnsupportedBmp": {
+      "status": 200,
+      "headers": {
+        "content-length": "231",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "__ADDED_TIMESTAMP_ETAG__",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "hash": "578b5fdf3f8fa44bdb39c0127e3e3bf9057f48b66c59651db2de8fe4af00a967",
+        "aspectRatio": 1,
+        "isAnimated": false,
+        "dominantColor": "#808080",
+        "folderIds": [],
+        "addedTimestamp": "__ADDED_TIMESTAMP__",
+        "thumbnailResolution": 14400,
+        "mtime": 981173106123
       }
     },
     "batchCachedMissingAndOutside": {
@@ -556,6 +759,10 @@
   "state": {
     "fileContentsAfter": {
       "singleCached": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "singleGeneratedPng": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 14400,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "singleGeneratedJpeg": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        },\n        \"backgrounds/photo.jpg\": {\n            \"hash\": \"0cd982aa47bdb3ac6a52c24fcaaa4dba5bcbc16c3968bc6c7f9f44530aea1468\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#5f9ad2\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 13824,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "batchGeneratedPngAndGif": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 13824,\n            \"mtime\": 981173106123\n        },\n        \"backgrounds/flat.gif\": {\n            \"hash\": \"30b82ef9ee940aa9c2cad54c10fd123d26be1a0f253086468499a950aa7e77d2\",\n            \"aspectRatio\": 2,\n            \"isAnimated\": true,\n            \"dominantColor\": \"#808080\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 13824,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
+      "singleUnsupportedBmp": "{\n    \"version\": 7,\n    \"images\": {\n        \"backgrounds/pixels.png\": {\n            \"hash\": \"stale\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"preserve-this-folder\"\n            ],\n            \"unknownCacheField\": {\n                \"dropWhenRegenerated\": true\n            }\n        },\n        \"backgrounds/unsupported.bmp\": {\n            \"hash\": \"578b5fdf3f8fa44bdb39c0127e3e3bf9057f48b66c59651db2de8fe4af00a967\",\n            \"aspectRatio\": 1,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#808080\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 14400,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"retain\",\n            \"name\": \"Keep this folder\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "batchCachedMissingAndOutside": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "bothPathAndEmptyPaths": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
       "singleMissing": "{\n    \"version\": 4,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-sha256\",\n            \"mtime\": 981173106123,\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#123456\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"addedTimestamp\": 980000000000,\n            \"thumbnailResolution\": 14400,\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/uncached.png\": {\n            \"hash\": \"old\",\n            \"mtime\": 981173105123,\n            \"folderIds\": [\n                \"beta\"\n            ],\n            \"oldField\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"cached.png\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserve\": true\n    }\n}",
@@ -570,6 +777,10 @@
     },
     "mtimeUnchanged": {
       "singleCached": true,
+      "singleGeneratedPng": false,
+      "singleGeneratedJpeg": false,
+      "batchGeneratedPngAndGif": false,
+      "singleUnsupportedBmp": false,
       "batchCachedMissingAndOutside": true,
       "bothPathAndEmptyPaths": true,
       "singleMissing": true,
@@ -582,6 +793,69 @@
       "nullImages": true,
       "missingImages": true
     },
-    "accountRecordUnchanged": true
+    "accountRecordUnchanged": true,
+    "goRoundTrip": {
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "233",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "__ADDED_TIMESTAMP_ETAG__",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+          "aspectRatio": 1.5,
+          "isAnimated": false,
+          "dominantColor": "#6a6a6a",
+          "folderIds": [],
+          "addedTimestamp": "__ADDED_TIMESTAMP__",
+          "thumbnailResolution": 14400,
+          "mtime": 981173106123
+        }
+      },
+      "nodeReadback": {
+        "status": 200,
+        "headers": {
+          "content-length": "233",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "__ADDED_TIMESTAMP_ETAG__",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+          "aspectRatio": 1.5,
+          "isAnimated": false,
+          "dominantColor": "#6a6a6a",
+          "folderIds": [],
+          "addedTimestamp": "__ADDED_TIMESTAMP__",
+          "thumbnailResolution": 14400,
+          "mtime": 981173106123
+        }
+      },
+      "fileContent": "{\n    \"version\": 8,\n    \"images\": {\n        \"backgrounds/roundtrip.png\": {\n            \"hash\": \"3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b\",\n            \"aspectRatio\": 1.5,\n            \"isAnimated\": false,\n            \"dominantColor\": \"#6a6a6a\",\n            \"folderIds\": [],\n            \"addedTimestamp\": \"__ADDED_TIMESTAMP__\",\n            \"thumbnailResolution\": 14400,\n            \"mtime\": 981173106123\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Round trip\",\n            \"thumbnailFile\": \"\"\n        }\n    ],\n    \"unknownRoot\": {\n        \"retain\": true\n    }\n}"
+    }
   }
 }
