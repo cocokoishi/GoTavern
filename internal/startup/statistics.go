@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,15 +20,14 @@ const (
 
 // StatisticsInitialization captures the values loaded or recreated by the
 // pinned stats.init() startup hook. Errors stop later users, matching its
-// outer catch. Periodic saving and chat-history recalculation with entries
-// are deliberately left to the runtime integration layer.
+// outer catch. Periodic saving remains part of the runtime integration layer.
 type StatisticsInitialization struct {
 	Values map[string]json.RawMessage
 	Errors []error
 }
 
 // InitializeStatistics loads valid per-user stats.json files. Missing or
-// invalid files are recreated when each character has no chat entries.
+// invalid files are recreated from each character's chat files.
 func InitializeStatistics(directoriesList []UserDirectories, now time.Time) StatisticsInitialization {
 	result := StatisticsInitialization{Values: make(map[string]json.RawMessage)}
 	if now.IsZero() {
@@ -96,7 +96,7 @@ func initializeUserStatistics(directories UserDirectories, now time.Time) (json.
 	if err != nil {
 		return nil, fmt.Errorf("read character directory for %s: %w", filepath.Base(absoluteUserRoot), err)
 	}
-	characterNames := make([]string, 0)
+	characters := make([]characterStatisticsEntry, 0)
 	for _, entry := range characterEntries {
 		if !strings.HasSuffix(entry.Name(), ".png") {
 			continue
@@ -106,30 +106,14 @@ func initializeUserStatistics(directories UserDirectories, now time.Time) (json.
 		if err := ensureResolvedContained(absoluteUserRoot, chatPath); err != nil {
 			return nil, fmt.Errorf("character chat directory escapes user root: %w", err)
 		}
-		chatInfo, err := os.Stat(chatPath)
-		if errors.Is(err, fs.ErrNotExist) {
-			characterNames = append(characterNames, entry.Name())
-			continue
-		}
+		characterStatistics, err := calculateCharacterStatistics(chatsDirectory, entry.Name())
 		if err != nil {
-			// The pinned existsSync(chatPath) treats inaccessible paths as absent.
-			characterNames = append(characterNames, entry.Name())
-			continue
+			return nil, fmt.Errorf("calculate statistics for %s: %w", entry.Name(), err)
 		}
-		if !chatInfo.IsDir() {
-			return nil, fmt.Errorf("inspect character chat directory %s: not a directory", characterName)
-		}
-		chatEntries, err := readDirectoryInNativeOrder(chatPath)
-		if err != nil {
-			return nil, fmt.Errorf("read chat directory for %s: %w", characterName, err)
-		}
-		if len(chatEntries) > 0 {
-			return nil, fmt.Errorf("recreate statistics for %s: chat-history aggregation is not implemented", characterName)
-		}
-		characterNames = append(characterNames, entry.Name())
+		characters = append(characters, characterStatisticsEntry{item: entry.Name(), stats: characterStatistics})
 	}
 
-	body, err = emptyChatStatistics(characterNames, now.UnixMilli())
+	body, err = marshalStatistics(characters, now.UnixMilli())
 	if err != nil {
 		return nil, fmt.Errorf("serialize statistics for %s: %w", filepath.Base(absoluteUserRoot), err)
 	}
@@ -142,34 +126,55 @@ func initializeUserStatistics(directories UserDirectories, now time.Time) (json.
 	return json.RawMessage(body), nil
 }
 
-func emptyChatStatistics(characterNames []string, timestamp int64) ([]byte, error) {
+func marshalStatistics(characters []characterStatisticsEntry, timestamp int64) ([]byte, error) {
 	var body bytes.Buffer
 	body.WriteByte('{')
-	seen := make(map[string]int, len(characterNames))
-	uniqueNames := make([]string, 0, len(characterNames))
-	for _, name := range characterNames {
-		if index, exists := seen[name]; exists {
-			uniqueNames[index] = name
+	seen := make(map[string]int, len(characters))
+	uniqueCharacters := make([]characterStatisticsEntry, 0, len(characters))
+	for _, character := range characters {
+		if index, exists := seen[character.item]; exists {
+			uniqueCharacters[index] = character
 			continue
 		}
-		seen[name] = len(uniqueNames)
-		uniqueNames = append(uniqueNames, name)
+		seen[character.item] = len(uniqueCharacters)
+		uniqueCharacters = append(uniqueCharacters, character)
 	}
-	for index, name := range uniqueNames {
+	for index, character := range uniqueCharacters {
 		if index > 0 {
 			body.WriteByte(',')
 		}
-		encodedName, err := json.Marshal(name)
+		encodedName, err := marshalStatisticsString(character.item)
 		if err != nil {
 			return nil, err
 		}
 		body.Write(encodedName)
-		fmt.Fprintf(&body, `:{"total_gen_time":0,"user_word_count":0,"non_user_word_count":0,"user_msg_count":0,"non_user_msg_count":0,"total_swipe_count":0,"chat_size":0,"date_last_chat":0,"date_first_chat":%d}`, statisticsFirstChatTime)
+		stats := character.stats
+		fmt.Fprintf(&body, `:{"total_gen_time":%s,"user_word_count":%d,"non_user_word_count":%d,"user_msg_count":%d,"non_user_msg_count":%d,"total_swipe_count":%d,"chat_size":%d,"date_last_chat":%d,"date_first_chat":%d}`,
+			strconv.FormatFloat(stats.totalGenTime, 'f', -1, 64),
+			stats.userWordCount,
+			stats.nonUserWordCount,
+			stats.userMessageCount,
+			stats.nonUserMessageCount,
+			stats.totalSwipeCount,
+			stats.chatSize,
+			stats.dateLastChat,
+			stats.dateFirstChat,
+		)
 	}
-	if len(uniqueNames) > 0 {
+	if len(uniqueCharacters) > 0 {
 		body.WriteByte(',')
 	}
 	body.WriteString(`"timestamp":`)
 	fmt.Fprintf(&body, "%d}", timestamp)
 	return body.Bytes(), nil
+}
+
+func marshalStatisticsString(value string) ([]byte, error) {
+	var body bytes.Buffer
+	encoder := json.NewEncoder(&body)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(value); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(body.Bytes(), []byte{'\n'}), nil
 }

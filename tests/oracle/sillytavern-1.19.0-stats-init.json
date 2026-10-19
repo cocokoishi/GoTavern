@@ -4,7 +4,7 @@
     "version": "1.19.0",
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
-  "probe": "pinned stats.init() file load, empty-chat recreation, and interval behavior",
+  "probe": "pinned stats.init() file load, JSONL chat aggregation, and interval behavior",
   "scenarios": {
     "existingValid": {
       "input": {
@@ -119,6 +119,55 @@
         }
       }
     },
+    "missingStatsChatHistory": {
+      "input": {
+        "characterFiles": [
+          "default_Seraphina.png"
+        ],
+        "chatFiles": {
+          "default_Seraphina": {
+            "a.jsonl": {
+              "contents": "{\"mes\":\"Hello, world! 2\",\"is_user\":true,\"send_date\":\"2024-01-02T03:04:05.006Z\"}\n{\"mes\":\"A reply.\",\"is_user\":false,\"gen_started\":\"2024-01-02T03:00:00.000Z\",\"gen_finished\":\"2024-01-02T03:00:02.500Z\",\"swipes\":[\"A reply.\",\"Other possible response\"],\"swipe_info\":[{},{\"gen_started\":\"2024-01-02T03:00:03.000Z\",\"gen_finished\":\"2024-01-02T03:00:04.250Z\"}]}\n",
+              "mtime": 1700000000000
+            },
+            "b.jsonl": {
+              "contents": "{\"mes\":\"Hello, world! 2\",\"is_user\":true,\"send_date\":\"2024-01-02T03:04:05.006Z\"}\n{\"mes\":\"Generated answer\",\"is_user\":false,\"gen_started\":\"2024-01-02T03:10:00.000Z\",\"gen_finished\":\"2024-01-02T03:10:01.000Z\",\"swipes\":[\"Generated answer\",\"Alternate answer\"]}\n",
+              "mtime": 1700000001000
+            }
+          }
+        }
+      },
+      "observation": {
+        "logs": [
+          {
+            "level": "info",
+            "message": "Collecting and creating stats for user:",
+            "errorCode": null
+          }
+        ],
+        "intervalCalls": [
+          300000
+        ],
+        "memory": {
+          "default_Seraphina.png": {
+            "total_gen_time": 6750,
+            "user_word_count": 3,
+            "non_user_word_count": 9,
+            "user_msg_count": 1,
+            "non_user_msg_count": 4,
+            "total_swipe_count": 2,
+            "chat_size": 604,
+            "date_last_chat": 1700000001000,
+            "date_first_chat": 1704164645006
+          },
+          "timestamp": 1735689600000
+        },
+        "filesystem": {
+          "statsFileExists": true,
+          "statsFileContent": "{\"default_Seraphina.png\":{\"total_gen_time\":6750,\"user_word_count\":3,\"non_user_word_count\":9,\"user_msg_count\":1,\"non_user_msg_count\":4,\"total_swipe_count\":2,\"chat_size\":604,\"date_last_chat\":1700000001000,\"date_first_chat\":1704164645006},\"timestamp\":1735689600000}"
+        }
+      }
+    },
     "missingCharactersDirectory": {
       "input": {
         "charactersDirectoryExists": false
@@ -152,35 +201,46 @@
       "characterFiles": [
         "default_Seraphina.png"
       ],
-      "chatFiles": {}
+      "chatFiles": {
+        "default_Seraphina": {
+          "a.jsonl": {
+            "contents": "{\"mes\":\"Hello, world! 2\",\"is_user\":true,\"send_date\":\"2024-01-02T03:04:05.006Z\"}\n{\"mes\":\"A reply.\",\"is_user\":false,\"gen_started\":\"2024-01-02T03:00:00.000Z\",\"gen_finished\":\"2024-01-02T03:00:02.500Z\",\"swipes\":[\"A reply.\",\"Other possible response\"],\"swipe_info\":[{},{\"gen_started\":\"2024-01-02T03:00:03.000Z\",\"gen_finished\":\"2024-01-02T03:00:04.250Z\"}]}\n",
+            "mtime": 1700000000000
+          },
+          "b.jsonl": {
+            "contents": "{\"mes\":\"Hello, world! 2\",\"is_user\":true,\"send_date\":\"2024-01-02T03:04:05.006Z\"}\n{\"mes\":\"Generated answer\",\"is_user\":false,\"gen_started\":\"2024-01-02T03:10:00.000Z\",\"gen_finished\":\"2024-01-02T03:10:01.000Z\",\"swipes\":[\"Generated answer\",\"Alternate answer\"]}\n",
+            "mtime": 1700000001000
+          }
+        }
+      }
     },
     "errors": [],
-    "fileContent": "{\"default_Seraphina.png\":{\"total_gen_time\":0,\"user_word_count\":0,\"non_user_word_count\":0,\"user_msg_count\":0,\"non_user_msg_count\":0,\"total_swipe_count\":0,\"chat_size\":0,\"date_last_chat\":0,\"date_first_chat\":253402300799999},\"timestamp\":1735689600000}",
+    "fileContent": "{\"default_Seraphina.png\":{\"total_gen_time\":6750,\"user_word_count\":3,\"non_user_word_count\":9,\"user_msg_count\":1,\"non_user_msg_count\":4,\"total_swipe_count\":2,\"chat_size\":604,\"date_last_chat\":1700000001000,\"date_first_chat\":1704164645006},\"timestamp\":1735689600000}",
     "memory": {
       "default_Seraphina.png": {
-        "total_gen_time": 0,
-        "user_word_count": 0,
-        "non_user_word_count": 0,
-        "user_msg_count": 0,
-        "non_user_msg_count": 0,
-        "total_swipe_count": 0,
-        "chat_size": 0,
-        "date_last_chat": 0,
-        "date_first_chat": 253402300799999
+        "total_gen_time": 6750,
+        "user_word_count": 3,
+        "non_user_word_count": 9,
+        "user_msg_count": 1,
+        "non_user_msg_count": 4,
+        "total_swipe_count": 2,
+        "chat_size": 604,
+        "date_last_chat": 1700000001000,
+        "date_first_chat": 1704164645006
       },
       "timestamp": 1735689600000
     },
     "nodeReadback": {
       "default_Seraphina.png": {
-        "total_gen_time": 0,
-        "user_word_count": 0,
-        "non_user_word_count": 0,
-        "user_msg_count": 0,
-        "non_user_msg_count": 0,
-        "total_swipe_count": 0,
-        "chat_size": 0,
-        "date_last_chat": 0,
-        "date_first_chat": 253402300799999
+        "total_gen_time": 6750,
+        "user_word_count": 3,
+        "non_user_word_count": 9,
+        "user_msg_count": 1,
+        "non_user_msg_count": 4,
+        "total_swipe_count": 2,
+        "chat_size": 604,
+        "date_last_chat": 1700000001000,
+        "date_first_chat": 1704164645006
       },
       "timestamp": 1735689600000
     }

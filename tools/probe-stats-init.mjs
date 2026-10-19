@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -47,8 +47,14 @@ if (process.argv[2] === '--child') {
     for (const [character, files] of Object.entries(input.chatFiles ?? {})) {
         const chatDirectory = path.join(directories.chats, character);
         mkdirSync(chatDirectory, { recursive: true });
-        for (const [filename, contents] of Object.entries(files)) {
-            writeFileSync(path.join(chatDirectory, filename), contents);
+        for (const [filename, entry] of Object.entries(files)) {
+            const contents = typeof entry === 'string' ? entry : entry.contents;
+            const chatPath = path.join(chatDirectory, filename);
+            writeFileSync(chatPath, contents);
+            if (typeof entry === 'object' && entry.mtime !== undefined) {
+                const fixedTime = new Date(entry.mtime);
+                utimesSync(chatPath, fixedTime, fixedTime);
+            }
         }
     }
     if (input.statsFileContent !== undefined && input.statsFileContent !== null) {
@@ -146,6 +152,11 @@ function runScenario(name, input) {
 }
 
 try {
+    const firstUserMessage = JSON.stringify({
+        mes: 'Hello, world! 2',
+        is_user: true,
+        send_date: '2024-01-02T03:04:05.006Z',
+    });
     const scenarios = {
         existingValid: runScenario('existing-valid', {
             statsFileContent: '{"timestamp":321,"unknown":{"retained":true}}',
@@ -161,6 +172,43 @@ try {
         missingStatsCharacterWithoutChats: runScenario('missing-stats-character-without-chats', {
             characterFiles: ['default_Seraphina.png'],
         }),
+        missingStatsChatHistory: runScenario('missing-stats-chat-history', {
+            characterFiles: ['default_Seraphina.png'],
+            chatFiles: {
+                default_Seraphina: {
+                    'a.jsonl': {
+                        contents: [
+                            firstUserMessage,
+                            JSON.stringify({
+                                mes: 'A reply.',
+                                is_user: false,
+                                gen_started: '2024-01-02T03:00:00.000Z',
+                                gen_finished: '2024-01-02T03:00:02.500Z',
+                                swipes: ['A reply.', 'Other possible response'],
+                                swipe_info: [
+                                    {},
+                                    { gen_started: '2024-01-02T03:00:03.000Z', gen_finished: '2024-01-02T03:00:04.250Z' },
+                                ],
+                            }),
+                        ].join('\n') + '\n',
+                        mtime: 1_700_000_000_000,
+                    },
+                    'b.jsonl': {
+                        contents: [
+                            firstUserMessage,
+                            JSON.stringify({
+                                mes: 'Generated answer',
+                                is_user: false,
+                                gen_started: '2024-01-02T03:10:00.000Z',
+                                gen_finished: '2024-01-02T03:10:01.000Z',
+                                swipes: ['Generated answer', 'Alternate answer'],
+                            }),
+                        ].join('\n') + '\n',
+                        mtime: 1_700_000_001_000,
+                    },
+                },
+            },
+        }),
         missingCharactersDirectory: runScenario('missing-characters-directory', {
             charactersDirectoryExists: false,
         }),
@@ -175,21 +223,34 @@ try {
     const roundTripChats = path.join(roundTripUserRoot, 'chats');
     mkdirSync(roundTripCharacters, { recursive: true });
     mkdirSync(roundTripChats, { recursive: true });
-    writeFileSync(path.join(roundTripCharacters, 'default_Seraphina.png'), Buffer.alloc(0));
+    const roundTripInput = scenarios.missingStatsChatHistory.input;
+    for (const filename of roundTripInput.characterFiles) {
+        writeFileSync(path.join(roundTripCharacters, filename), Buffer.alloc(0));
+    }
+    for (const [character, files] of Object.entries(roundTripInput.chatFiles)) {
+        const chatDirectory = path.join(roundTripChats, character);
+        mkdirSync(chatDirectory, { recursive: true });
+        for (const [filename, entry] of Object.entries(files)) {
+            const chatPath = path.join(chatDirectory, filename);
+            writeFileSync(chatPath, entry.contents);
+            const fixedTime = new Date(entry.mtime);
+            utimesSync(chatPath, fixedTime, fixedTime);
+        }
+    }
     const goRoundTrip = JSON.parse(execFileSync('go', [
         'run', './tools/stats-fixture', roundTripUserRoot, String(FIXED_NOW),
     ], { cwd: repositoryRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim());
     const nodeReadback = JSON.parse(readFileSync(path.join(roundTripUserRoot, 'stats.json'), 'utf8'));
-    assert.deepEqual(nodeReadback, scenarios.missingStatsCharacterWithoutChats.observation.memory);
+    assert.deepEqual(nodeReadback, scenarios.missingStatsChatHistory.observation.memory);
     assert.deepEqual(goRoundTrip.errors, []);
 
     const fixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
-        probe: 'pinned stats.init() file load, empty-chat recreation, and interval behavior',
+        probe: 'pinned stats.init() file load, JSONL chat aggregation, and interval behavior',
         scenarios,
         roundTrip: {
-            input: { characterFiles: ['default_Seraphina.png'], chatFiles: {} },
+            input: roundTripInput,
             errors: goRoundTrip.errors,
             fileContent: goRoundTrip.fileContent,
             memory: goRoundTrip.memory,

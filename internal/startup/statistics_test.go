@@ -26,9 +26,15 @@ type statisticsScenario struct {
 }
 
 type statisticsInput struct {
-	StatsFileContent          *string  `json:"statsFileContent"`
-	CharactersDirectoryExists *bool    `json:"charactersDirectoryExists"`
-	CharacterFiles            []string `json:"characterFiles"`
+	StatsFileContent          *string                                  `json:"statsFileContent"`
+	CharactersDirectoryExists *bool                                    `json:"charactersDirectoryExists"`
+	CharacterFiles            []string                                 `json:"characterFiles"`
+	ChatFiles                 map[string]map[string]statisticsChatFile `json:"chatFiles"`
+}
+
+type statisticsChatFile struct {
+	Contents string `json:"contents"`
+	ModTime  int64  `json:"mtime"`
 }
 
 type statisticsObservation struct {
@@ -74,7 +80,7 @@ func TestInitializeStatisticsMatchesPinnedNode(t *testing.T) {
 	if len(fixture.RoundTrip.Errors) != 0 {
 		t.Fatalf("Node-to-Go-to-Node stats round trip returned errors: %v", fixture.RoundTrip.Errors)
 	}
-	characterScenario := fixture.Scenarios["missingStatsCharacterWithoutChats"].Observation
+	characterScenario := fixture.Scenarios["missingStatsChatHistory"].Observation
 	if characterScenario.Filesystem.StatsFileContent == nil || fixture.RoundTrip.FileContent != *characterScenario.Filesystem.StatsFileContent {
 		t.Fatalf("Go stats round-trip bytes differ from the pinned Node recreation: %q", fixture.RoundTrip.FileContent)
 	}
@@ -106,6 +112,24 @@ func TestInitializeStatisticsMatchesPinnedNode(t *testing.T) {
 				for _, filename := range scenario.Input.CharacterFiles {
 					if err := os.WriteFile(filepath.Join(charactersDirectory, filename), nil, 0o600); err != nil {
 						t.Fatal(err)
+					}
+				}
+			}
+			for character, files := range scenario.Input.ChatFiles {
+				chatDirectory := filepath.Join(chatsDirectory, character)
+				if err := os.MkdirAll(chatDirectory, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				for filename, chat := range files {
+					chatPath := filepath.Join(chatDirectory, filename)
+					if err := os.WriteFile(chatPath, []byte(chat.Contents), 0o600); err != nil {
+						t.Fatal(err)
+					}
+					if chat.ModTime != 0 {
+						modTime := time.UnixMilli(chat.ModTime)
+						if err := os.Chtimes(chatPath, modTime, modTime); err != nil {
+							t.Fatal(err)
+						}
 					}
 				}
 			}
