@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned server startup preserves and serves a data-root custom 404 page",
+  "source": "src/users.js: migratePublicOverrides; src/endpoints/content-manager.js: seedContent; src/server-main.js: apply404Middleware",
+  "inputs": {
+    "content": "<!doctype html><html><body>Custom 404 from pinned probe.</body></html>\n"
+  },
+  "response": {
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "contentLength": "71",
+    "bytes": 71,
+    "sha256": "4814880ef04e2e87f2aba7674e21ca1ed5f851e780621e13409a95d0825aa3b1",
+    "body": "<!doctype html><html><body>Custom 404 from pinned probe.</body></html>\n"
+  }
+}

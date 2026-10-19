@@ -409,7 +409,7 @@ The pinned server installs these with `app.use` and sends HTTP 308, preserving t
 
 - `/`, `/callback/:source?`, `/login`, `/csrf-token`, `/version`, `/api/ping`, `/proxy/:url(*)`: registered in `src/server-main.js`.
 - Embedded static serving matches the fresh-start oracle for `GET /` and `GET /lib.js` status, content type, and body digest; other static paths and middleware behavior remain unimplemented.
-- The final 404 middleware matches the seeded fresh-install `url-not-found.html` response for GET and HEAD; custom data-root error-page overrides and shared middleware behavior remain unimplemented.
+- The final 404 handler matches the seeded fresh-install page and a preexisting custom data-root `url-not-found.html` for GET; full middleware ordering remains unimplemented.
 - `/version` response body, status, and content type match the pinned fresh-start oracle; authentication/session/CORS/security headers and the rest of the route table remain unimplemented.
 - Exact authentication, CSRF, content-type, status, redirects, and error semantics are unimplemented and require separate reference probes.
 

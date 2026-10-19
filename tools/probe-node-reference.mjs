@@ -14,8 +14,9 @@ const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const outputRoot = path.resolve(process.argv[3] ?? '');
-if (!process.argv[2] || !process.argv[3]) {
-    console.error('usage: node tools/probe-node-reference.mjs <pinned-source-clone> <gotavern-root>');
+const probeMode = process.argv[4] ?? 'fresh-start';
+if (!process.argv[2] || !process.argv[3] || !['fresh-start', 'custom-404'].includes(probeMode)) {
+    console.error('usage: node tools/probe-node-reference.mjs <pinned-source-clone> <gotavern-root> [fresh-start|custom-404]');
     process.exit(2);
 }
 
@@ -25,6 +26,7 @@ if (sourceCommit !== PINNED_COMMIT) throw new Error(`upstream checkout is ${sour
 const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-node-oracle-'));
 const dataRoot = path.join(runtimeRoot, 'data');
 const configPath = path.join(runtimeRoot, 'config.yaml');
+const custom404Content = '<!doctype html><html><body>Custom 404 from pinned probe.</body></html>\n';
 const expectedLibPath = path.join(outputRoot, 'upstream', 'generated', 'lib.js');
 const expectedLibHash = createHash('sha256').update(readFileSync(expectedLibPath)).digest('hex');
 const logs = [];
@@ -150,6 +152,11 @@ async function getResponse(url, method = 'GET') {
 
 try {
     mkdirSync(dataRoot, { recursive: true });
+    if (probeMode === 'custom-404') {
+        const errorPagePath = path.join(dataRoot, '_errors', 'url-not-found.html');
+        mkdirSync(path.dirname(errorPagePath), { recursive: true });
+        writeFileSync(errorPagePath, custom404Content);
+    }
     const port = await choosePort();
     const origin = `http://127.0.0.1:${port}`;
     child = spawn(process.execPath, [
@@ -210,7 +217,7 @@ try {
     await stopServer();
     const { USER_DIRECTORY_TEMPLATE, PUBLIC_DIRECTORIES } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'constants.js')).href);
     const dataRootTree = snapshotTree(dataRoot);
-    const fixture = {
+    const freshStartFixture = {
         schemaVersion: 1,
         baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
         probe: 'empty runtime HTTP and startup-tree smoke observation',
@@ -280,7 +287,26 @@ try {
     };
     const outputDirectory = path.join(outputRoot, 'tests', 'oracle');
     mkdirSync(outputDirectory, { recursive: true });
-    const outputFile = path.join(outputDirectory, 'sillytavern-1.19.0-fresh-start.json');
+    const fixture = probeMode === 'custom-404'
+        ? {
+            schemaVersion: 1,
+            baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
+            probe: 'pinned server startup preserves and serves a data-root custom 404 page',
+            source: 'src/users.js: migratePublicOverrides; src/endpoints/content-manager.js: seedContent; src/server-main.js: apply404Middleware',
+            inputs: { content: custom404Content },
+            response: {
+                status: notFoundResult.response.status,
+                contentType: notFoundResult.response.headers.get('content-type'),
+                contentLength: notFoundResult.response.headers.get('content-length'),
+                bytes: notFoundResult.body.byteLength,
+                sha256: sha256(notFoundResult.body),
+                body: Buffer.from(notFoundResult.body).toString('utf8'),
+            },
+        }
+        : freshStartFixture;
+    const outputFile = path.join(outputDirectory, probeMode === 'custom-404'
+        ? 'sillytavern-1.19.0-custom-404.json'
+        : 'sillytavern-1.19.0-fresh-start.json');
     writeFileSync(outputFile, `${JSON.stringify(fixture, null, 2)}\n`);
     console.log(`Wrote ${path.relative(outputRoot, outputFile)} from the pinned Node server`);
 } finally {

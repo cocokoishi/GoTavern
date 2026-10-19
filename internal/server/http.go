@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/cocokoishi/gotavern/upstream"
@@ -37,6 +39,16 @@ func NewHTTPHandler() http.Handler {
 	page, err := upstream.Assets.ReadFile("default/content/errors/url-not-found.html")
 	if err != nil {
 		page = nil
+	}
+	return newHTTPHandler(page)
+}
+
+// NewHTTPHandlerWithDataRoot reads the final 404 page once when the handler is
+// constructed, matching server-main's apply404Middleware startup behavior.
+func NewHTTPHandlerWithDataRoot(dataRoot string) http.Handler {
+	var page []byte
+	if dataRoot != "" {
+		page, _ = os.ReadFile(filepath.Join(dataRoot, "_errors", "url-not-found.html"))
 	}
 	return newHTTPHandler(page)
 }

@@ -342,6 +342,16 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
         throw new Error(`fresh-start oracle changed across identical pinned Node runs at: ${paths.join(', ')}; add only source-verified normalization rules`);
     }
 
+    const custom404FixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-custom-404.json');
+    run(process.execPath, [probeScript, buildRoot, repositoryRoot, 'custom-404'], buildRoot);
+    const firstCustom404Probe = readFileSync(custom404FixturePath);
+    run(process.execPath, [probeScript, buildRoot, repositoryRoot, 'custom-404'], buildRoot);
+    const secondCustom404Probe = readFileSync(custom404FixturePath);
+    if (!firstCustom404Probe.equals(secondCustom404Probe)) {
+        const paths = changedJSONPaths(JSON.parse(firstCustom404Probe), JSON.parse(secondCustom404Probe));
+        throw new Error(`custom 404 oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const packageJson = JSON.parse(readFileSync(path.join(buildRoot, 'package.json'), 'utf8'));
     const webpackPackage = JSON.parse(readFileSync(path.join(buildRoot, 'node_modules', 'webpack', 'package.json'), 'utf8'));
     const digest = createHash('sha256').update(readFileSync(outputPath)).digest('hex');
