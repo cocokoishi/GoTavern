@@ -90,7 +90,7 @@ func generateImageMetadata(filePath string, typeValue orderedNodeJSON, thumbnail
 	return metadata, false, nil
 }
 
-// jimpCompatibleAverageColor preserves fractional row averages until Jimp's final byte rounding.
+// jimpCompatibleAverageColor follows the pinned Jimp resize-to-1x1 color path.
 func jimpCompatibleAverageColor(source image.Image) string {
 	width := source.Bounds().Dx()
 	height := source.Bounds().Dy()
@@ -98,7 +98,7 @@ func jimpCompatibleAverageColor(source image.Image) string {
 		return "#808080"
 	}
 
-	rowColors := make([][4]float64, height)
+	rowColors := make([][4]float32, height)
 	for y := 0; y < height; y++ {
 		var red, green, blue, alpha uint64
 		var visiblePixels uint64
@@ -113,34 +113,44 @@ func jimpCompatibleAverageColor(source image.Image) string {
 			green += uint64(pixel.G)
 			blue += uint64(pixel.B)
 		}
-		row := [4]float64{0, 0, 0, float64(alpha) / float64(width)}
+		row := [4]float32{0, 0, 0, float32(alpha) / float32(width)}
 		if visiblePixels > 0 {
-			row[0] = float64(red) / float64(visiblePixels)
-			row[1] = float64(green) / float64(visiblePixels)
-			row[2] = float64(blue) / float64(visiblePixels)
+			row[0] = float32(red) / float32(visiblePixels)
+			row[1] = float32(green) / float32(visiblePixels)
+			row[2] = float32(blue) / float32(visiblePixels)
 		}
 		rowColors[y] = row
 	}
 
-	var red, green, blue float64
+	var red, green, blue float32
 	var visibleRows uint64
 	for _, row := range rowColors {
 		if row[3] == 0 {
 			continue
 		}
 		visibleRows++
-		red += row[0]
-		green += row[1]
-		blue += row[2]
+		red = float32(red + row[0])
+		green = float32(green + row[1])
+		blue = float32(blue + row[2])
 	}
 	if visibleRows == 0 {
 		return "#000000"
 	}
+	roundChannel := func(value float32) uint8 {
+		if height == 1 {
+			// Jimp's horizontal-only pass leaves fractional channel values in a
+			// Float32Array; Buffer.from truncates those values when producing its
+			// final byte buffer.
+			return uint8(math.Trunc(float64(value)))
+		}
+		// When height is resized, Jimp's vertical pass applies Math.round.
+		return uint8(math.Floor(float64(value)/float64(visibleRows) + 0.5))
+	}
 	return fmt.Sprintf(
 		"#%02x%02x%02x",
-		uint8(math.Round(red/float64(visibleRows))),
-		uint8(math.Round(green/float64(visibleRows))),
-		uint8(math.Round(blue/float64(visibleRows))),
+		roundChannel(red),
+		roundChannel(green),
+		roundChannel(blue),
 	)
 }
 

@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "POST /api/backgrounds/all lists top-level image files in default collator order, returns the configured bg thumbnail dimensions and cached/generated animation values, and persists metadata for supported files",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backgrounds-all-cookie-secret",
+    "files": {
+      "Alpha.png": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4AWP4z8Dwn4Hh/38AD/kD/dtv74kAAAAASUVORK5CYII=",
+      "zebra.gif": "R0lGODlhAgABAIAAAP8AAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQICAAAACwAAAAAAgABAAACAgQKADs=",
+      "cached.png": "Y2FjaGVkIG5vbi1pbWFnZSBieXRlcw==",
+      "stale.png": "c3RhbGUgbm9uLWltYWdlIGJ5dGVz",
+      "notes.txt": "aWdub3JlZCB0ZXh0IGZpbGU=",
+      ".png": "aWdub3JlZCBkb3RmaWxl"
+    },
+    "fixedMtime": 981173106123,
+    "indexTemplate": "{\n    \"version\": 9,\n    \"images\": {\n        \"backgrounds/cached.png\": {\n            \"hash\": \"cached-hash\",\n            \"mtime\": \"__CACHED_MTIME__\",\n            \"isAnimated\": \"cached-value\",\n            \"folderIds\": [\n                \"keep-cached\"\n            ],\n            \"unknownCacheField\": {\n                \"preserve\": true\n            }\n        },\n        \"backgrounds/stale.png\": {\n            \"hash\": \"stale-hash\",\n            \"mtime\": \"__STALE_MTIME__\",\n            \"isAnimated\": true,\n            \"folderIds\": [\n                \"keep-stale\"\n            ],\n            \"unknownCacheField\": \"retained after generation failure\"\n        },\n        \"backgrounds/Alpha.png\": {\n            \"hash\": \"old-alpha-hash\",\n            \"mtime\": \"__STALE_MTIME__\",\n            \"folderIds\": [\n                \"keep-alpha\"\n            ],\n            \"unknownCacheField\": \"replaced when regenerated\"\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"keep\",\n            \"name\": \"Keep unknown fields\",\n            \"thumbnailFile\": \"\",\n            \"probeUnknownField\": {\n                \"retained\": true\n            }\n        }\n    ],\n    \"probeUnknownRoot\": {\n        \"retained\": true\n    }\n}",
+    "thumbnailDimensions": {
+      "bg": [
+        81,
+        46
+      ]
+    },
+    "roundTripFilename": "roundtrip.png",
+    "roundTripContent": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4AWP4z8Dwn4Hh/38AD/kD/dtv74kAAAAASUVORK5CYII="
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "invalidCSRF": {
+      "status": 403,
+      "headers": {
+        "content-length": "201",
+        "content-security-policy": "default-src 'none'",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>ForbiddenError: Invalid CSRF token. Please refresh the page and try again.</pre>\n</body>\n</html>\n"
+    },
+    "wrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodHead": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodOptions": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-methods": "OPTIONS",
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Access-Control-Request-Headers",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "main": {
+      "status": 200,
+      "headers": {
+        "content-length": "270",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10e-WN/rpjd4vQK3WxDWKQEFN9P65q4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "images": [
+          {
+            "filename": ".png",
+            "isAnimated": false
+          },
+          {
+            "filename": "Alpha.png",
+            "isAnimated": false
+          },
+          {
+            "filename": "cached.png",
+            "isAnimated": "cached-value"
+          },
+          {
+            "filename": "stale.png",
+            "isAnimated": false
+          },
+          {
+            "filename": "zebra.gif",
+            "isAnimated": true
+          }
+        ],
+        "config": {
+          "width": 81,
+          "height": 46
+        }
+      }
+    },
+    "repeat": {
+      "status": 200,
+      "headers": {
+        "content-length": "270",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10e-WN/rpjd4vQK3WxDWKQEFN9P65q4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "images": [
+          {
+            "filename": ".png",
+            "isAnimated": false
+          },
+          {
+            "filename": "Alpha.png",
+            "isAnimated": false
+          },
+          {
+            "filename": "cached.png",
+            "isAnimated": "cached-value"
+          },
+          {
+            "filename": "stale.png",
+            "isAnimated": false
+          },
+          {
+            "filename": "zebra.gif",
+            "isAnimated": true
+          }
+        ],
+        "config": {
+          "width": 81,
+          "height": 46
+        }
+      }
+    }
+  },
+  "state": {
+    "indexAfterMain": {
+      "version": 9,
+      "images": {
+        "backgrounds/cached.png": {
+          "hash": "cached-hash",
+          "mtime": "__MTIME__",
+          "isAnimated": "cached-value",
+          "folderIds": [
+            "keep-cached"
+          ],
+          "unknownCacheField": {
+            "preserve": true
+          }
+        },
+        "backgrounds/stale.png": {
+          "hash": "stale-hash",
+          "mtime": "__MTIME__",
+          "isAnimated": true,
+          "folderIds": [
+            "keep-stale"
+          ],
+          "unknownCacheField": "retained after generation failure"
+        },
+        "backgrounds/Alpha.png": {
+          "hash": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3",
+          "aspectRatio": 2,
+          "isAnimated": false,
+          "dominantColor": "#7f007f",
+          "folderIds": [
+            "keep-alpha"
+          ],
+          "addedTimestamp": "__ADDEDTIMESTAMP__",
+          "thumbnailResolution": 3726,
+          "mtime": "__MTIME__"
+        },
+        "backgrounds/zebra.gif": {
+          "hash": "f10d2a58c6478a27303df2ba9184b77e959db30ff1e935d1e090506191a24b63",
+          "aspectRatio": 2,
+          "isAnimated": true,
+          "dominantColor": "#808080",
+          "folderIds": [],
+          "addedTimestamp": "__ADDEDTIMESTAMP__",
+          "thumbnailResolution": 3726,
+          "mtime": "__MTIME__"
+        }
+      },
+      "folders": [
+        {
+          "id": "keep",
+          "name": "Keep unknown fields",
+          "thumbnailFile": "",
+          "probeUnknownField": {
+            "retained": true
+          }
+        }
+      ],
+      "probeUnknownRoot": {
+        "retained": true
+      }
+    },
+    "indexUnchangedOnRepeat": true,
+    "goRoundTrip": {
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "318",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13e-XzHscAKkZ5T4Rda6BnvmW/SsWeU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            {
+              "filename": ".png",
+              "isAnimated": false
+            },
+            {
+              "filename": "Alpha.png",
+              "isAnimated": false
+            },
+            {
+              "filename": "cached.png",
+              "isAnimated": "cached-value"
+            },
+            {
+              "filename": "roundtrip.png",
+              "isAnimated": false
+            },
+            {
+              "filename": "stale.png",
+              "isAnimated": false
+            },
+            {
+              "filename": "zebra.gif",
+              "isAnimated": true
+            }
+          ],
+          "config": {
+            "width": 81,
+            "height": 46
+          }
+        }
+      },
+      "nodeReadback": {
+        "status": 200,
+        "headers": {
+          "content-length": "276",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "__METADATA_ETAG__",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "backgrounds/roundtrip.png": {
+            "hash": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3",
+            "aspectRatio": 2,
+            "isAnimated": false,
+            "dominantColor": "#7f007f",
+            "folderIds": [
+              "keep-roundtrip"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 3726,
+            "mtime": "__MTIME__"
+          }
+        }
+      },
+      "indexAfter": {
+        "version": 9,
+        "images": {
+          "backgrounds/cached.png": {
+            "hash": "cached-hash",
+            "mtime": "__MTIME__",
+            "isAnimated": "cached-value",
+            "folderIds": [
+              "keep-cached"
+            ],
+            "unknownCacheField": {
+              "preserve": true
+            }
+          },
+          "backgrounds/stale.png": {
+            "hash": "stale-hash",
+            "mtime": "__MTIME__",
+            "isAnimated": true,
+            "folderIds": [
+              "keep-stale"
+            ],
+            "unknownCacheField": "retained after generation failure"
+          },
+          "backgrounds/Alpha.png": {
+            "hash": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3",
+            "aspectRatio": 2,
+            "isAnimated": false,
+            "dominantColor": "#7f007f",
+            "folderIds": [
+              "keep-alpha"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 3726,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/zebra.gif": {
+            "hash": "f10d2a58c6478a27303df2ba9184b77e959db30ff1e935d1e090506191a24b63",
+            "aspectRatio": 2,
+            "isAnimated": true,
+            "dominantColor": "#808080",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 3726,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/roundtrip.png": {
+            "hash": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3",
+            "aspectRatio": 2,
+            "isAnimated": false,
+            "dominantColor": "#7f007f",
+            "folderIds": [
+              "keep-roundtrip"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 3726,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "keep",
+            "name": "Keep unknown fields",
+            "thumbnailFile": "",
+            "probeUnknownField": {
+              "retained": true
+            }
+          }
+        ],
+        "probeUnknownRoot": {
+          "retained": true
+        }
+      }
+    },
+    "accountRecordUnchanged": true
+  }
+}

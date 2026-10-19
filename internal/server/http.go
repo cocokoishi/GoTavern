@@ -332,6 +332,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/moving-ui/save", accounts.serveMovingUISave)
 	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("POST /api/avatars/delete", accounts.serveAvatarsDelete)
+	mux.HandleFunc("/api/backgrounds/all", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveBackgroundsAll(w, r)
+	})
 	mux.HandleFunc("/api/backgrounds/folders", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			serveStatic(w, r, notFoundPage, options)
