@@ -15,8 +15,8 @@ Usage:
 Options:
   --source PATH   SillyTavern runtime/repository root containing config.yaml.
   --dest PATH     GoTavern runtime root. Defaults to the current directory.
-  --force         Allow replacing an existing destination config/data tree after
-                  first moving the destination copies into a destination-side backup.
+  --force         Allow replacing existing destination copies after first moving
+                  them into a destination-side backup.
   -h, --help      Show this help.
 
 Safety properties:
@@ -25,6 +25,7 @@ Safety properties:
   * The complete configured relative dataRoot is copied, including _storage and
     cookie-secret.txt. It does not cherry-pick only visible user folders.
   * Node server plugins are NOT migrated as supported functionality.
+  * All destination conflicts are checked before the first copy is performed.
 
 Notes:
   * For a consistent copy, stop SillyTavern first or copy from a filesystem snapshot.
@@ -136,13 +137,18 @@ done
 DATA_SRC="$SOURCE/$DATA_REL"
 DATA_DST="$DEST/$DATA_REL"
 CONFIG_DST="$DEST/config.yaml"
+GLOBAL_EXT_REL="public/scripts/extensions/third-party"
+GLOBAL_EXT_SRC="$SOURCE/$GLOBAL_EXT_REL"
+GLOBAL_EXT_DST="$DEST/$GLOBAL_EXT_REL"
+CERTS_SRC="$SOURCE/certs"
+CERTS_DST="$DEST/certs"
 
 [[ -d "$DATA_SRC" ]] || {
     echo "error: configured dataRoot does not exist: $DATA_SRC" >&2
     exit 1
 }
 
-# Protect against accidentally placing the destination inside the source data tree.
+# Protect against recursively copying a source into itself.
 case "$DEST/" in
     "$SOURCE/"*)
         echo "error: destination must not be inside the SillyTavern source tree" >&2
@@ -150,17 +156,29 @@ case "$DEST/" in
         ;;
 esac
 
+# Preflight every destination that this run might modify. Do this before the first
+# copy so a conflict cannot leave a half-migrated destination.
+CONFLICTS=()
+[[ -e "$CONFIG_DST" ]] && CONFLICTS+=("config.yaml")
+[[ -e "$DATA_DST" ]] && CONFLICTS+=("$DATA_REL")
+[[ -d "$GLOBAL_EXT_SRC" && -e "$GLOBAL_EXT_DST" ]] && CONFLICTS+=("$GLOBAL_EXT_REL")
+[[ -d "$CERTS_SRC" && -e "$CERTS_DST" ]] && CONFLICTS+=("certs")
+
+if (( ${#CONFLICTS[@]} > 0 && FORCE == 0 )); then
+    echo "error: destination already contains paths this migration would replace:" >&2
+    for conflict in "${CONFLICTS[@]}"; do
+        echo "  - $conflict" >&2
+    done
+    echo "Re-run with --force only if you intend to replace destination copies." >&2
+    exit 1
+fi
+
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_ROOT="$DEST/.migration-backup-$TIMESTAMP"
 
-if [[ -e "$CONFIG_DST" || -e "$DATA_DST" ]]; then
-    if (( FORCE == 0 )); then
-        echo "error: destination already contains config.yaml and/or $DATA_REL" >&2
-        echo "       Re-run with --force only if you intend to replace destination copies." >&2
-        exit 1
-    fi
-
+if (( ${#CONFLICTS[@]} > 0 )); then
     mkdir -p "$BACKUP_ROOT"
+
     if [[ -e "$CONFIG_DST" ]]; then
         mv -- "$CONFIG_DST" "$BACKUP_ROOT/config.yaml"
     fi
@@ -168,6 +186,14 @@ if [[ -e "$CONFIG_DST" || -e "$DATA_DST" ]]; then
         mkdir -p "$BACKUP_ROOT/$(dirname "$DATA_REL")"
         mv -- "$DATA_DST" "$BACKUP_ROOT/$DATA_REL"
     fi
+    if [[ -d "$GLOBAL_EXT_SRC" && -e "$GLOBAL_EXT_DST" ]]; then
+        mkdir -p "$BACKUP_ROOT/$(dirname "$GLOBAL_EXT_REL")"
+        mv -- "$GLOBAL_EXT_DST" "$BACKUP_ROOT/$GLOBAL_EXT_REL"
+    fi
+    if [[ -d "$CERTS_SRC" && -e "$CERTS_DST" ]]; then
+        mv -- "$CERTS_DST" "$BACKUP_ROOT/certs"
+    fi
+
     echo "Destination-side backup: $BACKUP_ROOT"
 fi
 
@@ -184,37 +210,18 @@ mkdir -p "$(dirname "$DATA_DST")"
 cp -a -- "$DATA_SRC" "$DATA_DST"
 
 # Global third-party extensions are separate from per-user data in some deployments.
-GLOBAL_EXT_REL="public/scripts/extensions/third-party"
-GLOBAL_EXT_SRC="$SOURCE/$GLOBAL_EXT_REL"
-GLOBAL_EXT_DST="$DEST/$GLOBAL_EXT_REL"
 if [[ -d "$GLOBAL_EXT_SRC" ]]; then
     echo "[3/4] Copying global third-party extension overlay..."
     mkdir -p "$(dirname "$GLOBAL_EXT_DST")"
-    if [[ -e "$GLOBAL_EXT_DST" ]]; then
-        if (( FORCE == 0 )); then
-            echo "error: destination extension overlay already exists: $GLOBAL_EXT_DST" >&2
-            exit 1
-        fi
-        mkdir -p "$BACKUP_ROOT/$(dirname "$GLOBAL_EXT_REL")"
-        mv -- "$GLOBAL_EXT_DST" "$BACKUP_ROOT/$GLOBAL_EXT_REL"
-    fi
     cp -a -- "$GLOBAL_EXT_SRC" "$GLOBAL_EXT_DST"
 else
     echo "[3/4] No global third-party extension overlay found; skipping."
 fi
 
 # Relative TLS paths commonly point at ./certs. Copying it preserves config behavior.
-if [[ -d "$SOURCE/certs" ]]; then
+if [[ -d "$CERTS_SRC" ]]; then
     echo "[4/4] Copying certs/ (source remains untouched)..."
-    if [[ -e "$DEST/certs" ]]; then
-        if (( FORCE == 0 )); then
-            echo "error: destination certs/ already exists" >&2
-            exit 1
-        fi
-        mkdir -p "$BACKUP_ROOT"
-        mv -- "$DEST/certs" "$BACKUP_ROOT/certs"
-    fi
-    cp -a -- "$SOURCE/certs" "$DEST/certs"
+    cp -a -- "$CERTS_SRC" "$CERTS_DST"
 else
     echo "[4/4] No certs/ directory found; skipping."
 fi
@@ -233,8 +240,9 @@ fi
 [[ -f "$CONFIG_DST" ]] || { echo "error: copied config.yaml is missing" >&2; exit 1; }
 [[ -d "$DATA_DST" ]] || { echo "error: copied data root is missing" >&2; exit 1; }
 
-# Compare counts/bytes as a quick copy sanity check without requiring rsync.
-# Metadata/caches may contain symlinks; du/count output is advisory, not a proof.
+# File-count comparison catches obvious incomplete copies without requiring rsync.
+# It is advisory rather than a cryptographic proof; the future Go migration command
+# should add a manifest/hash verification mode.
 SRC_FILES="$(find "$DATA_SRC" -type f 2>/dev/null | wc -l | tr -d ' ')"
 DST_FILES="$(find "$DATA_DST" -type f 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "$SRC_FILES" != "$DST_FILES" ]]; then
