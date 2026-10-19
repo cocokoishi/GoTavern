@@ -1,0 +1,732 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned Expressions sprite deletion authenticates, resolves character folders, removes exact basenames across extensions, applies label fallback, and preserves unrelated files",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-sprites-delete-cookie-secret",
+    "files": [
+      {
+        "path": "Alice/same.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/same.jpg",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/same.txt",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/same-1.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/SAME.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/legacy.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/legacy-1.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/happy.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/happy.webp",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/happy-1.png",
+        "kind": "file"
+      },
+      {
+        "path": "Alice/Expressions/other.png",
+        "kind": "file"
+      }
+    ],
+    "requests": {
+      "deleteMulti": {
+        "name": "Alice",
+        "label": "ignored",
+        "spriteName": "same"
+      },
+      "deleteLabelFallback": {
+        "name": "Alice",
+        "label": "legacy",
+        "spriteName": ""
+      },
+      "deleteNested": {
+        "name": "Alice/Expressions",
+        "label": "happy",
+        "spriteName": "happy"
+      },
+      "deleteNoMatch": {
+        "name": "Alice",
+        "label": "missing",
+        "spriteName": "missing"
+      },
+      "missingDirectory": {
+        "name": "Missing",
+        "label": "x",
+        "spriteName": "x"
+      },
+      "invalidSubfolder": {
+        "name": "Alice/..",
+        "label": "x",
+        "spriteName": "x"
+      },
+      "missingFields": {},
+      "emptyName": {
+        "name": "",
+        "label": "x",
+        "spriteName": "x"
+      },
+      "nonStringSpriteName": {
+        "name": "Alice",
+        "label": "same",
+        "spriteName": 7
+      }
+    }
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "deleteMulti": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteLabelFallback": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteNested": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteNoMatch": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "missingDirectory": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "invalidSubfolder": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "missingFields": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "emptyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "nonStringSpriteName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    }
+  },
+  "state": {
+    "fileStates": {
+      "initial": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/happy.png",
+          "kind": "file",
+          "sha256": "d031e1fed2be35700c7c7a4654c5a37f618774cdfbc8b52f82b235720ebbb820"
+        },
+        {
+          "path": "Alice/Expressions/happy.webp",
+          "kind": "file",
+          "sha256": "581b43f0666679f4c7b99bd040cbbe7ea8e98c0cce1d7882746c943403241ee8"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/legacy.png",
+          "kind": "file",
+          "sha256": "9832b25996eda63b1c1ea97f4b423a2161f8f8601a624aaef2de301a205e9400"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        },
+        {
+          "path": "Alice/same.jpg",
+          "kind": "file",
+          "sha256": "a25669ef55e044f7fe8fb0295b17f1a975fe95feaa5dcb5f932c96be70ab1724"
+        },
+        {
+          "path": "Alice/same.png",
+          "kind": "file",
+          "sha256": "871a85409a19abb9f2971365f9c6ac93e6f48fb1a846780292aa1c38b1a76226"
+        },
+        {
+          "path": "Alice/same.txt",
+          "kind": "file",
+          "sha256": "45cf5657389ed4bbbdb63072593477c327ee0fd2bcc3297aab0195ec06c7c9f9"
+        }
+      ],
+      "unauthorized": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/happy.png",
+          "kind": "file",
+          "sha256": "d031e1fed2be35700c7c7a4654c5a37f618774cdfbc8b52f82b235720ebbb820"
+        },
+        {
+          "path": "Alice/Expressions/happy.webp",
+          "kind": "file",
+          "sha256": "581b43f0666679f4c7b99bd040cbbe7ea8e98c0cce1d7882746c943403241ee8"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/legacy.png",
+          "kind": "file",
+          "sha256": "9832b25996eda63b1c1ea97f4b423a2161f8f8601a624aaef2de301a205e9400"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        },
+        {
+          "path": "Alice/same.jpg",
+          "kind": "file",
+          "sha256": "a25669ef55e044f7fe8fb0295b17f1a975fe95feaa5dcb5f932c96be70ab1724"
+        },
+        {
+          "path": "Alice/same.png",
+          "kind": "file",
+          "sha256": "871a85409a19abb9f2971365f9c6ac93e6f48fb1a846780292aa1c38b1a76226"
+        },
+        {
+          "path": "Alice/same.txt",
+          "kind": "file",
+          "sha256": "45cf5657389ed4bbbdb63072593477c327ee0fd2bcc3297aab0195ec06c7c9f9"
+        }
+      ],
+      "deleteMulti": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/happy.png",
+          "kind": "file",
+          "sha256": "d031e1fed2be35700c7c7a4654c5a37f618774cdfbc8b52f82b235720ebbb820"
+        },
+        {
+          "path": "Alice/Expressions/happy.webp",
+          "kind": "file",
+          "sha256": "581b43f0666679f4c7b99bd040cbbe7ea8e98c0cce1d7882746c943403241ee8"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/legacy.png",
+          "kind": "file",
+          "sha256": "9832b25996eda63b1c1ea97f4b423a2161f8f8601a624aaef2de301a205e9400"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "deleteLabelFallback": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/happy.png",
+          "kind": "file",
+          "sha256": "d031e1fed2be35700c7c7a4654c5a37f618774cdfbc8b52f82b235720ebbb820"
+        },
+        {
+          "path": "Alice/Expressions/happy.webp",
+          "kind": "file",
+          "sha256": "581b43f0666679f4c7b99bd040cbbe7ea8e98c0cce1d7882746c943403241ee8"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "deleteNested": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "deleteNoMatch": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "missingDirectory": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "invalidSubfolder": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "missingFields": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "emptyName": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ],
+      "nonStringSpriteName": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Expressions/happy-1.png",
+          "kind": "file",
+          "sha256": "64e6013b2f361ac4f2e3c181f98bf6d250bcb48123b83560c952bf83a20fb0dc"
+        },
+        {
+          "path": "Alice/Expressions/other.png",
+          "kind": "file",
+          "sha256": "17e65f7c68eba56195e95eb2c72c3e99b806258d5a90981711c393a0c3f70e4b"
+        },
+        {
+          "path": "Alice/legacy-1.png",
+          "kind": "file",
+          "sha256": "1727566cc5e9eeb5b2bba148c76f6c10301269ce80541d138fb1a84964810caf"
+        },
+        {
+          "path": "Alice/same-1.png",
+          "kind": "file",
+          "sha256": "d1c0851455949131cbd0a0f87c7baae70ee38a11e94c6eb1b1f1d0ee3dafaa4d"
+        }
+      ]
+    },
+    "accountRecordUnchanged": true
+  }
+}

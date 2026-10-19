@@ -300,6 +300,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/moving-ui/save", accounts.serveMovingUISave)
 	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("GET /api/sprites/get", accounts.serveSpritesGet)
+	mux.HandleFunc("POST /api/sprites/delete", accounts.serveSpritesDelete)
 	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/themes/save")
 	})

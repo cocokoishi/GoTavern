@@ -1,6 +1,9 @@
 package startup
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,4 +96,82 @@ func userSpriteLabel(filename string) string {
 		}
 	}
 	return filename
+}
+
+// DeleteUserSpriteFiles removes every directory entry whose parsed base name
+// exactly matches spriteName. The upstream route treats a non-string
+// spriteName as a valid request that simply cannot match a filename.
+func DeleteUserSpriteFiles(dataRoot, handle, name, spriteName string, matchName bool) (bool, error) {
+	directories, err := DirectoriesForUser(dataRoot, handle)
+	if err != nil {
+		return false, err
+	}
+	spriteDirectory, valid := userSpritesDirectory(directories["characters"], name)
+	if !valid {
+		return false, nil
+	}
+	userRoot, err := filepath.Abs(directories["root"])
+	if err != nil {
+		return false, err
+	}
+	lockRoot, err := canonicalPath(filepath.Dir(userRoot))
+	if err != nil {
+		return false, err
+	}
+	lock, err := acquireContentLock(lockRoot)
+	if err != nil {
+		return false, err
+	}
+	defer lock.Close()
+
+	resolvedUserRoot, err := canonicalPath(userRoot)
+	if err != nil {
+		return false, err
+	}
+	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
+		return false, fmt.Errorf("user sprite root escapes data root: %w", err)
+	}
+	spriteDirectory, err = filepath.Abs(spriteDirectory)
+	if err != nil {
+		return false, err
+	}
+	if err := ensureResolvedContained(resolvedUserRoot, spriteDirectory); err != nil {
+		return false, fmt.Errorf("user sprite directory escapes user root: %w", err)
+	}
+	info, err := os.Stat(spriteDirectory)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !info.IsDir() {
+		return false, nil
+	}
+	directory, err := os.Open(spriteDirectory)
+	if err != nil {
+		return false, err
+	}
+	entries, err := directory.ReadDir(-1)
+	_ = directory.Close()
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		if !matchName || userSpriteParsedName(entry.Name()) != spriteName {
+			continue
+		}
+		target := filepath.Join(spriteDirectory, entry.Name())
+		info, err := os.Lstat(target)
+		if err != nil {
+			return false, err
+		}
+		if info.IsDir() {
+			return false, fmt.Errorf("sprite entry %q is a directory", entry.Name())
+		}
+		if err := os.Remove(target); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }

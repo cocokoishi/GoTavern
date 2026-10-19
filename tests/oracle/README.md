@@ -46,6 +46,8 @@ The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/versio
 
 `sillytavern-1.19.0-sprites-get.json` captures authenticated Expressions sprite listing, MIME-based filtering, labels and modification-time paths, character subfolders, missing and invalid paths, and unchanged character/account data.
 
+`sillytavern-1.19.0-sprites-delete.json` captures authenticated and CSRF-protected Expressions sprite deletion, exact basename matching across extensions, label fallback, nested character folders, no-match success, missing/invalid input responses, and remaining file/account state after every operation.
+
 `sillytavern-1.19.0-cookie-secret.json` captures the pinned `getCookieSecret()` behavior for missing, empty, existing, and legacy-config secret files. Generated secret bytes are omitted; the fixture retains their length and decoded random-byte count.
 
 `sillytavern-1.19.0-system-prompt-migration.json` captures fresh marker creation and legacy instruct-template migration, including backups, duplicate built-in prompt filtering, and existing system-prompt precedence.
