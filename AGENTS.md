@@ -45,6 +45,39 @@ For each endpoint/startup/config/provider behavior:
 
 If uncertain, write a probe. Do not guess.
 
+## Verification methods
+
+These are rules for how to verify, not what to verify. They come from real failures on this
+project, several of which produced a green result that proved nothing. They apply to every
+domain.
+
+1. **A mutation run must use `go test -count=1`.** Go's test cache answers `ok ... (cached)` for
+   a test whose inputs have not changed, so a mutation that alters a constant can appear to be
+   caught, or appear to be missed, without the test ever executing.
+2. **Revert an untracked file with a file copy, never with git.** `git checkout -- <path>` on an
+   untracked path exits successfully and does nothing. A mutation that was never reverted stays
+   in the tree, poisons every later result for an invisible reason, and can be copied into the
+   backup you would restore from.
+3. **A surviving mutation means the oracle and the implementation are both suspects.** Before
+   "fixing" the implementation, check whether the assertion could fail at all. Survivors have
+   repeatedly turned out to be oracle gaps — a value that could not cross a boundary, a case
+   where two behaviours are indistinguishable — and treating them as implementation bugs leads
+   to changing correct code.
+4. **Take expectations from an oracle, not from a derivation.** A hand-derived expectation
+   records your understanding of the upstream behaviour, not the behaviour. Where a reference
+   implementation or a recorded capture exists, it wins.
+5. **Verify committed bytes, not working-tree bytes.** `git archive HEAD` plus blob digests. A
+   clean `git diff` does not mean the committed bytes are the recorded ones, and it does not
+   mean the working tree matches them. This project has already shipped 626 of 792 vendored
+   assets with the wrong line endings while the manifest was self-consistent with the wrong
+   bytes and therefore passed.
+6. **Check `git log origin/main..HEAD` before reporting.** An unpushed commit is not durable and
+   CI has never seen it.
+7. **Never let a step that appears to have happened stand unverified.** Assertions that cannot
+   fail, reverts that silently no-op, cached test results and probes that never ran are all the
+   same failure: evidence that reads as proof but cannot fail. Where a fixture cannot
+   discriminate, make the test refuse to run rather than pass vacuously.
+
 ## Phase order
 
 - **Phase 0:** API/config/startup/data inventories; pinned `public/**` + `default/**`; generated frontend reproduction; Node oracle; multi-observer differential harness; release/installer skeleton.
