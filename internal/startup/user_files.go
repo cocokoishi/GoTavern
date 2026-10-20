@@ -53,3 +53,36 @@ func SaveUserFile(dataRoot, handle, filename string, content []byte) (string, er
 	}
 	return "/" + filepath.ToSlash(relative), nil
 }
+
+// DeleteUserFile removes one user-relative file path while serializing it with
+// other persistent mutations for the same user.
+func DeleteUserFile(dataRoot, handle, relativePath string) (bool, error) {
+	_, userRoot, lock, err := lockUserContentRoot(dataRoot, handle)
+	if err != nil {
+		return false, err
+	}
+	defer lock.Close()
+
+	target := filepath.Join(userRoot, filepath.FromSlash(relativePath))
+	if err := ensureContained(userRoot, target); err != nil {
+		return false, nil
+	}
+	if err := ensureResolvedContained(userRoot, filepath.Dir(target)); err != nil {
+		return false, err
+	}
+	if _, err := os.Stat(target); err != nil {
+		// Node's existsSync treats missing paths and filesystem errors as absent.
+		return false, nil
+	}
+	entry, err := os.Lstat(target)
+	if err != nil {
+		return false, err
+	}
+	if entry.IsDir() {
+		return false, fmt.Errorf("cannot unlink a directory")
+	}
+	if err := os.Remove(target); err != nil {
+		return false, err
+	}
+	return true, nil
+}
