@@ -104,8 +104,9 @@ function runAsync(command, args, cwd) {
         child.stderr.on('data', chunk => output.push(chunk));
         child.on('error', reject);
         child.on('close', code => {
-            if (code === 0) resolve();
-            else reject(new Error(`${command} ${args.join(' ')} exited ${code}\n${output.join('')}`));
+            const text = output.join('');
+            if (code === 0) resolve(text);
+            else reject(new Error(`${command} ${args.join(' ')} exited ${code}\n${text}`));
         });
     });
 }
@@ -127,22 +128,27 @@ async function verifyProbe({ script, fixture, label, args = [] }) {
     const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
     // Both runs always execute, even if the first one fails: the determinism
     // check must never be skipped for a probe, and a probe that fails once and
-    // succeeds once is a finding, not something to hide.
+    // succeeds once is a finding, not something to hide. Output is buffered so
+    // concurrent probes do not interleave, then echoed so the job log still
+    // shows what each probe observed, exactly as the serial harness did.
+    const outputs = [];
     let first;
     let second;
     let failure;
     try {
-        await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot);
+        outputs.push(await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot));
         first = readFileSync(fixturePath);
     } catch (error) {
         failure = error;
     }
     try {
-        await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot);
+        outputs.push(await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot));
         second = readFileSync(fixturePath);
     } catch (error) {
         failure = failure ?? error;
     }
+    const observed = outputs.join('').trim();
+    if (observed) console.log(observed);
     if (failure) {
         recordProbeFailure(label, failure);
         return null;
