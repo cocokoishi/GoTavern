@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -38,6 +39,10 @@ type Request struct {
 	Method  string
 	Headers []Header
 	Body    []byte
+	// TLSConfig is optional and only used for an https URL. A nil value means the default
+	// configuration with ServerName set from the URL, so certificate verification stays on; the
+	// field exists so a test can trust a local self-signed server, or deliberately not.
+	TLSConfig *tls.Config
 }
 
 // Response is the provider's reply. Body is fully read for non-streaming calls;
@@ -103,6 +108,29 @@ func SendStreaming(ctx context.Context, request Request, timeout time.Duration) 
 	connection, err := dialer.DialContext(ctx, "tcp", host)
 	if err != nil {
 		return nil, fmt.Errorf("connect to provider: %w", err)
+	}
+
+	// An https provider needs a TLS handshake before anything is written. Without this the client
+	// would send a plaintext request to port 443 and every real HTTPS provider would fail, while a
+	// local HTTP mock stayed green — which is exactly how the gap survived the provider-wire
+	// differential. Certificate verification is ON unless the caller supplies its own TLSConfig, so
+	// a bad certificate is an error rather than a silent downgrade.
+	if parsed.Scheme == "https" {
+		config := request.TLSConfig
+		if config == nil {
+			config = &tls.Config{}
+		} else {
+			config = config.Clone()
+		}
+		if config.ServerName == "" {
+			config.ServerName = parsed.Hostname()
+		}
+		tlsConnection := tls.Client(connection, config)
+		if err := tlsConnection.HandshakeContext(ctx); err != nil {
+			_ = connection.Close()
+			return nil, fmt.Errorf("tls handshake with provider: %w", err)
+		}
+		connection = tlsConnection
 	}
 
 	// Request target is the raw path exactly as constructed, so a doubled slash
