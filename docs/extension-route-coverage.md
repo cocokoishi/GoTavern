@@ -175,6 +175,23 @@ The pinned Expressions extension calls GET /api/sprites/get?name=... to list spr
 
 ---
 
+## Extension static serving
+
+The pinned frontend and every installed extension load their files from `/scripts/extensions/third-party/<path>` (mount at `src/users.js:1219`, `createExtensionsRouteHandler`). Node differential coverage: `tests/oracle/sillytavern-1.19.0-extensions-static.json`.
+
+| Route | Method | Observed use | Status |
+|---|---|---|---|
+| `/scripts/extensions/third-party/*` | GET (and any other method: the pinned mount is `router.use`) | extension module/CSS/manifest/image loads | covered (Node/Go differential with response bytes asserted; browser load pending) |
+
+The route serves the requesting user's extensions directory and falls back to the global one, and reproduces `send`'s headers, conditional requests, ranges, index lookup and dotfile rule, with media types from the pinned `mime@1.6.0` table rather than the host MIME database. The `extensions.enabled` guard applies here too: every request answers 404 once extensions are disabled, and an unauthenticated request still answers 403 first.
+
+Two boundaries this route does not own, both recorded in `docs/compat-matrix.md`:
+
+- A real file in the **global** extensions directory is served by `express.static(serverDirectory/public)` at `src/server-main.js:242`, which is mounted before `requireLoginMiddleware` (:248) and before `setupPrivateEndpoints` (:278). That middleware answers `/scripts/extensions/third-party/<path>` from `<serverDirectory>/public/scripts/extensions/third-party/<path>` **without authentication**, so this route's global branch is reachable only for paths `express.static` declines. This is pinned behaviour GoTavern must reproduce and it belongs to the frontend-static domain.
+- `send`'s 301 directory redirect and its `UP_PATH` 403 are unreachable through this route, because Express's `res.sendFile` turns a directory into `next()` and because the route's containment check runs on the already-normalized path.
+
+---
+
 ## Dynamic capture procedure
 
 Playwright should instrument `fetch`/XHR/network observation externally from the test harness without modifying shipped `public/**` or extension source.
