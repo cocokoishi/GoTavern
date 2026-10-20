@@ -3,7 +3,6 @@ package server
 // Shared helpers for the pinned characters-domain oracle tests.
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -22,6 +21,14 @@ type characterResponseFixture struct {
 	Headers    map[string]string `json:"headers"`
 	Body       json.RawMessage   `json:"body"`
 	BodyIsJSON bool              `json:"bodyIsJSON"`
+	BodyText   string            `json:"bodyText"`
+}
+
+// characterCardFixture is one PNG card under test, recorded as exact bytes so
+// the Go fixture tree is byte-identical to the pinned probe's.
+type characterCardFixture struct {
+	File     string `json:"file"`
+	BytesHex string `json:"bytesHex"`
 }
 
 // charactersFixture is the shared shape of every characters oracle fixture.
@@ -33,14 +40,13 @@ type charactersFixture struct {
 	Probe      string   `json:"probe"`
 	Normalizer []string `json:"normalization"`
 	Inputs     struct {
-		CookieSecret string  `json:"cookieSecret"`
-		FixedMtimeMS float64 `json:"fixedMtimeMs"`
-		Cards        []struct {
-			File     string `json:"file"`
-			BytesHex string `json:"bytesHex"`
-		} `json:"cards"`
-		ChatFiles     map[string]string `json:"chatFiles"`
-		ChatCharacter string            `json:"chatCharacter"`
+		CookieSecret   string                 `json:"cookieSecret"`
+		FixedMtimeMS   float64                `json:"fixedMtimeMs"`
+		Cards          []characterCardFixture `json:"cards"`
+		ChatFiles      map[string]string      `json:"chatFiles"`
+		ChatCharacter  string                 `json:"chatCharacter"`
+		ChatCharacters []string               `json:"chatCharacters"`
+		WorldInfo      json.RawMessage        `json:"worldInfo"`
 	} `json:"inputs"`
 	Responses map[string]characterResponseFixture `json:"responses"`
 }
@@ -73,15 +79,15 @@ type charactersOracleEnv struct {
 	Token       string
 }
 
-func newCharactersOracleEnv(t *testing.T, fixture charactersFixture) *charactersOracleEnv {
+func newCharactersOracleEnv(t *testing.T, cookieSecret string) *charactersOracleEnv {
 	t.Helper()
-	return newCharactersOracleEnvWithConfig(t, fixture, "")
+	return newCharactersOracleEnvWithConfig(t, cookieSecret, "")
 }
 
 // newCharactersOracleEnvWithConfig builds the handler with an optional
 // runtime config.yaml, which is how performance.lazyLoadCharacters reaches the
 // pinned getConfigValue call.
-func newCharactersOracleEnvWithConfig(t *testing.T, fixture charactersFixture, configYAML string) *charactersOracleEnv {
+func newCharactersOracleEnvWithConfig(t *testing.T, cookieSecret, configYAML string) *charactersOracleEnv {
 	t.Helper()
 	dataRoot := t.TempDir()
 	installRoot := t.TempDir()
@@ -106,10 +112,15 @@ func newCharactersOracleEnvWithConfig(t *testing.T, fixture charactersFixture, c
 	if err := startup.SetNodePersistRecord(dataRoot, userStoragePrefix+"default-user", accountJSON); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataRoot, "cookie-secret.txt"), []byte(fixture.Inputs.CookieSecret), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dataRoot, "cookie-secret.txt"), []byte(cookieSecret), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := startup.EnsureDirectories(installRoot, dataRoot, []string{"default-user"}); err != nil {
+		t.Fatal(err)
+	}
+	// Pinned startup creates the multer staging directory; the test harness does
+	// not run the full startup sequence.
+	if err := os.MkdirAll(filepath.Join(dataRoot, "_uploads"), 0o777); err != nil {
 		t.Fatal(err)
 	}
 	directories, err := startup.DirectoriesForUser(dataRoot, "default-user")
@@ -119,7 +130,7 @@ func newCharactersOracleEnvWithConfig(t *testing.T, fixture charactersFixture, c
 	env := &charactersOracleEnv{
 		DataRoot: dataRoot, InstallRoot: installRoot, Directories: directories,
 		Handler: NewHTTPHandlerWithOptions(HTTPHandlerOptions{
-			InstallRoot: installRoot, DataRoot: dataRoot, CookieSecret: fixture.Inputs.CookieSecret, AccountsEnabled: true,
+			InstallRoot: installRoot, DataRoot: dataRoot, CookieSecret: cookieSecret, AccountsEnabled: true,
 		}),
 	}
 	csrf := env.serve(t, http.MethodGet, "/csrf-token", "", "")
@@ -264,6 +275,23 @@ func normalizeCharacterCtimeBody(body []byte) []byte {
 // reason the marker is documented.
 func assertCharacterResponse(t *testing.T, label string, got *httptest.ResponseRecorder, want characterResponseFixture) {
 	t.Helper()
+	assertCharacterHeaders(t, label, got, want)
+	// The probe records the raw response text, so the comparison covers exact
+	// JSON serialization, plain-text errors and empty bodies.
+	wantText := want.BodyText
+	gotBody := got.Body.Bytes()
+	if strings.Contains(wantText, "<ctimeMs>") {
+		gotBody = normalizeCharacterCtimeBody(gotBody)
+	}
+	if string(gotBody) != wantText {
+		t.Fatalf("%s body differs from the pinned Node oracle:\n got: %s\nwant: %s", label, gotBody, wantText)
+	}
+}
+
+// assertCharacterHeaders compares status and stable headers only, which is what
+// binary responses (exported PNGs) can be compared by.
+func assertCharacterHeaders(t *testing.T, label string, got *httptest.ResponseRecorder, want characterResponseFixture) {
+	t.Helper()
 	if got.Code != want.Status {
 		t.Fatalf("%s status = %d; pinned Node has %d (body %q)", label, got.Code, want.Status, got.Body.String())
 	}
@@ -275,38 +303,11 @@ func assertCharacterResponse(t *testing.T, label string, got *httptest.ResponseR
 		switch {
 		case name == "content-encoding" || name == "transfer-encoding":
 			continue
-		case value == "<derived-from-normalized-body>":
+		case strings.HasPrefix(value, "<derived-"):
 			gotHeaders.Del(name)
 			continue
 		}
 		wantHeaders[name] = value
 	}
 	assertPinnedHeaders(t, gotHeaders, wantHeaders)
-
-	wantBody := compactJSON(want.Body)
-	gotBody := got.Body.Bytes()
-	if !want.BodyIsJSON {
-		// The probe records non-JSON bodies verbatim; an empty response body is
-		// recorded as null.
-		if len(wantBody) == 0 || bytes.Equal(wantBody, []byte("null")) {
-			if len(gotBody) != 0 {
-				t.Fatalf("%s body = %q; pinned Node returned an empty body", label, gotBody)
-			}
-			return
-		}
-		var text string
-		if err := json.Unmarshal(want.Body, &text); err != nil {
-			t.Fatalf("%s fixture body is not a JSON string: %s", label, want.Body)
-		}
-		if string(gotBody) != text {
-			t.Fatalf("%s body = %q; pinned Node has %q", label, gotBody, text)
-		}
-		return
-	}
-	if bytes.Contains(wantBody, []byte("<ctimeMs>")) {
-		gotBody = normalizeCharacterCtimeBody(gotBody)
-	}
-	if !bytes.Equal(gotBody, wantBody) {
-		t.Fatalf("%s body differs from the pinned Node oracle:\n got: %s\nwant: %s", label, gotBody, wantBody)
-	}
 }

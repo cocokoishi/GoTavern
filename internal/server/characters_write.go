@@ -443,8 +443,14 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 		respondText(w, http.StatusBadRequest, "text/html; charset=utf-8", "Error: character file does not exist")
 		return
 	}
-	data, exists := readCharacterData(characterPath)
-	if !exists || data == "" {
+	data, err := readCharacterDataStrict(characterPath)
+	if err != nil {
+		// The pinned read throws for an unreadable card and the route's outer
+		// catch turns that into a 500.
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if data == "" {
 		respondText(w, http.StatusBadRequest, "text/html; charset=utf-8", "Error: failed to read character data")
 		return
 	}
@@ -550,18 +556,23 @@ func validCharacterEditName(w http.ResponseWriter, body orderedNodeJSON) bool {
 
 const characterUnsetSentinel = "__@@UNSET@@__"
 
-// mergeCharacterUpdate mirrors pinned mergeCharacterUpdate.
-func mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar string, updateData orderedNodeJSON, shouldSkip func(orderedNodeJSON) bool) (bool, string, bool) {
-	rawCard, exists := readCharacterData(avatarPath)
-	if !exists || rawCard == "" {
-		return false, "Invalid character file", false
+// mergeCharacterUpdate mirrors pinned mergeCharacterUpdate. The returned error
+// is the exception the pinned code would throw; the message is the validator
+// failure it would report.
+func mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar string, updateData orderedNodeJSON, shouldSkip func(orderedNodeJSON) bool) (bool, string, bool, error) {
+	rawCard, err := readCharacterDataStrict(avatarPath)
+	if err != nil {
+		return false, "", false, err
+	}
+	if rawCard == "" {
+		return false, "Invalid character file", false, nil
 	}
 	character, err := decodeOrderedNodeJSON([]byte(rawCard))
 	if err != nil {
-		return false, "Invalid character file", false
+		return false, "", false, err
 	}
 	if shouldSkip != nil && shouldSkip(character) {
-		return false, "", true
+		return false, "", true, nil
 	}
 	update := nodeCloneDeep(updateData)
 	nodeUnset(&update, "json_data")
@@ -569,17 +580,17 @@ func mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar string, updateDat
 	character = deepMerge(character, update)
 	processUnsetSentinels(&character, update)
 	if valid, message := validateTavernCard(character); !valid {
-		return false, message, false
+		return false, message, false, nil
 	}
 	encoded, err := marshalCharacterJSON(character)
 	if err != nil {
-		return false, "Invalid character file", false
+		return false, "", false, err
 	}
 	target := strings.Replace(avatar, ".png", "", 1)
 	if err := writeCharacterCard(dataRoot, handle, target, cardImageBytes(avatarPath, nil), string(encoded)); err != nil {
-		return false, err.Error(), false
+		return false, "", false, err
 	}
-	return true, "", false
+	return true, "", false, nil
 }
 
 // processUnsetSentinels mirrors pinned processUnsetSentinels, including the
@@ -748,7 +759,7 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 		failed := make([]orderedNodeJSON, 0)
 		for _, avatar := range targetAvatars {
 			avatarPath := filepath.Join(directories["characters"], avatar)
-			ok, _, wasSkipped := mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar, updateData, shouldSkip)
+			ok, _, wasSkipped, _ := mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar, updateData, shouldSkip)
 			switch {
 			case ok:
 				updated = append(updated, nodeString(avatar))
@@ -772,9 +783,13 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 		return
 	}
 	avatarPath := filepath.Join(directories["characters"], avatar)
-	ok, message, _ := mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar, body, nil)
+	ok, message, _, exception := mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar, body, nil)
 	if ok {
 		serveStatusText(w, http.StatusOK)
+		return
+	}
+	if exception != nil {
+		respondJSONError(w, http.StatusInternalServerError, "Unexpected error while saving character.", "Error: "+exception.Error())
 		return
 	}
 	response := nodeObject()
@@ -999,6 +1014,10 @@ func (runtime *accountRuntime) serveCharactersExport(w http.ResponseWriter, requ
 		}
 		w.Header().Set("Content-Type", staticContentType(filename))
 		w.Header().Set("Content-Disposition", `attachment; filename="`+encodeURI(filepath.Base(filename))+`"`)
+		// Pinned Node only adds Accept-Encoding to Vary when the response is
+		// compressible; the shared GoTavern middleware always sets both, so the
+		// image response restores the pinned value here.
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Content-Length", strconv.Itoa(len(mutatedBuffer)))
 		w.Header().Set("ETag", expressWeakETag(mutatedBuffer))
 		w.WriteHeader(http.StatusOK)

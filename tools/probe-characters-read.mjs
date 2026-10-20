@@ -132,7 +132,7 @@ async function request(url, method = 'GET', headers = {}, body) {
             parsedBody = text;
         }
     }
-    return { response, body: parsedBody, bodyIsJSON };
+    return { response, body: parsedBody, bodyIsJSON, text };
 }
 
 function stableHeaders(response) {
@@ -142,7 +142,13 @@ function stableHeaders(response) {
 }
 
 function capture(result) {
-    return { status: result.response.status, headers: stableHeaders(result.response), body: result.body, bodyIsJSON: result.bodyIsJSON };
+    return {
+        status: result.response.status,
+        headers: stableHeaders(result.response),
+        body: result.body,
+        bodyIsJSON: result.bodyIsJSON,
+        bodyText: result.text,
+    };
 }
 
 function cookiesFrom(response) {
@@ -507,6 +513,14 @@ async function main() {
     for (const entry of responses.all.body) marker(entry);
     for (const entry of responses.allShallow.body) marker(entry);
 
+    // Pinned Node gzips compressible JSON bodies, which removes content-length;
+    // GoTavern does not implement that middleware yet.
+    for (const captured of Object.values(responses)) {
+        if (captured.headers['content-encoding'] === 'gzip') {
+            captured.headers['content-length'] = '<derived-from-uncompressed-body>';
+        }
+    }
+
     // Express derives content-length and ETag from the serialized body, so any
     // body carrying the normalized ctime cannot have reproducible header
     // values. Record them as derived markers instead of inventing a value.
@@ -514,6 +528,7 @@ async function main() {
         if (JSON.stringify(captured.body).includes('<ctimeMs>')) {
             captured.headers['content-length'] = '<derived-from-normalized-body>';
             captured.headers['etag'] = '<derived-from-normalized-body>';
+            captured.bodyText = captured.bodyText.replace(/"date_added":-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, '"date_added":"<ctimeMs>"');
         }
     }
 

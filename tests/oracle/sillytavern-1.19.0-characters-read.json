@@ -275,7 +275,8 @@
           "data_size": 31
         }
       ],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"Alice V2\",\"description\":\"alice description\",\"personality\":\"alice personality\",\"scenario\":\"alice scenario\",\"first_mes\":\"alice first message\",\"mes_example\":\"<START>\\n{{user}}: hi\\n{{char}}: hello\",\"creatorcomment\":\"alice creator notes\",\"avatar\":\"Alice V2.png\",\"chat\":\"Alice V2 - 2024-01-01@00h00m00s000ms\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\",\"beta\"],\"create_date\":\"2024-01-01T00:00:00.000Z\",\"probeUnknownTopLevel\":{\"keep\":[1,2,3],\"nested\":\"value\"},\"data\":{\"name\":\"Alice V2\",\"description\":\"alice description\",\"personality\":\"alice personality\",\"scenario\":\"alice scenario\",\"first_mes\":\"alice first message\",\"mes_example\":\"<START>\\n{{user}}: hi\\n{{char}}: hello\",\"creator_notes\":\"alice creator notes\",\"system_prompt\":\"alice system prompt\",\"post_history_instructions\":\"alice post history instructions\",\"tags\":[\"alpha\",\"beta\"],\"creator\":\"alice creator\",\"character_version\":\"1.2\",\"alternate_greetings\":[\"alt one\",\"alt two\"],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"AliceWorld\",\"depth_prompt\":{\"prompt\":\"alice depth prompt\",\"depth\":4,\"role\":\"system\"},\"probeUnknownExtension\":{\"keep\":true}},\"probeUnknownDataField\":42},\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v2\\\",\\\"spec_version\\\":\\\"2.0\\\",\\\"name\\\":\\\"Alice V2\\\",\\\"description\\\":\\\"alice description\\\",\\\"personality\\\":\\\"alice personality\\\",\\\"scenario\\\":\\\"alice scenario\\\",\\\"first_mes\\\":\\\"alice first message\\\",\\\"mes_example\\\":\\\"<START>\\\\n{{user}}: hi\\\\n{{char}}: hello\\\",\\\"creatorcomment\\\":\\\"alice creator notes\\\",\\\"avatar\\\":\\\"none\\\",\\\"chat\\\":\\\"Alice V2 - 2024-01-01@00h00m00s000ms\\\",\\\"talkativeness\\\":0.5,\\\"fav\\\":false,\\\"tags\\\":[\\\"alpha\\\",\\\"beta\\\"],\\\"create_date\\\":\\\"2024-01-01T00:00:00.000Z\\\",\\\"probeUnknownTopLevel\\\":{\\\"keep\\\":[1,2,3],\\\"nested\\\":\\\"value\\\"},\\\"data\\\":{\\\"name\\\":\\\"Alice V2\\\",\\\"description\\\":\\\"alice description\\\",\\\"personality\\\":\\\"alice personality\\\",\\\"scenario\\\":\\\"alice scenario\\\",\\\"first_mes\\\":\\\"alice first message\\\",\\\"mes_example\\\":\\\"<START>\\\\n{{user}}: hi\\\\n{{char}}: hello\\\",\\\"creator_notes\\\":\\\"alice creator notes\\\",\\\"system_prompt\\\":\\\"alice system prompt\\\",\\\"post_history_instructions\\\":\\\"alice post history instructions\\\",\\\"tags\\\":[\\\"alpha\\\",\\\"beta\\\"],\\\"creator\\\":\\\"alice creator\\\",\\\"character_version\\\":\\\"1.2\\\",\\\"alternate_greetings\\\":[\\\"alt one\\\",\\\"alt two\\\"],\\\"extensions\\\":{\\\"talkativeness\\\":0.5,\\\"fav\\\":false,\\\"world\\\":\\\"AliceWorld\\\",\\\"depth_prompt\\\":{\\\"prompt\\\":\\\"alice depth prompt\\\",\\\"depth\\\":4,\\\"role\\\":\\\"system\\\"},\\\"probeUnknownExtension\\\":{\\\"keep\\\":true}},\\\"probeUnknownDataField\\\":42}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":409,\"date_last_chat\":1700000500000,\"data_size\":238},{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"Backfill V2\",\"chat\":\"Backfill V2 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-02-02T00:00:00.000Z\",\"data\":{\"name\":\"Backfill V2\",\"description\":\"backfill description\",\"tags\":[],\"extensions\":{}},\"description\":\"backfill description\",\"tags\":[],\"avatar\":\"Backfill V2.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v2\\\",\\\"spec_version\\\":\\\"2.0\\\",\\\"name\\\":\\\"Backfill V2\\\",\\\"chat\\\":\\\"Backfill V2 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-02-02T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Backfill V2\\\",\\\"description\\\":\\\"backfill description\\\",\\\"tags\\\":[],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":46},{\"name\":\"Bob V1\",\"description\":\"bob description\",\"personality\":\"bob personality\",\"scenario\":\"bob scenario\",\"first_mes\":\"bob first message\",\"mes_example\":\"bob example\",\"creatorcomment\":\"bob creator notes\",\"avatar\":\"Bob V1.png\",\"chat\":\"Bob V1 - 2024-01-01@00h00m00s000ms\",\"talkativeness\":0.7,\"fav\":true,\"tags\":[\"x\",\"y\",\"z\"],\"create_date\":\"2024-04-04T00:00:00.000Z\",\"probeUnknownV1\":\"keep me\",\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"data\":{\"name\":\"Bob V1\",\"description\":\"bob description\",\"personality\":\"bob personality\",\"scenario\":\"bob scenario\",\"first_mes\":\"bob first message\",\"mes_example\":\"bob example\",\"creator_notes\":\"bob creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\",\"z\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":true,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"json_data\":\"{\\\"name\\\":\\\"Bob V1\\\",\\\"description\\\":\\\"bob description\\\",\\\"personality\\\":\\\"bob personality\\\",\\\"scenario\\\":\\\"bob scenario\\\",\\\"first_mes\\\":\\\"bob first message\\\",\\\"mes_example\\\":\\\"bob example\\\",\\\"creatorcomment\\\":\\\"bob creator notes\\\",\\\"avatar\\\":\\\"none\\\",\\\"chat\\\":\\\"Bob V1 - 2024-01-01@00h00m00s000ms\\\",\\\"talkativeness\\\":0.7,\\\"fav\\\":\\\"true\\\",\\\"tags\\\":\\\"x, y ,z\\\",\\\"create_date\\\":\\\"2024-04-04T00:00:00.000Z\\\",\\\"probeUnknownV1\\\":\\\"keep me\\\"}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":113},{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Carol V3\",\"chat\":\"Carol V3 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-05-05T00:00:00.000Z\",\"data\":{\"name\":\"Carol V3\",\"description\":\"carol description\",\"tags\":[\"gamma\"],\"extensions\":{}},\"description\":\"carol description\",\"tags\":[\"gamma\"],\"avatar\":\"Carol V3.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v3\\\",\\\"spec_version\\\":\\\"3.0\\\",\\\"name\\\":\\\"Carol V3\\\",\\\"chat\\\":\\\"Carol V3 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-05-05T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Carol V3\\\",\\\"description\\\":\\\"carol description\\\",\\\"tags\\\":[\\\"gamma\\\"],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":45},{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Dual V3\",\"chat\":\"Dual V3 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-06-06T00:00:00.000Z\",\"data\":{\"name\":\"Dual V3\",\"description\":\"from ccv3\",\"tags\":[],\"extensions\":{}},\"description\":\"from ccv3\",\"tags\":[],\"avatar\":\"Dual.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v3\\\",\\\"spec_version\\\":\\\"3.0\\\",\\\"name\\\":\\\"Dual V3\\\",\\\"chat\\\":\\\"Dual V3 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-06-06T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Dual V3\\\",\\\"description\\\":\\\"from ccv3\\\",\\\"tags\\\":[],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":31}]"
     },
     "getExisting": {
       "status": 200,
@@ -366,7 +367,8 @@
         "date_last_chat": 1700000500000,
         "data_size": 238
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"Alice V2\",\"description\":\"alice description\",\"personality\":\"alice personality\",\"scenario\":\"alice scenario\",\"first_mes\":\"alice first message\",\"mes_example\":\"<START>\\n{{user}}: hi\\n{{char}}: hello\",\"creatorcomment\":\"alice creator notes\",\"avatar\":\"Alice V2.png\",\"chat\":\"Alice V2 - 2024-01-01@00h00m00s000ms\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\",\"beta\"],\"create_date\":\"2024-01-01T00:00:00.000Z\",\"probeUnknownTopLevel\":{\"keep\":[1,2,3],\"nested\":\"value\"},\"data\":{\"name\":\"Alice V2\",\"description\":\"alice description\",\"personality\":\"alice personality\",\"scenario\":\"alice scenario\",\"first_mes\":\"alice first message\",\"mes_example\":\"<START>\\n{{user}}: hi\\n{{char}}: hello\",\"creator_notes\":\"alice creator notes\",\"system_prompt\":\"alice system prompt\",\"post_history_instructions\":\"alice post history instructions\",\"tags\":[\"alpha\",\"beta\"],\"creator\":\"alice creator\",\"character_version\":\"1.2\",\"alternate_greetings\":[\"alt one\",\"alt two\"],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"AliceWorld\",\"depth_prompt\":{\"prompt\":\"alice depth prompt\",\"depth\":4,\"role\":\"system\"},\"probeUnknownExtension\":{\"keep\":true}},\"probeUnknownDataField\":42},\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v2\\\",\\\"spec_version\\\":\\\"2.0\\\",\\\"name\\\":\\\"Alice V2\\\",\\\"description\\\":\\\"alice description\\\",\\\"personality\\\":\\\"alice personality\\\",\\\"scenario\\\":\\\"alice scenario\\\",\\\"first_mes\\\":\\\"alice first message\\\",\\\"mes_example\\\":\\\"<START>\\\\n{{user}}: hi\\\\n{{char}}: hello\\\",\\\"creatorcomment\\\":\\\"alice creator notes\\\",\\\"avatar\\\":\\\"none\\\",\\\"chat\\\":\\\"Alice V2 - 2024-01-01@00h00m00s000ms\\\",\\\"talkativeness\\\":0.5,\\\"fav\\\":false,\\\"tags\\\":[\\\"alpha\\\",\\\"beta\\\"],\\\"create_date\\\":\\\"2024-01-01T00:00:00.000Z\\\",\\\"probeUnknownTopLevel\\\":{\\\"keep\\\":[1,2,3],\\\"nested\\\":\\\"value\\\"},\\\"data\\\":{\\\"name\\\":\\\"Alice V2\\\",\\\"description\\\":\\\"alice description\\\",\\\"personality\\\":\\\"alice personality\\\",\\\"scenario\\\":\\\"alice scenario\\\",\\\"first_mes\\\":\\\"alice first message\\\",\\\"mes_example\\\":\\\"<START>\\\\n{{user}}: hi\\\\n{{char}}: hello\\\",\\\"creator_notes\\\":\\\"alice creator notes\\\",\\\"system_prompt\\\":\\\"alice system prompt\\\",\\\"post_history_instructions\\\":\\\"alice post history instructions\\\",\\\"tags\\\":[\\\"alpha\\\",\\\"beta\\\"],\\\"creator\\\":\\\"alice creator\\\",\\\"character_version\\\":\\\"1.2\\\",\\\"alternate_greetings\\\":[\\\"alt one\\\",\\\"alt two\\\"],\\\"extensions\\\":{\\\"talkativeness\\\":0.5,\\\"fav\\\":false,\\\"world\\\":\\\"AliceWorld\\\",\\\"depth_prompt\\\":{\\\"prompt\\\":\\\"alice depth prompt\\\",\\\"depth\\\":4,\\\"role\\\":\\\"system\\\"},\\\"probeUnknownExtension\\\":{\\\"keep\\\":true}},\\\"probeUnknownDataField\\\":42}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":409,\"date_last_chat\":1700000500000,\"data_size\":238}"
     },
     "getV1": {
       "status": 200,
@@ -445,7 +447,8 @@
         "date_last_chat": 0,
         "data_size": 113
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"name\":\"Bob V1\",\"description\":\"bob description\",\"personality\":\"bob personality\",\"scenario\":\"bob scenario\",\"first_mes\":\"bob first message\",\"mes_example\":\"bob example\",\"creatorcomment\":\"bob creator notes\",\"avatar\":\"Bob V1.png\",\"chat\":\"Bob V1 - 2024-01-01@00h00m00s000ms\",\"talkativeness\":0.7,\"fav\":true,\"tags\":[\"x\",\"y\",\"z\"],\"create_date\":\"2024-04-04T00:00:00.000Z\",\"probeUnknownV1\":\"keep me\",\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"data\":{\"name\":\"Bob V1\",\"description\":\"bob description\",\"personality\":\"bob personality\",\"scenario\":\"bob scenario\",\"first_mes\":\"bob first message\",\"mes_example\":\"bob example\",\"creator_notes\":\"bob creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\",\"z\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":true,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"json_data\":\"{\\\"name\\\":\\\"Bob V1\\\",\\\"description\\\":\\\"bob description\\\",\\\"personality\\\":\\\"bob personality\\\",\\\"scenario\\\":\\\"bob scenario\\\",\\\"first_mes\\\":\\\"bob first message\\\",\\\"mes_example\\\":\\\"bob example\\\",\\\"creatorcomment\\\":\\\"bob creator notes\\\",\\\"avatar\\\":\\\"none\\\",\\\"chat\\\":\\\"Bob V1 - 2024-01-01@00h00m00s000ms\\\",\\\"talkativeness\\\":0.7,\\\"fav\\\":\\\"true\\\",\\\"tags\\\":\\\"x, y ,z\\\",\\\"create_date\\\":\\\"2024-04-04T00:00:00.000Z\\\",\\\"probeUnknownV1\\\":\\\"keep me\\\"}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":113}"
     },
     "getV3": {
       "status": 200,
@@ -491,7 +494,8 @@
         "date_last_chat": 0,
         "data_size": 45
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Carol V3\",\"chat\":\"Carol V3 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-05-05T00:00:00.000Z\",\"data\":{\"name\":\"Carol V3\",\"description\":\"carol description\",\"tags\":[\"gamma\"],\"extensions\":{}},\"description\":\"carol description\",\"tags\":[\"gamma\"],\"avatar\":\"Carol V3.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v3\\\",\\\"spec_version\\\":\\\"3.0\\\",\\\"name\\\":\\\"Carol V3\\\",\\\"chat\\\":\\\"Carol V3 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-05-05T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Carol V3\\\",\\\"description\\\":\\\"carol description\\\",\\\"tags\\\":[\\\"gamma\\\"],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":45}"
     },
     "getDual": {
       "status": 200,
@@ -533,7 +537,8 @@
         "date_last_chat": 0,
         "data_size": 31
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Dual V3\",\"chat\":\"Dual V3 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-06-06T00:00:00.000Z\",\"data\":{\"name\":\"Dual V3\",\"description\":\"from ccv3\",\"tags\":[],\"extensions\":{}},\"description\":\"from ccv3\",\"tags\":[],\"avatar\":\"Dual.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v3\\\",\\\"spec_version\\\":\\\"3.0\\\",\\\"name\\\":\\\"Dual V3\\\",\\\"chat\\\":\\\"Dual V3 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-06-06T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Dual V3\\\",\\\"description\\\":\\\"from ccv3\\\",\\\"tags\\\":[],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":31}"
     },
     "getBackfill": {
       "status": 200,
@@ -575,7 +580,8 @@
         "date_last_chat": 0,
         "data_size": 46
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"Backfill V2\",\"chat\":\"Backfill V2 - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-02-02T00:00:00.000Z\",\"data\":{\"name\":\"Backfill V2\",\"description\":\"backfill description\",\"tags\":[],\"extensions\":{}},\"description\":\"backfill description\",\"tags\":[],\"avatar\":\"Backfill V2.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v2\\\",\\\"spec_version\\\":\\\"2.0\\\",\\\"name\\\":\\\"Backfill V2\\\",\\\"chat\\\":\\\"Backfill V2 - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-02-02T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"Backfill V2\\\",\\\"description\\\":\\\"backfill description\\\",\\\"tags\\\":[],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":46}"
     },
     "getNoName": {
       "status": 200,
@@ -617,7 +623,8 @@
         "date_last_chat": 0,
         "data_size": 34
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"\",\"chat\":\"NoName - 2024-01-01@00h00m00s000ms\",\"create_date\":\"2024-03-03T00:00:00.000Z\",\"data\":{\"name\":\"\",\"description\":\"no name description\",\"tags\":[],\"extensions\":{}},\"description\":\"no name description\",\"tags\":[],\"avatar\":\"NoName.png\",\"json_data\":\"{\\\"spec\\\":\\\"chara_card_v2\\\",\\\"spec_version\\\":\\\"2.0\\\",\\\"name\\\":\\\"\\\",\\\"chat\\\":\\\"NoName - 2024-01-01@00h00m00s000ms\\\",\\\"create_date\\\":\\\"2024-03-03T00:00:00.000Z\\\",\\\"data\\\":{\\\"name\\\":\\\"\\\",\\\"description\\\":\\\"no name description\\\",\\\"tags\\\":[],\\\"extensions\\\":{}}}\",\"date_added\":\"<ctimeMs>\",\"chat_size\":0,\"date_last_chat\":0,\"data_size\":34}"
     },
     "getInvalidJSON": {
       "status": 200,
@@ -643,7 +650,8 @@
         "date_last_chat": 0,
         "chat_size": 0
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"date_added\":0,\"date_last_chat\":0,\"chat_size\":0}"
     },
     "getNoMetadata": {
       "status": 200,
@@ -669,7 +677,8 @@
         "date_last_chat": 0,
         "chat_size": 0
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"date_added\":0,\"date_last_chat\":0,\"chat_size\":0}"
     },
     "getBroken": {
       "status": 200,
@@ -695,7 +704,8 @@
         "date_last_chat": 0,
         "chat_size": 0
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"date_added\":0,\"date_last_chat\":0,\"chat_size\":0}"
     },
     "getMissing": {
       "status": 404,
@@ -717,7 +727,8 @@
         "x-xss-protection": "0"
       },
       "body": "Not Found",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Not Found"
     },
     "getForbiddenPath": {
       "status": 400,
@@ -739,7 +750,8 @@
         "x-xss-protection": "0"
       },
       "body": "Bad Request",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Bad Request"
     },
     "getNullAvatar": {
       "status": 500,
@@ -761,7 +773,8 @@
         "x-xss-protection": "0"
       },
       "body": "Internal Server Error",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Internal Server Error"
     },
     "getNumericAvatar": {
       "status": 500,
@@ -783,7 +796,8 @@
         "x-xss-protection": "0"
       },
       "body": "Internal Server Error",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Internal Server Error"
     },
     "getObjectAvatar": {
       "status": 500,
@@ -805,7 +819,8 @@
         "x-xss-protection": "0"
       },
       "body": "Internal Server Error",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Internal Server Error"
     },
     "getEmptyBody": {
       "status": 500,
@@ -827,7 +842,8 @@
         "x-xss-protection": "0"
       },
       "body": "Internal Server Error",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Internal Server Error"
     },
     "getWrongMethod": {
       "status": 404,
@@ -849,7 +865,8 @@
         "x-xss-protection": "0"
       },
       "body": null,
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": ""
     },
     "chatsDefault": {
       "status": 200,
@@ -899,7 +916,8 @@
           "last_mes": 1700000500000
         }
       ],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000500000},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
     },
     "chatsSimple": {
       "status": 200,
@@ -934,7 +952,8 @@
           "file_id": "chat-empty"
         }
       ],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[{\"file_name\":\"chat-a.jsonl\",\"file_id\":\"chat-a\"},{\"file_name\":\"chat-corrupt.jsonl\",\"file_id\":\"chat-corrupt\"},{\"file_name\":\"chat-empty.jsonl\",\"file_id\":\"chat-empty\"}]"
     },
     "chatsMetadata": {
       "status": 200,
@@ -989,7 +1008,8 @@
           "last_mes": 1700000500000
         }
       ],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\",\"chat_metadata\":{\"integrity\":\"probe-integrity\",\"probeUnknownMetadata\":7}},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000500000,\"chat_metadata\":{}},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
     },
     "chatsEmptyDirectory": {
       "status": 200,
@@ -1011,7 +1031,8 @@
         "x-xss-protection": "0"
       },
       "body": [],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[]"
     },
     "chatsMissingDirectory": {
       "status": 200,
@@ -1035,7 +1056,8 @@
       "body": {
         "error": true
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"error\":true}"
     },
     "chatsForbiddenPath": {
       "status": 400,
@@ -1057,7 +1079,8 @@
         "x-xss-protection": "0"
       },
       "body": "Bad Request",
-      "bodyIsJSON": false
+      "bodyIsJSON": false,
+      "bodyText": "Bad Request"
     },
     "allShallow": {
       "status": 200,
@@ -1217,7 +1240,8 @@
           }
         }
       ],
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "[{\"shallow\":true,\"name\":\"Alice V2\",\"avatar\":\"Alice V2.png\",\"chat\":\"Alice V2 - 2024-01-01@00h00m00s000ms\",\"fav\":false,\"date_added\":\"<ctimeMs>\",\"create_date\":\"2024-01-01T00:00:00.000Z\",\"date_last_chat\":1700000500000,\"chat_size\":409,\"data_size\":238,\"tags\":[\"alpha\",\"beta\"],\"data\":{\"name\":\"Alice V2\",\"character_version\":\"1.2\",\"creator\":\"alice creator\",\"creator_notes\":\"alice creator notes\",\"tags\":[\"alpha\",\"beta\"],\"extensions\":{\"fav\":false,\"world\":\"AliceWorld\"}}},{\"shallow\":true,\"name\":\"Backfill V2\",\"avatar\":\"Backfill V2.png\",\"chat\":\"Backfill V2 - 2024-01-01@00h00m00s000ms\",\"date_added\":\"<ctimeMs>\",\"create_date\":\"2024-02-02T00:00:00.000Z\",\"date_last_chat\":0,\"chat_size\":0,\"data_size\":46,\"tags\":[],\"data\":{\"name\":\"Backfill V2\",\"character_version\":\"\",\"creator\":\"\",\"creator_notes\":\"\",\"tags\":[],\"extensions\":{\"fav\":false,\"world\":\"\"}}},{\"shallow\":true,\"name\":\"Bob V1\",\"avatar\":\"Bob V1.png\",\"chat\":\"Bob V1 - 2024-01-01@00h00m00s000ms\",\"fav\":true,\"date_added\":\"<ctimeMs>\",\"create_date\":\"2024-04-04T00:00:00.000Z\",\"date_last_chat\":0,\"chat_size\":0,\"data_size\":113,\"tags\":[\"x\",\"y\",\"z\"],\"data\":{\"name\":\"Bob V1\",\"character_version\":\"\",\"creator\":\"\",\"creator_notes\":\"bob creator notes\",\"tags\":[\"x\",\"y\",\"z\"],\"extensions\":{\"fav\":true,\"world\":\"\"}}},{\"shallow\":true,\"name\":\"Carol V3\",\"avatar\":\"Carol V3.png\",\"chat\":\"Carol V3 - 2024-01-01@00h00m00s000ms\",\"date_added\":\"<ctimeMs>\",\"create_date\":\"2024-05-05T00:00:00.000Z\",\"date_last_chat\":0,\"chat_size\":0,\"data_size\":45,\"tags\":[\"gamma\"],\"data\":{\"name\":\"Carol V3\",\"character_version\":\"\",\"creator\":\"\",\"creator_notes\":\"\",\"tags\":[\"gamma\"],\"extensions\":{\"fav\":false,\"world\":\"\"}}},{\"shallow\":true,\"name\":\"Dual V3\",\"avatar\":\"Dual.png\",\"chat\":\"Dual V3 - 2024-01-01@00h00m00s000ms\",\"date_added\":\"<ctimeMs>\",\"create_date\":\"2024-06-06T00:00:00.000Z\",\"date_last_chat\":0,\"chat_size\":0,\"data_size\":31,\"tags\":[],\"data\":{\"name\":\"Dual V3\",\"character_version\":\"\",\"creator\":\"\",\"creator_notes\":\"\",\"tags\":[],\"extensions\":{\"fav\":false,\"world\":\"\"}}}]"
     },
     "allMissingDirectory": {
       "status": 500,
@@ -1242,7 +1266,8 @@
         "overflow": false,
         "error": true
       },
-      "bodyIsJSON": true
+      "bodyIsJSON": true,
+      "bodyText": "{\"overflow\":false,\"error\":true}"
     }
   },
   "state": {

@@ -47,18 +47,18 @@ type pngChunk struct {
 func extractPngChunks(image []byte) ([]pngChunk, error) {
 	signature := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 	if len(image) < 8 || !bytes.Equal(image[:8], signature) {
-		return nil, errors.New("invalid .png file header")
+		return nil, errors.New("Invalid .png file header")
 	}
 	chunks := make([]pngChunk, 0, 8)
 	index := 8
 	for index < len(image) {
 		if index+8 > len(image) {
-			return nil, errors.New("png file ended prematurely: no IEND header was found")
+			return nil, errors.New(".png file ended prematurely: no IEND header was found")
 		}
 		length := int(binary.BigEndian.Uint32(image[index:]))
 		index += 4
 		if length < 0 || index+4+length+4 > len(image) {
-			return nil, errors.New("png file ended prematurely: no IEND header was found")
+			return nil, errors.New(".png file ended prematurely: no IEND header was found")
 		}
 		name := string(image[index : index+4])
 		if len(chunks) == 0 && name != "IHDR" {
@@ -76,7 +76,7 @@ func extractPngChunks(image []byte) ([]pngChunk, error) {
 		chunks = append(chunks, pngChunk{name: name, data: append([]byte(nil), data...)})
 		index += 4 + length + 4
 	}
-	return nil, errors.New("png file ended prematurely: no IEND header was found")
+	return nil, errors.New(".png file ended prematurely: no IEND header was found")
 }
 
 // encodePngChunks mirrors src/png/encode.js.
@@ -250,15 +250,22 @@ func v3CardChunk(data string) (pngChunk, error) {
 
 // readCharacterData reads the card JSON for one PNG file.
 func readCharacterData(filePath string) (string, bool) {
-	image, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", false
-	}
-	text, err := readPngCardText(image)
+	text, err := readCharacterDataStrict(filePath)
 	if err != nil {
 		return "", false
 	}
 	return text, true
+}
+
+// readCharacterDataStrict reports the pinned read failure instead of collapsing
+// it, which /merge-attributes needs in order to distinguish a thrown error from
+// the empty-payload `Invalid character file` result.
+func readCharacterDataStrict(filePath string) (string, error) {
+	image, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return readPngCardText(image)
 }
 
 // errorCharacter is the object pinned processCharacter returns after any

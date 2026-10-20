@@ -1,0 +1,1526 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned POST /api/characters/import and /api/characters/edit-avatar",
+  "normalization": [
+    "Card `chat` values embed humanizedDateTime(), which is normalized to <humanizedDateTime>.",
+    "`create_date` values that the import routes generate are normalized to <isoDate>.",
+    "PNG bytes are compared by decoded chara JSON, dimensions and an RGBA pixel digest because pinned writeCharacterData re-encodes through Jimp."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-characters-import-cookie-secret",
+    "fixedMtimeMs": 1700000500000,
+    "existingCards": [
+      {
+        "file": "EditTarget.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a730000053a7445587463686172610065794a7a6347566a496a6f6959326868636d4666593246795a4639324d694973496e4e775a574e66646d567963326c7662694936496a49754d434973496d3568625755694f694a465a476c30564746795a325630496977695a47567a59334a7063485270623234694f694a465a476c30564746795a3256304947526c63324e7961584230615739754969776963475679633239755957787064486b694f694a465a476c30564746795a3256304948426c636e4e76626d4673615852354969776963324e6c626d4679615738694f694a465a476c30564746795a32563049484e6a5a573568636d6c76496977695a6d6c79633352666257567a496a6f695257527064465268636d646c6443426d61584a7a644342745a584e7a5957646c496977696257567a5832563459573177624755694f694a465a476c30564746795a3256304947563459573177624755694c434a6a636d566864473979593239746257567564434936496b566b6158525559584a6e5a58516759334a6c59585276636942756233526c63794973496d46325958526863694936496d3576626d55694c434a6a61474630496a6f695257527064465268636d646c64434174494449774d6a51744d4445744d4446414d44426f4d4442744d44427a4d44417762584d694c434a305957787259585270646d56755a584e7a496a6f774c6a5573496d5a68646949365a6d467363325573496e52685a334d694f6c736959577877614745695853776959334a6c5958526c58325268644755694f694a7a5a57566b5a57517459334a6c5958526c4c575268644755694c434a77636d39695a56567561323576643235556233424d5a585a6c6243493665794a725a575677496a7030636e566c665377695a4746305953493665794a755957316c496a6f695257527064465268636d646c64434973496d526c63324e796158423061573975496a6f695257527064465268636d646c6443426b5a584e6a636d6c7764476c7662694973496e426c636e4e76626d467361585235496a6f695257527064465268636d646c644342775a584a7a6232356862476c3065534973496e4e6a5a573568636d6c76496a6f695257527064465268636d646c6443427a5932567559584a7062794973496d5a70636e4e305832316c63794936496b566b6158525559584a6e5a5851675a6d6c79633351676257567a6332466e5a534973496d316c6331396c654746746347786c496a6f695257527064465268636d646c6443426c654746746347786c4969776959334a6c59585276636c39756233526c63794936496b566b6158525559584a6e5a58516759334a6c59585276636942756233526c63794973496e4e356333526c62563977636d3974634851694f6949694c434a7762334e305832687063335276636e6c666157357a64484a31593352706232357a496a6f69496977696447466e6379493657794a686248426f59534a644c434a6a636d566864473979496a6f695257527064465268636d646c6443426a636d5668644739794969776959326868636d466a6447567958335a6c636e4e70623234694f6949784c6a41694c434a686248526c636d3568644756665a334a6c5a585270626d647a496a7062585377695a5868305a57357a615739756379493665794a305957787259585270646d56755a584e7a496a6f774c6a5573496d5a68646949365a6d467363325573496e6476636d786b496a6f69496977695a4756776447686663484a7662584230496a7037496e4279623231776443493649694973496d526c6348526f496a6f304c434a796232786c496a6f6963336c7a64475674496e31396658303db0cc97f8000000164944415478da636064626661656360e7e0e4e2e60100018f004f06a8e58a0000000049454e44ae426082"
+      },
+      {
+        "file": "NotACard.png",
+        "bytesHex": "6e6f74206120706e6720617420616c6c"
+      }
+    ]
+  },
+  "scenarioOrder": [
+    "importJSONv2",
+    "importJSONv1",
+    "importJSONGradio",
+    "importJSONPreserved",
+    "importJSONInvalid",
+    "importJSONNoName",
+    "importPNGv2",
+    "importPNGv1",
+    "importYaml",
+    "importUnsupportedFormat",
+    "importMissingFile",
+    "editAvatarSuccess",
+    "editAvatarNoFile",
+    "editAvatarMissingAvatarUrl",
+    "editAvatarMissingCharacter",
+    "editAvatarBadCard"
+  ],
+  "scenarios": {
+    "importJSONv2": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "v2.json",
+        "bytesHex": "7b2273706563223a2263686172615f636172645f7632222c22737065635f76657273696f6e223a22322e30222c226e616d65223a22496d706f72746564205632222c226465736372697074696f6e223a22496d706f72746564205632206465736372697074696f6e222c22706572736f6e616c697479223a22496d706f7274656420563220706572736f6e616c697479222c227363656e6172696f223a22496d706f72746564205632207363656e6172696f222c2266697273745f6d6573223a22496d706f72746564205632206669727374206d657373616765222c226d65735f6578616d706c65223a22496d706f72746564205632206578616d706c65222c2263726561746f72636f6d6d656e74223a22496d706f727465642056322063726561746f72206e6f746573222c22617661746172223a226e6f6e65222c2263686174223a22496d706f72746564205632202d20323032342d30312d30314030306830306d3030733030306d73222c2274616c6b61746976656e657373223a302e352c22666176223a66616c73652c2274616773223a5b22616c706861225d2c226372656174655f64617465223a22323032342d30312d30315430303a30303a30302e3030305a222c2270726f6265556e6b6e6f776e546f704c6576656c223a7b226b656570223a747275657d2c2264617461223a7b226e616d65223a22496d706f72746564205632222c226465736372697074696f6e223a22496d706f72746564205632206465736372697074696f6e222c22706572736f6e616c697479223a22496d706f7274656420563220706572736f6e616c697479222c227363656e6172696f223a22496d706f72746564205632207363656e6172696f222c2266697273745f6d6573223a22496d706f72746564205632206669727374206d657373616765222c226d65735f6578616d706c65223a22496d706f72746564205632206578616d706c65222c2263726561746f725f6e6f746573223a22496d706f727465642056322063726561746f72206e6f746573222c2273797374656d5f70726f6d7074223a22222c22706f73745f686973746f72795f696e737472756374696f6e73223a22222c2274616773223a5b22616c706861225d2c2263726561746f72223a22496d706f727465642056322063726561746f72222c226368617261637465725f76657273696f6e223a22312e30222c22616c7465726e6174655f6772656574696e6773223a5b5d2c22657874656e73696f6e73223a7b2274616c6b61746976656e657373223a302e352c22666176223a66616c73652c22776f726c64223a22222c2264657074685f70726f6d7074223a7b2270726f6d7074223a22222c226465707468223a342c22726f6c65223a2273797374656d227d7d7d7d"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "27",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1b-LFu4skulImLO4KFvNOScFnv4390\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported V2"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported V2\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        }
+      ]
+    },
+    "importJSONv1": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "v1.json",
+        "bytesHex": "7b226e616d65223a22496d706f72746564205631222c226465736372697074696f6e223a227631206465736372697074696f6e222c22706572736f6e616c697479223a22763120706572736f6e616c697479222c227363656e6172696f223a227631207363656e6172696f222c2266697273745f6d6573223a227631206669727374206d657373616765222c226d65735f6578616d706c65223a227631206578616d706c65222c2263726561746f72636f6d6d656e74223a2276312063726561746f72206e6f746573222c22617661746172223a226e6f6e65222c2263686174223a22496d706f72746564205631202d20323032342d30312d30314030306830306d3030733030306d73222c2274616c6b61746976656e657373223a302e372c22666176223a2274727565222c2274616773223a22782c2079222c226372656174655f64617465223a22323032342d30342d30345430303a30303a30302e3030305a222c2270726f6265556e6b6e6f776e5631223a226b656570227d"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "27",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1b-vLNF2ay6PCZu35r2WlqpR26pCkU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported V1"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported V1\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        }
+      ]
+    },
+    "importJSONGradio": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "gradio.json",
+        "bytesHex": "7b22636861725f6e616d65223a22496d706f727465642047726164696f222c22636861725f706572736f6e61223a2267726164696f20706572736f6e61222c22636861725f6772656574696e67223a2267726164696f206772656574696e67222c226578616d706c655f6469616c6f677565223a2267726164696f206578616d706c65222c22776f726c645f7363656e6172696f223a2267726164696f207363656e6172696f222c2263726561746f725f6e6f746573223a2243726561746f722773206e6f74657320676f20686572652e222c2274616c6b61746976656e657373223a302e342c2263726561746f72223a2267726164696f2063726561746f72222c2274616773223a2267312c206732227d"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-QzIH3UtoUtR8+RYmFZxz2qW35KY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported Gradio"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported Gradio\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        }
+      ]
+    },
+    "importJSONPreserved": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ],
+        [
+          "preserved_name",
+          "Preserved.json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "v2.json",
+        "bytesHex": "7b2273706563223a2263686172615f636172645f7632222c22737065635f76657273696f6e223a22322e30222c226e616d65223a2250726573657276656420536f75726365222c226465736372697074696f6e223a2250726573657276656420536f75726365206465736372697074696f6e222c22706572736f6e616c697479223a2250726573657276656420536f7572636520706572736f6e616c697479222c227363656e6172696f223a2250726573657276656420536f75726365207363656e6172696f222c2266697273745f6d6573223a2250726573657276656420536f75726365206669727374206d657373616765222c226d65735f6578616d706c65223a2250726573657276656420536f75726365206578616d706c65222c2263726561746f72636f6d6d656e74223a2250726573657276656420536f757263652063726561746f72206e6f746573222c22617661746172223a226e6f6e65222c2263686174223a2250726573657276656420536f75726365202d20323032342d30312d30314030306830306d3030733030306d73222c2274616c6b61746976656e657373223a302e352c22666176223a66616c73652c2274616773223a5b22616c706861225d2c226372656174655f64617465223a22323032342d30312d30315430303a30303a30302e3030305a222c2270726f6265556e6b6e6f776e546f704c6576656c223a7b226b656570223a747275657d2c2264617461223a7b226e616d65223a2250726573657276656420536f75726365222c226465736372697074696f6e223a2250726573657276656420536f75726365206465736372697074696f6e222c22706572736f6e616c697479223a2250726573657276656420536f7572636520706572736f6e616c697479222c227363656e6172696f223a2250726573657276656420536f75726365207363656e6172696f222c2266697273745f6d6573223a2250726573657276656420536f75726365206669727374206d657373616765222c226d65735f6578616d706c65223a2250726573657276656420536f75726365206578616d706c65222c2263726561746f725f6e6f746573223a2250726573657276656420536f757263652063726561746f72206e6f746573222c2273797374656d5f70726f6d7074223a22222c22706f73745f686973746f72795f696e737472756374696f6e73223a22222c2274616773223a5b22616c706861225d2c2263726561746f72223a2250726573657276656420536f757263652063726561746f72222c226368617261637465725f76657273696f6e223a22312e30222c22616c7465726e6174655f6772656574696e6773223a5b5d2c22657874656e73696f6e73223a7b2274616c6b61746976656e657373223a302e352c22666176223a66616c73652c22776f726c64223a22222c2264657074685f70726f6d7074223a7b2270726f6d7074223a22222c226465707468223a342c22726f6c65223a2273797374656d227d7d7d7d"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "25",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"19-khChsGooS56P5TcIBcGrZfxu6V8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Preserved"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Preserved\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importJSONInvalid": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "broken.json",
+        "bytesHex": "74686973206973206e6f74206a736f6e"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importJSONNoName": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "json"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "nameless.json",
+        "bytesHex": "7b226465736372697074696f6e223a226e6f206e616d65227d"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importPNGv2": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "png"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "card.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a730000056e7445587463686172610065794a7a6347566a496a6f6959326868636d4666593246795a4639324d694973496e4e775a574e66646d567963326c7662694936496a49754d434973496d3568625755694f694a4a62584276636e526c5a434251546b63694c434a6b5a584e6a636d6c7764476c7662694936496b6c74634739796447566b4946424f5279426b5a584e6a636d6c7764476c7662694973496e426c636e4e76626d467361585235496a6f695357317762334a305a575167554535484948426c636e4e76626d4673615852354969776963324e6c626d4679615738694f694a4a62584276636e526c5a434251546b636763324e6c626d4679615738694c434a6d61584a7a644639745a584d694f694a4a62584276636e526c5a434251546b63675a6d6c79633351676257567a6332466e5a534973496d316c6331396c654746746347786c496a6f695357317762334a305a575167554535484947563459573177624755694c434a6a636d566864473979593239746257567564434936496b6c74634739796447566b4946424f5279426a636d566864473979494735766447567a4969776959585a6864474679496a6f69626d39755a534973496d4e6f595851694f694a4a62584276636e526c5a434251546b63674c5341794d4449304c5441784c544178514441776144417762544177637a41774d47317a49697769644746736132463061585a6c626d567a637949364d4334314c434a6d595859694f6d5a6862484e6c4c434a305957647a496a7062496d467363476868496c3073496d4e795a5746305a56396b5958526c496a6f694d6a41794e4330774d5330774d5651774d446f774d446f774d4334774d4442614969776963484a76596d5656626d74756233647556473977544756325a5777694f6e73696132566c6343493664484a315a583073496d5268644745694f6e7369626d46745a534936496b6c74634739796447566b4946424f52794973496d526c63324e796158423061573975496a6f695357317762334a305a575167554535484947526c63324e7961584230615739754969776963475679633239755957787064486b694f694a4a62584276636e526c5a434251546b636763475679633239755957787064486b694c434a7a5932567559584a7062794936496b6c74634739796447566b4946424f5279427a5932567559584a7062794973496d5a70636e4e305832316c63794936496b6c74634739796447566b4946424f5279426d61584a7a644342745a584e7a5957646c496977696257567a5832563459573177624755694f694a4a62584276636e526c5a434251546b63675a586868625842735a534973496d4e795a57463062334a66626d39305a584d694f694a4a62584276636e526c5a434251546b636759334a6c59585276636942756233526c63794973496e4e356333526c62563977636d3974634851694f6949694c434a7762334e305832687063335276636e6c666157357a64484a31593352706232357a496a6f69496977696447466e6379493657794a686248426f59534a644c434a6a636d566864473979496a6f695357317762334a305a5751675545354849474e795a574630623349694c434a6a6147467959574e305a584a66646d567963326c7662694936496a45754d434973496d467364475679626d46305a56396e636d566c64476c755a334d694f6c74644c434a6c6548526c626e4e706232357a496a7037496e52686247746864476c325a57356c63334d694f6a41754e5377695a6d4632496a706d5957787a5a53776964323979624751694f6949694c434a6b5a58423061463977636d3974634851694f6e736963484a7662584230496a6f69496977695a475677644767694f6a5173496e4a76624755694f694a7a65584e305a5730696658313966513d3dd306bb70000000164944415478da636064626661656360e7e0e4e2e60100018f004f06a8e58a0000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "28",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1c-junMtraFOxDB8duhhi+DNI0JPFQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported PNG"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported PNG\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importPNGv1": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "png"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "card.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73000002027445587463686172610065794a755957316c496a6f695357317762334a305a575167566a45694c434a6b5a584e6a636d6c7764476c7662694936496e59784947526c63324e7961584230615739754969776963475679633239755957787064486b694f694a324d5342775a584a7a6232356862476c3065534973496e4e6a5a573568636d6c76496a6f69646a456763324e6c626d4679615738694c434a6d61584a7a644639745a584d694f694a324d53426d61584a7a644342745a584e7a5957646c496977696257567a5832563459573177624755694f694a324d53426c654746746347786c4969776959334a6c59585276636d4e766257316c626e51694f694a324d53426a636d566864473979494735766447567a4969776959585a6864474679496a6f69626d39755a534973496d4e6f595851694f694a4a62584276636e526c5a4342574d534174494449774d6a51744d4445744d4446414d44426f4d4442744d44427a4d44417762584d694c434a305957787259585270646d56755a584e7a496a6f774c6a6373496d5a6864694936496e5279645755694c434a305957647a496a6f696543776765534973496d4e795a5746305a56396b5958526c496a6f694d6a41794e4330774e4330774e4651774d446f774d446f774d4334774d4442614969776963484a76596d5656626d747562336475566a45694f694a725a575677496e303d2059e623000000164944415478da636064626661656360e7e0e4e2e60100018f004f06a8e58a0000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "28",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1c-OYV8opfwoIyA/Juz7orXe+XhvKA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported V11"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported V11\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importYaml": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "yaml"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "card.yaml",
+        "bytesHex": "6e616d653a20496d706f727465642059616d6c0a636f6e746578743a2079616d6c20636f6e746578740a6772656574696e673a2079616d6c206772656574696e670a"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "29",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1d-9cP9Q12LJeLG+jwLl6zZuOFanVE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "file_name": "Imported Yaml"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"file_name\":\"Imported Yaml\"}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importUnsupportedFormat": {
+      "route": "/api/characters/import",
+      "fields": [
+        [
+          "file_type",
+          "charx"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "card.charx",
+        "bytesHex": "504b"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "importMissingFile": {
+      "route": "/api/characters/import",
+      "fields": [],
+      "file": null,
+      "json": "{\"file_type\":\"json\"}",
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v2\",\"spec_version\":\"2.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "editAvatarSuccess": {
+      "route": "/api/characters/edit-avatar",
+      "fields": [
+        [
+          "avatar_url",
+          "EditTarget.png"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "new.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73000000174944415478da633871f2d4e9336719ce9dbf70f1d2650042db09a3ba3c3ea80000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "OK",
+        "bodyIsJSON": false,
+        "bodyText": "OK"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "d22eef97aecd9b053d9e6d69cb92c5f78825936492e6b29235be391e261e888f"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "editAvatarNoFile": {
+      "route": "/api/characters/edit-avatar",
+      "fields": [
+        [
+          "avatar_url",
+          "EditTarget.png"
+        ]
+      ],
+      "file": null,
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "23",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"17-8qI9qxznrcv/FxTpHpyzYStI9bU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Error: no file uploaded",
+        "bodyIsJSON": false,
+        "bodyText": "Error: no file uploaded"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "d22eef97aecd9b053d9e6d69cb92c5f78825936492e6b29235be391e261e888f"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "editAvatarMissingAvatarUrl": {
+      "route": "/api/characters/edit-avatar",
+      "fields": [],
+      "file": {
+        "field": "avatar",
+        "filename": "new.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73000000174944415478da633871f2d4e9336719ce9dbf70f1d2650042db09a3ba3c3ea80000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "36",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"24-uJ7JCwIOBRDNCTVzlnDkD5aJh8M\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Error: no avatar_url in request body",
+        "bodyIsJSON": false,
+        "bodyText": "Error: no avatar_url in request body"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "d22eef97aecd9b053d9e6d69cb92c5f78825936492e6b29235be391e261e888f"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "editAvatarMissingCharacter": {
+      "route": "/api/characters/edit-avatar",
+      "fields": [
+        [
+          "avatar_url",
+          "Nope.png"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "new.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73000000174944415478da633871f2d4e9336719ce9dbf70f1d2650042db09a3ba3c3ea80000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "36",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"24-R3FkxyilqRrRH67IhTCFIrzcmmw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Error: character file does not exist",
+        "bodyIsJSON": false,
+        "bodyText": "Error: character file does not exist"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "d22eef97aecd9b053d9e6d69cb92c5f78825936492e6b29235be391e261e888f"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    },
+    "editAvatarBadCard": {
+      "route": "/api/characters/edit-avatar",
+      "fields": [
+        [
+          "avatar_url",
+          "NotACard.png"
+        ]
+      ],
+      "file": {
+        "field": "avatar",
+        "filename": "new.png",
+        "bytesHex": "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a73000000174944415478da633871f2d4e9336719ce9dbf70f1d2650042db09a3ba3c3ea80000000049454e44ae426082"
+      },
+      "json": null,
+      "normalizeCreateDate": true,
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyIsJSON": false,
+        "bodyText": "Internal Server Error"
+      },
+      "characters": [
+        {
+          "name": "EditTarget.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creatorcomment\":\"EditTarget creator notes\",\"avatar\":\"none\",\"chat\":\"EditTarget - <humanizedDateTime>\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"EditTarget\",\"description\":\"EditTarget description\",\"personality\":\"EditTarget personality\",\"scenario\":\"EditTarget scenario\",\"first_mes\":\"EditTarget first message\",\"mes_example\":\"EditTarget example\",\"creator_notes\":\"EditTarget creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"EditTarget creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "d22eef97aecd9b053d9e6d69cb92c5f78825936492e6b29235be391e261e888f"
+        },
+        {
+          "name": "Imported Gradio.png",
+          "charaJSON": "{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"creatorcomment\":\"\",\"personality\":\"\",\"first_mes\":\"gradio greeting\",\"avatar\":\"none\",\"chat\":\"undefined - <humanizedDateTime>\",\"mes_example\":\"gradio example\",\"scenario\":\"gradio scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.4,\"creator\":\"gradio creator\",\"tags\":[\"g1\",\"g2\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Gradio\",\"description\":\"gradio persona\",\"personality\":\"\",\"scenario\":\"gradio scenario\",\"first_mes\":\"gradio greeting\",\"mes_example\":\"gradio example\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"g1\",\"g2\"],\"creator\":\"gradio creator\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.4,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported PNG.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creatorcomment\":\"Imported PNG creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported PNG\",\"description\":\"Imported PNG description\",\"personality\":\"Imported PNG personality\",\"scenario\":\"Imported PNG scenario\",\"first_mes\":\"Imported PNG first message\",\"mes_example\":\"Imported PNG example\",\"creator_notes\":\"Imported PNG creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported PNG creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported PNG - <humanizedDateTime>\"}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V1.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported V11.png",
+          "charaJSON": "{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"creatorcomment\":\"v1 creator notes\",\"personality\":\"v1 personality\",\"first_mes\":\"v1 first message\",\"avatar\":\"none\",\"chat\":\"Imported V1 - <humanizedDateTime>\",\"mes_example\":\"v1 example\",\"scenario\":\"v1 scenario\",\"create_date\":\"<isoDate>\",\"talkativeness\":0.7,\"creator\":\"\",\"tags\":[\"x\",\"y\"],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported V1\",\"description\":\"v1 description\",\"personality\":\"v1 personality\",\"scenario\":\"v1 scenario\",\"first_mes\":\"v1 first message\",\"mes_example\":\"v1 example\",\"creator_notes\":\"v1 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"x\",\"y\"],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.7,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 2,
+          "height": 2,
+          "digest": "60095e8c93bdb6d7cd09508d4410ce5b24f669de72bbd064f26bd67152fd5be1"
+        },
+        {
+          "name": "Imported V2.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creatorcomment\":\"Imported V2 creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Imported V2\",\"description\":\"Imported V2 description\",\"personality\":\"Imported V2 personality\",\"scenario\":\"Imported V2 scenario\",\"first_mes\":\"Imported V2 first message\",\"mes_example\":\"Imported V2 example\",\"creator_notes\":\"Imported V2 creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Imported V2 creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Imported V2 - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "Imported Yaml.png",
+          "charaJSON": "{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"first_mes\":\"yaml greeting\",\"create_date\":\"<isoDate>\",\"chat\":\"Imported Yaml - <humanizedDateTime>\",\"personality\":\"\",\"creatorcomment\":\"\",\"avatar\":\"none\",\"mes_example\":\"\",\"scenario\":\"\",\"talkativeness\":0.5,\"creator\":\"\",\"tags\":[],\"fav\":false,\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"data\":{\"name\":\"Imported Yaml\",\"description\":\"yaml context\",\"personality\":\"\",\"scenario\":\"\",\"first_mes\":\"yaml greeting\",\"mes_example\":\"\",\"creator_notes\":\"\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[],\"creator\":\"\",\"character_version\":\"\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}}}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        },
+        {
+          "name": "NotACard.png",
+          "charaJSON": null,
+          "width": null,
+          "height": null,
+          "digest": null
+        },
+        {
+          "name": "Preserved.png",
+          "charaJSON": "{\"spec\":\"chara_card_v3\",\"spec_version\":\"3.0\",\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creatorcomment\":\"Preserved Source creator notes\",\"avatar\":\"none\",\"talkativeness\":0.5,\"fav\":false,\"tags\":[\"alpha\"],\"create_date\":\"<isoDate>\",\"probeUnknownTopLevel\":{\"keep\":true},\"data\":{\"name\":\"Preserved Source\",\"description\":\"Preserved Source description\",\"personality\":\"Preserved Source personality\",\"scenario\":\"Preserved Source scenario\",\"first_mes\":\"Preserved Source first message\",\"mes_example\":\"Preserved Source example\",\"creator_notes\":\"Preserved Source creator notes\",\"system_prompt\":\"\",\"post_history_instructions\":\"\",\"tags\":[\"alpha\"],\"creator\":\"Preserved Source creator\",\"character_version\":\"1.0\",\"alternate_greetings\":[],\"extensions\":{\"talkativeness\":0.5,\"fav\":false,\"world\":\"\",\"depth_prompt\":{\"prompt\":\"\",\"depth\":4,\"role\":\"system\"}}},\"chat\":\"Preserved Source - <humanizedDateTime>\"}",
+          "width": 512,
+          "height": 768,
+          "digest": "6e0c79dbe1e5b841d70d76cb2a661b8ea852245ef11bba1ec785f98fb15bffee"
+        }
+      ]
+    }
+  }
+}

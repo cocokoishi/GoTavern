@@ -13,7 +13,7 @@ import (
 // error responses.
 func TestPinnedNodeCharactersRead(t *testing.T) {
 	fixture := readCharactersFixture(t, "sillytavern-1.19.0-characters-read.json")
-	env := newCharactersOracleEnv(t, fixture)
+	env := newCharactersOracleEnv(t, fixture.Inputs.CookieSecret)
 	env.writeFixtureCards(t, fixture)
 	env.writeFixtureChats(t, fixture)
 
@@ -66,7 +66,7 @@ func TestPinnedNodeCharactersRead(t *testing.T) {
 	assert("chatsForbiddenPath", "/api/characters/chats", http.MethodPost, jsonContent, jsonBody(map[string]any{"avatar_url": "../x.png"}))
 
 	// The shallow projection runs with performance.lazyLoadCharacters enabled.
-	shallowEnv := newCharactersOracleEnvWithConfig(t, fixture, "performance:\n  lazyLoadCharacters: true\n")
+	shallowEnv := newCharactersOracleEnvWithConfig(t, fixture.Inputs.CookieSecret, "performance:\n  lazyLoadCharacters: true\n")
 	shallowEnv.writeFixtureCards(t, fixture)
 	shallowEnv.writeFixtureChats(t, fixture)
 	shallowWant := fixture.Responses["allShallow"]
