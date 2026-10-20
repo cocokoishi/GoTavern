@@ -136,6 +136,27 @@ try {
     page.on('requestfailed', request => {
         report.httpFailures.push(`FAILED ${request.method()} ${new URL(request.url()).pathname}: ${request.failure()?.errorText ?? ''}`);
     });
+    // Attribute "HTML parsed as JSON" to the request that produced it, rather than inferring it
+    // from the 404 list: wrap fetch inside the page and record status plus whether the body looks
+    // like markup, so the finding names a URL.
+    await page.addInitScript(() => {
+        window.__probeFetchLog = [];
+        const originalFetch = window.fetch;
+        window.fetch = async (...parameters) => {
+            const response = await originalFetch(...parameters);
+            const request = parameters[0];
+            const url = typeof request === 'string' ? request : (request?.url ?? '');
+            let looksLikeMarkup = false;
+            try {
+                const text = await response.clone().text();
+                looksLikeMarkup = text.trimStart().startsWith('<');
+            } catch {
+                looksLikeMarkup = false;
+            }
+            window.__probeFetchLog.push({ url, status: response.status, looksLikeMarkup });
+            return response;
+        };
+    });
     await page.goto(`http://127.0.0.1:${port}/`);
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 60000 });
 
@@ -162,6 +183,8 @@ try {
         }
     }, `http://${mockAddress}`);
 
+    report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
+    report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }
