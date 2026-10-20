@@ -668,44 +668,12 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// serveStatic is the shared "no route matched" responder: the final catch-all
+// and every wrong-method branch reach it, which is exactly the position the
+// pinned express.static middleware occupies in the stack. The pinned frontend
+// static behaviour itself lives in static.go.
 func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte, options HTTPHandlerOptions) {
-	if options.AccountsEnabled && r.URL.Path == "/" && accountFromContext(r).user == nil {
-		location := "/login"
-		if r.URL.RawQuery != "" {
-			location += "?" + r.URL.RawQuery
-		}
-		serveRedirect(w, r, http.StatusFound, location)
-		return
-	}
-	assetPath := strings.TrimPrefix(r.URL.Path, "/")
-	if assetPath == "" {
-		assetPath = "index.html"
-	}
-	assetPath = path.Clean(assetPath)
-	if assetPath == "." || assetPath == ".." || strings.HasPrefix(assetPath, "../") || strings.HasPrefix(assetPath, "/") {
-		serveNotFound(w, r, notFoundPage)
-		return
-	}
-
-	root := "public"
-	if assetPath == "lib.js" {
-		root = "generated"
-	} else if !fsPathIsValid(assetPath) {
-		serveNotFound(w, r, notFoundPage)
-		return
-	}
-
-	body, err := upstream.Assets.ReadFile(root + "/" + assetPath)
-	if err != nil {
-		serveNotFound(w, r, notFoundPage)
-		return
-	}
-	w.Header().Set("Content-Type", staticContentType(assetPath))
-	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.WriteHeader(http.StatusOK)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write(body)
-	}
+	servePinnedFrontendStatic(w, r, notFoundPage, options)
 }
 
 func serveNotFound(w http.ResponseWriter, r *http.Request, page []byte) {
