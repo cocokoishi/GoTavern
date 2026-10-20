@@ -6,3 +6,9 @@ upstream/tokenizers/** -text
 upstream/manifests/** -text
 upstream/SILLYTAVERN_VERSION -text
 upstream/SILLYTAVERN_COMMIT -text
+# Oracle fixtures are evidence, so the working-tree bytes must equal the
+# committed bytes. Without this, core.autocrlf=true rewrites every fixture to
+# CRLF on checkout and a probe's recorded bytes silently stop being the bytes a
+# test reads. That is the same defect class as the CRLF vendored assets, where
+# the working tree looked right while the committed blobs were wrong.
+tests/oracle/** -text
