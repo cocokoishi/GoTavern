@@ -535,16 +535,19 @@ promoting them to `AGENTS.md`.
   The probe records `compat_ligature` (U+FB01 U+FF21), which NFKC folds to `fi`/`A` and NFC leaves alone:
   `claude` yields `["fi","A"]` while `qwen2`, `llama3` and `deepseek` yield `["ﬁ","Ａ"]`. Both mutations
   that ignore the file's normalizer choice (`nfc_always`, `nfc_for_none`) now fail.
-- **The added-token longest-match rule is unobservable against the pinned data, and is not pinned by a test
-  either.** It is unobservable in principle rather than merely unexercised: no pinned tokenizer declares one
-  added token as a strict prefix of another — 0 pairs across the 2160 added tokens in the seven files,
+- **The added-token longest-match rule is unobservable against the pinned data, and is now pinned by a unit
+  test instead.** It is unobservable in principle rather than merely unexercised: no pinned tokenizer declares
+  one added token as a strict prefix of another — 0 pairs across the 2160 added tokens in the seven files,
   checked by scanning the vendored bytes. `TestHFAddedTokenLongestMatch` therefore builds a synthetic index
-  with `<A>`, `<AB>` and `<ABC>` in shortest-first order and asserts the longest wins, which documents and
-  exercises the rule. **It does not currently discriminate a first-match mutation**: replacing the length
-  comparison with `matched < 0` leaves that test green, and the reason was not established in this
-  increment. The rule is therefore listed as unverified rather than pinned, and the surviving mutation is
-  recorded here rather than papered over. The probe case that once appeared to cover this was renamed
-  `added_meta_start`, because `<META>` is not a prefix of `<META_START>` and it never tested overlap.
+  and asserts the longest wins. That is WEAKER evidence than an oracle case and is labelled as such in the
+  test itself: it proves the rule as written, not that the pinned data exercises it.
+  The construction has to be genuinely prefix-related. The first version used `<A>`, `<AB>` and `<ABC>`, which
+  are not — the third character of `<ABC>` is `B`, not `>` — so only `<ABC>` matched at that position, the
+  first-match mutation was behaviour-preserving, and it survived a test written to catch it. Instrumenting the
+  matcher (printing each candidate, its prefix test, the length comparison and the selection) showed that in
+  one run. The test now uses `a`, `ab` and `abc` in shortest-first order, and the mutation fails with
+  `the added segment is "a" id 7, want abc id 9`. The probe case that made the same mistake was renamed
+  `added_meta_start`, because `<META>` is not a prefix of `<META_START>` either.
 
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
 

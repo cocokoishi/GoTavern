@@ -321,32 +321,44 @@ func TestHFNormalizerShapes(t *testing.T) {
 // written. It is also the only way to pin it, because no pinned tokenizer declares one added
 // token as a strict prefix of another — 0 pairs across the 2160 added tokens in the seven
 // files — so no input against the pinned data can discriminate longest-match from first-match.
+//
+// The tokens must be genuinely prefix-related: "a" is a prefix of "ab" and "ab" of "abc". An
+// earlier version of this test used "<A>", "<AB>" and "<ABC>", which are NOT prefix-related
+// because the third character of "<ABC>" is "B", not ">" — the first-match mutation was
+// therefore behaviour-preserving and survived. The corpus case that made the same mistake was
+// renamed added_meta_start for the same reason.
 func TestHFAddedTokenLongestMatch(t *testing.T) {
 	// The index is built SHORTEST FIRST on purpose: a matcher that simply took the first
-	// candidate would then choose <A>, so this asserts the length comparison itself rather
+	// candidate would then choose "a", so this asserts the length comparison itself rather
 	// than the order ParseHF happens to produce.
 	tokenizer := &HF{
-		addedTokens: []hfAddedToken{{Content: "<A>", ID: 7}, {Content: "<AB>", ID: 8}, {Content: "<ABC>", ID: 9}},
+		addedTokens: []hfAddedToken{{Content: "a", ID: 7}, {Content: "ab", ID: 8}, {Content: "abc", ID: 9}},
 		addedByByte: map[byte][]hfAddedToken{},
 	}
 	for _, added := range tokenizer.addedTokens {
 		tokenizer.addedByByte[added.Content[0]] = append(tokenizer.addedByByte[added.Content[0]], added)
 	}
 
-	segments := tokenizer.splitAddedTokens("x<ABC>y")
+	segments := tokenizer.splitAddedTokens("xabcy")
 	if len(segments) != 3 {
 		t.Fatalf("segments = %+v, want three (plain, added, plain)", segments)
 	}
-	if segments[1].addedID != 9 || segments[1].text != "<ABC>" {
-		t.Fatalf("the added segment is %q id %d, want <ABC> id 9: the longest match must win", segments[1].text, segments[1].addedID)
+	if segments[1].addedID != 9 || segments[1].text != "abc" {
+		t.Fatalf("the added segment is %q id %d, want abc id 9: the longest match must win", segments[1].text, segments[1].addedID)
 	}
 	if segments[0].text != "x" || segments[2].text != "y" {
 		t.Fatalf("plain segments = %q and %q, want x and y", segments[0].text, segments[2].text)
 	}
 
 	// A token that matches exactly is still matched on its own.
-	segments = tokenizer.splitAddedTokens("<A>")
+	segments = tokenizer.splitAddedTokens("a")
 	if len(segments) != 1 || segments[0].addedID != 7 {
-		t.Fatalf("exact match segments = %+v, want <A> id 7", segments)
+		t.Fatalf("exact match segments = %+v, want a id 7", segments)
+	}
+
+	// A first character that starts no added token is not matched at all.
+	segments = tokenizer.splitAddedTokens("zzz")
+	if len(segments) != 1 || segments[0].addedID != -1 {
+		t.Fatalf("unmatched text segments = %+v, want one plain segment", segments)
 	}
 }
