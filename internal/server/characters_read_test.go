@@ -65,6 +65,14 @@ func TestPinnedNodeCharactersRead(t *testing.T) {
 	assert("chatsMissingDirectory", "/api/characters/chats", http.MethodPost, jsonContent, jsonBody(map[string]any{"avatar_url": "Missing.png"}))
 	assert("chatsForbiddenPath", "/api/characters/chats", http.MethodPost, jsonContent, jsonBody(map[string]any{"avatar_url": "../x.png"}))
 
+	// A leftover chats directory whose character card no longer exists still
+	// answers, and its subdirectory and non-.jsonl file are skipped.
+	orphanAvatar := fixture.Inputs.OrphanChats.Character + ".png"
+	assert("chatsOrphanDirectory", "/api/characters/chats", http.MethodPost, jsonContent, jsonBody(map[string]any{"avatar_url": orphanAvatar}))
+	assert("chatsOrphanSimple", "/api/characters/chats", http.MethodPost, jsonContent, jsonBody(map[string]any{"avatar_url": orphanAvatar, "simple": true}))
+
+	assertCharacterChatStatistics(t, env, fixture)
+
 	// The shallow projection runs with performance.lazyLoadCharacters enabled.
 	shallowEnv := newCharactersOracleEnvWithConfig(t, fixture.Inputs.CookieSecret, "performance:\n  lazyLoadCharacters: true\n")
 	shallowEnv.writeFixtureCards(t, fixture)
@@ -78,4 +86,46 @@ func TestPinnedNodeCharactersRead(t *testing.T) {
 	}
 	missingWant := fixture.Responses["allMissingDirectory"]
 	assertCharacterResponse(t, "allMissingDirectory", shallowEnv.serve(t, http.MethodPost, "/api/characters/all", jsonContent, "{}"), missingWant)
+}
+
+// assertCharacterChatStatistics states the pinned chat_size/date_last_chat
+// semantics directly instead of only comparing the recorded bytes.
+//
+// Pinned calculateChatSize sums the stat size of every entry in the character's
+// chats directory and takes the newest entry mtime. Alice's chats directory
+// holds files only, so both values are host-independent here. A directory's
+// stat size is not (Linux ext4 reports 4096, Windows reports 0), which is why
+// no chats directory that participates in a chat_size contains a
+// subdirectory; see the fixture's normalization notes.
+func assertCharacterChatStatistics(t *testing.T, env *charactersOracleEnv, fixture charactersFixture) {
+	t.Helper()
+	expectedChatSize := 0
+	for _, body := range fixture.Inputs.ChatFiles {
+		expectedChatSize += len(body)
+	}
+	response := env.serve(t, http.MethodPost, "/api/characters/all", "application/json", "{}")
+	parsed, err := decodeOrderedNodeJSON(response.Body.Bytes())
+	if err != nil || parsed.kind != 'a' {
+		t.Fatalf("GET /all did not return an array: %s", response.Body.String())
+	}
+	var character orderedNodeJSON
+	found := false
+	for _, item := range parsed.array {
+		if name, ok := nodeGet(item, "avatar").stringValue(); ok && name == fixture.Inputs.ChatCharacter+".png" {
+			character = item
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("/all did not list %s.png", fixture.Inputs.ChatCharacter)
+	}
+	if size, ok := jsNumber(nodeGet(character, "chat_size")); !ok || int(size) != expectedChatSize {
+		t.Fatalf("%s chat_size = %v; the pinned value sums every entry of its chats directory (%d bytes of files)",
+			fixture.Inputs.ChatCharacter, size, expectedChatSize)
+	}
+	if last, ok := jsNumber(nodeGet(character, "date_last_chat")); !ok || last != fixture.Inputs.FixedMtimeMS {
+		t.Fatalf("%s date_last_chat = %v; the pinned value is the newest entry mtime (%v)",
+			fixture.Inputs.ChatCharacter, last, fixture.Inputs.FixedMtimeMS)
+	}
 }

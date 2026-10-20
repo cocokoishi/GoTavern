@@ -7,7 +7,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -96,7 +96,10 @@ function buildPng(textChunks) {
         Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         pngChunk('IHDR', ihdr),
         ...textChunks,
-        pngChunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+        // Level 0 emits stored deflate blocks, whose bytes are fixed by the
+        // format rather than by the linked zlib build, and these PNG bytes are
+        // recorded in the fixture.
+        pngChunk('IDAT', zlib.deflateSync(raw, { level: 0 })),
         pngChunk('IEND', Buffer.alloc(0)),
     ]);
 }
@@ -370,8 +373,54 @@ const CHAT_FILES = {
     'notes.txt': 'ignored because the extension is not .jsonl',
 };
 
+// A chats directory whose character card no longer exists. It carries a
+// subdirectory named `nested.jsonl` so only the pinned `file.isFile()` check can
+// exclude it (the extension check alone would keep it), plus a non-.jsonl file
+// for the extension check. It stays outside every chat_size computation: a
+// directory's stat size is host-dependent (Linux ext4 reports 4096, Windows
+// reports 0), so no counted chats directory may contain one.
+const ORPHAN_CHATS = 'OrphanChats';
+const ORPHAN_CHATS_DIRECTORIES = ['nested.jsonl'];
+const ORPHAN_CHAT_FILES = {
+    'orphan.jsonl': [
+        JSON.stringify({ chat_metadata: {}, user_name: 'user', character_name: ORPHAN_CHATS }),
+        JSON.stringify({ name: ORPHAN_CHATS, is_user: false, send_date: '2024-03-03T00:00:00.000Z', mes: 'orphan message' }),
+    ].join('\n'),
+    'orphan-notes.txt': 'ignored because the extension is not .jsonl',
+};
+
+// Host-independence guard: bodyText is the raw response text the Go test
+// compares against, so it must stay consistent with the normalized body. A
+// normalization that only edits the parsed body (sorting, markers) would
+// otherwise leave the probe host's raw bytes in the fixture.
+function assertRecordedBodiesMatchTheirJSON(fixture) {
+    for (const [name, captured] of Object.entries(fixture.responses)) {
+        if (!captured.bodyIsJSON || captured.bodyText.includes('\n')) continue;
+        const expected = JSON.stringify(captured.body);
+        if (captured.bodyText !== expected) {
+            throw new Error(`scenario ${name} bodyText does not match its normalized body:\n recorded: ${captured.bodyText}\n expected: ${expected}`);
+        }
+    }
+}
+
+// Sorts with the default Array.prototype.sort code-unit order, which is also
+// Go's byte order for os.ReadDir. localeCompare would additionally depend on the
+// host's ICU collation data.
 function sortByFile(entries) {
-    return [...entries].sort((left, right) => (left.file_name ?? left.avatar ?? '').localeCompare(right.file_name ?? right.avatar ?? ''));
+    return [...entries].sort((left, right) => {
+        const leftName = left.file_name ?? left.avatar ?? '';
+        const rightName = right.file_name ?? right.avatar ?? '';
+        return leftName < rightName ? -1 : leftName > rightName ? 1 : 0;
+    });
+}
+
+// Records a sorted array response. bodyText is the raw response text that the
+// Go test compares against, so it has to be re-serialized from the sorted body;
+// otherwise it would keep the probe host's fs.readdirSync order, which happens
+// to be sorted on NTFS but is not on ext4.
+function sortedArrayResponse(captured) {
+    const body = sortByFile(captured.body);
+    return { ...captured, body, bodyText: JSON.stringify(body) };
 }
 
 async function main() {
@@ -401,19 +450,33 @@ async function main() {
     }
 
     const chatsRoot = path.join(userRoot, 'chats');
-    const aliceChats = path.join(chatsRoot, 'Alice V2');
-    mkdirSync(path.join(aliceChats, 'nested'), { recursive: true });
     const fixedTime = new Date(FIXED_MTIME_MS);
+    // Alice's chats directory holds files only, so its chat_size is exactly the
+    // sum of the file sizes on every host.
+    const aliceChats = path.join(chatsRoot, 'Alice V2');
+    mkdirSync(aliceChats, { recursive: true });
     for (const [name, body] of Object.entries(CHAT_FILES)) {
         const target = path.join(aliceChats, name);
         writeFileSync(target, body);
         utimesSync(target, fixedTime, fixedTime);
     }
-    // calculateChatSize stats every entry, directories included, so the nested
-    // directory's mtime also feeds date_last_chat.
-    utimesSync(path.join(aliceChats, 'nested'), fixedTime, fixedTime);
     // Empty chat directory: exists but has no .jsonl files.
     mkdirSync(path.join(chatsRoot, 'Backfill V2'), { recursive: true });
+
+    const orphanChats = path.join(chatsRoot, ORPHAN_CHATS);
+    for (const directory of ORPHAN_CHATS_DIRECTORIES) {
+        mkdirSync(path.join(orphanChats, directory), { recursive: true });
+    }
+    for (const [name, body] of Object.entries(ORPHAN_CHAT_FILES)) {
+        const target = path.join(orphanChats, name);
+        writeFileSync(target, body);
+        utimesSync(target, fixedTime, fixedTime);
+    }
+    // getChatInfo only stats the .jsonl files it lists, but keep the directory
+    // mtimes deterministic anyway.
+    for (const directory of ORPHAN_CHATS_DIRECTORIES) {
+        utimesSync(path.join(orphanChats, directory), fixedTime, fixedTime);
+    }
 
     const accountRecordPath = path.join(dataRoot, '_storage', sha256('user:default-user'));
     const accountRecordBefore = readFileSync(accountRecordPath);
@@ -427,7 +490,7 @@ async function main() {
     const fullGetNoName = capture(await post('/api/characters/get', JSON.stringify({ avatar_url: 'NoName.png' })));
 
     const responses = {
-        all: { ...fullAll, body: sortByFile(fullAll.body) },
+        all: sortedArrayResponse(fullAll),
         getExisting: fullGet,
         getV1: fullGetV1,
         getV3: fullGetV3,
@@ -444,16 +507,16 @@ async function main() {
         getObjectAvatar: capture(await post('/api/characters/get', JSON.stringify({ avatar_url: { toString: 'x' } }))),
         getEmptyBody: capture(await request(origin + '/api/characters/get', 'POST', jsonHeaders, '')),
         getWrongMethod: capture(await request(origin + '/api/characters/get', 'GET', { Cookie: sessionCookie })),
-        chatsDefault: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png' }))),
-        chatsSimple: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png', simple: true }))),
-        chatsMetadata: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png', metadata: true }))),
+        chatsDefault: sortedArrayResponse(capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png' })))),
+        chatsSimple: sortedArrayResponse(capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png', simple: true })))),
+        chatsMetadata: sortedArrayResponse(capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Alice V2.png', metadata: true })))),
         chatsEmptyDirectory: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Backfill V2.png' }))),
         chatsMissingDirectory: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: 'Missing.png' }))),
         chatsForbiddenPath: capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: '../x.png' }))),
+        // A leftover chats directory with a subdirectory and a non-.jsonl file.
+        chatsOrphanDirectory: sortedArrayResponse(capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: ORPHAN_CHATS + '.png' })))),
+        chatsOrphanSimple: sortedArrayResponse(capture(await post('/api/characters/chats', JSON.stringify({ avatar_url: ORPHAN_CHATS + '.png', simple: true })))),
     };
-    responses.chatsDefault.body = sortByFile(responses.chatsDefault.body);
-    responses.chatsSimple.body = sortByFile(responses.chatsSimple.body);
-    responses.chatsMetadata.body = sortByFile(responses.chatsMetadata.body);
 
     // The same directory listing under performance.lazyLoadCharacters = true.
     await stopServer();
@@ -463,7 +526,7 @@ async function main() {
         Cookie: shallowLogin.sessionCookie, 'X-CSRF-Token': shallowLogin.token, 'Content-Type': 'application/json',
     }, '{}');
     const shallowCaptured = capture(shallowAll);
-    responses.allShallow = { ...shallowCaptured, body: sortByFile(shallowCaptured.body) };
+    responses.allShallow = sortedArrayResponse(shallowCaptured);
 
     // A missing characters directory is the non-overflow /all failure branch.
     // This runs last because it removes the directory the other scenarios read.
@@ -483,8 +546,9 @@ async function main() {
         normalization: [
             'date_added is the file ctime in milliseconds, which cannot be reproduced in a separate fixture tree, so it is recorded as "<ctimeMs>".',
             'For bodies that carry the ctime marker, Express-derived content-length and ETag are recorded as "<derived-from-normalized-body>" because they are functions of the normalized bytes.',
-            'The /all and /chats arrays are sorted by file name because pinned fs.readdirSync order is filesystem-dependent and not part of the route contract.',
+            'The /all and /chats arrays are sorted with Array.prototype.sort code-unit order because pinned fs.readdirSync order is filesystem-dependent and not part of the route contract; Go compares its byte-sorted os.ReadDir order, which agrees for these names.',
             'Chat file mtimes are pinned to a fixed epoch in both the probe and the Go test so date_last_chat and empty-chat last_mes are reproducible.',
+            'No chats directory that participates in a chat_size is given a subdirectory: a directory stat size is host-dependent (Linux ext4 reports 4096, Windows reports 0), so the exact chat_size assertion would otherwise encode the probe host. The directory-skipping behavior of /api/characters/chats is covered by the OrphanChats directory, which has no character card and therefore contributes to no chat_size; its subdirectory is named `nested.jsonl` so only the pinned file.isFile() check can exclude it.',
         ],
         inputs: {
             cookieSecret: COOKIE_SECRET,
@@ -492,6 +556,11 @@ async function main() {
             cards: CARDS.map(card => ({ file: card.file, bytesHex: card.bytes.toString('hex') })),
             chatFiles: CHAT_FILES,
             chatCharacter: 'Alice V2',
+            orphanChats: {
+                character: ORPHAN_CHATS,
+                files: ORPHAN_CHAT_FILES,
+                directories: ORPHAN_CHATS_DIRECTORIES,
+            },
         },
         responses,
         state: {
@@ -531,6 +600,30 @@ async function main() {
             captured.bodyText = captured.bodyText.replace(/"date_added":-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, '"date_added":"<ctimeMs>"');
         }
     }
+
+    // Host-independence guards. Both checks fail the probe instead of silently
+    // recording an observation that only holds on the machine that ran it.
+    //
+    // 1. chat_size sums the stat size of every directory entry, and a
+    //    directory's stat size is host-dependent (Linux ext4 reports 4096,
+    //    Windows reports 0), so no counted chats directory may contain one.
+    for (const character of fullAll.body) {
+        const directory = path.join(chatsRoot, character.avatar.replace('.png', ''));
+        if (!existsSync(directory)) continue;
+        const nested = readdirSync(directory).filter(name => statSync(path.join(directory, name)).isDirectory());
+        if (nested.length > 0) {
+            throw new Error(`chats directory ${character.avatar} contains the subdirectories ${nested.join(', ')}; `
+                + 'a directory stat size is host-dependent and would leak into chat_size');
+        }
+    }
+    // 2. Every ctime-derived date_added must have been normalized to the marker.
+    for (const [name, captured] of Object.entries(responses)) {
+        if (typeof captured.bodyText === 'string' && /"date_added":-?\d{10,}/.test(captured.bodyText)) {
+            throw new Error(`scenario ${name} still records a raw ctime-derived date_added value`);
+        }
+    }
+
+    assertRecordedBodiesMatchTheirJSON(fixture);
 
     const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-characters-read.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });

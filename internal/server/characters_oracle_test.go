@@ -47,6 +47,11 @@ type charactersFixture struct {
 		ChatCharacter  string                 `json:"chatCharacter"`
 		ChatCharacters []string               `json:"chatCharacters"`
 		WorldInfo      json.RawMessage        `json:"worldInfo"`
+		OrphanChats    struct {
+			Character   string            `json:"character"`
+			Files       map[string]string `json:"files"`
+			Directories []string          `json:"directories"`
+		} `json:"orphanChats"`
 	} `json:"inputs"`
 	Responses map[string]characterResponseFixture `json:"responses"`
 }
@@ -199,26 +204,43 @@ func (env *charactersOracleEnv) writeFixtureCards(t *testing.T, fixture characte
 	}
 }
 
-// writeFixtureChats materializes the pinned chat files and the empty chat
-// directory used by the /chats scenarios.
+// writeFixtureChats materializes the pinned chat trees used by the /chats
+// scenarios.
+//
+// The counted character chats directory deliberately holds files only. Pinned
+// calculateChatSize sums the stat size of every directory entry, and a
+// directory's stat size is host-dependent (Linux ext4 reports 4096, Windows
+// reports 0), so a subdirectory here would make the recorded chat_size encode
+// the probe host. Directory skipping in /api/characters/chats is instead
+// covered by the orphan chats directory below, which has no character card and
+// therefore contributes to no chat_size.
 func (env *charactersOracleEnv) writeFixtureChats(t *testing.T, fixture charactersFixture) {
 	t.Helper()
 	chatsRoot := env.Directories["chats"]
+	fixed := time.UnixMilli(int64(fixture.Inputs.FixedMtimeMS))
 	characterChats := filepath.Join(chatsRoot, fixture.Inputs.ChatCharacter)
-	if err := os.MkdirAll(filepath.Join(characterChats, "nested"), 0o777); err != nil {
+	if err := os.MkdirAll(characterChats, 0o777); err != nil {
 		t.Fatal(err)
 	}
 	for name, body := range fixture.Inputs.ChatFiles {
 		writeFixtureFile(t, filepath.Join(characterChats, name), []byte(body), fixture.Inputs.FixedMtimeMS)
 	}
-	// calculateChatSize stats directories too, so the nested directory's mtime
-	// participates in date_last_chat.
-	fixed := time.UnixMilli(int64(fixture.Inputs.FixedMtimeMS))
-	if err := os.Chtimes(filepath.Join(characterChats, "nested"), fixed, fixed); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(filepath.Join(chatsRoot, "Backfill V2"), 0o777); err != nil {
 		t.Fatal(err)
+	}
+	orphan := filepath.Join(chatsRoot, fixture.Inputs.OrphanChats.Character)
+	for _, directory := range fixture.Inputs.OrphanChats.Directories {
+		if err := os.MkdirAll(filepath.Join(orphan, directory), 0o777); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, body := range fixture.Inputs.OrphanChats.Files {
+		writeFixtureFile(t, filepath.Join(orphan, name), []byte(body), fixture.Inputs.FixedMtimeMS)
+	}
+	for _, directory := range fixture.Inputs.OrphanChats.Directories {
+		if err := os.Chtimes(filepath.Join(orphan, directory), fixed, fixed); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

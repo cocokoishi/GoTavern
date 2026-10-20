@@ -91,7 +91,10 @@ function buildPng(textChunks, pixels) {
         Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         pngChunk('IHDR', ihdr),
         ...textChunks,
-        pngChunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+        // Level 0 emits stored deflate blocks, whose bytes are fixed by the
+        // format rather than by the linked zlib build, and these PNG bytes are
+        // recorded in the fixture.
+        pngChunk('IDAT', zlib.deflateSync(raw, { level: 0 })),
         pngChunk('IEND', Buffer.alloc(0)),
     ]);
 }
@@ -166,6 +169,21 @@ function capture(result) {
         bodyIsJSON: result.bodyIsJSON,
         bodyText: result.text,
     };
+}
+
+// Host-independence guard: bodyText is the raw response text the Go test
+// compares against, so it must stay consistent with the normalized body. A
+// normalization that only edits the parsed body (sorting, markers) would
+// otherwise leave the probe host's raw bytes in the fixture.
+function assertRecordedBodiesMatchTheirJSON(fixture) {
+    for (const [name, scenario] of Object.entries(fixture.scenarios)) {
+        const captured = scenario.response;
+        if (!captured.bodyIsJSON || captured.bodyText.includes('\n')) continue;
+        const expected = JSON.stringify(captured.body);
+        if (captured.bodyText !== expected) {
+            throw new Error(`scenario ${name} bodyText does not match its normalized body:\n recorded: ${captured.bodyText}\n expected: ${expected}`);
+        }
+    }
 }
 
 function cookiesFrom(response) {
@@ -458,6 +476,8 @@ try {
             scenario.response.headers['content-length'] = '<derived-from-uncompressed-body>';
         }
     }
+
+    assertRecordedBodiesMatchTheirJSON(fixture);
 
     const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-characters-import.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });

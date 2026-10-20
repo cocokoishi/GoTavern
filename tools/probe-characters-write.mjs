@@ -98,7 +98,10 @@ function buildPng(textChunks) {
         Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         pngChunk('IHDR', ihdr),
         ...textChunks,
-        pngChunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+        // Level 0 emits stored deflate blocks, whose bytes are fixed by the
+        // format rather than by the linked zlib build, and these PNG bytes are
+        // recorded in the fixture.
+        pngChunk('IDAT', zlib.deflateSync(raw, { level: 0 })),
         pngChunk('IEND', Buffer.alloc(0)),
     ]);
 }
@@ -320,7 +323,25 @@ const CHAT_FILES = {
     ].join('\n'),
 };
 
-// ---- Observations ----
+// Host-independence guard: bodyText is the raw response text the Go test
+// compares against, so it must stay consistent with the normalized body. A
+// normalization that only edits the parsed body (sorting, markers) would
+// otherwise leave the probe host's raw bytes in the fixture.
+//
+// Bodies whose raw text spans lines are skipped: they are the routes that send a
+// pre-serialized string (the pretty-printed JSON export), not `res.send(object)`.
+function assertRecordedBodiesMatchTheirJSON(fixture) {
+    for (const [name, scenario] of Object.entries(fixture.scenarios)) {
+        const captured = scenario.response;
+        if (!captured.bodyIsJSON || captured.bodyText.includes('\n')) continue;
+        const expected = JSON.stringify(captured.body);
+        if (captured.bodyText !== expected) {
+            throw new Error(`scenario ${name} bodyText does not match its normalized body:\n recorded: ${captured.bodyText}\n expected: ${expected}`);
+        }
+    }
+}
+
+
 
 
 /** Replaces generated timestamps so the fixture is reproducible. */
@@ -632,12 +653,20 @@ try {
                 scenario.response.headers.etag = '<derived-from-sorted-body>';
             }
         }
+        if (scenario.response.headers.etag === '<derived-from-sorted-body>') {
+            // bodyText is the raw response text the Go test compares against, so
+            // it must be re-serialized from the sorted body; otherwise it would
+            // keep the pinned concurrent completion order.
+            scenario.response.bodyText = JSON.stringify(scenario.response.body);
+        }
         // Pinned Node gzips compressible JSON bodies, which removes
         // content-length; GoTavern does not implement that middleware yet.
         if (scenario.response.headers['content-encoding'] === 'gzip') {
             scenario.response.headers['content-length'] = '<derived-from-uncompressed-body>';
         }
     }
+
+    assertRecordedBodiesMatchTheirJSON(fixture);
 
     const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-characters-write.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });
