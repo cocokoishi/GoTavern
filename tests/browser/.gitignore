@@ -2,3 +2,4 @@
 node_modules/
 .pinned-run/
 test-results/
+generation-probe-report.json

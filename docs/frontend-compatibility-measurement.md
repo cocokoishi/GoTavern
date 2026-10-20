@@ -473,3 +473,42 @@ Received string:    [31m"undefined"[39m
 > 48 |     test.beforeEach(testSetup.awaitST);
      |          ^
 ```
+
+## Generation probe (increment 0b): NO, and the reason
+
+One question: does a send driven from the pinned frontend produce a provider request at all?
+`tests/browser/generation-probe.mjs` boots GoTavern and the recording mock provider, drives one
+generation from the page (temporary assistant chat, `chat_completion_source = 'custom'`, custom URL
+pointing at the mock), then polls `GET /__mock/recording`.
+
+ANSWER: **no provider request arrives.** The probe reports `requestArrived: false`, and the traced
+HTTP failures say why:
+
+```
+404 POST /api/secrets/read
+404 POST /api/horde/status
+404 POST /api/horde/text-models
+404 GET  /thumbnail
+404 GET  /backgrounds/__transparent.png
+FAILED GET /css/user.css, POST /api/ping (aborted during teardown)
+```
+
+`POST /api/secrets/read` is the blocking one. The pinned frontend populates `secret_state` from that
+route at startup (`public/scripts/secrets.js`, consumed by `public/scripts/openai.js`), and GoTavern
+does not implement the secrets domain at all: there is no `/api/secrets/*` registration anywhere in
+`internal/server`. The page surfaces the consequence as `Unexpected token '<', "<!DOCTYPE "...`, i.e.
+the 404 HTML page being parsed as JSON by the frontend.
+
+WHAT THIS MEANS FOR ORDERING: the tokenizer boundary spec cannot be written yet, and neither can the
+provider-request leg of T3 or rule 15's canary assertion, because all three assume a send produces a
+provider request. That assumption is now measured and false for the current tree. The next increment
+in this domain is not a tokenizer increment at all: it is `/api/secrets/read` (and whatever else the
+frontend needs on the settings/startup path), after which this probe is the cheapest possible
+re-check — it takes one command and answers the same binary question.
+
+WHAT THIS PROBE DOES NOT CLAIM: nothing about prompt assembly, token budgets, or the provider request's
+shape. It reports only whether a request arrives, because building the boundary assertion on top of a
+send path that does not complete would have hidden this finding inside a larger failure.
+
+Reproduce with: `node tests/browser/generation-probe.mjs` (it builds the binary and the mock provider,
+so it needs no running services).
