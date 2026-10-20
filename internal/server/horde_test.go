@@ -39,7 +39,7 @@ func newHordeMock(t *testing.T, behaviour func(w http.ResponseWriter, r *http.Re
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/api/v2/status/heartbeat"):
 			mock.heartbeatHits.Add(1)
-		case strings.HasPrefix(r.URL.Path, "/api/v2/status/models"):
+		case strings.HasPrefix(r.URL.Path, "/api/v2/status/models"), strings.HasPrefix(r.URL.Path, "/api/v2/workers"):
 			mock.modelsHits.Add(1)
 		default:
 			mock.metadataHits.Add(1)
@@ -57,6 +57,7 @@ func hordeRouteHandler(t *testing.T, mock *hordeMock) http.Handler {
 		t.Setenv("GOTAVERN_HORDE_METADATA_URL", mock.server.URL+"/metadata")
 	}
 	hordeModels.clear()
+	hordeWorkers.clear()
 	return NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: t.TempDir(), DataRoot: t.TempDir(), DisableCSRF: true})
 }
 
@@ -250,5 +251,53 @@ func TestHordeTextModelsCache(t *testing.T) {
 	postHorde(t, handler, "/api/horde/text-models", `{"force":true}`)
 	if hits := mock.modelsHits.Load(); hits != 2 {
 		t.Fatalf("force did not bypass the cache: modelsHits = %d, want 2", hits)
+	}
+}
+
+// The workers route is the same shape as text-models with a different path and cache key, so it is
+// covered with the same observables: proxy, cache hit, force bypass, unparseable body, closed port.
+func TestHordeTextWorkersProxiesAndCaches(t *testing.T) {
+	mock := newHordeMock(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasPrefix(r.URL.Path, "/api/v2/workers") {
+			_, _ = w.Write([]byte(`[{"name":"worker-a"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	handler := hordeRouteHandler(t, mock)
+	first := postHorde(t, handler, "/api/horde/text-workers", "{}")
+	if first.Code != http.StatusOK || !strings.Contains(first.Body.String(), "worker-a") {
+		t.Fatalf("first call: %d %s", first.Code, first.Body.String())
+	}
+	postHorde(t, handler, "/api/horde/text-workers", "{}")
+	if hits := mock.modelsHits.Load(); hits != 1 {
+		t.Fatalf("cache miss on the second call: peer hits = %d, want 1", hits)
+	}
+	postHorde(t, handler, "/api/horde/text-workers", `{"force":true}`)
+	if hits := mock.modelsHits.Load(); hits != 2 {
+		t.Fatalf("force did not bypass the cache: peer hits = %d, want 2", hits)
+	}
+}
+
+func TestHordeTextWorkersNonJSONAnswers500(t *testing.T) {
+	mock := newHordeMock(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`not json`))
+	})
+	handler := hordeRouteHandler(t, mock)
+	response := postHorde(t, handler, "/api/horde/text-workers", "{}")
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+}
+
+func TestHordeTextWorkersClosedPortAnswers500(t *testing.T) {
+	t.Setenv("GOTAVERN_HORDE_API_URL", hordeClosedPort)
+	hordeModels.clear()
+	hordeWorkers.clear()
+	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: t.TempDir(), DataRoot: t.TempDir(), DisableCSRF: true})
+	response := postHorde(t, handler, "/api/horde/text-workers", "{}")
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
 	}
 }

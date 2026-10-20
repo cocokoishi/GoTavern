@@ -63,14 +63,18 @@ func hordeMetadataURL() string {
 	return hordeDefaultMetadataURL
 }
 
-// hordeModelsCache mirrors the pinned `new Cache(60 * 1000)` keyed by "models".
+// hordeModelsCache mirrors the pinned `new Cache(60 * 1000)` keyed by "models". The workers route
+// uses the same TTL under its own key, so the two caches share this type rather than one rule each.
 type hordeModelsCacheType struct {
 	mu      sync.Mutex
 	body    []byte
 	expires time.Time
 }
 
-var hordeModels = &hordeModelsCacheType{}
+var (
+	hordeModels  = &hordeModelsCacheType{}
+	hordeWorkers = &hordeModelsCacheType{}
+)
 
 func (cache *hordeModelsCacheType) get() ([]byte, bool) {
 	cache.mu.Lock()
@@ -111,6 +115,7 @@ func registerHordeRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundP
 	}
 	post("/api/horde/status", accounts.serveHordeStatus)
 	post("/api/horde/text-models", accounts.serveHordeTextModels)
+	post("/api/horde/text-workers", accounts.serveHordeTextWorkers)
 }
 
 // hordeGet performs the pinned outbound GET with the Client-Agent header.
@@ -214,4 +219,37 @@ func mergeHordeModelsMetadata(request *http.Request, models any) (any, bool) {
 		merged = append(merged, combined)
 	}
 	return merged, true
+}
+
+// serveHordeTextWorkers is the same shape as text-models with a different upstream path and cache
+// key (horde.js:58): cached under "workers", no `ok` guard before parsing, cache set, and 500 when
+// the fetch is rejected or the body is not JSON.
+func (runtime *accountRuntime) serveHordeTextWorkers(w http.ResponseWriter, request *http.Request) {
+	force := false
+	if _, input, ok := readUserPresetRequestBody(request); ok {
+		force = nodeTruthyJSON(input["force"])
+	}
+	if !force {
+		if cached, present := hordeWorkers.get(); present {
+			respondJSONBytes(w, http.StatusOK, cached)
+			return
+		}
+	}
+	response, err := hordeGet(request, hordeAPIBaseURL()+"/api/v2/workers?type=text")
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	var workers any
+	if err := json.Unmarshal(response.Body, &workers); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	body, err := json.Marshal(workers)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	hordeWorkers.set(body)
+	respondJSONBytes(w, http.StatusOK, body)
 }
