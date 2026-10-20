@@ -61,6 +61,7 @@ jobs:
           go run ./tools/assetmanifest -root upstream/public -output upstream/manifests/public.sha256 -check
           go run ./tools/assetmanifest -root upstream/default -output upstream/manifests/default.sha256 -check
           go run ./tools/assetmanifest -root upstream/generated -output upstream/manifests/generated.sha256 -check
+          go run ./tools/assetmanifest -root upstream/tokenizers -output upstream/manifests/tokenizers.sha256 -check
       - name: Test
         run: go test ./...
       - name: Vet
