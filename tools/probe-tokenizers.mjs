@@ -9,7 +9,8 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -29,6 +30,10 @@ const PINNED_TOKENIZER_PACKAGES = {
     '@agnai/sentencepiece-js': '1.1.1',
 };
 const COOKIE_SECRET = 'gotavern-pinned-tokenizers-cookie-secret';
+const CONFIG_ENABLED = 'enableUserAccounts: true\nskipContentCheck: true\nenableDownloadableTokenizers: true\nextensions:\n  enabled: false\n  autoUpdate: false\n';
+// enableDownloadableTokenizers is read when the endpoint module loads, so the cold-cache
+// fallback needs its own server process.
+const CONFIG_DOWNLOADS_DISABLED = 'enableUserAccounts: true\nskipContentCheck: true\nenableDownloadableTokenizers: false\nextensions:\n  enabled: false\n  autoUpdate: false\n';
 // @gotavern-oracle: fixture=sillytavern-1.19.0-tokenizers.json label="tokenizers"
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
@@ -131,21 +136,26 @@ const ROUTE_INVENTORY = [
     'POST /api/tokenizers/remote/kobold/count',
     'POST /api/tokenizers/remote/textgenerationwebui/encode',
 ];
-// The two remote routes proxy to a user-configured text-generation backend, so their
-// request shape belongs to the shared outbound transport rather than to tokenizer data.
-// They are listed as deferred, and the Go test pins this exact set so a route cannot
-// quietly disappear from the plan.
-const DEFERRED_ROUTES = [
-    'POST /api/tokenizers/remote/kobold/count',
-    'POST /api/tokenizers/remote/textgenerationwebui/encode',
-];
+// Every route in the pinned inventory is recorded. The two remote routes proxy to a
+// user-configured text-generation backend, so they are exercised against a local mock
+// backend that also records the request the pinned server builds.
+const DEFERRED_ROUTES = [];
+const REMOTE_API_TYPES = ['tabby', 'koboldcpp', 'llamacpp', 'vllm', 'aphrodite', 'ooba'];
+const REMOTE_UNKNOWN_API_TYPE = 'ollama';
+// Inputs used for the two downloads-disabled runs, and for the llama3 comparison that
+// proves the cold-cache fallback.
+const FALLBACK_INPUTS = ['ascii', 'cjk', 'emoji', 'special_endoftext', 'added_llama3'];
+const GZ_CACHE_INPUTS = ['ascii', 'cjk', 'emoji'];
 
 const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-tokenizers-oracle-'));
 const dataRoot = path.join(runtimeRoot, 'data');
 const cacheRoot = path.join(dataRoot, '_cache');
 const configPath = path.join(runtimeRoot, 'config.yaml');
-const logs = [];
+let logs = [];
 let child;
+let mockServer;
+let mockOrigin;
+const mockRequests = [];
 
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
@@ -219,6 +229,128 @@ async function stopServer() {
     if (child.exitCode === null) child.kill();
 }
 
+// The mock text-generation backend. Responses are fixed and cover every response
+// projection the two remote routes can take, plus the failure paths.
+const MOCK_RESPONSES = [
+    ['/v1/token/encode', { length: 7, tokens: [4, 5, 6] }],
+    ['/v1/internal/encode', { value: 5 }],
+    ['/api/extra/tokencount', { count: 9, ids: [7, 8] }],
+    ['/extra/tokencount', { value: 42, ids: [1, 2, 3] }],
+    ['/v1/tokenize', { ids: [12] }],
+    ['/tokenize', { tokens: [10, 11] }],
+];
+
+function recordedMockHeaders(headers) {
+    // Only headers that describe the tokenizer request are recorded. Transport headers
+    // such as host and user-agent are properties of the recording host.
+    const recorded = {};
+    for (const name of ['content-type', 'content-length', 'authorization', 'x-api-key']) {
+        if (headers[name] !== undefined) recorded[name] = String(headers[name]);
+    }
+    return recorded;
+}
+
+async function startMockBackend() {
+    mockServer = http.createServer((req, res) => {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => {
+            const body = Buffer.concat(chunks).toString('utf8');
+            mockRequests.push({ method: req.method, path: req.url, headers: recordedMockHeaders(req.headers), body });
+            if (req.url.includes('/fail')) {
+                res.writeHead(500, { 'content-type': 'application/json' });
+                res.end('{"error":"mock failure"}');
+                return;
+            }
+            if (req.url.includes('/notjson')) {
+                res.writeHead(200, { 'content-type': 'text/plain' });
+                res.end('not json');
+                return;
+            }
+            const pathname = req.url.split('?', 1)[0];
+            // Longest matching suffix wins, so /api/extra/tokencount is not served by
+            // the shorter /extra/tokencount entry.
+            const match = MOCK_RESPONSES
+                .filter(([route]) => pathname.endsWith(route))
+                .sort((left, right) => right[0].length - left[0].length)[0];
+            if (!match) {
+                res.writeHead(404, { 'content-type': 'application/json' });
+                res.end('{"error":"unknown mock route"}');
+                return;
+            }
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify(match[1]));
+        });
+    });
+    await new Promise((resolve, reject) => {
+        mockServer.once('error', reject);
+        mockServer.listen(0, '127.0.0.1', resolve);
+    });
+    mockOrigin = `http://127.0.0.1:${mockServer.address().port}`;
+}
+
+async function stopMockBackend() {
+    if (!mockServer) return;
+    await new Promise(resolve => mockServer.close(resolve));
+    mockServer = undefined;
+}
+
+function cacheState() {
+    if (!existsSync(cacheRoot)) return { exists: false, entries: [] };
+    const entries = readdirSync(cacheRoot).sort().map(name => {
+        const absolute = path.join(cacheRoot, name);
+        if (statSync(absolute).isDirectory()) {
+            // _cache is shared: pinned startup also creates _cache/characters for the
+            // character disk cache, so a directory here is not a tokenizer artifact.
+            return { path: name, kind: 'directory' };
+        }
+        const bytes = readFileSync(absolute);
+        return { path: name, kind: 'file', bytes: bytes.length, sha256: sha256(bytes) };
+    });
+    return { exists: true, entries };
+}
+
+async function startPinnedServer(configText) {
+    writeFileSync(configPath, configText);
+    logs = [];
+    const port = await choosePort();
+    const origin = `http://127.0.0.1:${port}`;
+    child = spawn(process.execPath, [
+        'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
+        '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
+        '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
+    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => logs.push(chunk));
+    child.stderr.on('data', chunk => logs.push(chunk));
+    const deadline = Date.now() + 180000;
+    let ready = false;
+    let lastError;
+    while (Date.now() < deadline && !ready) {
+        if (child.exitCode !== null) throw new Error(`pinned server exited before readiness:\n${logs.join('').slice(-10000)}`);
+        try {
+            const result = await request(`${origin}/login?noauto=1`);
+            ready = result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html');
+            if (!ready) lastError = new Error(`login returned ${result.response.status}`);
+        } catch (error) {
+            lastError = error;
+        }
+        if (!ready) await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    if (!ready) throw new Error(`pinned server did not become ready: ${lastError?.stack ?? 'none'}\n${logs.join('').slice(-10000)}`);
+    const csrf = await request(`${origin}/csrf-token`);
+    const token = csrf.body.token;
+    const csrfCookie = cookieHeader(cookiesFrom(csrf.response));
+    const login = await request(`${origin}/api/users/login`, 'POST', {
+        Cookie: csrfCookie,
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': token,
+    }, JSON.stringify({ handle: 'default-user', password: '' }));
+    if (login.response.status !== 200) throw new Error(`could not login: ${login.response.status} ${JSON.stringify(login.body)}\n${logs.join('').slice(-10000)}`);
+    return { origin, token, sessionCookie: cookieHeader(cookiesFrom(login.response)) };
+}
+
 async function request(url, method = 'GET', headers = {}, body) {
     const response = await fetch(url, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(30000) });
     let parsedBody = Buffer.from(await response.arrayBuffer()).toString('utf8');
@@ -268,7 +400,6 @@ try {
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
     mkdirSync(cacheRoot, { recursive: true });
     writeFileSync(path.join(dataRoot, 'cookie-secret.txt'), COOKIE_SECRET);
-    writeFileSync(configPath, 'enableUserAccounts: true\nskipContentCheck: true\nenableDownloadableTokenizers: true\nextensions:\n  enabled: false\n  autoUpdate: false\n');
     seedUser('user:default-user', {
         handle: 'default-user', name: 'Tokenizer Reader', created: 1700000000000,
         password: '', admin: true, enabled: true, salt: '',
@@ -288,84 +419,68 @@ try {
         writeFileSync(path.join(cacheRoot, `${model}.json`), plain);
     }
 
-    const port = await choosePort();
-    const origin = `http://127.0.0.1:${port}`;
-    child = spawn(process.execPath, [
-        'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
-        '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
-        '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
-    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', chunk => logs.push(chunk));
-    child.stderr.on('data', chunk => logs.push(chunk));
-    const deadline = Date.now() + 180000;
-    let ready = false;
-    let lastError;
-    while (Date.now() < deadline && !ready) {
-        if (child.exitCode !== null) throw new Error(`pinned server exited before readiness:\n${logs.join('').slice(-10000)}`);
-        try {
-            const result = await request(`${origin}/login?noauto=1`);
-            ready = result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html');
-            if (!ready) lastError = new Error(`login returned ${result.response.status}`);
-        } catch (error) {
-            lastError = error;
-        }
-        if (!ready) await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    if (!ready) throw new Error(`pinned server did not become ready: ${lastError?.stack ?? 'none'}\n${logs.join('').slice(-10000)}`);
-
-    const csrf = await request(`${origin}/csrf-token`);
-    const token = csrf.body.token;
-    const csrfCookie = cookieHeader(cookiesFrom(csrf.response));
-    const login = await request(`${origin}/api/users/login`, 'POST', {
-        Cookie: csrfCookie,
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': token,
-    }, JSON.stringify({ handle: 'default-user', password: '' }));
-    if (login.response.status !== 200) throw new Error(`could not login: ${login.response.status} ${JSON.stringify(login.body)}\n${logs.join('').slice(-10000)}`);
-    const sessionCookie = cookieHeader(cookiesFrom(login.response));
+    await startMockBackend();
+    const mainSession = await startPinnedServer(CONFIG_ENABLED);
+    const { origin } = mainSession;
 
     const responses = {};
     const errorPages = {};
+    const backendRequests = {};
     const casesByRoute = new Map();
-    const record = async (name, routePath, { method = 'POST', query = null, body, authenticated = true, contentType = 'application/json' } = {}) => {
-        if (Object.hasOwn(responses, name)) throw new Error(`duplicate case name ${name}`);
-        const headers = {};
-        if (authenticated) headers.Cookie = sessionCookie;
-        if (contentType) headers['Content-Type'] = contentType;
-        if (authenticated) headers['X-CSRF-Token'] = token;
-        const url = `${origin}/api/tokenizers${routePath}${query ? `?${new URLSearchParams(query)}` : ''}`;
-        const result = await request(url, method, headers, body);
-        const routeKey = `${method} /api/tokenizers${routePath}`;
-        casesByRoute.set(routeKey, (casesByRoute.get(routeKey) ?? 0) + 1);
-        responses[name] = {
-            request: { path: `/api/tokenizers${routePath}`, query: query ?? null, body: body === undefined ? null : JSON.parse(body) },
-            status: result.response.status,
-            headers: stableHeaders(result.response),
-            body: result.body,
+    // The mock backend's origin is a property of this run, so every recorded value that
+    // can contain it is normalized.
+    const normalizeOrigin = value => {
+        if (typeof value === 'string') return value.split(mockOrigin).join('<mock-origin>');
+        if (Array.isArray(value)) return value.map(normalizeOrigin);
+        if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeOrigin(item)]));
+        return value;
+    };
+    const makeRecorder = session => {
+        const send = (routePath, { method = 'POST', query = null, body, authenticated = true, contentType = 'application/json' } = {}) => {
+            const headers = {};
+            if (authenticated) headers.Cookie = session.sessionCookie;
+            if (contentType) headers['Content-Type'] = contentType;
+            if (authenticated) headers['X-CSRF-Token'] = session.token;
+            const url = `${session.origin}/api/tokenizers${routePath}${query ? `?${new URLSearchParams(query)}` : ''}`;
+            return request(url, method, headers, body);
         };
-        return result;
+        return {
+            capture: async (name, routePath, options = {}) => {
+                if (Object.hasOwn(responses, name)) throw new Error(`duplicate case name ${name}`);
+                const backendBefore = mockRequests.length;
+                const result = await send(routePath, options);
+                const routeKey = `${options.method ?? 'POST'} /api/tokenizers${routePath}`;
+                casesByRoute.set(routeKey, (casesByRoute.get(routeKey) ?? 0) + 1);
+                responses[name] = {
+                    request: { path: `/api/tokenizers${routePath}`, query: options.query ?? null, body: options.body === undefined ? null : normalizeOrigin(JSON.parse(options.body)) },
+                    status: result.response.status,
+                    headers: stableHeaders(result.response),
+                    body: normalizeOrigin(result.body),
+                };
+                for (const backendRequest of mockRequests.slice(backendBefore)) {
+                    backendRequests[name] = normalizeOrigin(backendRequest);
+                }
+                return result;
+            },
+            // Express renders thrown middleware/route errors as an HTML page whose <pre>
+            // block is a V8 stack with host-absolute source paths. Only the status and
+            // content type are recorded; the body belongs to the recording host.
+            errorPage: async (name, routePath, options = {}) => {
+                if (Object.hasOwn(errorPages, name)) throw new Error(`duplicate error page name ${name}`);
+                const result = await send(routePath, options);
+                const responseContentType = result.response.headers.get('content-type') ?? '';
+                if (!responseContentType.startsWith('text/html')) {
+                    throw new Error(`${name}: expected the Express error page, got ${result.response.status} ${responseContentType}: ${String(result.body).slice(0, 200)}`);
+                }
+                const routeKey = `${options.method ?? 'POST'} /api/tokenizers${routePath}`;
+                casesByRoute.set(routeKey, (casesByRoute.get(routeKey) ?? 0) + 1);
+                errorPages[name] = { status: result.response.status, contentType: responseContentType };
+            },
+        };
     };
-    // Express renders thrown middleware/route errors as an HTML page whose <pre> block is a
-    // V8 stack with host-absolute source paths. Only the status and content type are
-    // recorded; the body is a property of the recording host, not of the pinned server.
-    const recordErrorPage = async (name, routePath, { method = 'POST', query = null, body, authenticated = true, contentType = 'application/json' } = {}) => {
-        if (Object.hasOwn(errorPages, name)) throw new Error(`duplicate error page name ${name}`);
-        const headers = {};
-        if (authenticated) headers.Cookie = sessionCookie;
-        if (contentType) headers['Content-Type'] = contentType;
-        if (authenticated) headers['X-CSRF-Token'] = token;
-        const url = `${origin}/api/tokenizers${routePath}${query ? `?${new URLSearchParams(query)}` : ''}`;
-        const result = await request(url, method, headers, body);
-        const responseContentType = result.response.headers.get('content-type') ?? '';
-        if (!responseContentType.startsWith('text/html')) {
-            throw new Error(`${name}: expected the Express error page, got ${result.response.status} ${responseContentType}: ${String(result.body).slice(0, 200)}`);
-        }
-        const routeKey = `${method} /api/tokenizers${routePath}`;
-        casesByRoute.set(routeKey, (casesByRoute.get(routeKey) ?? 0) + 1);
-        errorPages[name] = { status: result.response.status, contentType: responseContentType };
-    };
+    const main = makeRecorder(mainSession);
+    const record = main.capture;
+    const recordErrorPage = main.errorPage;
     const json = value => JSON.stringify(value);
 
     // One unauthenticated capture pins the middleware that precedes every tokenizer route.
@@ -393,10 +508,10 @@ try {
     const decodeRoutes = [...SENTENCEPIECE_MODELS, ...TIKTOKEN_ROUTES, ...WEB_MODELS];
     for (const model of decodeRoutes) {
         const ascii = await request(`${origin}/api/tokenizers/${model}/encode`, 'POST', {
-            Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+            Cookie: mainSession.sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': mainSession.token,
         }, json({ text: 'Hello, world!' }));
         const emoji = await request(`${origin}/api/tokenizers/${model}/encode`, 'POST', {
-            Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+            Cookie: mainSession.sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': mainSession.token,
         }, json({ text: '\ud83d\ude00' }));
         const roundTrips = [
             ['roundtrip_ascii', ascii.body?.ids ?? []],
@@ -415,7 +530,7 @@ try {
     }
     for (const model of OPENAI_DECODE_MODELS) {
         const ascii = await request(`${origin}/api/tokenizers/openai/encode?model=${encodeURIComponent(model)}`, 'POST', {
-            Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+            Cookie: mainSession.sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': mainSession.token,
         }, json({ text: 'Hello, world!' }));
         for (const [name, ids] of [['roundtrip_ascii', ascii.body?.ids ?? []], ['out_of_range', [999999999]], ['empty', []]]) {
             await record(`openai/decode#${model}#${name}`, '/openai/decode', { query: { model }, body: json({ ids }) });
@@ -433,7 +548,78 @@ try {
         }
     }
 
+    // The two remote passthrough routes, exercised against the mock backend.
+    const inputText = name => [...FULL_INPUTS, ...CORE_INPUTS].find(entry => entry[0] === name)[1];
+    await record('remote/kobold/count#ok', '/remote/kobold/count', { body: json({ text: 'Hello, world!', url: mockOrigin }) });
+    await record('remote/kobold/count#empty_text', '/remote/kobold/count', { body: json({ text: '', url: mockOrigin }) });
+    await record('remote/kobold/count#error_status', '/remote/kobold/count', { body: json({ text: 'Hello, world!', url: `${mockOrigin}/fail` }) });
+    await record('remote/kobold/count#not_json', '/remote/kobold/count', { body: json({ text: 'Hello, world!', url: `${mockOrigin}/notjson` }) });
+    await record('remote/kobold/count#missing_url', '/remote/kobold/count', { body: json({ text: 'Hello, world!' }) });
+    for (const apiType of REMOTE_API_TYPES) {
+        await record(`remote/textgenerationwebui/encode#${apiType}`, '/remote/textgenerationwebui/encode', {
+            body: json({ text: 'Hello, world!', url: mockOrigin, model: 'test-model', api_type: apiType }),
+        });
+    }
+    await record('remote/textgenerationwebui/encode#tabby#cjk', '/remote/textgenerationwebui/encode', {
+        body: json({ text: inputText('cjk'), url: mockOrigin, model: 'test-model', api_type: 'tabby' }),
+    });
+    await record('remote/textgenerationwebui/encode#tabby#trailing_v1', '/remote/textgenerationwebui/encode', {
+        body: json({ text: 'Hello, world!', url: `${mockOrigin}/v1`, model: 'test-model', api_type: 'tabby' }),
+    });
+    await record('remote/textgenerationwebui/encode#tabby#trailing_slash', '/remote/textgenerationwebui/encode', {
+        body: json({ text: 'Hello, world!', url: `${mockOrigin}/`, model: 'test-model', api_type: 'tabby' }),
+    });
+    await record(`remote/textgenerationwebui/encode#${REMOTE_UNKNOWN_API_TYPE}`, '/remote/textgenerationwebui/encode', {
+        body: json({ text: 'Hello, world!', url: mockOrigin, model: 'test-model', api_type: REMOTE_UNKNOWN_API_TYPE }),
+    });
+    await record('remote/textgenerationwebui/encode#koboldcpp#error_status', '/remote/textgenerationwebui/encode', {
+        body: json({ text: 'Hello, world!', url: `${mockOrigin}/fail`, model: 'test-model', api_type: 'koboldcpp' }),
+    });
+    await record('remote/textgenerationwebui/encode#tabby#missing_url', '/remote/textgenerationwebui/encode', {
+        body: json({ text: 'Hello, world!', model: 'test-model', api_type: 'tabby' }),
+    });
     await stopServer();
+
+    // Run 2: downloads disabled with a cold cache. Pinned upstream cannot fetch and has no
+    // cached copy, so it falls back to llama3.json for all five external tokenizers.
+    rmSync(cacheRoot, { recursive: true, force: true });
+    const coldCacheBefore = cacheState();
+    const cold = makeRecorder(await startPinnedServer(CONFIG_DOWNLOADS_DISABLED));
+    const coldAsciiIds = {};
+    for (const input of FALLBACK_INPUTS) {
+        const result = await cold.capture(`downloads-disabled-cold/llama3/encode#${input}`, '/llama3/encode', { body: json({ text: inputText(input) }) });
+        if (input === 'ascii') coldAsciiIds.llama3 = result.body?.ids ?? [];
+    }
+    for (const model of EXTERNAL_MODELS) {
+        for (const input of FALLBACK_INPUTS) {
+            const result = await cold.capture(`downloads-disabled-cold/${model}/encode#${input}`, `/${model}/encode`, { body: json({ text: inputText(input) }) });
+            if (input === 'ascii') coldAsciiIds[model] = result.body?.ids ?? [];
+        }
+    }
+    await cold.capture('downloads-disabled-cold/llama3/decode#roundtrip_ascii', '/llama3/decode', { body: json({ ids: coldAsciiIds.llama3 }) });
+    for (const model of EXTERNAL_MODELS) {
+        await cold.capture(`downloads-disabled-cold/${model}/decode#roundtrip_ascii`, `/${model}/decode`, { body: json({ ids: coldAsciiIds[model] }) });
+    }
+    await stopServer();
+    const coldCacheAfter = cacheState();
+
+    // Run 3: downloads disabled with the pinned .gz files already in _cache. Pinned upstream
+    // decompresses them in place, so the vendored bytes win over the llama3 fallback.
+    rmSync(cacheRoot, { recursive: true, force: true });
+    mkdirSync(cacheRoot, { recursive: true });
+    for (const model of EXTERNAL_MODELS) {
+        writeFileSync(path.join(cacheRoot, `${model}.json.gz`), readFileSync(path.join(repositoryRoot, 'upstream', 'tokenizers', 'external', `${model}.json.gz`)));
+    }
+    const gzCacheBefore = cacheState();
+    const gz = makeRecorder(await startPinnedServer(CONFIG_DOWNLOADS_DISABLED));
+    for (const model of EXTERNAL_MODELS) {
+        for (const input of GZ_CACHE_INPUTS) {
+            await gz.capture(`downloads-disabled-gz/${model}/encode#${input}`, `/${model}/encode`, { body: json({ text: inputText(input) }) });
+        }
+    }
+    await stopServer();
+    const gzCacheAfter = cacheState();
+    await stopMockBackend();
 
     const expectedCases = Object.keys(responses);
     const coverage = {
@@ -452,7 +638,9 @@ try {
         probe: 'pinned tokenizer encode/decode/count routes across tiktoken, SentencePiece and HF tokenizers, with the corpus that exercises context boundaries',
         normalizations: [
             'Responses Express renders as its HTML error page are recorded in errorPages as status and content type only, because the page body is a V8 stack carrying host-absolute source paths and pinned line numbers.',
-            'The five externally fetched tokenizers are seeded into <DATA_ROOT>/_cache from the vendored pinned bytes, so the capture makes no network request and cannot follow the mutable upstream branch.',
+            'The five externally fetched tokenizers are seeded into <DATA_ROOT>/_cache from the vendored pinned bytes in the first run, so that capture makes no network request and cannot follow the mutable upstream branch. The two later runs deliberately change that cache state to record the fallback and the in-place decompression.',
+            'The mock text-generation backend origin is recorded as <mock-origin>, because its port differs on every run.',
+            'Backend requests record method, path, content-type, content-length and credential headers only; transport headers such as host and user-agent are omitted because they belong to the recording host.',
             'The session cookie and CSRF token are request inputs, not observations, and are not recorded.',
         ],
         inputs: {
@@ -471,6 +659,11 @@ try {
         coverage,
         responses,
         errorPages,
+        backendRequests,
+        downloadsDisabled: {
+            coldCache: { cacheBefore: coldCacheBefore, cacheAfter: coldCacheAfter },
+            gzCache: { cacheBefore: gzCacheBefore, cacheAfter: gzCacheAfter },
+        },
     };
     const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-tokenizers.json');
     mkdirSync(path.dirname(outputFile), { recursive: true });
@@ -481,5 +674,6 @@ try {
     process.exitCode = 1;
 } finally {
     await stopServer();
+    await stopMockBackend();
     safeCleanup();
 }
