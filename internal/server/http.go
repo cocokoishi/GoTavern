@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -696,20 +695,17 @@ func fsPathIsValid(p string) bool {
 	return p != "" && p != "." && !strings.HasPrefix(p, "../") && !strings.HasPrefix(p, "/")
 }
 
+// staticContentType resolves a media type for a served asset. It delegates to the
+// pinned mime@1.6.0 table in extensions_static_mime.go, which is the table
+// send@0.19.0 uses on every static path in the pinned server. It must not call
+// mime.TypeByExtension: Go builds that table from the host (its own built-ins plus
+// /etc/mime.types on Unix and the registry on Windows), so the same file would be
+// served with different types on the CI runner and on a developer machine — a
+// divergence that only CI would ever see. mime@1.6.0 also differs from the
+// mime-types package used elsewhere in this repository: its lookup falls back to
+// application/octet-stream for an unknown or absent extension, and its charsets
+// table appends "; charset=UTF-8" for text/* and for application/javascript and
+// application/json.
 func staticContentType(name string) string {
-	switch strings.ToLower(path.Ext(name)) {
-	case ".html", ".htm":
-		return "text/html; charset=UTF-8"
-	case ".js", ".mjs":
-		return "application/javascript; charset=UTF-8"
-	case ".css":
-		return "text/css; charset=UTF-8"
-	case ".json":
-		return "application/json; charset=utf-8"
-	default:
-		if contentType := mime.TypeByExtension(path.Ext(name)); contentType != "" {
-			return contentType
-		}
-		return "application/octet-stream"
-	}
+	return pinnedMimeV1ContentType(name)
 }
