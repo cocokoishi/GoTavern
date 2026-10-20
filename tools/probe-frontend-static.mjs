@@ -23,7 +23,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import http from 'node:http';
 import net from 'node:net';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -38,6 +38,9 @@ const FIXED_MTIME_MS = FIXED_MTIME_SECONDS * 1000;
 // prefixes, so cleanup can only ever remove its own artifacts.
 const SEED_DIRECTORY = 'probe-frontend-static';
 const GLOBAL_EXTENSION_DIRECTORY = 'probe-frontend-static-ext';
+// A real file one level above the served root, used to make the traversal
+// assertion discriminating: it is served if the rejection is missing.
+const OUTSIDE_PUBLIC_FILE = 'package.json';
 
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
@@ -332,10 +335,18 @@ try {
 
     // ---- traversal --------------------------------------------------------
     // send() rejects a path whose "./"-normalized form still contains "..", but
-    // serve-static only forwards an error once a file has been resolved. A
-    // pre-resolution error therefore falls through to the application, exactly
-    // like a miss.
-    await record('authenticatedTraversal', rawRequest(origin, { path: `/${SEED_DIRECTORY}/%2e%2e%2fpackage.json`, headers: authed }));
+    // serve-static only forwards an error once a file has been resolved, so this
+    // falls through to the application exactly like a miss.
+    //
+    // The target is a real file one level ABOVE the served root — the pinned
+    // checkout's own package.json. A path that normalizes back inside the root
+    // would answer the same 404 whether or not the traversal is rejected, so the
+    // assertion would prove nothing; this one serves package.json if the
+    // rejection is missing.
+    if (!existsSync(path.join(sourceRoot, OUTSIDE_PUBLIC_FILE))) {
+        throw new Error(`the pinned checkout has no ${OUTSIDE_PUBLIC_FILE}, so the traversal assertion could not discriminate`);
+    }
+    await record('authenticatedTraversal', rawRequest(origin, { path: `/%2e%2e%2f${OUTSIDE_PUBLIC_FILE}`, headers: authed }));
 
     // ---- conditional requests --------------------------------------------
     const etag = responses.localJs.headers.etag;
@@ -423,6 +434,7 @@ try {
             seedDirectory: SEED_DIRECTORY,
             globalExtensionDirectory: GLOBAL_EXTENSION_DIRECTORY,
             publicFiles: Object.fromEntries(Object.entries(PUBLIC_FILES).map(([relative, content]) => [relative, content.toString('base64')])),
+            outsidePublicFile: { relative: OUTSIDE_PUBLIC_FILE, base64: readFileSync(path.join(sourceRoot, OUTSIDE_PUBLIC_FILE)).toString('base64') },
         },
         responses,
         errorPages,

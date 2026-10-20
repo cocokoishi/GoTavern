@@ -48,6 +48,10 @@ type frontendStaticFixture struct {
 		FixedMtimeSeconds int64             `json:"fixedMtimeSeconds"`
 		SeedDirectory     string            `json:"seedDirectory"`
 		PublicFiles       map[string]string `json:"publicFiles"`
+		OutsidePublicFile struct {
+			Relative string `json:"relative"`
+			Base64   string `json:"base64"`
+		} `json:"outsidePublicFile"`
 	} `json:"inputs"`
 	Responses  map[string]frontendStaticResponse  `json:"responses"`
 	ErrorPages map[string]frontendStaticErrorPage `json:"errorPages"`
@@ -142,6 +146,24 @@ func TestPinnedNodeFrontendStaticMiddleware(t *testing.T) {
 		if err := os.Chtimes(target, when, when); err != nil {
 			t.Fatal(err)
 		}
+	}
+
+	// The pinned checkout has a real file one level above the served root, and the
+	// fixture records it so the traversal assertion can discriminate: a missing
+	// rejection would serve it rather than answer the application's 404.
+	outsidePublic, err := base64.StdEncoding.DecodeString(fixture.Inputs.OutsidePublicFile.Base64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outsideTarget := filepath.Join(installRoot, filepath.FromSlash(fixture.Inputs.OutsidePublicFile.Relative))
+	if err := os.MkdirAll(filepath.Dir(outsideTarget), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outsideTarget, outsidePublic, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(outsideTarget, when, when); err != nil {
+		t.Fatal(err)
 	}
 
 	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{
@@ -265,7 +287,7 @@ func TestPinnedNodeFrontendStaticMiddleware(t *testing.T) {
 	record("directoryWithoutIndex", get(base+"without-index/", nil))
 	record("directoryWithoutIndexNoSlash", get(base+"without-index", nil))
 	record("dotfileMiddlePart", get(base+".git/config", nil))
-	record("authenticatedTraversal", get(base+"%2e%2e%2fpackage.json", nil))
+	record("authenticatedTraversal", get("/%2e%2e%2f"+fixture.Inputs.OutsidePublicFile.Relative, nil))
 
 	etag := responses["localJs"].Headers["etag"]
 	lastModified := responses["localJs"].Headers["last-modified"]
