@@ -98,7 +98,7 @@ const OPENAI_ENCODE_MODELS = [
     'gpt-4', 'gpt-4o', 'gpt2', 'text-davinci-003', 'claude', 'llama3', 'llama', 'mistral', 'yi',
     'gemma', 'jamba', 'qwen2', 'command-r', 'command-a', 'nemo', 'deepseek', 'nerdstash', 'unknown-model',
 ];
-const OPENAI_ENCODE_INPUTS = ['empty', 'ascii', 'cjk', 'emoji', 'special_endoftext', 'added_llama3'];
+const OPENAI_ENCODE_INPUTS = ['empty', 'ascii', 'cjk', 'emoji', 'special_endoftext', 'special_endofprompt', 'special_fim', 'added_llama3'];
 const OPENAI_DECODE_MODELS = ['gpt-4', 'gpt-4o', 'gpt2', 'text-davinci-003', 'claude', 'llama3', 'llama', 'gemma', 'qwen2', 'deepseek'];
 const COUNT_MODELS = ['gpt-4', 'gpt-3.5-turbo-0301', 'gpt-4o', 'gpt2', 'claude', 'llama3', 'llama', 'gemma', 'deepseek', 'unknown-model'];
 const COUNT_BODIES = [
@@ -115,6 +115,15 @@ const COUNT_BODIES = [
     ['special_content', [{ role: 'user', content: 'a<|endoftext|>b' }]],
     ['object_body', { not: 'an array' }],
     ['string_body', 'plain string'],
+    // A value the tokenizer cannot encode aborts only the rest of that message, so the
+    // bad value must be followed by another property for the behaviour to be observable.
+    ['numeric_then_name', [{ role: 'user', content: 42, name: 'Bob' }]],
+    ['array_then_name', [{ role: 'user', content: ['x', 'y'], name: 'Bob' }]],
+    ['special_then_name', [{ role: 'user', content: 'a<|endoftext|>b', name: 'Bob' }]],
+    ['empty_array_then_name', [{ role: 'user', content: [], name: 'Bob' }]],
+    // The guesstimate fallback divides by 3.35, which only differs from a rounded divisor
+    // for inputs long enough to cross an integer boundary.
+    ['object_body_long', { not: 'an array', padding: 'x'.repeat(220) }],
 ];
 const FIXED_DECODE_CASES = [
     ['empty', []],

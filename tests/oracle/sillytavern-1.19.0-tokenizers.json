@@ -213,7 +213,7 @@
       },
       {
         "route": "POST /api/tokenizers/openai/encode",
-        "cases": 108,
+        "cases": 144,
         "status": "recorded"
       },
       {
@@ -223,7 +223,7 @@
       },
       {
         "route": "POST /api/tokenizers/openai/count",
-        "cases": 130,
+        "cases": 180,
         "status": "recorded"
       },
       {
@@ -692,108 +692,144 @@
       "openai/encode#gpt-4#cjk",
       "openai/encode#gpt-4#emoji",
       "openai/encode#gpt-4#special_endoftext",
+      "openai/encode#gpt-4#special_endofprompt",
+      "openai/encode#gpt-4#special_fim",
       "openai/encode#gpt-4#added_llama3",
       "openai/encode#gpt-4o#empty",
       "openai/encode#gpt-4o#ascii",
       "openai/encode#gpt-4o#cjk",
       "openai/encode#gpt-4o#emoji",
       "openai/encode#gpt-4o#special_endoftext",
+      "openai/encode#gpt-4o#special_endofprompt",
+      "openai/encode#gpt-4o#special_fim",
       "openai/encode#gpt-4o#added_llama3",
       "openai/encode#gpt2#empty",
       "openai/encode#gpt2#ascii",
       "openai/encode#gpt2#cjk",
       "openai/encode#gpt2#emoji",
       "openai/encode#gpt2#special_endoftext",
+      "openai/encode#gpt2#special_endofprompt",
+      "openai/encode#gpt2#special_fim",
       "openai/encode#gpt2#added_llama3",
       "openai/encode#text-davinci-003#empty",
       "openai/encode#text-davinci-003#ascii",
       "openai/encode#text-davinci-003#cjk",
       "openai/encode#text-davinci-003#emoji",
       "openai/encode#text-davinci-003#special_endoftext",
+      "openai/encode#text-davinci-003#special_endofprompt",
+      "openai/encode#text-davinci-003#special_fim",
       "openai/encode#text-davinci-003#added_llama3",
       "openai/encode#claude#empty",
       "openai/encode#claude#ascii",
       "openai/encode#claude#cjk",
       "openai/encode#claude#emoji",
       "openai/encode#claude#special_endoftext",
+      "openai/encode#claude#special_endofprompt",
+      "openai/encode#claude#special_fim",
       "openai/encode#claude#added_llama3",
       "openai/encode#llama3#empty",
       "openai/encode#llama3#ascii",
       "openai/encode#llama3#cjk",
       "openai/encode#llama3#emoji",
       "openai/encode#llama3#special_endoftext",
+      "openai/encode#llama3#special_endofprompt",
+      "openai/encode#llama3#special_fim",
       "openai/encode#llama3#added_llama3",
       "openai/encode#llama#empty",
       "openai/encode#llama#ascii",
       "openai/encode#llama#cjk",
       "openai/encode#llama#emoji",
       "openai/encode#llama#special_endoftext",
+      "openai/encode#llama#special_endofprompt",
+      "openai/encode#llama#special_fim",
       "openai/encode#llama#added_llama3",
       "openai/encode#mistral#empty",
       "openai/encode#mistral#ascii",
       "openai/encode#mistral#cjk",
       "openai/encode#mistral#emoji",
       "openai/encode#mistral#special_endoftext",
+      "openai/encode#mistral#special_endofprompt",
+      "openai/encode#mistral#special_fim",
       "openai/encode#mistral#added_llama3",
       "openai/encode#yi#empty",
       "openai/encode#yi#ascii",
       "openai/encode#yi#cjk",
       "openai/encode#yi#emoji",
       "openai/encode#yi#special_endoftext",
+      "openai/encode#yi#special_endofprompt",
+      "openai/encode#yi#special_fim",
       "openai/encode#yi#added_llama3",
       "openai/encode#gemma#empty",
       "openai/encode#gemma#ascii",
       "openai/encode#gemma#cjk",
       "openai/encode#gemma#emoji",
       "openai/encode#gemma#special_endoftext",
+      "openai/encode#gemma#special_endofprompt",
+      "openai/encode#gemma#special_fim",
       "openai/encode#gemma#added_llama3",
       "openai/encode#jamba#empty",
       "openai/encode#jamba#ascii",
       "openai/encode#jamba#cjk",
       "openai/encode#jamba#emoji",
       "openai/encode#jamba#special_endoftext",
+      "openai/encode#jamba#special_endofprompt",
+      "openai/encode#jamba#special_fim",
       "openai/encode#jamba#added_llama3",
       "openai/encode#qwen2#empty",
       "openai/encode#qwen2#ascii",
       "openai/encode#qwen2#cjk",
       "openai/encode#qwen2#emoji",
       "openai/encode#qwen2#special_endoftext",
+      "openai/encode#qwen2#special_endofprompt",
+      "openai/encode#qwen2#special_fim",
       "openai/encode#qwen2#added_llama3",
       "openai/encode#command-r#empty",
       "openai/encode#command-r#ascii",
       "openai/encode#command-r#cjk",
       "openai/encode#command-r#emoji",
       "openai/encode#command-r#special_endoftext",
+      "openai/encode#command-r#special_endofprompt",
+      "openai/encode#command-r#special_fim",
       "openai/encode#command-r#added_llama3",
       "openai/encode#command-a#empty",
       "openai/encode#command-a#ascii",
       "openai/encode#command-a#cjk",
       "openai/encode#command-a#emoji",
       "openai/encode#command-a#special_endoftext",
+      "openai/encode#command-a#special_endofprompt",
+      "openai/encode#command-a#special_fim",
       "openai/encode#command-a#added_llama3",
       "openai/encode#nemo#empty",
       "openai/encode#nemo#ascii",
       "openai/encode#nemo#cjk",
       "openai/encode#nemo#emoji",
       "openai/encode#nemo#special_endoftext",
+      "openai/encode#nemo#special_endofprompt",
+      "openai/encode#nemo#special_fim",
       "openai/encode#nemo#added_llama3",
       "openai/encode#deepseek#empty",
       "openai/encode#deepseek#ascii",
       "openai/encode#deepseek#cjk",
       "openai/encode#deepseek#emoji",
       "openai/encode#deepseek#special_endoftext",
+      "openai/encode#deepseek#special_endofprompt",
+      "openai/encode#deepseek#special_fim",
       "openai/encode#deepseek#added_llama3",
       "openai/encode#nerdstash#empty",
       "openai/encode#nerdstash#ascii",
       "openai/encode#nerdstash#cjk",
       "openai/encode#nerdstash#emoji",
       "openai/encode#nerdstash#special_endoftext",
+      "openai/encode#nerdstash#special_endofprompt",
+      "openai/encode#nerdstash#special_fim",
       "openai/encode#nerdstash#added_llama3",
       "openai/encode#unknown-model#empty",
       "openai/encode#unknown-model#ascii",
       "openai/encode#unknown-model#cjk",
       "openai/encode#unknown-model#emoji",
       "openai/encode#unknown-model#special_endoftext",
+      "openai/encode#unknown-model#special_endofprompt",
+      "openai/encode#unknown-model#special_fim",
       "openai/encode#unknown-model#added_llama3",
       "openai/decode#gpt-4#roundtrip_ascii",
       "openai/decode#gpt-4#out_of_range",
@@ -837,6 +873,11 @@
       "openai/count#gpt-4#empty_messages",
       "openai/count#gpt-4#special_content",
       "openai/count#gpt-4#object_body",
+      "openai/count#gpt-4#numeric_then_name",
+      "openai/count#gpt-4#array_then_name",
+      "openai/count#gpt-4#special_then_name",
+      "openai/count#gpt-4#empty_array_then_name",
+      "openai/count#gpt-4#object_body_long",
       "openai/count#gpt-3.5-turbo-0301#simple",
       "openai/count#gpt-3.5-turbo-0301#with_name",
       "openai/count#gpt-3.5-turbo-0301#system_and_user",
@@ -849,6 +890,11 @@
       "openai/count#gpt-3.5-turbo-0301#empty_messages",
       "openai/count#gpt-3.5-turbo-0301#special_content",
       "openai/count#gpt-3.5-turbo-0301#object_body",
+      "openai/count#gpt-3.5-turbo-0301#numeric_then_name",
+      "openai/count#gpt-3.5-turbo-0301#array_then_name",
+      "openai/count#gpt-3.5-turbo-0301#special_then_name",
+      "openai/count#gpt-3.5-turbo-0301#empty_array_then_name",
+      "openai/count#gpt-3.5-turbo-0301#object_body_long",
       "openai/count#gpt-4o#simple",
       "openai/count#gpt-4o#with_name",
       "openai/count#gpt-4o#system_and_user",
@@ -861,6 +907,11 @@
       "openai/count#gpt-4o#empty_messages",
       "openai/count#gpt-4o#special_content",
       "openai/count#gpt-4o#object_body",
+      "openai/count#gpt-4o#numeric_then_name",
+      "openai/count#gpt-4o#array_then_name",
+      "openai/count#gpt-4o#special_then_name",
+      "openai/count#gpt-4o#empty_array_then_name",
+      "openai/count#gpt-4o#object_body_long",
       "openai/count#gpt2#simple",
       "openai/count#gpt2#with_name",
       "openai/count#gpt2#system_and_user",
@@ -873,6 +924,11 @@
       "openai/count#gpt2#empty_messages",
       "openai/count#gpt2#special_content",
       "openai/count#gpt2#object_body",
+      "openai/count#gpt2#numeric_then_name",
+      "openai/count#gpt2#array_then_name",
+      "openai/count#gpt2#special_then_name",
+      "openai/count#gpt2#empty_array_then_name",
+      "openai/count#gpt2#object_body_long",
       "openai/count#claude#simple",
       "openai/count#claude#with_name",
       "openai/count#claude#system_and_user",
@@ -885,6 +941,11 @@
       "openai/count#claude#empty_messages",
       "openai/count#claude#special_content",
       "openai/count#claude#object_body",
+      "openai/count#claude#numeric_then_name",
+      "openai/count#claude#array_then_name",
+      "openai/count#claude#special_then_name",
+      "openai/count#claude#empty_array_then_name",
+      "openai/count#claude#object_body_long",
       "openai/count#llama3#simple",
       "openai/count#llama3#with_name",
       "openai/count#llama3#system_and_user",
@@ -897,6 +958,11 @@
       "openai/count#llama3#empty_messages",
       "openai/count#llama3#special_content",
       "openai/count#llama3#object_body",
+      "openai/count#llama3#numeric_then_name",
+      "openai/count#llama3#array_then_name",
+      "openai/count#llama3#special_then_name",
+      "openai/count#llama3#empty_array_then_name",
+      "openai/count#llama3#object_body_long",
       "openai/count#llama#simple",
       "openai/count#llama#with_name",
       "openai/count#llama#system_and_user",
@@ -909,6 +975,11 @@
       "openai/count#llama#empty_messages",
       "openai/count#llama#special_content",
       "openai/count#llama#object_body",
+      "openai/count#llama#numeric_then_name",
+      "openai/count#llama#array_then_name",
+      "openai/count#llama#special_then_name",
+      "openai/count#llama#empty_array_then_name",
+      "openai/count#llama#object_body_long",
       "openai/count#gemma#simple",
       "openai/count#gemma#with_name",
       "openai/count#gemma#system_and_user",
@@ -921,6 +992,11 @@
       "openai/count#gemma#empty_messages",
       "openai/count#gemma#special_content",
       "openai/count#gemma#object_body",
+      "openai/count#gemma#numeric_then_name",
+      "openai/count#gemma#array_then_name",
+      "openai/count#gemma#special_then_name",
+      "openai/count#gemma#empty_array_then_name",
+      "openai/count#gemma#object_body_long",
       "openai/count#deepseek#simple",
       "openai/count#deepseek#with_name",
       "openai/count#deepseek#system_and_user",
@@ -933,6 +1009,11 @@
       "openai/count#deepseek#empty_messages",
       "openai/count#deepseek#special_content",
       "openai/count#deepseek#object_body",
+      "openai/count#deepseek#numeric_then_name",
+      "openai/count#deepseek#array_then_name",
+      "openai/count#deepseek#special_then_name",
+      "openai/count#deepseek#empty_array_then_name",
+      "openai/count#deepseek#object_body_long",
       "openai/count#unknown-model#simple",
       "openai/count#unknown-model#with_name",
       "openai/count#unknown-model#system_and_user",
@@ -945,6 +1026,11 @@
       "openai/count#unknown-model#empty_messages",
       "openai/count#unknown-model#special_content",
       "openai/count#unknown-model#object_body",
+      "openai/count#unknown-model#numeric_then_name",
+      "openai/count#unknown-model#array_then_name",
+      "openai/count#unknown-model#special_then_name",
+      "openai/count#unknown-model#empty_array_then_name",
+      "openai/count#unknown-model#object_body_long",
       "remote/kobold/count#ok",
       "remote/kobold/count#empty_text",
       "remote/kobold/count#error_status",
@@ -27822,6 +27908,74 @@
         "chunks": []
       }
     },
+    "openai/encode#gpt-4#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-4#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
     "openai/encode#gpt-4#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -28070,6 +28224,92 @@
         "chunks": []
       }
     },
+    "openai/encode#gpt-4o#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-4o#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "101",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"65-+Xiu+2PITwmExevEwDpqtJfEvTw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          103473,
+          33197,
+          91,
+          29,
+          65
+        ],
+        "count": 8,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "fim",
+          "_prefix",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
     "openai/encode#gpt-4o#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -28300,6 +28540,74 @@
         },
         "body": {
           "text": "a<|endoftext|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt2#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt2#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
         }
       },
       "status": 200,
@@ -28594,6 +28902,118 @@
         "chunks": []
       }
     },
+    "openai/encode#text-davinci-003#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "text-davinci-003"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "115",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"73-SDVR4GSsGynk0lfz/w3DMW431qw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          437,
+          1659,
+          16963,
+          457,
+          91,
+          29,
+          65
+        ],
+        "count": 10,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prom",
+          "pt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#text-davinci-003#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "text-davinci-003"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "111",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6f-BI+oBTUPT9X9NvmjyTn3V1g571Y\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          69,
+          320,
+          62,
+          40290,
+          91,
+          29,
+          65
+        ],
+        "count": 10,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
     "openai/encode#text-davinci-003#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -28878,6 +29298,116 @@
         ]
       }
     },
+    "openai/encode#claude#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "claude"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "107",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6b-8XjZV7nzG03oskp3W4IIOhyCk8s\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          69,
+          32,
+          96,
+          441,
+          1392,
+          12760,
+          96,
+          34,
+          70
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#claude#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "claude"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "110",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6e-URPFGBSUzJP4lIFvdERE558vLvA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          69,
+          32,
+          96,
+          74,
+          408,
+          67,
+          3590,
+          96,
+          34,
+          70
+        ],
+        "count": 10,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
     "openai/encode#claude#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -29145,6 +29675,114 @@
           "endo",
           "ft",
           "ext",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#llama3#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama3"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "107",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6b-dWguRb1bQEqALIt3Kgq4dpTHsyM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          408,
+          1073,
+          41681,
+          91,
+          29,
+          65
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#llama3#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama3"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "104",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"68-lypPk78g2m+0Aa3FYqckOgKpgAU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          69,
+          318,
+          14301,
+          91,
+          29,
+          65
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_prefix",
           "|",
           ">",
           "b"
@@ -29425,6 +30063,118 @@
           "end",
           "of",
           "text",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#llama#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "133",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"85-G2DoZyJJQElYyM057EOYmnYGESw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          263,
+          29966,
+          29989,
+          355,
+          974,
+          14032,
+          415,
+          29989,
+          29958,
+          29890
+        ],
+        "count": 10,
+        "chunks": [
+          "▁a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prom",
+          "pt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#llama#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "136",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"88-HeCmmn7e6x2IHKZRYQEY2pf/Tl4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          263,
+          29966,
+          29989,
+          29888,
+          326,
+          29918,
+          13506,
+          29989,
+          29958,
+          29890
+        ],
+        "count": 10,
+        "chunks": [
+          "▁a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
           "|",
           ">",
           "b"
@@ -29715,6 +30465,118 @@
           "end",
           "of",
           "text",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#mistral#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "mistral"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "134",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"86-rHQfZULp28vBDAoh+Jdu98rkgpU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          264,
+          28789,
+          28766,
+          416,
+          1009,
+          14350,
+          447,
+          28766,
+          28767,
+          28726
+        ],
+        "count": 10,
+        "chunks": [
+          "▁a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prom",
+          "pt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#mistral#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "mistral"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "135",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"87-wkgkNIDyF3ff/jEgE5f11CUOS0E\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          264,
+          28789,
+          28766,
+          28722,
+          321,
+          28730,
+          8713,
+          28766,
+          28767,
+          28726
+        ],
+        "count": 10,
+        "chunks": [
+          "▁a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
           "|",
           ">",
           "b"
@@ -30017,6 +30879,114 @@
         ]
       }
     },
+    "openai/encode#yi#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "yi"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "123",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7b-wB1DMmBZ+1rYP23euUNbbUn5opI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          59572,
+          59666,
+          59705,
+          701,
+          1248,
+          21397,
+          785,
+          46826,
+          59588
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prom",
+          "pt",
+          "|>",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#yi#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "yi"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "125",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7d-oLjXp35i7SZgcir+cxYtEynkOfQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          59572,
+          59666,
+          59705,
+          59585,
+          622,
+          59593,
+          22589,
+          46826,
+          59588
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
+          "|>",
+          "b"
+        ]
+      }
+    },
     "openai/encode#yi#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -30278,6 +31248,110 @@
           "end",
           "of",
           "text",
+          "|>",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#gemma#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gemma"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "119",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"77-Bd5AWCo9BM5kNvPCfvC9Pa6MO4Y\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          235250,
+          235322,
+          235371,
+          615,
+          559,
+          39038,
+          73786,
+          235268
+        ],
+        "count": 8,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|>",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#gemma#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gemma"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "123",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7b-WVT1n8Pmj8oOvAcwo7ivwF7X2hc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          235250,
+          235322,
+          235371,
+          72139,
+          235298,
+          15856,
+          73786,
+          235268
+        ],
+        "count": 8,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "fim",
+          "_",
+          "prefix",
           "|>",
           "b"
         ]
@@ -30565,6 +31639,112 @@
         ]
       }
     },
+    "openai/encode#jamba#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "jamba"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "117",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"75-7D94pOmWW4E0aR1XVf1VhbPjXsg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          62937,
+          63010,
+          63038,
+          1983,
+          2871,
+          51223,
+          54742,
+          62954
+        ],
+        "count": 8,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|>",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#jamba#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "jamba"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "126",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7e-L0yHAlSqKZD8/dK0c1XhOvZwtZ4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          62937,
+          63010,
+          63038,
+          62951,
+          1863,
+          62988,
+          20235,
+          54742,
+          62954
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_",
+          "prefix",
+          "|>",
+          "b"
+        ]
+      }
+    },
     "openai/encode#jamba#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -30817,6 +31997,114 @@
         "chunks": [
           "a",
           "<|endoftext|>",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#qwen2#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "qwen2"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "107",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6b-YPFlluRseIVbiwCPR4FkIivQYr4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          408,
+          1055,
+          40581,
+          91,
+          29,
+          65
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#qwen2#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "qwen2"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "104",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"68-RRvkzWfzxT3jat28n1H6QeSaV8A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          64,
+          27,
+          91,
+          69,
+          318,
+          13974,
+          91,
+          29,
+          65
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_prefix",
+          "|",
+          ">",
           "b"
         ]
       }
@@ -31090,6 +32378,114 @@
           "end",
           "of",
           "text",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#command-r#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-r"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "108",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6c-8PAoQxZ35r1N4zWNJO2SEuJmUlc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          72,
+          35,
+          99,
+          1883,
+          3010,
+          68389,
+          99,
+          37,
+          73
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#command-r#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-r"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "106",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6a-b0FqkvT6QouZ9JS9c399qBxd9jE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          72,
+          35,
+          99,
+          93015,
+          70,
+          20156,
+          99,
+          37,
+          73
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "fim",
+          "_",
+          "prefix",
           "|",
           ">",
           "b"
@@ -31375,6 +32771,114 @@
         ]
       }
     },
+    "openai/encode#command-a#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-a"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "108",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6c-8PAoQxZ35r1N4zWNJO2SEuJmUlc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          72,
+          35,
+          99,
+          1883,
+          3010,
+          68389,
+          99,
+          37,
+          73
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#command-a#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-a"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "106",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6a-b0FqkvT6QouZ9JS9c399qBxd9jE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          72,
+          35,
+          99,
+          93015,
+          70,
+          20156,
+          99,
+          37,
+          73
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "fim",
+          "_",
+          "prefix",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
     "openai/encode#command-a#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -31645,6 +33149,114 @@
           "end",
           "of",
           "text",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#nemo#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nemo"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "121",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"79-4n0HHtWv0IZhhBD2CPqn5CJQ3Sg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1097,
+          1060,
+          1124,
+          1474,
+          2935,
+          112108,
+          1124,
+          1062,
+          1098
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prompt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#nemo#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nemo"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "119",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"77-B8hLe63MZiExA1NXC34j1HP0TKY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1097,
+          1060,
+          1124,
+          1102,
+          1329,
+          59556,
+          1124,
+          1062,
+          1098
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_prefix",
           "|",
           ">",
           "b"
@@ -31927,6 +33539,116 @@
         ]
       }
     },
+    "openai/encode#deepseek#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "115",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"73-GAmC/oVpYrJxPyAx28la/3mKJv0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          67,
+          30,
+          94,
+          523,
+          2154,
+          36132,
+          529,
+          94,
+          32,
+          68
+        ],
+        "count": 10,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "end",
+          "of",
+          "prom",
+          "pt",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
+    "openai/encode#deepseek#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "104",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"68-w2VEyr9Qyo9li3mxEESdwoAyKpY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          67,
+          30,
+          94,
+          72,
+          328,
+          99936,
+          94,
+          32,
+          68
+        ],
+        "count": 9,
+        "chunks": [
+          "a",
+          "<",
+          "|",
+          "f",
+          "im",
+          "_prefix",
+          "|",
+          ">",
+          "b"
+        ]
+      }
+    },
     "openai/encode#deepseek#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -32183,6 +33905,74 @@
         "chunks": []
       }
     },
+    "openai/encode#nerdstash#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nerdstash"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#nerdstash#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nerdstash"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
     "openai/encode#nerdstash#added_llama3": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -32413,6 +34203,74 @@
         },
         "body": {
           "text": "a<|endoftext|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#unknown-model#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#unknown-model#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
         }
       },
       "status": 200,
@@ -34005,6 +35863,186 @@
         "token_count": 6
       }
     },
+    "openai/count#gpt-4#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-4#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#gpt-3.5-turbo-0301#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -34425,6 +36463,186 @@
       },
       "body": {
         "token_count": 6
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-sU6v9boYhMULKhsAQK3y3pHlGpE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 17
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-sU6v9boYhMULKhsAQK3y3pHlGpE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 17
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-sU6v9boYhMULKhsAQK3y3pHlGpE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 17
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-sU6v9boYhMULKhsAQK3y3pHlGpE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 17
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
       }
     },
     "openai/count#gpt-4o#simple": {
@@ -34849,6 +37067,186 @@
         "token_count": 6
       }
     },
+    "openai/count#gpt-4o#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4o#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4o#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-4o#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-4o#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#gpt2#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -35269,6 +37667,186 @@
       },
       "body": {
         "token_count": 6
+      }
+    },
+    "openai/count#gpt2#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt2#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt2#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt2#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt2#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
       }
     },
     "openai/count#claude#simple": {
@@ -35693,6 +38271,186 @@
         "token_count": 6
       }
     },
+    "openai/count#claude#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#claude#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#claude#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#claude#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#claude#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#llama3#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -36113,6 +38871,186 @@
       },
       "body": {
         "token_count": 6
+      }
+    },
+    "openai/count#llama3#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
+    "openai/count#llama3#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#llama3#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-BTKaG05dXofhtfR60x0HDT+1aow\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 13
+      }
+    },
+    "openai/count#llama3#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#llama3#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
       }
     },
     "openai/count#llama#simple": {
@@ -36537,6 +39475,186 @@
         "token_count": 6
       }
     },
+    "openai/count#llama#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Cu75FXVFf2+/trG6Jr8XQHvwYUw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 8
+      }
+    },
+    "openai/count#llama#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#llama#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#llama#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#llama#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#gemma#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -36957,6 +40075,186 @@
       },
       "body": {
         "token_count": 6
+      }
+    },
+    "openai/count#gemma#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#gemma#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gemma#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Tq5FbmRbtrm+M6E1f2xE0xllrgA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 12
+      }
+    },
+    "openai/count#gemma#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#gemma#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
       }
     },
     "openai/count#deepseek#simple": {
@@ -37381,6 +40679,186 @@
         "token_count": 6
       }
     },
+    "openai/count#deepseek#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
+    "openai/count#deepseek#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#deepseek#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-BTKaG05dXofhtfR60x0HDT+1aow\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 13
+      }
+    },
+    "openai/count#deepseek#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#deepseek#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#unknown-model#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -37801,6 +41279,186 @@
       },
       "body": {
         "token_count": 6
+      }
+    },
+    "openai/count#unknown-model#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#unknown-model#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#unknown-model#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#unknown-model#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#unknown-model#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
       }
     },
     "remote/kobold/count#ok": {
