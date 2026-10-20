@@ -472,6 +472,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("GET /callback/", func(w http.ResponseWriter, r *http.Request) {
 		serveCallback(w, r, notFoundPage)
 	})
+	// Domains implemented in their own files register here. This runs before the
+	// catch-all so the registrations read in the same order they take effect.
+	registerDomainRoutes(mux, accounts, notFoundPage, options)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage, options)
 	})
