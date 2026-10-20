@@ -527,7 +527,7 @@ promoting them to `AGENTS.md`.
   its WTF-8 bytes — three separate, unmerged byte tokens — which is a *third* rule, different from the
   SentencePiece port's unvalidated pairing and from the tiktoken WASM's U+FFFD substitution. The engine
   escapes those bytes to private-use runes so the rune-based pre-tokenizer patterns cannot mangle them, and
-  that reproduces `claude` and `llama3`; it does **not** yet reproduce `command-r`/`command-a`, where the
+  that reproduces `llama3` but **not** `claude`, `command-r` or `command-a`. The route-level test caught the claude divergence after the engine test's exclusion had hidden it, which is the argument for measuring at route level. Where it diverges, the
   pinned capture shows two tokens where the engine produces three. Eight HF cases are excluded and counted
   by `wantHFSurrogateCases`, so nothing about that class is claimed. The private-use escape also means a real
   input character in U+E000..U+E3FF alongside a surrogate would be misread; no pinned case contains one.
