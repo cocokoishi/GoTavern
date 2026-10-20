@@ -622,6 +622,14 @@ async function main() {
             throw new Error(`scenario ${name} still records a raw ctime-derived date_added value`);
         }
     }
+    // 3. Every array response must be recorded in sorted order. Recording a
+    //    route's raw fs.readdirSync order would pass on NTFS and fail on ext4.
+    for (const [name, captured] of Object.entries(responses)) {
+        if (!Array.isArray(captured.body)) continue;
+        if (JSON.stringify(sortByFile(captured.body)) !== JSON.stringify(captured.body)) {
+            throw new Error(`scenario ${name} records its array in the probe host's directory order instead of sorted order`);
+        }
+    }
 
     assertRecordedBodiesMatchTheirJSON(fixture);
 
