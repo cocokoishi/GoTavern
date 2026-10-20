@@ -548,6 +548,24 @@ promoting them to `AGENTS.md`.
   one run. The test now uses `a`, `ab` and `abc` in shortest-first order, and the mutation fails with
   `the added segment is "a" id 7, want abc id 9`. The probe case that made the same mistake was renamed
   `added_meta_start`, because `<META>` is not a prefix of `<META_START>` either.
+- **The provider-request leg of the context boundary belongs to the browser E2E harness, which does not
+  exist yet.** GoTavern's server only *counts* tokens; the pinned frontend trims history client-side before
+  it posts. So the property that "an off-by-one becomes a different provider request" is not a GoTavern server
+  behaviour, and no server-side test can measure it. `internal/tokenizers/context_boundary_test.go` asserts the
+  two properties that ARE server behaviour — tail stability and same-count-different-tokens — and the budget
+  flip is a labelable contract assertion, not a claim about this repository. The real provider-request
+  assertion is Phase 4 work for the E2E harness. This is recorded here rather than implied by a green suite.
+
+### Tail stability is not a universal law
+
+Appending text to a tokenized string can re-merge the final token, so `ids(A)` is **not** always a prefix of
+`ids(A + suffix)`. An engine that assumed the universal prefix law would break on ordinary words, and a test
+that asserted it universally would either fail or be weakened into uselessness. The boundary test therefore
+asserts the full prefix only where it holds, asserts the weaker law that always holds — a re-merge changes at
+most the final token, never anything before it — and asserts the re-merge itself as the counter-property,
+searching a candidate list and **failing if no candidate re-merges**, so the test cannot pass vacuously if an
+engine's behaviour changes. On the current data `nerdstash` re-merges `abc` + `d` (2 → 2 ids, final token
+replaced), which is what makes the counter-property live rather than hypothetical.
 
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
 
