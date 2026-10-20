@@ -1,0 +1,1743 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned world-info list/get/delete/import/edit responses, filename sanitization, res.send() shapes and multipart staging rules",
+  "normalizations": [
+    "Requests are sent with Accept-Encoding: identity so the recorded framing is a property of the route rather than of the pinned compression middleware.",
+    "Every request body-derived header is recorded as-is; the pinned responses are uncompressed because of the previous rule.",
+    "A thrown route error answers with Express finalhandler's HTML page, whose <pre> block is the V8 stack with host-absolute source paths and pinned line numbers. Those responses are recorded in errorPages as a status only; GoTavern answers the same status with a plain-text body.",
+    "The /list sort is the pinned localeCompare(); the seeded names are lower-case ASCII and differ in their first character so the order is collation-independent.",
+    "World file bytes are recorded, but never sizes or mtimes, so no observation depends on the host filesystem."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-worldinfo-cookie-secret",
+    "seededWorlds": {
+      "Zulu.json": "{\"name\":\"Zulu World\",\"entries\":{}}",
+      "alpha.json": "{\n  \"name\": \"Alpha World\",\n  \"entries\": { \"0\": { \"uid\": 0, \"key\": [\"alpha\"], \"content\": \"alpha content\" } },\n  \"extensions\": { \"marker\": \"alpha\", \"nested\": { \"keep\": true } },\n  \"probeUnknownTopLevel\": { \"keep\": [1, 2, 3] }\n}\n",
+      "boolean.json": "true",
+      "bravo.json": "{\"entries\":{\"0\":{\"uid\":0}},\"extensions\":[1,2]}",
+      "charlie.json": "{\"entries\":{},\"extensions\":\"not an object\"}",
+      "delta.json": "this is not json at all",
+      "echo.json": "[1,2,3]",
+      "foxtrot.JSON": "{\"name\":\"Foxtrot Upper\",\"entries\":{}}",
+      "golf.txt": "{\"entries\":{}}",
+      "invalid-number.json": "5",
+      "nothing.json": "null",
+      "numeric.json": "404",
+      "textual.json": "\"just a string\""
+    },
+    "seededDirectory": "hotel.json",
+    "editCreated": "{\"name\":\"edited\",\"data\":{\"entries\":{\"0\":{\"uid\":0,\"content\":\"edited content\"}},\"probeUnknownTopLevel\":{\"keep\":\"edit\"}}}",
+    "editNumericKeys": "{\"name\":\"keyorder\",\"data\":{\"entries\":{\"2\":{\"uid\":2},\"10\":{\"uid\":10}}}}",
+    "editOverwrite": "{\"name\":\"bravo\",\"data\":{\"entries\":{\"0\":{\"uid\":0,\"replaced\":true}}}}",
+    "importedWorld": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"imported\"}},\"probeUnknown\":{\"keep\":true}}",
+    "importCases": {
+      "importNoFile": {
+        "fields": [],
+        "file": null,
+        "body": "{}"
+      },
+      "importValid": {
+        "fields": [],
+        "file": {
+          "filename": "imported.json",
+          "content": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"imported\"}},\"probeUnknown\":{\"keep\":true}}"
+        },
+        "body": null
+      },
+      "importDottedName": {
+        "fields": [],
+        "file": {
+          "filename": "my.world.json",
+          "content": "{\"entries\":{}}"
+        },
+        "body": null
+      },
+      "importSlashName": {
+        "fields": [],
+        "file": {
+          "filename": "a/b.json",
+          "content": "{\"entries\":{}}"
+        },
+        "body": null
+      },
+      "importEmptySanitizedName": {
+        "fields": [],
+        "file": {
+          "filename": "con.json",
+          "content": "{\"entries\":{}}"
+        },
+        "body": null
+      },
+      "importTextExtension": {
+        "fields": [],
+        "file": {
+          "filename": "notes.txt",
+          "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+        },
+        "body": null
+      },
+      "importMissingEntries": {
+        "fields": [],
+        "file": {
+          "filename": "noentries.json",
+          "content": "{\"foo\":1}"
+        },
+        "body": null
+      },
+      "importArrayContent": {
+        "fields": [],
+        "file": {
+          "filename": "arraycontent.json",
+          "content": "[1,2]"
+        },
+        "body": null
+      },
+      "importInvalidJson": {
+        "fields": [],
+        "file": {
+          "filename": "broken.json",
+          "content": "not json"
+        },
+        "body": null
+      },
+      "importConvertedData": {
+        "fields": [
+          [
+            "convertedData",
+            "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"converted\"}}}"
+          ]
+        ],
+        "file": {
+          "filename": "converted.json",
+          "content": "{\"entries\":{}}"
+        },
+        "body": null
+      },
+      "importConvertedDataInvalid": {
+        "fields": [
+          [
+            "convertedData",
+            "not json"
+          ]
+        ],
+        "file": {
+          "filename": "converted-bad.json",
+          "content": "{\"entries\":{}}"
+        },
+        "body": null
+      },
+      "importEmptyConvertedData": {
+        "fields": [
+          [
+            "convertedData",
+            ""
+          ]
+        ],
+        "file": {
+          "filename": "converted-empty.json",
+          "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+        },
+        "body": null
+      }
+    }
+  },
+  "responses": {
+    "listMain": {
+      "status": 200,
+      "headers": {
+        "content-length": "711",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2c7-aRjB267QqQAVgSczvoJm0DN5Xw0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "file_id": "alpha",
+          "name": "Alpha World",
+          "extensions": {
+            "marker": "alpha",
+            "nested": {
+              "keep": true
+            }
+          }
+        },
+        {
+          "file_id": "boolean",
+          "name": "boolean",
+          "extensions": {}
+        },
+        {
+          "file_id": "bravo",
+          "name": "bravo",
+          "extensions": [
+            1,
+            2
+          ]
+        },
+        {
+          "file_id": "charlie",
+          "name": "charlie",
+          "extensions": {}
+        },
+        {
+          "file_id": "delta",
+          "name": "delta",
+          "extensions": {}
+        },
+        {
+          "file_id": "echo",
+          "name": "echo",
+          "extensions": {}
+        },
+        {
+          "file_id": "foxtrot",
+          "name": "Foxtrot Upper",
+          "extensions": {}
+        },
+        {
+          "file_id": "invalid-number",
+          "name": "invalid-number",
+          "extensions": {}
+        },
+        {
+          "file_id": "nothing",
+          "name": "nothing",
+          "extensions": {}
+        },
+        {
+          "file_id": "numeric",
+          "name": "numeric",
+          "extensions": {}
+        },
+        {
+          "file_id": "textual",
+          "name": "textual",
+          "extensions": {}
+        },
+        {
+          "file_id": "Zulu",
+          "name": "Zulu World",
+          "extensions": {}
+        }
+      ]
+    },
+    "listWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "listWrongMethodHead": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "getAlpha": {
+      "status": 200,
+      "headers": {
+        "content-length": "185",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b9-7WBLPcg+eVku27LWhbry0RS3q4k\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "Alpha World",
+        "entries": {
+          "0": {
+            "uid": 0,
+            "key": [
+              "alpha"
+            ],
+            "content": "alpha content"
+          }
+        },
+        "extensions": {
+          "marker": "alpha",
+          "nested": {
+            "keep": true
+          }
+        },
+        "probeUnknownTopLevel": {
+          "keep": [
+            1,
+            2,
+            3
+          ]
+        }
+      }
+    },
+    "getMissingFile": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getEmptyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "getAbsentName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "getNameNumber": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getNameArray": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getNameObject": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getNameWithSlash": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getNameWithExtension": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-ouyjMB5o4HlPqy+oaP54xiJcnDk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "entries": {}
+      }
+    },
+    "getTextual": {
+      "status": 200,
+      "headers": {
+        "content-length": "13",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"d-QFta7Fu3rc+ZHv6X6vTIDvmD/oE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "just a string"
+    },
+    "getNull": {
+      "status": 200,
+      "headers": {
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "getBoolean": {
+      "status": 200,
+      "headers": {
+        "content-length": "4",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4-X/5TO4MPCKAyY0ipFgr6/IraRNs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": true
+    },
+    "getNumericStatus": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "getNonJsonContentType": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "getPlusJSONContentType": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "getNoBody": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "getWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "editCreate": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editNumericKeys": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editOverwrite": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editAbsentName": {
+      "status": 400,
+      "headers": {
+        "content-length": "27",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1b-nYcThQXksGuNOBW81BHtZX5wf/g\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "World file must have a name"
+    },
+    "editEmptyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "27",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1b-nYcThQXksGuNOBW81BHtZX5wf/g\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "World file must have a name"
+    },
+    "editMissingData": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "editNullData": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "editArrayData": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editStringData": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "editMissingEntries": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "editSanitizedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editNameNumber": {
+      "status": 200,
+      "headers": {
+        "content-length": "11",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    "editWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "importNoFile": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "importValid": {
+      "status": 200,
+      "headers": {
+        "content-length": "19",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"13-dPCSsj8oHLsI6/jkrAWbEg5hLa0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "imported"
+      }
+    },
+    "importDottedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "19",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"13-QBETxIPKboUayaeQaiBEe0usPc4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "my.world"
+      }
+    },
+    "importSlashName": {
+      "status": 200,
+      "headers": {
+        "content-length": "12",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"c-CMOtzBPihlq5itv02eQZ6D+yUt0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "b"
+      }
+    },
+    "importEmptySanitizedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10-PtZRkkg6WQNhsSeisIqUlkXZmgw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": ".json"
+      }
+    },
+    "importTextExtension": {
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10-w8fPdWlNNEhJHbY3hMxLLIbKMXI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "notes"
+      }
+    },
+    "importMissingEntries": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "importArrayContent": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-puNUmcH0UiNw94jSxlSPH2aWrAk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "arraycontent"
+      }
+    },
+    "importInvalidJson": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "importConvertedData": {
+      "status": 200,
+      "headers": {
+        "content-length": "20",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-zoIPOchAYX/FdeeEvmuftEQIJoU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "converted"
+      }
+    },
+    "importConvertedDataInvalid": {
+      "status": 400,
+      "headers": {
+        "content-length": "30",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1e-rqEwX9933tD9DG24oW26UFOoUwQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Is not a valid world info file"
+    },
+    "importEmptyConvertedData": {
+      "status": 200,
+      "headers": {
+        "content-length": "26",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1a-wjH7auZaCQEgvq0E8Sm/AFhbEYg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "converted-empty"
+      }
+    },
+    "deleteAbsentName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "deleteSanitizedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteCharlie": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    }
+  },
+  "errorPages": {
+    "getInvalidJson": {
+      "status": 500
+    },
+    "getSanitizedToEmpty": {
+      "status": 500
+    },
+    "getInvalidNumber": {
+      "status": 500
+    },
+    "getMalformedBody": {
+      "status": 400
+    },
+    "getNonObjectBody": {
+      "status": 400
+    },
+    "editMalformedBody": {
+      "status": 400
+    },
+    "deleteAlphaGone": {
+      "status": 500
+    },
+    "deleteMissingFile": {
+      "status": 500
+    }
+  },
+  "state": {
+    "worldsAfterEdits": [
+      {
+        "name": "123.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "Zulu.json",
+        "kind": "file",
+        "content": "{\"name\":\"Zulu World\",\"entries\":{}}"
+      },
+      {
+        "name": "ab.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "alpha.json",
+        "kind": "file",
+        "content": "{\n  \"name\": \"Alpha World\",\n  \"entries\": { \"0\": { \"uid\": 0, \"key\": [\"alpha\"], \"content\": \"alpha content\" } },\n  \"extensions\": { \"marker\": \"alpha\", \"nested\": { \"keep\": true } },\n  \"probeUnknownTopLevel\": { \"keep\": [1, 2, 3] }\n}\n"
+      },
+      {
+        "name": "boolean.json",
+        "kind": "file",
+        "content": "true"
+      },
+      {
+        "name": "bravo.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"replaced\": true\n        }\n    }\n}"
+      },
+      {
+        "name": "charlie.json",
+        "kind": "file",
+        "content": "{\"entries\":{},\"extensions\":\"not an object\"}"
+      },
+      {
+        "name": "delta.json",
+        "kind": "file",
+        "content": "this is not json at all"
+      },
+      {
+        "name": "echo.json",
+        "kind": "file",
+        "content": "[1,2,3]"
+      },
+      {
+        "name": "edited.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"content\": \"edited content\"\n        }\n    },\n    \"probeUnknownTopLevel\": {\n        \"keep\": \"edit\"\n    }\n}"
+      },
+      {
+        "name": "foxtrot.JSON",
+        "kind": "file",
+        "content": "{\"name\":\"Foxtrot Upper\",\"entries\":{}}"
+      },
+      {
+        "name": "golf.txt",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "hotel.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "invalid-number.json",
+        "kind": "file",
+        "content": "5"
+      },
+      {
+        "name": "keyorder.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"2\": {\n            \"uid\": 2\n        },\n        \"10\": {\n            \"uid\": 10\n        }\n    }\n}"
+      },
+      {
+        "name": "nothing.json",
+        "kind": "file",
+        "content": "null"
+      },
+      {
+        "name": "numeric.json",
+        "kind": "file",
+        "content": "404"
+      },
+      {
+        "name": "textual.json",
+        "kind": "file",
+        "content": "\"just a string\""
+      },
+      {
+        "name": "x.json",
+        "kind": "file",
+        "content": "[]"
+      }
+    ],
+    "worldsAfterImports": [
+      {
+        "name": ".json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "123.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "Zulu.json",
+        "kind": "file",
+        "content": "{\"name\":\"Zulu World\",\"entries\":{}}"
+      },
+      {
+        "name": "ab.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "alpha.json",
+        "kind": "file",
+        "content": "{\n  \"name\": \"Alpha World\",\n  \"entries\": { \"0\": { \"uid\": 0, \"key\": [\"alpha\"], \"content\": \"alpha content\" } },\n  \"extensions\": { \"marker\": \"alpha\", \"nested\": { \"keep\": true } },\n  \"probeUnknownTopLevel\": { \"keep\": [1, 2, 3] }\n}\n"
+      },
+      {
+        "name": "arraycontent.json",
+        "kind": "file",
+        "content": "[1,2]"
+      },
+      {
+        "name": "b.json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "boolean.json",
+        "kind": "file",
+        "content": "true"
+      },
+      {
+        "name": "bravo.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"replaced\": true\n        }\n    }\n}"
+      },
+      {
+        "name": "charlie.json",
+        "kind": "file",
+        "content": "{\"entries\":{},\"extensions\":\"not an object\"}"
+      },
+      {
+        "name": "converted-empty.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+      },
+      {
+        "name": "converted.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"converted\"}}}"
+      },
+      {
+        "name": "delta.json",
+        "kind": "file",
+        "content": "this is not json at all"
+      },
+      {
+        "name": "echo.json",
+        "kind": "file",
+        "content": "[1,2,3]"
+      },
+      {
+        "name": "edited.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"content\": \"edited content\"\n        }\n    },\n    \"probeUnknownTopLevel\": {\n        \"keep\": \"edit\"\n    }\n}"
+      },
+      {
+        "name": "foxtrot.JSON",
+        "kind": "file",
+        "content": "{\"name\":\"Foxtrot Upper\",\"entries\":{}}"
+      },
+      {
+        "name": "golf.txt",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "hotel.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "imported.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"imported\"}},\"probeUnknown\":{\"keep\":true}}"
+      },
+      {
+        "name": "invalid-number.json",
+        "kind": "file",
+        "content": "5"
+      },
+      {
+        "name": "keyorder.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"2\": {\n            \"uid\": 2\n        },\n        \"10\": {\n            \"uid\": 10\n        }\n    }\n}"
+      },
+      {
+        "name": "my.world.json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "notes.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+      },
+      {
+        "name": "nothing.json",
+        "kind": "file",
+        "content": "null"
+      },
+      {
+        "name": "numeric.json",
+        "kind": "file",
+        "content": "404"
+      },
+      {
+        "name": "textual.json",
+        "kind": "file",
+        "content": "\"just a string\""
+      },
+      {
+        "name": "x.json",
+        "kind": "file",
+        "content": "[]"
+      }
+    ],
+    "worldsAfterDeletes": [
+      {
+        "name": ".json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "123.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "Zulu.json",
+        "kind": "file",
+        "content": "{\"name\":\"Zulu World\",\"entries\":{}}"
+      },
+      {
+        "name": "ab.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {}\n}"
+      },
+      {
+        "name": "arraycontent.json",
+        "kind": "file",
+        "content": "[1,2]"
+      },
+      {
+        "name": "b.json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "boolean.json",
+        "kind": "file",
+        "content": "true"
+      },
+      {
+        "name": "bravo.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"replaced\": true\n        }\n    }\n}"
+      },
+      {
+        "name": "converted-empty.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+      },
+      {
+        "name": "converted.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"converted\"}}}"
+      },
+      {
+        "name": "delta.json",
+        "kind": "file",
+        "content": "this is not json at all"
+      },
+      {
+        "name": "echo.json",
+        "kind": "file",
+        "content": "[1,2,3]"
+      },
+      {
+        "name": "edited.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"content\": \"edited content\"\n        }\n    },\n    \"probeUnknownTopLevel\": {\n        \"keep\": \"edit\"\n    }\n}"
+      },
+      {
+        "name": "foxtrot.JSON",
+        "kind": "file",
+        "content": "{\"name\":\"Foxtrot Upper\",\"entries\":{}}"
+      },
+      {
+        "name": "golf.txt",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "hotel.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "imported.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0,\"content\":\"imported\"}},\"probeUnknown\":{\"keep\":true}}"
+      },
+      {
+        "name": "invalid-number.json",
+        "kind": "file",
+        "content": "5"
+      },
+      {
+        "name": "keyorder.json",
+        "kind": "file",
+        "content": "{\n    \"entries\": {\n        \"2\": {\n            \"uid\": 2\n        },\n        \"10\": {\n            \"uid\": 10\n        }\n    }\n}"
+      },
+      {
+        "name": "my.world.json",
+        "kind": "file",
+        "content": "{\"entries\":{}}"
+      },
+      {
+        "name": "notes.json",
+        "kind": "file",
+        "content": "{\"entries\":{\"0\":{\"uid\":0}}}"
+      },
+      {
+        "name": "nothing.json",
+        "kind": "file",
+        "content": "null"
+      },
+      {
+        "name": "numeric.json",
+        "kind": "file",
+        "content": "404"
+      },
+      {
+        "name": "textual.json",
+        "kind": "file",
+        "content": "\"just a string\""
+      },
+      {
+        "name": "x.json",
+        "kind": "file",
+        "content": "[]"
+      }
+    ],
+    "uploadsAfterImport": {
+      "importNoFile": 0,
+      "importValid": 0,
+      "importDottedName": 0,
+      "importSlashName": 0,
+      "importEmptySanitizedName": 0,
+      "importTextExtension": 0,
+      "importMissingEntries": 0,
+      "importArrayContent": 0,
+      "importInvalidJson": 0,
+      "importConvertedData": 1,
+      "importConvertedDataInvalid": 2,
+      "importEmptyConvertedData": 2
+    },
+    "accountRecordUnchanged": true
+  },
+  "roundTrip": {
+    "verified": true,
+    "nodeWrittenBody": "{\"name\":\"nodewritten\",\"data\":{\"entries\":{\"0\":{\"uid\":0,\"content\":\"written by pinned Node\"}},\"probeUnknown\":{\"keep\":true}}}",
+    "goWrittenBody": "{\"name\":\"gowritten\",\"data\":{\"entries\":{\"0\":{\"uid\":0,\"content\":\"written by GoTavern\"}},\"probeUnknown\":{\"keep\":\"go\"}}}",
+    "nodeWrittenWorldReadByGo": {
+      "entries": {
+        "0": {
+          "uid": 0,
+          "content": "written by pinned Node"
+        }
+      },
+      "probeUnknown": {
+        "keep": true
+      }
+    },
+    "goWrittenWorldReadByNode": {
+      "entries": {
+        "0": {
+          "uid": 0,
+          "content": "written by GoTavern"
+        }
+      },
+      "probeUnknown": {
+        "keep": "go"
+      }
+    },
+    "goWrittenWorldBytes": "{\n    \"entries\": {\n        \"0\": {\n            \"uid\": 0,\n            \"content\": \"written by GoTavern\"\n        }\n    },\n    \"probeUnknown\": {\n        \"keep\": \"go\"\n    }\n}"
+  }
+}

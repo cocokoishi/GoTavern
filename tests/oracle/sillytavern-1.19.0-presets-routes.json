@@ -1,0 +1,1500 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned preset save/delete/restore responses, apiId directory mapping, sanitize-filename coercion and restore content-index matching",
+  "normalizations": [
+    "Requests are sent with Accept-Encoding: identity so the recorded framing is a property of the route rather than of the pinned compression middleware.",
+    "A non-string name makes sanitize-filename throw; Express answers with finalhandler's HTML page, whose <pre> block is the V8 stack with host-absolute source paths and pinned line numbers. Those responses are recorded in errorPages as a status only; GoTavern answers the same status with a plain-text body.",
+    "The /restore route catches the same throw and answers sendStatus(500), so those responses are recorded in full.",
+    "Preset file bytes are recorded, but never sizes or mtimes, so no observation depends on the host filesystem."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-presets-cookie-secret",
+    "presetDirectories": [
+      "KoboldAI Settings",
+      "NovelAI Settings",
+      "OpenAI Settings",
+      "TextGen Settings",
+      "instruct",
+      "context",
+      "sysprompt",
+      "reasoning"
+    ],
+    "bodies": {
+      "saveMain": "{\"apiId\":\"openai\",\"name\":\"MyPreset\",\"preset\":{\"chat_completion_source\":\"openai\",\"temperature\":0.75,\"prompts\":[{\"identifier\":\"main\",\"content\":\"preset marker\"}]}}",
+      "saveOverwrite": "{\"apiId\":\"openai\",\"name\":\"MyPreset\",\"preset\":{\"marker\":\"overwritten\",\"unknown\":{\"keep\":[1,2]}}}",
+      "saveKobold": "{\"apiId\":\"kobold\",\"name\":\"KoboldPreset\",\"preset\":{\"marker\":\"kobold\"}}",
+      "saveKoboldHorde": "{\"apiId\":\"koboldhorde\",\"name\":\"HordePreset\",\"preset\":{\"marker\":\"horde\"}}",
+      "saveNovel": "{\"apiId\":\"novel\",\"name\":\"NovelPreset\",\"preset\":{\"marker\":\"novel\"}}",
+      "saveTextGen": "{\"apiId\":\"textgenerationwebui\",\"name\":\"TextGenPreset\",\"preset\":{\"marker\":\"textgen\"}}",
+      "saveInstruct": "{\"apiId\":\"instruct\",\"name\":\"MyInstruct\",\"preset\":{\"marker\":\"instruct\"}}",
+      "saveContext": "{\"apiId\":\"context\",\"name\":\"MyContext\",\"preset\":{\"marker\":\"context\"}}",
+      "saveSysprompt": "{\"apiId\":\"sysprompt\",\"name\":\"MySysprompt\",\"preset\":{\"marker\":\"sysprompt\"}}",
+      "saveReasoning": "{\"apiId\":\"reasoning\",\"name\":\"MyReasoning\",\"preset\":{\"marker\":\"reasoning\"}}",
+      "saveUnknownAPI": "{\"apiId\":\"nope\",\"name\":\"Unknown\",\"preset\":{\"marker\":\"unknown\"}}",
+      "saveMissingPreset": "{\"apiId\":\"openai\",\"name\":\"NoPreset\"}",
+      "saveFalsyPreset": "{\"apiId\":\"openai\",\"name\":\"FalsyPreset\",\"preset\":0}",
+      "saveEmptyName": "{\"apiId\":\"openai\",\"name\":\"\",\"preset\":{\"marker\":\"empty\"}}",
+      "saveMissingName": "{\"apiId\":\"openai\",\"preset\":{\"marker\":\"missing\"}}",
+      "saveNumericName": "{\"apiId\":\"openai\",\"name\":5,\"preset\":{\"marker\":\"numeric\"}}",
+      "saveArrayName": "{\"apiId\":\"openai\",\"name\":[\"a\"],\"preset\":{\"marker\":\"array\"}}",
+      "saveNullName": "{\"apiId\":\"openai\",\"name\":null,\"preset\":{\"marker\":\"null\"}}",
+      "saveNumericAPI": "{\"apiId\":5,\"name\":\"NumericAPI\",\"preset\":{\"marker\":\"numericapi\"}}",
+      "saveReservedName": "{\"apiId\":\"openai\",\"name\":\"con\",\"preset\":{\"marker\":\"reserved\"}}",
+      "saveSanitizedName": "{\"apiId\":\"openai\",\"name\":\"a/b\",\"preset\":{\"marker\":\"sanitized\"}}",
+      "saveTrailingSpace": "{\"apiId\":\"openai\",\"name\":\"Trail  \",\"preset\":{\"marker\":\"trailing\"}}",
+      "saveNumberPreset": "{\"apiId\":\"openai\",\"name\":\"NumberPreset\",\"preset\":5}",
+      "saveStringPreset": "{\"apiId\":\"openai\",\"name\":\"StringPreset\",\"preset\":\"text\"}",
+      "saveTruePreset": "{\"apiId\":\"openai\",\"name\":\"TruePreset\",\"preset\":true}",
+      "saveArrayPreset": "{\"apiId\":\"openai\",\"name\":\"ArrayPreset\",\"preset\":[1,2]}",
+      "saveJsNumbers": "{\"apiId\":\"openai\",\"name\":\"Numbers\",\"preset\":{\"big\":1e21,\"exp\":1e20,\"negZero\":-0,\"small\":1e-7,\"unsafe\":9007199254740993,\"float\":0.1}}",
+      "deleteMissingName": "{\"apiId\":\"openai\"}",
+      "deleteEmptyName": "{\"apiId\":\"openai\",\"name\":\"\"}",
+      "deleteUnknownAPI": "{\"apiId\":\"nope\",\"name\":\"Unknown\"}",
+      "deleteExisting": "{\"apiId\":\"openai\",\"name\":\"MyPreset\"}",
+      "deleteAgain": "{\"apiId\":\"openai\",\"name\":\"MyPreset\"}",
+      "deleteSanitizedName": "{\"apiId\":\"openai\",\"name\":\"a/b\"}",
+      "deleteReservedName": "{\"apiId\":\"openai\",\"name\":\"con\"}",
+      "deleteInstruct": "{\"apiId\":\"instruct\",\"name\":\"MyInstruct\"}",
+      "restoreOpenAIDefault": "{\"apiId\":\"openai\",\"name\":\"Default\"}",
+      "restoreInstructAlpaca": "{\"apiId\":\"instruct\",\"name\":\"Alpaca\"}",
+      "restoreInstructDefault": "{\"apiId\":\"instruct\",\"name\":\"Default\"}",
+      "restoreWrongFolder": "{\"apiId\":\"openai\",\"name\":\"Alpaca\"}",
+      "restoreUnknownAPI": "{\"apiId\":\"nope\",\"name\":\"Default\"}",
+      "restoreSyspromptBlank": "{\"apiId\":\"sysprompt\",\"name\":\"Blank\"}",
+      "restoreReasoningBlank": "{\"apiId\":\"reasoning\",\"name\":\"Blank\"}",
+      "restoreCaseSensitive": "{\"apiId\":\"openai\",\"name\":\"default\"}",
+      "restoreMissingName": "{\"apiId\":\"openai\"}",
+      "restoreNumericName": "{\"apiId\":\"openai\",\"name\":5}",
+      "restoreReservedName": "{\"apiId\":\"openai\",\"name\":\"con\"}"
+    }
+  },
+  "responses": {
+    "saveMain": {
+      "status": 200,
+      "headers": {
+        "content-length": "19",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"13-rD73YeeAy7kxHuAYvG7M8to6fEI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MyPreset"
+      }
+    },
+    "saveOverwrite": {
+      "status": 200,
+      "headers": {
+        "content-length": "19",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"13-rD73YeeAy7kxHuAYvG7M8to6fEI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MyPreset"
+      }
+    },
+    "saveKobold": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-jVvmD5/EtDxCR2vEqPVWCpRzTfg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "KoboldPreset"
+      }
+    },
+    "saveKoboldHorde": {
+      "status": 200,
+      "headers": {
+        "content-length": "22",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"16-lFYPcxufRAPPrsvLOiTnCaZQjYs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "HordePreset"
+      }
+    },
+    "saveNovel": {
+      "status": 200,
+      "headers": {
+        "content-length": "22",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"16-Er+SMAU+zXSITP8M2OrJVKaBBrI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "NovelPreset"
+      }
+    },
+    "saveTextGen": {
+      "status": 200,
+      "headers": {
+        "content-length": "24",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"18-k32Yxwn+258yObwbOwCuNXSZWeI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "TextGenPreset"
+      }
+    },
+    "saveInstruct": {
+      "status": 200,
+      "headers": {
+        "content-length": "21",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-UsGX10wJioMUIKi7hPnAu9Th5Hg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MyInstruct"
+      }
+    },
+    "saveContext": {
+      "status": 200,
+      "headers": {
+        "content-length": "20",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-Kf40hRd2yKQhvVfQ6QTN5SNt/Mc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MyContext"
+      }
+    },
+    "saveSysprompt": {
+      "status": 200,
+      "headers": {
+        "content-length": "22",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"16-um38TkjOjDdhYpY13T6dlGLixQQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MySysprompt"
+      }
+    },
+    "saveReasoning": {
+      "status": 200,
+      "headers": {
+        "content-length": "22",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"16-v+CqVrqXEliCrrXQRgM+C9xHJ6A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "MyReasoning"
+      }
+    },
+    "saveUnknownAPI": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveMissingPreset": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveFalsyPreset": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveEmptyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveNumericAPI": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveReservedName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "saveSanitizedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "13",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"d-wLAT0h5p6j+bolrxE1euiD4t5sU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "ab"
+      }
+    },
+    "saveTrailingSpace": {
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10-a4tcyiyRhHkvab+o8eHUN+MOCCE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "Trail"
+      }
+    },
+    "saveNumberPreset": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-5PCmUhWe8k+DpYUXNtqH0mgpKNU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "NumberPreset"
+      }
+    },
+    "saveStringPreset": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-r7ca7lJmf6mT/HChM5xEomv7hfA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "StringPreset"
+      }
+    },
+    "saveTruePreset": {
+      "status": 200,
+      "headers": {
+        "content-length": "21",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-MTYsNoAvPespYWHc0bqBMRe4OKE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "TruePreset"
+      }
+    },
+    "saveArrayPreset": {
+      "status": 200,
+      "headers": {
+        "content-length": "22",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"16-b+LsY6ZWb0TTow2XEM3JYUZdhOk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "ArrayPreset"
+      }
+    },
+    "saveJsNumbers": {
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-KyiJEcMkKiaWi5nbjX3EGSdpFrQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "name": "Numbers"
+      }
+    },
+    "deleteEmptyName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "deleteUnknownAPI": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "deleteExisting": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteAgain": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "deleteSanitizedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteReservedName": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "deleteInstruct": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "OK"
+    },
+    "deleteWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "restoreOpenAIDefault": {
+      "status": 200,
+      "headers": {
+        "content-length": "4533",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11b5-r913DY6XRZA8d1gXrW5HnTt+8XU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": true,
+        "preset": {
+          "chat_completion_source": "openai",
+          "openai_model": "gpt-5.6-terra",
+          "claude_model": "claude-sonnet-5",
+          "openrouter_model": "OR_Website",
+          "openrouter_use_fallback": false,
+          "openrouter_group_models": false,
+          "openrouter_sort_models": "alphabetically",
+          "ai21_model": "jamba-large",
+          "mistralai_model": "mistral-large-latest",
+          "chutes_model": "deepseek-ai/DeepSeek-V3-0324",
+          "chutes_sort_models": "alphabetically",
+          "minimax_model": "MiniMax-M2.7",
+          "minimax_endpoint": "global",
+          "electronhub_model": "gpt-4o-mini",
+          "electronhub_sort_models": "alphabetically",
+          "electronhub_group_models": false,
+          "custom_model": "",
+          "custom_url": "",
+          "custom_include_body": "",
+          "custom_exclude_body": "",
+          "custom_include_headers": "",
+          "google_model": "gemini-3.7-flash",
+          "vertexai_model": "gemini-3.7-flash",
+          "temperature": 1,
+          "frequency_penalty": 0,
+          "presence_penalty": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "top_a": 0,
+          "min_p": 0,
+          "repetition_penalty": 1,
+          "openai_max_context": 4095,
+          "openai_max_tokens": 300,
+          "names_behavior": 0,
+          "send_if_empty": "",
+          "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+          "new_chat_prompt": "[Start a new Chat]",
+          "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
+          "new_example_chat_prompt": "[Example Chat]",
+          "continue_nudge_prompt": "[Continue your last message without repeating its original content.]",
+          "bias_preset_selected": "Default (none)",
+          "reverse_proxy": "",
+          "proxy_password": "",
+          "max_context_unlocked": false,
+          "wi_format": "{0}",
+          "scenario_format": "{{scenario}}",
+          "personality_format": "{{personality}}",
+          "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
+          "stream_openai": true,
+          "prompts": [
+            {
+              "name": "Main Prompt",
+              "system_prompt": true,
+              "role": "system",
+              "content": "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+              "identifier": "main"
+            },
+            {
+              "name": "Auxiliary Prompt",
+              "system_prompt": true,
+              "role": "system",
+              "content": "",
+              "identifier": "nsfw"
+            },
+            {
+              "identifier": "dialogueExamples",
+              "name": "Chat Examples",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "name": "Post-History Instructions",
+              "system_prompt": true,
+              "role": "system",
+              "content": "",
+              "identifier": "jailbreak"
+            },
+            {
+              "identifier": "chatHistory",
+              "name": "Chat History",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "worldInfoAfter",
+              "name": "World Info (after)",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "worldInfoBefore",
+              "name": "World Info (before)",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "enhanceDefinitions",
+              "role": "system",
+              "name": "Enhance Definitions",
+              "content": "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+              "system_prompt": true,
+              "marker": false
+            },
+            {
+              "identifier": "charDescription",
+              "name": "Char Description",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "charPersonality",
+              "name": "Char Personality",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "scenario",
+              "name": "Scenario",
+              "system_prompt": true,
+              "marker": true
+            },
+            {
+              "identifier": "personaDescription",
+              "name": "Persona Description",
+              "system_prompt": true,
+              "marker": true
+            }
+          ],
+          "prompt_order": [
+            {
+              "character_id": 100000,
+              "order": [
+                {
+                  "identifier": "main",
+                  "enabled": true
+                },
+                {
+                  "identifier": "worldInfoBefore",
+                  "enabled": true
+                },
+                {
+                  "identifier": "charDescription",
+                  "enabled": true
+                },
+                {
+                  "identifier": "charPersonality",
+                  "enabled": true
+                },
+                {
+                  "identifier": "scenario",
+                  "enabled": true
+                },
+                {
+                  "identifier": "enhanceDefinitions",
+                  "enabled": false
+                },
+                {
+                  "identifier": "nsfw",
+                  "enabled": true
+                },
+                {
+                  "identifier": "worldInfoAfter",
+                  "enabled": true
+                },
+                {
+                  "identifier": "dialogueExamples",
+                  "enabled": true
+                },
+                {
+                  "identifier": "chatHistory",
+                  "enabled": true
+                },
+                {
+                  "identifier": "jailbreak",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "character_id": 100001,
+              "order": [
+                {
+                  "identifier": "main",
+                  "enabled": true
+                },
+                {
+                  "identifier": "worldInfoBefore",
+                  "enabled": true
+                },
+                {
+                  "identifier": "personaDescription",
+                  "enabled": true
+                },
+                {
+                  "identifier": "charDescription",
+                  "enabled": true
+                },
+                {
+                  "identifier": "charPersonality",
+                  "enabled": true
+                },
+                {
+                  "identifier": "scenario",
+                  "enabled": true
+                },
+                {
+                  "identifier": "enhanceDefinitions",
+                  "enabled": false
+                },
+                {
+                  "identifier": "nsfw",
+                  "enabled": true
+                },
+                {
+                  "identifier": "worldInfoAfter",
+                  "enabled": true
+                },
+                {
+                  "identifier": "dialogueExamples",
+                  "enabled": true
+                },
+                {
+                  "identifier": "chatHistory",
+                  "enabled": true
+                },
+                {
+                  "identifier": "jailbreak",
+                  "enabled": true
+                }
+              ]
+            }
+          ],
+          "show_external_models": false,
+          "assistant_prefill": "",
+          "assistant_impersonation": "",
+          "use_sysprompt": false,
+          "squash_system_messages": false,
+          "media_inlining": true,
+          "bypass_status_check": false,
+          "continue_prefill": false,
+          "continue_postfix": " ",
+          "seed": -1,
+          "n": 1
+        }
+      }
+    },
+    "restoreInstructAlpaca": {
+      "status": 200,
+      "headers": {
+        "content-length": "600",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"258-bCvzyG4rjCQrSTVqe4Wr3c/uuPs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": true,
+        "preset": {
+          "input_sequence": "### Instruction:",
+          "output_sequence": "### Response:",
+          "last_output_sequence": "",
+          "system_sequence": "### Input:",
+          "stop_sequence": "",
+          "wrap": true,
+          "macro": true,
+          "names_behavior": "force",
+          "activation_regex": "",
+          "first_output_sequence": "",
+          "skip_examples": false,
+          "output_suffix": "\n\n",
+          "input_suffix": "\n\n",
+          "system_suffix": "\n\n",
+          "user_alignment_message": "",
+          "system_same_as_user": false,
+          "last_system_sequence": "",
+          "first_input_sequence": "",
+          "last_input_sequence": "",
+          "sequences_as_stop_strings": true,
+          "story_string_prefix": "",
+          "story_string_suffix": "\n\n",
+          "name": "Alpaca"
+        }
+      }
+    },
+    "restoreInstructDefault": {
+      "status": 200,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-1YcPzRQSbJTvFFdENupQ4tb6cS0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": false,
+        "preset": {}
+      }
+    },
+    "restoreWrongFolder": {
+      "status": 200,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-1YcPzRQSbJTvFFdENupQ4tb6cS0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": false,
+        "preset": {}
+      }
+    },
+    "restoreUnknownAPI": {
+      "status": 200,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-1YcPzRQSbJTvFFdENupQ4tb6cS0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": false,
+        "preset": {}
+      }
+    },
+    "restoreSyspromptBlank": {
+      "status": 200,
+      "headers": {
+        "content-length": "75",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4b-I6EDcU/Z0KuwutEdvztVbbWqQvU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": true,
+        "preset": {
+          "name": "Blank",
+          "content": "",
+          "post_history": ""
+        }
+      }
+    },
+    "restoreReasoningBlank": {
+      "status": 200,
+      "headers": {
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"53-kkujlEtxvl2zGlMbPPCVQad5lmo\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": true,
+        "preset": {
+          "name": "Blank",
+          "prefix": "",
+          "suffix": "",
+          "separator": ""
+        }
+      }
+    },
+    "restoreCaseSensitive": {
+      "status": 200,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-1YcPzRQSbJTvFFdENupQ4tb6cS0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": false,
+        "preset": {}
+      }
+    },
+    "restoreReservedName": {
+      "status": 200,
+      "headers": {
+        "content-length": "31",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-1YcPzRQSbJTvFFdENupQ4tb6cS0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "isDefault": false,
+        "preset": {}
+      }
+    },
+    "restoreMissingName": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    },
+    "restoreNumericName": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    },
+    "restoreUnknownMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    }
+  },
+  "errorPages": {
+    "saveMissingName": {
+      "status": 500
+    },
+    "saveNumericName": {
+      "status": 500
+    },
+    "saveArrayName": {
+      "status": 500
+    },
+    "saveNullName": {
+      "status": 500
+    },
+    "deleteMissingName": {
+      "status": 500
+    },
+    "restoreMalformedBody": {
+      "status": 400
+    }
+  },
+  "state": {
+    "stateAfterSaves": {
+      "KoboldAI Settings": [
+        {
+          "name": "HordePreset.json",
+          "content": "{\n    \"marker\": \"horde\"\n}"
+        },
+        {
+          "name": "KoboldPreset.json",
+          "content": "{\n    \"marker\": \"kobold\"\n}"
+        }
+      ],
+      "NovelAI Settings": [
+        {
+          "name": "NovelPreset.json",
+          "content": "{\n    \"marker\": \"novel\"\n}"
+        }
+      ],
+      "OpenAI Settings": [
+        {
+          "name": "ArrayPreset.json",
+          "content": "[\n    1,\n    2\n]"
+        },
+        {
+          "name": "MyPreset.json",
+          "content": "{\n    \"marker\": \"overwritten\",\n    \"unknown\": {\n        \"keep\": [\n            1,\n            2\n        ]\n    }\n}"
+        },
+        {
+          "name": "NumberPreset.json",
+          "content": "5"
+        },
+        {
+          "name": "Numbers.json",
+          "content": "{\n    \"big\": 1e+21,\n    \"exp\": 100000000000000000000,\n    \"negZero\": 0,\n    \"small\": 1e-7,\n    \"unsafe\": 9007199254740992,\n    \"float\": 0.1\n}"
+        },
+        {
+          "name": "StringPreset.json",
+          "content": "\"text\""
+        },
+        {
+          "name": "Trail.json",
+          "content": "{\n    \"marker\": \"trailing\"\n}"
+        },
+        {
+          "name": "TruePreset.json",
+          "content": "true"
+        },
+        {
+          "name": "ab.json",
+          "content": "{\n    \"marker\": \"sanitized\"\n}"
+        }
+      ],
+      "TextGen Settings": [
+        {
+          "name": "TextGenPreset.json",
+          "content": "{\n    \"marker\": \"textgen\"\n}"
+        }
+      ],
+      "instruct": [
+        {
+          "name": "MyInstruct.json",
+          "content": "{\n    \"marker\": \"instruct\"\n}"
+        }
+      ],
+      "context": [
+        {
+          "name": "MyContext.json",
+          "content": "{\n    \"marker\": \"context\"\n}"
+        }
+      ],
+      "sysprompt": [
+        {
+          "name": "MySysprompt.json",
+          "content": "{\n    \"marker\": \"sysprompt\"\n}"
+        }
+      ],
+      "reasoning": [
+        {
+          "name": "MyReasoning.json",
+          "content": "{\n    \"marker\": \"reasoning\"\n}"
+        }
+      ]
+    },
+    "stateAfterDeletes": {
+      "KoboldAI Settings": [
+        {
+          "name": "HordePreset.json",
+          "content": "{\n    \"marker\": \"horde\"\n}"
+        },
+        {
+          "name": "KoboldPreset.json",
+          "content": "{\n    \"marker\": \"kobold\"\n}"
+        }
+      ],
+      "NovelAI Settings": [
+        {
+          "name": "NovelPreset.json",
+          "content": "{\n    \"marker\": \"novel\"\n}"
+        }
+      ],
+      "OpenAI Settings": [
+        {
+          "name": "ArrayPreset.json",
+          "content": "[\n    1,\n    2\n]"
+        },
+        {
+          "name": "NumberPreset.json",
+          "content": "5"
+        },
+        {
+          "name": "Numbers.json",
+          "content": "{\n    \"big\": 1e+21,\n    \"exp\": 100000000000000000000,\n    \"negZero\": 0,\n    \"small\": 1e-7,\n    \"unsafe\": 9007199254740992,\n    \"float\": 0.1\n}"
+        },
+        {
+          "name": "StringPreset.json",
+          "content": "\"text\""
+        },
+        {
+          "name": "Trail.json",
+          "content": "{\n    \"marker\": \"trailing\"\n}"
+        },
+        {
+          "name": "TruePreset.json",
+          "content": "true"
+        }
+      ],
+      "TextGen Settings": [
+        {
+          "name": "TextGenPreset.json",
+          "content": "{\n    \"marker\": \"textgen\"\n}"
+        }
+      ],
+      "instruct": [],
+      "context": [
+        {
+          "name": "MyContext.json",
+          "content": "{\n    \"marker\": \"context\"\n}"
+        }
+      ],
+      "sysprompt": [
+        {
+          "name": "MySysprompt.json",
+          "content": "{\n    \"marker\": \"sysprompt\"\n}"
+        }
+      ],
+      "reasoning": [
+        {
+          "name": "MyReasoning.json",
+          "content": "{\n    \"marker\": \"reasoning\"\n}"
+        }
+      ]
+    },
+    "accountRecordUnchanged": true
+  },
+  "roundTrip": {
+    "verified": true,
+    "nodeWrittenBody": "{\"apiId\":\"openai\",\"name\":\"Node-written\",\"preset\":{\"marker\":\"written by pinned Node\",\"unknown\":{\"keep\":true}}}",
+    "goWrittenBody": "{\"apiId\":\"openai\",\"name\":\"Go-written\",\"preset\":{\"marker\":\"written by GoTavern\",\"unknown\":{\"keep\":\"go\"}}}",
+    "nodeWrittenPresetReadByGo": "{\n    \"marker\": \"written by pinned Node\",\n    \"unknown\": {\n        \"keep\": true\n    }\n}",
+    "goWrittenPresetReadByNode": "{\n    \"marker\": \"written by GoTavern\",\n    \"unknown\": {\n        \"keep\": \"go\"\n    }\n}",
+    "goWrittenPresetBytes": "{\n    \"marker\": \"written by GoTavern\",\n    \"unknown\": {\n        \"keep\": \"go\"\n    }\n}"
+  }
+}
