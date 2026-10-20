@@ -579,6 +579,31 @@ searching a candidate list and **failing if no candidate re-merges**, so the tes
 engine's behaviour changes. On the current data `nerdstash` re-merges `abc` + `d` (2 → 2 ids, final token
 replaced), which is what makes the counter-property live rather than hypothetical.
 
+### Build the smallest thing that runs, then grow it one assertion at a time
+
+This domain's lessons are mostly about evidence, but three turns were lost to a construction habit
+that is worth writing down for whoever reads this next, because it is not a tokenizer lesson:
+
+**Never write a second layer of construction before the first layer has executed once.** The
+failures were: a full browser probe written before a two-line browser-launch check (three
+iterations lost); mutation backups nested inside each other before a single verified restore (which
+made one diagnosis unreadable); and a secrets probe whose child process was built inside a nested
+template literal, debugged three times for nesting rather than for the behaviour under test. Each
+time the first layer, executed once, would have exposed the problem in a minute.
+
+The rule that would have prevented all three: write the smallest thing that runs — a child that
+imports the module and prints one value, a launch that opens one page, a copy that restores one
+file — run it, and only then add the next assertion, running after each addition. A probe is a
+program that produces evidence, and a program that has never run produces none, no matter how
+well-shaped it is.
+
+The same discipline caught the masked secrets value in one step, once applied: a ten-line child that
+imported the pinned module and printed the state map produced, in a single run, that a 25-character
+key masks to `*******fgh` (seven placeholders plus the last three characters) and anything of ten
+characters or fewer masks to ten placeholders — which is not what a reading of the six-line masking
+function would have produced, and is exactly the value that must be written into the implementation
+rather than derived.
+
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
 
 The engine that reads these structures is `internal/tokenizers/hftokenizer.go`. It implements `ByteLevel`,
