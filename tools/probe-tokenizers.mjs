@@ -91,6 +91,12 @@ const FULL_INPUTS = [
     ['low_surrogate', '\udc00'],
     ['one_char', 'a'],
     ['space', ' '],
+    // Purpose-built BPE tie inputs. In nerdstash/nerdstash_v2 the pieces "\u2581\u2581" and
+    // "\u2581\"" share a score, and in yi "\u2581\u2581" and "\u2581t" do, so the first
+    // merge has two equal-score candidates and the tie-break direction decides the
+    // segmentation. Without these the corpus cannot tell leftmost from rightmost.
+    ['tie_break_quote', '  "'],
+    ['tie_break_t', '  t'],
     ['mixed', 'The quick  brown fox\n\n\t\u65e5\u672c\u8a9e \ud83d\ude00 <|endoftext|>'],
 ];
 const FULL_CORPUS_ROUTES = ['llama/encode', 'gpt2/encode', 'claude/encode'];

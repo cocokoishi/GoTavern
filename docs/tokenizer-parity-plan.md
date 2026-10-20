@@ -374,6 +374,24 @@ be cited as evidence — the failure mode this repository already suffered).
 | P4 | route registration + middleware wiring | `internal/server/tokenizers.go`, `internal/server/routes_registry.go` |
 | P5 | context-boundary E2E + provider-wire fixtures | `tests/e2e/**`, `tests/provider-wire/**` |
 
+### 6.1 P4 requirement: decode the text field through `UnescapeJSONString`
+
+Every tokenizer route must extract its `text` field with
+`tokenizers.UnescapeJSONString` rather than with `encoding/json`.
+
+The reason is not stylistic. Go's JSON decoder replaces an unpaired surrogate escape with
+U+FFFD before any tokenizer sees it, while the pinned server keeps the lone UTF-16 code unit and
+each backend then converts it differently: the SentencePiece port treats it as the high half of a
+pair and swallows the following code unit (`'a\ud800b'` becomes U+10062), and the tiktoken WASM
+replaces it with U+FFFD. `UnescapeJSONString` preserves an unpaired surrogate as its WTF-8 bytes,
+and each engine applies its own conversion.
+
+If P4 decodes the body with `encoding/json`, this input class silently becomes inexact and **no
+test in this domain will catch it**, because the engine tests decode the fixture's `text` field
+through the helper while the routes would not. The engine tests must keep using the helper, and
+the route tests must send a body that contains an unpaired surrogate escape so the two paths are
+compared on the same input.
+
 P3's three engines are independent files and can be parallelised across owners; P1 and P2 gate any
 claim, and P4 must not land before P2's oracle exists. P1 reuses `tools/assetmanifest` /
 `internal/assetmanifest` unchanged, so no new codegen pipeline is introduced.
@@ -475,16 +493,36 @@ promoting them to `AGENTS.md`.
 
 ### 9.1 Known oracle gaps (recorded so they are not mistaken for verified behaviour)
 
-- **The BPE score tie-break direction is not discriminated.** SentencePiece merges the highest-scoring
-  adjacent pair, so a tie must be broken by position. The engine breaks ties by taking the leftmost pair,
-  which is what the reference implementation does, but no recorded case changes its segmentation when the
-  comparison is flipped to `>=`: that mutation leaves every replayed case green. The gap is in the corpus,
-  not the models — a scan of the pinned vocabularies found equal-score adjacent merge pairs in every model
-  (llama 80, nerdstash 172, nerdstash_v2 172, mistral 87, yi 216, gemma 331). Closing it needs an input
-  built to produce a genuine tie between two different adjacent pairs, added to the probe corpus.
+- **The BPE score tie-break direction is not discriminated, and a targeted search could not close it.**
+  SentencePiece merges the highest-scoring adjacent pair, so a tie must be broken by position. The engine
+  takes the leftmost pair, which is what the reference implementation does, but flipping the comparison to
+  `>=` leaves every replayed case green, so the rule is currently correct by reference and by every recorded
+  case, not by a discriminating test.
+
+  Two construction families were searched over all seven pinned vocabularies, and neither produced a text
+  whose tokenization depends on the rule:
+  1. three-symbol texts where `piece(a+b)` and `piece(b+c)` exist with exactly equal float32 scores, neither
+     is a user-defined piece, the text splits into exactly three symbols, and `piece(a+b+c)` is absent —
+     which is the condition that makes the two rules diverge;
+  2. four-symbol texts where a shared two-rune piece `bc` has equal-score three-rune extensions `a+bc` and
+     `bc+d`, checked by running both rules and comparing the final symbol lists.
+
+  Both returned zero for every model searched. The near-misses are instructive: the obvious candidates are
+  blocked because **`▁▁` is a USER_DEFINED piece in nerdstash and nerdstash_v2**, so the splitter consumes
+  it before BPE runs and no tie can arise at all. That behaviour is itself covered — the probe now records
+  `tie_break_quote` and `tie_break_t` inputs, which exercise the user-defined prefix path and whitespace
+  runs, but they are **not** tie-break coverage and must not be described as such.
+
+  Closing this properly would need either a synthetic model (impossible: the data is pinned) or an
+  exhaustive search over longer texts, which the two families above do not cover. Until then the rule stays
+  listed here rather than being claimed as verified.
 - **A single-token warm-up cost**: the engine merges by rescanning the symbol list, which is O(n²) in the
   number of symbols for one call. Correctness is unaffected and the recorded corpus runs in milliseconds,
   but a very long prompt has not been benchmarked against the pinned port.
+- **The five externally fetched tokenizers are recorded only through their route responses.** Their
+  pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
+  `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim
+  about those families.
 - **The five externally fetched tokenizers are recorded only through their route responses.** Their
   pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
   `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim
