@@ -90,6 +90,29 @@ if (dirty.trim()) {
     throw new Error('upstream build inputs have local changes; refusing to build from a modified oracle');
 }
 
+// The pinned checkout must have LF line endings. `git status` cannot detect a
+// CRLF checkout when core.autocrlf is true, because git converts on read and
+// reports the tree as clean, yet every recorded response body and every seeded
+// default file then carries an extra CR per line. That is how the vendored
+// upstream/** assets drifted from the pinned blobs: the assets were committed
+// from a CRLF checkout, so their manifests were self-consistent with the wrong
+// bytes. Fail loudly rather than record host-converted observations again.
+for (const relative of [
+    'public/index.html',
+    'public/login.html',
+    'public/script.js',
+    'default/config.yaml',
+    'default/content/presets/kobold/Deterministic.json',
+]) {
+    const candidate = path.join(upstreamRoot, relative);
+    if (!existsSync(candidate)) continue;
+    if (readFileSync(candidate).includes(13)) {
+        throw new Error(
+            `pinned checkout ${relative} contains CR; re-check out the oracle with core.autocrlf=false `
+            + '(for example: git -c core.autocrlf=false checkout-index -a -f) before recording fixtures');
+    }
+}
+
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-upstream-webpack-'));
 const buildRoot = path.join(tempRoot, 'source');
 const outputPath = path.join(repositoryRoot, 'upstream', 'generated', 'lib.js');
