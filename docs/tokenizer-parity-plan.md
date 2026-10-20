@@ -604,6 +604,24 @@ characters or fewer masks to ten placeholders — which is not what a reading of
 function would have produced, and is exactly the value that must be written into the implementation
 rather than derived.
 
+**The pinned masking formula, recorded so it is not re-derived** (`src/endpoints/secrets.js`
+`getMaskedValue`, measured 2026-10-20 against the pinned runtime):
+
+- if `allowKeysExposure` is true, or the key is one of `libre_url`, `lingva_url`, `onering_url`,
+  `deeplx_url`: the value is returned raw;
+- otherwise, when `value.length > 10`: `'*'.repeat(10 - 3) + value.slice(-3)` — seven placeholders
+  then the LAST three characters, with **no visible prefix**;
+- otherwise: ten placeholders, `'**********'`.
+
+A reader who re-derives this from the six source lines will likely reach prefix + middle + suffix,
+which is wrong and would then bend the fixture. Use the formula above, and re-run the probe if the
+pinned file changes.
+
+**A Windows platform trap in the same family, worth a line rather than a rediscovery:** a
+hand-constructed ESM specifier must be a `file:///C:/...` URL. A bare `C:/...` path throws
+`ERR_UNSUPPORTED_ESM_URL_SCHEME`. This cost two turn iterations — once in the browser probe and once
+in the secrets probe's child — and `pathToFileURL` is the fix, not string concatenation.
+
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
 
 The engine that reads these structures is `internal/tokenizers/hftokenizer.go`. It implements `ByteLevel`,
