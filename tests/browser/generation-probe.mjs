@@ -125,6 +125,21 @@ try {
     browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
+    // Every request and its status, unfiltered: a negative finding about a call needs a log that
+    // would have shown it, so the log is complete rather than pre-filtered.
+    report.requests = [];
+    const pendingRequests = new Map();
+    page.on('request', request => {
+        const entry = { method: request.method(), url: new URL(request.url()).pathname + new URL(request.url()).search, status: null };
+        report.requests.push(entry);
+        pendingRequests.set(request, entry);
+    });
+    page.on('response', response => {
+        const entry = pendingRequests.get(response.request());
+        if (entry) {
+            entry.status = response.status();
+        }
+    });
     // Which calls the frontend makes, and which of them the server answers with an error: the
     // probe reports arrival, but if nothing arrives this is what says why.
     report.httpFailures = [];
