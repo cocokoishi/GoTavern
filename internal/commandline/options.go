@@ -68,6 +68,7 @@ type StartupSettings struct {
 	AllowKeysExposure          any  `json:"allowKeysExposure"`
 	ExtensionsEnabled          any  `json:"extensionsEnabled"`
 	ExtensionsAutoUpdate       any  `json:"extensionsAutoUpdate"`
+	EnableDownloadableTokenizers any `json:"enableDownloadableTokenizers"`
 	RequestCompressionEnabled  any  `json:"requestCompressionEnabled"`
 	RequestCompressionMin      any  `json:"requestCompressionMin"`
 	RequestCompressionMax      any  `json:"requestCompressionMax"`
@@ -237,6 +238,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
 		ExtensionsEnabled:          getConfigValue(config, "extensions.enabled", true, cliBoolean),
 		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", true, cliBoolean),
+		EnableDownloadableTokenizers: getConfigValue(config, "enableDownloadableTokenizers", true, cliBoolean),
 		RequestCompressionEnabled:  getConfigValue(config, "performance.requestCompression.enabled", false, cliBoolean),
 		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
 		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),

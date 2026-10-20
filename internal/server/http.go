@@ -72,6 +72,7 @@ type HTTPHandlerOptions struct {
 	SettingsBackupRetention          *float64
 	ExtensionsEnabled                *bool
 	ExtensionsAutoUpdate             *bool
+	EnableDownloadableTokenizers     *bool
 	RequestCompressionEnabled        *bool
 	RequestCompressionMin            any
 	RequestCompressionMax            any
@@ -128,6 +129,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if enabled, ok := optionBooleanValue(settings.ExtensionsAutoUpdate); ok {
 		options.ExtensionsAutoUpdate = &enabled
+	}
+	if enabled, ok := optionBooleanValue(settings.EnableDownloadableTokenizers); ok {
+		options.EnableDownloadableTokenizers = &enabled
 	}
 	if enabled, ok := optionBooleanValue(settings.RequestCompressionEnabled); ok {
 		options.RequestCompressionEnabled = &enabled

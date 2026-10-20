@@ -87,6 +87,7 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 	post("/api/tokenizers/openai/encode", accounts.serveOpenAITokenizerEncode)
 	post("/api/tokenizers/openai/decode", accounts.serveOpenAITokenizerDecode)
 	post("/api/tokenizers/openai/count", accounts.serveOpenAITokenizerCount)
+	post("/api/tokenizers/remote/kobold/count", accounts.serveRemoteKoboldCount)
 }
 
 // --- asset loading ---------------------------------------------------------------------
@@ -118,8 +119,9 @@ func tokenizerAssets(options HTTPHandlerOptions) (string, bool) {
 // tokenizerCacheKey identifies one loaded set, so two handlers over the same roots share the
 // engines exactly as the pinned module-level caches do.
 type tokenizerCacheKey struct {
-	assets string
-	cache  string
+	assets         string
+	cache          string
+	allowDownloads bool
 }
 
 var (
@@ -130,8 +132,9 @@ var (
 // tokenizerSet is the lazily loaded engine set for one asset root. Loading is per engine on
 // first use, mirroring the pinned tokenizersCache.
 type tokenizerSet struct {
-	assets string
-	cache  string
+	assets         string
+	cache          string
+	allowDownloads bool
 
 	mu             sync.Mutex
 	sentencePieces map[string]*tokenizers.SentencePiece
@@ -139,12 +142,25 @@ type tokenizerSet struct {
 	webTokenizers  map[string]*tokenizers.HF
 }
 
+// tokenizerDownloadsAllowed reads the pinned `enableDownloadableTokenizers` default: the
+// option is nil when the key was absent, and the pinned default is true.
+func tokenizerDownloadsAllowed(options HTTPHandlerOptions) bool {
+	if options.EnableDownloadableTokenizers == nil {
+		return true
+	}
+	return *options.EnableDownloadableTokenizers
+}
+
 func openTokenizerSet(options HTTPHandlerOptions) (*tokenizerSet, bool) {
 	assets, ok := tokenizerAssets(options)
 	if !ok {
 		return nil, false
 	}
-	key := tokenizerCacheKey{assets: assets, cache: filepath.Join(options.DataRoot, "_cache")}
+	key := tokenizerCacheKey{
+		assets:         assets,
+		cache:          filepath.Join(options.DataRoot, "_cache"),
+		allowDownloads: tokenizerDownloadsAllowed(options),
+	}
 	tokenizerSetMu.Lock()
 	defer tokenizerSetMu.Unlock()
 	if existing, ok := tokenizerSetCache[key]; ok {
@@ -153,6 +169,7 @@ func openTokenizerSet(options HTTPHandlerOptions) (*tokenizerSet, bool) {
 	set := &tokenizerSet{
 		assets:         assets,
 		cache:          key.cache,
+		allowDownloads: key.allowDownloads,
 		sentencePieces: map[string]*tokenizers.SentencePiece{},
 		webTokenizers:  map[string]*tokenizers.HF{},
 	}
@@ -209,41 +226,64 @@ func (set *tokenizerSet) web(model string) (*tokenizers.HF, error) {
 	return processor, nil
 }
 
+// tokenizerFallbackModel is the model the pinned server uses when an external tokenizer
+// cannot be resolved (tokenizers.js:144-147). Every externally fetched WebTokenizer is
+// declared with llama3.json as its fallback.
+const tokenizerFallbackModel = "llama3"
+
+// webBytes resolves one HuggingFace tokenizer the way the pinned getPathToTokenizer does
+// (tokenizers.js:86-151): the uncompressed cache file wins; a compressed cache file left by a
+// manual download is decompressed, written and removed; when downloads are allowed the file is
+// obtained, which GoTavern serves from the vendored asset instead of the network; and any
+// failure falls back to llama3.json, which is what the pinned capture shows for a cold cache
+// with downloads disabled.
 func (set *tokenizerSet) webBytes(model string) ([]byte, error) {
-	isExternal := false
-	for _, external := range tokenizerExternalAssetModels {
-		if external == model {
-			isExternal = true
-			break
-		}
-	}
-	if !isExternal {
+	if !isTokenizerExternalAsset(model) {
 		return os.ReadFile(filepath.Join(set.assets, model+".json"))
 	}
 	if set.cache != "" {
 		if raw, err := os.ReadFile(filepath.Join(set.cache, model+".json")); err == nil {
 			return raw, nil
 		}
+		if compressed, err := os.ReadFile(filepath.Join(set.cache, model+".json.gz")); err == nil {
+			if raw, err := gunzipBytes(compressed); err == nil {
+				_ = os.MkdirAll(set.cache, 0o755)
+				_ = os.WriteFile(filepath.Join(set.cache, model+".json"), raw, 0o644)
+				_ = os.Remove(filepath.Join(set.cache, model+".json.gz"))
+				return raw, nil
+			}
+		}
 	}
-	compressed, err := os.ReadFile(filepath.Join(set.assets, "external", model+".json.gz"))
-	if err != nil {
-		return nil, err
+	if set.allowDownloads {
+		if compressed, err := os.ReadFile(filepath.Join(set.assets, "external", model+".json.gz")); err == nil {
+			if raw, err := gunzipBytes(compressed); err == nil {
+				if set.cache != "" {
+					_ = os.MkdirAll(set.cache, 0o755)
+					_ = os.WriteFile(filepath.Join(set.cache, model+".json"), raw, 0o644)
+				}
+				return raw, nil
+			}
+		}
 	}
+	return set.webBytes(tokenizerFallbackModel)
+}
+
+func isTokenizerExternalAsset(model string) bool {
+	for _, external := range tokenizerExternalAssetModels {
+		if external == model {
+			return true
+		}
+	}
+	return false
+}
+
+func gunzipBytes(compressed []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(compressed))
 	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
-	raw, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-	if set.cache != "" {
-		if err := os.MkdirAll(set.cache, 0o755); err == nil {
-			_ = os.WriteFile(filepath.Join(set.cache, model+".json"), raw, 0o644)
-		}
-	}
-	return raw, nil
+	return io.ReadAll(reader)
 }
 
 // --- request and response shapes -------------------------------------------------------
