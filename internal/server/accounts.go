@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -548,10 +547,13 @@ func (runtime *accountRuntime) userAvatar(account storedAccount) string {
 					fileName := filepath.Base(filepath.Clean(avatar))
 					avatarPath := filepath.Join(runtime.options.DataRoot, account.string("handle"), "User Avatars", fileName)
 					if body, err := os.ReadFile(avatarPath); err == nil {
-						mediaType := mime.TypeByExtension(filepath.Ext(fileName))
-						if mediaType == "" {
-							mediaType = "application/octet-stream"
-						}
+						// The pinned media type table, not mime.TypeByExtension:
+						// Go builds the latter from the host (its own built-ins
+						// plus /etc/mime.types on Unix and the registry on
+						// Windows), which would make this data URL a property of
+						// the recording machine. The pinned table falls back to
+						// application/octet-stream on its own.
+						mediaType := pinnedMimeV1ContentType(fileName)
 						return "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(body)
 					}
 				}
