@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "capturedAt": "2026-10-20T22:48:52.266Z",
+    "server": "http://127.0.0.1:8127",
+    "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "uiPath": [
+      "#chat_completion_source set to \"custom\" and dispatched change (the AI Response Configuration panel control)",
+      "#custom_api_url_text set and dispatched input+change",
+      "#api_key_custom set and dispatched input+change",
+      "frontend handlers then populate the dependent oai_settings fields"
+    ],
+    "note": "Captured from the frontend handlers, not hand-assembled. Refresh by re-running capture-settings.mjs against a pinned server when the baseline moves.",
+    "consoleErrors": []
+  },
+  "capture": {
+    "chatCompletionSource": "custom",
+    "customUrl": "http://127.0.0.1:1",
+    "oaiSettings": {
+      "preset_settings_openai": "Default",
+      "temp_openai": 1,
+      "freq_pen_openai": 0,
+      "pres_pen_openai": 0,
+      "top_p_openai": 1,
+      "top_k_openai": 0,
+      "min_p_openai": 0,
+      "top_a_openai": 0,
+      "repetition_penalty_openai": 1,
+      "stream_openai": true,
+      "openai_max_context": 4095,
+      "openai_max_tokens": 300,
+      "prompts": [
+        {
+          "name": "Main Prompt",
+          "system_prompt": true,
+          "role": "system",
+          "content": "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+          "identifier": "main"
+        },
+        {
+          "name": "Auxiliary Prompt",
+          "system_prompt": true,
+          "role": "system",
+          "content": "",
+          "identifier": "nsfw"
+        },
+        {
+          "identifier": "dialogueExamples",
+          "name": "Chat Examples",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "name": "Post-History Instructions",
+          "system_prompt": true,
+          "role": "system",
+          "content": "",
+          "identifier": "jailbreak"
+        },
+        {
+          "identifier": "chatHistory",
+          "name": "Chat History",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "worldInfoAfter",
+          "name": "World Info (after)",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "worldInfoBefore",
+          "name": "World Info (before)",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "enhanceDefinitions",
+          "role": "system",
+          "name": "Enhance Definitions",
+          "content": "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+          "system_prompt": true,
+          "marker": false
+        },
+        {
+          "identifier": "charDescription",
+          "name": "Char Description",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "charPersonality",
+          "name": "Char Personality",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "scenario",
+          "name": "Scenario",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "personaDescription",
+          "name": "Persona Description",
+          "system_prompt": true,
+          "marker": true
+        }
+      ],
+      "prompt_order": [
+        {
+          "character_id": 100000,
+          "order": [
+            {
+              "identifier": "main",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoBefore",
+              "enabled": true
+            },
+            {
+              "identifier": "charDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charPersonality",
+              "enabled": true
+            },
+            {
+              "identifier": "scenario",
+              "enabled": true
+            },
+            {
+              "identifier": "enhanceDefinitions",
+              "enabled": false
+            },
+            {
+              "identifier": "nsfw",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoAfter",
+              "enabled": true
+            },
+            {
+              "identifier": "dialogueExamples",
+              "enabled": true
+            },
+            {
+              "identifier": "chatHistory",
+              "enabled": true
+            },
+            {
+              "identifier": "jailbreak",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "character_id": 100001,
+          "order": [
+            {
+              "identifier": "main",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoBefore",
+              "enabled": true
+            },
+            {
+              "identifier": "personaDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charPersonality",
+              "enabled": true
+            },
+            {
+              "identifier": "scenario",
+              "enabled": true
+            },
+            {
+              "identifier": "enhanceDefinitions",
+              "enabled": false
+            },
+            {
+              "identifier": "nsfw",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoAfter",
+              "enabled": true
+            },
+            {
+              "identifier": "dialogueExamples",
+              "enabled": true
+            },
+            {
+              "identifier": "chatHistory",
+              "enabled": true
+            },
+            {
+              "identifier": "jailbreak",
+              "enabled": true
+            }
+          ]
+        }
+      ],
+      "send_if_empty": "",
+      "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Write 1 reply only in internet RP style. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+      "new_chat_prompt": "[Start a new Chat]",
+      "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
+      "new_example_chat_prompt": "[Example Chat]",
+      "continue_nudge_prompt": "[Continue your last message without repeating its original content.]",
+      "bias_preset_selected": "Default (none)",
+      "bias_presets": {
+        "Default (none)": [],
+        "Anti-bond": [
+          {
+            "id": "22154f79-dd98-41bc-8e34-87015d6a0eaf",
+            "text": " bond",
+            "value": -50
+          },
+          {
+            "id": "8ad2d5c4-d8ef-49e4-bc5e-13e7f4690e0f",
+            "text": " future",
+            "value": -50
+          },
+          {
+            "id": "52a4b280-0956-4940-ac52-4111f83e4046",
+            "text": " bonding",
+            "value": -50
+          },
+          {
+            "id": "e63037c7-c9d1-4724-ab2d-7756008b433b",
+            "text": " connection",
+            "value": -25
+          }
+        ]
+      },
+      "wi_format": "{0}",
+      "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
+      "scenario_format": "{{scenario}}",
+      "personality_format": "{{personality}}",
+      "sort_models": "alphabetically",
+      "group_models": false,
+      "openai_model": "gpt-4-turbo",
+      "claude_model": "claude-sonnet-5",
+      "google_model": "gemini-3.7-flash",
+      "vertexai_model": "gemini-3.7-flash",
+      "ai21_model": "jamba-large",
+      "mistralai_model": "mistral-large-latest",
+      "cohere_model": "command-r-plus",
+      "perplexity_model": "sonar-pro",
+      "groq_model": "llama-3.3-70b-versatile",
+      "chutes_model": "deepseek-ai/DeepSeek-V3-0324",
+      "siliconflow_model": "deepseek-ai/DeepSeek-V3",
+      "siliconflow_endpoint": "global",
+      "minimax_model": "MiniMax-M2.7",
+      "minimax_endpoint": "global",
+      "electronhub_model": "gpt-4o-mini",
+      "nanogpt_model": "gpt-4o-mini",
+      "nanogpt_provider": "",
+      "nanogpt_payg_override": false,
+      "deepseek_model": "deepseek-v4-flash",
+      "aimlapi_model": "chatgpt-4o-latest",
+      "xai_model": "grok-3-beta",
+      "pollinations_model": "openai",
+      "pollinations_endpoint": "authenticated",
+      "cometapi_model": "gpt-4o",
+      "moonshot_model": "kimi-latest",
+      "fireworks_model": "accounts/fireworks/models/kimi-k2-instruct",
+      "zai_model": "glm-4.6",
+      "zai_endpoint": "common",
+      "workers_ai_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "workers_ai_account_id": "",
+      "azure_base_url": "",
+      "azure_deployment_name": "",
+      "azure_api_version": "2024-02-15-preview",
+      "azure_openai_model": "",
+      "custom_model": "",
+      "custom_url": "http://127.0.0.1:1",
+      "custom_include_body": "",
+      "custom_exclude_body": "",
+      "custom_include_headers": "",
+      "openrouter_model": "OR_Website",
+      "openrouter_use_fallback": false,
+      "openrouter_providers": [],
+      "openrouter_quantizations": [],
+      "openrouter_allow_fallbacks": true,
+      "openrouter_middleout": "on",
+      "tool_reasoning_mode": "disabled",
+      "reverse_proxy": "",
+      "chat_completion_source": "custom",
+      "max_context_unlocked": false,
+      "show_external_models": false,
+      "proxy_password": "",
+      "assistant_prefill": "",
+      "assistant_impersonation": "",
+      "use_sysprompt": false,
+      "vertexai_auth_mode": "express",
+      "vertexai_region": "us-central1",
+      "vertexai_express_project_id": "",
+      "squash_system_messages": false,
+      "media_inlining": true,
+      "inline_image_quality": "auto",
+      "bypass_status_check": false,
+      "continue_prefill": false,
+      "function_calling": false,
+      "tool_call_recurse_limit": 5,
+      "names_behavior": 0,
+      "continue_postfix": " ",
+      "custom_prompt_post_processing": "",
+      "show_thoughts": true,
+      "reasoning_effort": "auto",
+      "verbosity": "auto",
+      "enable_web_search": false,
+      "request_images": false,
+      "request_image_aspect_ratio": "",
+      "request_image_resolution": "",
+      "seed": -1,
+      "n": 1,
+      "bind_preset_to_connection": true,
+      "extensions": {}
+    },
+    "keys": 106
+  }
+}

@@ -200,6 +200,20 @@ try {
     await page.goto(`${baseURL}/`);
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 60000 });
 
+    // Load the captured user configuration into the page before driving, when the fixture exists.
+    const fixturePath = path.join(here, 'fixtures', 'custom-source-settings.json');
+    let capturedSettings = null;
+    try {
+        const fixture = JSON.parse(await fs.readFile(fixturePath, 'utf8'));
+        capturedSettings = fixture.capture?.oaiSettings ?? null;
+    } catch {
+        capturedSettings = null;
+    }
+    if (capturedSettings) {
+        await page.evaluate(settings => {
+            globalThis.__capturedSettings = settings;
+        }, capturedSettings);
+    }
     const outcome = await page.evaluate(async mockUrl => {
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -217,12 +231,24 @@ try {
         }
         await script.selectCharacterById(0, { switchMenu: false });
 
+        // Start from the CAPTURED user configuration when the fixture exists: the earlier drive set
+        // three fields by hand and declined to send on BOTH servers, proving the configuration (not
+        // the server) was the problem. The fixture is recorded from the frontend's own handlers.
+        const captured = globalThis.__capturedSettings ?? null;
+        if (captured) {
+            Object.assign(oai_settings, captured);
+        }
+        if (!captured) {
         oai_settings.chat_completion_source = 'custom';
         oai_settings.custom_url = mockUrl;
         oai_settings.custom_model = 'probe-model';
         oai_settings.stream_openai = false;
         oai_settings.openai_max_context = 4096;
         oai_settings.openai_max_tokens = 64;
+        }
+        if (captured) {
+            oai_settings.custom_url = mockUrl;
+        }
 
         const diagnostics = () => ({
             thisChid: typeof script.this_chid === 'undefined' ? 'undefined' : String(script.this_chid),
