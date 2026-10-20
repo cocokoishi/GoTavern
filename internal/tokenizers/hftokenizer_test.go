@@ -20,7 +20,7 @@ const hfDataPath = "../../upstream/tokenizers"
 
 // Explicit replay counts, so a probe that stops recording a family fails the build.
 const (
-	wantHFDirectEncodeCases = 101 // claude x 31 + six models x 13, less the 8 unpaired-surrogate inputs measured separately
+	wantHFDirectEncodeCases = 115 // claude x 33 + six models x 15, less the 8 unpaired-surrogate inputs measured separately
 	wantHFDirectDecodeCases = 49  // 7 models x 7 id cases
 	wantHFOpenAIEncodeCases = 56  // 7 models x 8 inputs
 	wantHFOpenAIDecodeCases = 12  // claude, llama3, qwen2, deepseek x 3 id cases
@@ -312,5 +312,41 @@ func TestHFNormalizerShapes(t *testing.T) {
 	}
 	if !processors["qwen2"].applyNormalizer {
 		t.Fatal("qwen2 has no normalizer form, want NFC")
+	}
+}
+
+// TestHFAddedTokenLongestMatch pins the added-token matcher's longest-match rule in isolation.
+//
+// This is WEAKER evidence than an oracle case and is labelled as such: it proves the rule as
+// written. It is also the only way to pin it, because no pinned tokenizer declares one added
+// token as a strict prefix of another — 0 pairs across the 2160 added tokens in the seven
+// files — so no input against the pinned data can discriminate longest-match from first-match.
+func TestHFAddedTokenLongestMatch(t *testing.T) {
+	// The index is built SHORTEST FIRST on purpose: a matcher that simply took the first
+	// candidate would then choose <A>, so this asserts the length comparison itself rather
+	// than the order ParseHF happens to produce.
+	tokenizer := &HF{
+		addedTokens: []hfAddedToken{{Content: "<A>", ID: 7}, {Content: "<AB>", ID: 8}, {Content: "<ABC>", ID: 9}},
+		addedByByte: map[byte][]hfAddedToken{},
+	}
+	for _, added := range tokenizer.addedTokens {
+		tokenizer.addedByByte[added.Content[0]] = append(tokenizer.addedByByte[added.Content[0]], added)
+	}
+
+	segments := tokenizer.splitAddedTokens("x<ABC>y")
+	if len(segments) != 3 {
+		t.Fatalf("segments = %+v, want three (plain, added, plain)", segments)
+	}
+	if segments[1].addedID != 9 || segments[1].text != "<ABC>" {
+		t.Fatalf("the added segment is %q id %d, want <ABC> id 9: the longest match must win", segments[1].text, segments[1].addedID)
+	}
+	if segments[0].text != "x" || segments[2].text != "y" {
+		t.Fatalf("plain segments = %q and %q, want x and y", segments[0].text, segments[2].text)
+	}
+
+	// A token that matches exactly is still matched on its own.
+	segments = tokenizer.splitAddedTokens("<A>")
+	if len(segments) != 1 || segments[0].addedID != 7 {
+		t.Fatalf("exact match segments = %+v, want <A> id 7", segments)
 	}
 }

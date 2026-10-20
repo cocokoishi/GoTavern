@@ -73,6 +73,16 @@ const CORE_INPUTS = [
     ['special_endoftext', 'a<|endoftext|>b'],
     ['added_llama3', 'x<|begin_of_text|>y'],
     ['lone_surrogate', 'a\ud800b'],
+    // A compatibility character distinguishes NFKC from NFC: NFKC folds U+FB01 and U+FF21,
+    // NFC leaves them. Without this the two normalizers are indistinguishable, and claude is
+    // the only NFKC file.
+    ['compat_ligature', '\ufb01\uff21'],
+    // claude declares <META_START> among its added tokens, so this pins that a declared added
+    // token is matched and mapped to its own id. It does NOT discriminate longest-match from
+    // first-match: no pinned tokenizer declares one added token as a prefix of another (0
+    // pairs across 2160 added tokens in the seven files), so that rule is pinned by
+    // TestHFAddedTokenLongestMatch instead.
+    ['added_meta_start', 'x<META_START>y'],
 ];
 const FULL_INPUTS = [
     ...CORE_INPUTS,

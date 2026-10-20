@@ -531,13 +531,20 @@ promoting them to `AGENTS.md`.
   pinned capture shows two tokens where the engine produces three. Eight HF cases are excluded and counted
   by `wantHFSurrogateCases`, so nothing about that class is claimed. The private-use escape also means a real
   input character in U+E000..U+E3FF alongside a surrogate would be misread; no pinned case contains one.
-- **NFKC is not distinguished from NFC by the corpus.** Flipping the engine to always apply NFC leaves the
-  HF replay green, because no recorded input contains a compatibility character (U+FB01, fullwidth forms and
-  so on) that NFKC would fold and NFC would not. `claude` is the only NFKC file, so its normalizer choice is
-  currently unverified.
-- **The added-token longest-match rule is unverified.** Making the matcher take the first match rather than
-  the longest leaves the replay green: no recorded input has two added tokens overlapping at the same
-  position. Both this and the NFKC gap are closable with one more corpus input each.
+- **NFKC is now distinguished from NFC by the corpus** (closed in the same increment that found it).
+  The probe records `compat_ligature` (U+FB01 U+FF21), which NFKC folds to `fi`/`A` and NFC leaves alone:
+  `claude` yields `["fi","A"]` while `qwen2`, `llama3` and `deepseek` yield `["ﬁ","Ａ"]`. Both mutations
+  that ignore the file's normalizer choice (`nfc_always`, `nfc_for_none`) now fail.
+- **The added-token longest-match rule is unobservable against the pinned data, and is not pinned by a test
+  either.** It is unobservable in principle rather than merely unexercised: no pinned tokenizer declares one
+  added token as a strict prefix of another — 0 pairs across the 2160 added tokens in the seven files,
+  checked by scanning the vendored bytes. `TestHFAddedTokenLongestMatch` therefore builds a synthetic index
+  with `<A>`, `<AB>` and `<ABC>` in shortest-first order and asserts the longest wins, which documents and
+  exercises the rule. **It does not currently discriminate a first-match mutation**: replacing the length
+  comparison with `matched < 0` leaves that test green, and the reason was not established in this
+  increment. The rule is therefore listed as unverified rather than pinned, and the surviving mutation is
+  recorded here rather than papered over. The probe case that once appeared to cover this was renamed
+  `added_meta_start`, because `<META>` is not a prefix of `<META_START>` and it never tested overlap.
 
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
 

@@ -63,37 +63,37 @@
     "routes": [
       {
         "route": "POST /api/tokenizers/llama/encode",
-        "cases": 36,
+        "cases": 38,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nerdstash/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nerdstash_v2/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/mistral/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/yi/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/gemma/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/jamba/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
@@ -133,7 +133,7 @@
       },
       {
         "route": "POST /api/tokenizers/gpt2/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
@@ -143,37 +143,37 @@
       },
       {
         "route": "POST /api/tokenizers/claude/encode",
-        "cases": 31,
+        "cases": 33,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/llama3/encode",
-        "cases": 18,
+        "cases": 20,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/qwen2/encode",
-        "cases": 21,
+        "cases": 23,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/command-r/encode",
-        "cases": 21,
+        "cases": 23,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/command-a/encode",
-        "cases": 21,
+        "cases": 23,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nemo/encode",
-        "cases": 21,
+        "cases": 23,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/deepseek/encode",
-        "cases": 21,
+        "cases": 23,
         "status": "recorded"
       },
       {
@@ -252,6 +252,8 @@
       "llama/encode#special_endoftext",
       "llama/encode#added_llama3",
       "llama/encode#lone_surrogate",
+      "llama/encode#compat_ligature",
+      "llama/encode#added_meta_start",
       "llama/encode#ascii_punct",
       "llama/encode#japanese",
       "llama/encode#emoji_zwj",
@@ -283,6 +285,8 @@
       "nerdstash/encode#special_endoftext",
       "nerdstash/encode#added_llama3",
       "nerdstash/encode#lone_surrogate",
+      "nerdstash/encode#compat_ligature",
+      "nerdstash/encode#added_meta_start",
       "nerdstash/encode#ascii_punct",
       "nerdstash/encode#japanese",
       "nerdstash/encode#emoji_zwj",
@@ -314,6 +318,8 @@
       "nerdstash_v2/encode#special_endoftext",
       "nerdstash_v2/encode#added_llama3",
       "nerdstash_v2/encode#lone_surrogate",
+      "nerdstash_v2/encode#compat_ligature",
+      "nerdstash_v2/encode#added_meta_start",
       "nerdstash_v2/encode#ascii_punct",
       "nerdstash_v2/encode#japanese",
       "nerdstash_v2/encode#emoji_zwj",
@@ -345,6 +351,8 @@
       "mistral/encode#special_endoftext",
       "mistral/encode#added_llama3",
       "mistral/encode#lone_surrogate",
+      "mistral/encode#compat_ligature",
+      "mistral/encode#added_meta_start",
       "mistral/encode#ascii_punct",
       "mistral/encode#japanese",
       "mistral/encode#emoji_zwj",
@@ -376,6 +384,8 @@
       "yi/encode#special_endoftext",
       "yi/encode#added_llama3",
       "yi/encode#lone_surrogate",
+      "yi/encode#compat_ligature",
+      "yi/encode#added_meta_start",
       "yi/encode#ascii_punct",
       "yi/encode#japanese",
       "yi/encode#emoji_zwj",
@@ -407,6 +417,8 @@
       "gemma/encode#special_endoftext",
       "gemma/encode#added_llama3",
       "gemma/encode#lone_surrogate",
+      "gemma/encode#compat_ligature",
+      "gemma/encode#added_meta_start",
       "gemma/encode#ascii_punct",
       "gemma/encode#japanese",
       "gemma/encode#emoji_zwj",
@@ -438,6 +450,8 @@
       "jamba/encode#special_endoftext",
       "jamba/encode#added_llama3",
       "jamba/encode#lone_surrogate",
+      "jamba/encode#compat_ligature",
+      "jamba/encode#added_meta_start",
       "jamba/encode#ascii_punct",
       "jamba/encode#japanese",
       "jamba/encode#emoji_zwj",
@@ -469,6 +483,8 @@
       "gpt2/encode#special_endoftext",
       "gpt2/encode#added_llama3",
       "gpt2/encode#lone_surrogate",
+      "gpt2/encode#compat_ligature",
+      "gpt2/encode#added_meta_start",
       "gpt2/encode#ascii_punct",
       "gpt2/encode#japanese",
       "gpt2/encode#emoji_zwj",
@@ -500,6 +516,8 @@
       "claude/encode#special_endoftext",
       "claude/encode#added_llama3",
       "claude/encode#lone_surrogate",
+      "claude/encode#compat_ligature",
+      "claude/encode#added_meta_start",
       "claude/encode#ascii_punct",
       "claude/encode#japanese",
       "claude/encode#emoji_zwj",
@@ -531,6 +549,8 @@
       "llama3/encode#special_endoftext",
       "llama3/encode#added_llama3",
       "llama3/encode#lone_surrogate",
+      "llama3/encode#compat_ligature",
+      "llama3/encode#added_meta_start",
       "qwen2/encode#empty",
       "qwen2/encode#ascii",
       "qwen2/encode#long_ascii",
@@ -544,6 +564,8 @@
       "qwen2/encode#special_endoftext",
       "qwen2/encode#added_llama3",
       "qwen2/encode#lone_surrogate",
+      "qwen2/encode#compat_ligature",
+      "qwen2/encode#added_meta_start",
       "command-r/encode#empty",
       "command-r/encode#ascii",
       "command-r/encode#long_ascii",
@@ -557,6 +579,8 @@
       "command-r/encode#special_endoftext",
       "command-r/encode#added_llama3",
       "command-r/encode#lone_surrogate",
+      "command-r/encode#compat_ligature",
+      "command-r/encode#added_meta_start",
       "command-a/encode#empty",
       "command-a/encode#ascii",
       "command-a/encode#long_ascii",
@@ -570,6 +594,8 @@
       "command-a/encode#special_endoftext",
       "command-a/encode#added_llama3",
       "command-a/encode#lone_surrogate",
+      "command-a/encode#compat_ligature",
+      "command-a/encode#added_meta_start",
       "nemo/encode#empty",
       "nemo/encode#ascii",
       "nemo/encode#long_ascii",
@@ -583,6 +609,8 @@
       "nemo/encode#special_endoftext",
       "nemo/encode#added_llama3",
       "nemo/encode#lone_surrogate",
+      "nemo/encode#compat_ligature",
+      "nemo/encode#added_meta_start",
       "deepseek/encode#empty",
       "deepseek/encode#ascii",
       "deepseek/encode#long_ascii",
@@ -596,6 +624,8 @@
       "deepseek/encode#special_endoftext",
       "deepseek/encode#added_llama3",
       "deepseek/encode#lone_surrogate",
+      "deepseek/encode#compat_ligature",
+      "deepseek/encode#added_meta_start",
       "llama/encode#no_body",
       "llama/encode#empty_array",
       "llama/encode#missing_text",
@@ -2274,6 +2304,100 @@
           "<0x90>",
           "<0x81>",
           "<0xA2>"
+        ]
+      }
+    },
+    "llama/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/llama/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "93",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5d-Mss7seZ6jq71rwsxG1G6F6mRbgg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          29871,
+          31017,
+          242,
+          191,
+          164
+        ],
+        "count": 5,
+        "chunks": [
+          "▁",
+          "ﬁ",
+          "<0xEF>",
+          "<0xBC>",
+          "<0xA1>"
+        ]
+      }
+    },
+    "llama/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/llama/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "115",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"73-ZIJFqxDSl7545rWtbbzr4/Udw2k\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          921,
+          29966,
+          2303,
+          6040,
+          29918,
+          25826,
+          29958,
+          29891
+        ],
+        "count": 8,
+        "chunks": [
+          "▁x",
+          "<",
+          "ME",
+          "TA",
+          "_",
+          "START",
+          ">",
+          "y"
         ]
       }
     },
@@ -4234,6 +4358,96 @@
         ]
       }
     },
+    "nerdstash/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "54",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"36-I3yAXctDBvx3MvbXJv0nXfRCpIQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          52817,
+          51067
+        ],
+        "count": 2,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "nerdstash/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "124",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7c-aUcPFZIBQqV0w7uPgvwd2FyBUWk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          49271,
+          49438,
+          49266,
+          39373,
+          49313,
+          2985,
+          10628,
+          49405,
+          49227
+        ],
+        "count": 9,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_",
+          "ST",
+          "ART",
+          ">",
+          "y"
+        ]
+      }
+    },
     "nerdstash/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/nerdstash/encode",
@@ -6110,6 +6324,96 @@
           "<0x90>",
           "<0x81>",
           "<0xA2>"
+        ]
+      }
+    },
+    "nerdstash_v2/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash_v2/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "54",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"36-I3yAXctDBvx3MvbXJv0nXfRCpIQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          52817,
+          51067
+        ],
+        "count": 2,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "nerdstash_v2/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash_v2/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "124",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"7c-aUcPFZIBQqV0w7uPgvwd2FyBUWk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          49271,
+          49438,
+          49266,
+          39373,
+          49313,
+          2985,
+          10628,
+          49405,
+          49227
+        ],
+        "count": 9,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_",
+          "ST",
+          "ART",
+          ">",
+          "y"
         ]
       }
     },
@@ -8102,6 +8406,100 @@
         ]
       }
     },
+    "mistral/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/mistral/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "93",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5d-Xit/Zs/GlGYQICtjX5qwvloC+GY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          28705,
+          30160,
+          242,
+          191,
+          164
+        ],
+        "count": 5,
+        "chunks": [
+          "▁",
+          "ﬁ",
+          "<0xEF>",
+          "<0xBC>",
+          "<0xA1>"
+        ]
+      }
+    },
+    "mistral/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/mistral/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "116",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"74-s2TQ/bztZiM9fV9gOijzm/KziuQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1318,
+          28789,
+          1574,
+          6106,
+          28730,
+          12241,
+          28767,
+          28724
+        ],
+        "count": 8,
+        "chunks": [
+          "▁x",
+          "<",
+          "ME",
+          "TA",
+          "_",
+          "START",
+          ">",
+          "y"
+        ]
+      }
+    },
     "mistral/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/mistral/encode",
@@ -10061,6 +10459,102 @@
         ]
       }
     },
+    "yi/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/yi/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "108",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6c-qabutcYlhSAl+22UUY1hxNK5dAU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          544,
+          477,
+          434,
+          544,
+          493,
+          466
+        ],
+        "count": 6,
+        "chunks": [
+          "<0xEF>",
+          "<0xAC>",
+          "<0x81>",
+          "<0xEF>",
+          "<0xBC>",
+          "<0xA1>"
+        ]
+      }
+    },
+    "yi/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/yi/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "116",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"74-SfI6TDPRR0qPHodzd/xXXPvQSKk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          59607,
+          59666,
+          59609,
+          27569,
+          59593,
+          37245,
+          59644,
+          59587
+        ],
+        "count": 8,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_",
+          "START",
+          ">",
+          "y"
+        ]
+      }
+    },
     "yi/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/yi/encode",
@@ -11986,6 +12480,92 @@
         ]
       }
     },
+    "gemma/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/gemma/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "56",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"38-LYJzasFZ3T8Wc1Te91NGHHGfCTo\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          237927,
+          238801
+        ],
+        "count": 2,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "gemma/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/gemma/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "112",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"70-bnbr7cqEBPJjJqMLTCu7Hcgoymk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          235297,
+          235322,
+          94553,
+          235298,
+          22000,
+          235313,
+          235267
+        ],
+        "count": 7,
+        "chunks": [
+          "x",
+          "<",
+          "META",
+          "_",
+          "START",
+          ">",
+          "y"
+        ]
+      }
+    },
     "gemma/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/gemma/encode",
@@ -13826,6 +14406,98 @@
           "<0x90>",
           "<0x81>",
           "<0xA2>"
+        ]
+      }
+    },
+    "jamba/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/jamba/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "84",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"54-T0rrfgofz9Cmx5lm+eoz8bXCd/8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          63494,
+          1783,
+          1732,
+          1705
+        ],
+        "count": 4,
+        "chunks": [
+          "ﬁ",
+          "<0xEF>",
+          "<0xBC>",
+          "<0xA1>"
+        ]
+      }
+    },
+    "jamba/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/jamba/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "116",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"74-PKNN2sRyRPxKuy6SoiRUY9OWkrc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          62967,
+          63010,
+          32216,
+          62962,
+          62988,
+          36577,
+          63002,
+          62952
+        ],
+        "count": 8,
+        "chunks": [
+          "x",
+          "<",
+          "MET",
+          "A",
+          "_",
+          "START",
+          ">",
+          "y"
         ]
       }
     },
@@ -15746,6 +16418,104 @@
         ]
       }
     },
+    "gpt2/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/gpt2/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "89",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"59-Sk6MhTenNAI0PFJyW54p7fdvF8w\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          171,
+          105,
+          223,
+          171,
+          120,
+          94
+        ],
+        "count": 6,
+        "chunks": [
+          "�",
+          "�",
+          "�",
+          "�",
+          "�",
+          "�"
+        ]
+      }
+    },
+    "gpt2/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/gpt2/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "105",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"69-E4iSwlGrLr/0YGxRYwh97XkOe8U\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          87,
+          27,
+          44,
+          20892,
+          62,
+          2257,
+          7227,
+          29,
+          88
+        ],
+        "count": 9,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_",
+          "ST",
+          "ART",
+          ">",
+          "y"
+        ]
+      }
+    },
     "gpt2/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/gpt2/encode",
@@ -17623,6 +18393,84 @@
         ]
       }
     },
+    "claude/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/claude/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "47",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2f-HjFS+ffBpOf5yyLQD7nr0dnQToU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          9697,
+          37
+        ],
+        "count": 2,
+        "chunks": [
+          "fi",
+          "A"
+        ]
+      }
+    },
+    "claude/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/claude/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "61",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3d-TNU0FpoSbZ0zRrBvd4Ahc1v3DPc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          92,
+          2,
+          93
+        ],
+        "count": 3,
+        "chunks": [
+          "x",
+          "<META_START>",
+          "y"
+        ]
+      }
+    },
     "claude/encode#ascii_punct": {
       "request": {
         "path": "/api/tokenizers/claude/encode",
@@ -19476,6 +20324,89 @@
         ]
       }
     },
+    "llama3/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/llama3/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "59",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3b-gUgeXQGw/FTLpMqxDiTlv8eCox4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          171,
+          71831,
+          116531
+        ],
+        "count": 3,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "llama3/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/llama3/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "86",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"56-96bparMTIolc2roHmLN9Dx82MeA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          87,
+          34374,
+          21352,
+          13343,
+          83344
+        ],
+        "count": 5,
+        "chunks": [
+          "x",
+          "<M",
+          "ETA",
+          "_START",
+          ">y"
+        ]
+      }
+    },
     "qwen2/encode#empty": {
       "request": {
         "path": "/api/tokenizers/qwen2/encode",
@@ -20466,6 +21397,88 @@
         "chunks": [
           "a",
           "𐁢"
+        ]
+      }
+    },
+    "qwen2/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/qwen2/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "56",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"38-tWRItnO33ZHduWutXiOei2T28AY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          144300,
+          133054
+        ],
+        "count": 2,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "qwen2/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/qwen2/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "86",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"56-C1c9bvvOUiZ7QtYcEZ/9Jx7dbLY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          87,
+          33274,
+          20695,
+          13044,
+          82244
+        ],
+        "count": 5,
+        "chunks": [
+          "x",
+          "<M",
+          "ETA",
+          "_START",
+          ">y"
         ]
       }
     },
@@ -21489,6 +22502,95 @@
         ]
       }
     },
+    "command-r/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/command-r/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "63",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3f-hvZAVu63JChG2Q6YbNdUryDzVG0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          179,
+          113,
+          231,
+          1808,
+          102
+        ],
+        "count": 5,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "command-r/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/command-r/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "92",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5c-e72nk8slsrZL1Ke7xqRXnVM1hlI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          95,
+          35,
+          91386,
+          70,
+          38772,
+          37,
+          96
+        ],
+        "count": 7,
+        "chunks": [
+          "x",
+          "<",
+          "META",
+          "_",
+          "START",
+          ">",
+          "y"
+        ]
+      }
+    },
     "command-a/encode#empty": {
       "request": {
         "path": "/api/tokenizers/command-a/encode",
@@ -22506,6 +23608,95 @@
         "chunks": [
           "a",
           "𐁢"
+        ]
+      }
+    },
+    "command-a/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/command-a/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "63",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3f-hvZAVu63JChG2Q6YbNdUryDzVG0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          179,
+          113,
+          231,
+          1808,
+          102
+        ],
+        "count": 5,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "command-a/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/command-a/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "92",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5c-e72nk8slsrZL1Ke7xqRXnVM1hlI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          95,
+          35,
+          91386,
+          70,
+          38772,
+          37,
+          96
+        ],
+        "count": 7,
+        "chunks": [
+          "x",
+          "<",
+          "META",
+          "_",
+          "START",
+          ">",
+          "y"
         ]
       }
     },
@@ -23532,6 +24723,94 @@
         ]
       }
     },
+    "nemo/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/nemo/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "63",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3f-Jf40A+7LMp4qWm4ZhThSIZb8URw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1239,
+          1172,
+          1129,
+          99977
+        ],
+        "count": 4,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "nemo/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/nemo/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "102",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"66-/DyeIUi88Ci53rTWEUOGLP/U1Sg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1120,
+          1060,
+          1077,
+          49469,
+          54954,
+          1062,
+          1121
+        ],
+        "count": 7,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_START",
+          ">",
+          "y"
+        ]
+      }
+    },
     "deepseek/encode#empty": {
       "request": {
         "path": "/api/tokenizers/deepseek/encode",
@@ -24552,6 +25831,94 @@
         "chunks": [
           "a",
           "𐁢"
+        ]
+      }
+    },
+    "deepseek/encode#compat_ligature": {
+      "request": {
+        "path": "/api/tokenizers/deepseek/encode",
+        "query": null,
+        "body": {
+          "text": "ﬁＡ"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "54",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"36-Qys4RN5aR2zljYtK3nzp6+rLvPs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          14324,
+          65503
+        ],
+        "count": 2,
+        "chunks": [
+          "ﬁ",
+          "Ａ"
+        ]
+      }
+    },
+    "deepseek/encode#added_meta_start": {
+      "request": {
+        "path": "/api/tokenizers/deepseek/encode",
+        "query": null,
+        "body": {
+          "text": "x<META_START>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "101",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"65-yi8fmww4p8UdHVV5hmXZ4BBnduE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          90,
+          30,
+          47,
+          38874,
+          32684,
+          12281,
+          32,
+          91
+        ],
+        "count": 8,
+        "chunks": [
+          "x",
+          "<",
+          "M",
+          "ETA",
+          "_ST",
+          "ART",
+          ">",
+          "y"
         ]
       }
     },
