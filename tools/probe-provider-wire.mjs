@@ -68,6 +68,99 @@ function cookieHeader(cookies) {
     return cookies.map(cookie => cookie.split(';', 1)[0]).join('; ');
 }
 
+// Drives a streaming generation and cancels it once the first event has been
+// seen, which is how the abort case is exercised deterministically: the trigger
+// is an observed event rather than a wall-clock delay.
+async function requestAbortingAfterFirstEvent(url, headers, body) {
+    const controller = new AbortController();
+    const response = await fetch(url, {
+        method: 'POST', headers, body, redirect: 'manual', signal: controller.signal,
+    });
+    let text = '';
+    let aborted = false;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            text += decoder.decode(value, { stream: true });
+            if (text.includes('\n\n')) {
+                aborted = true;
+                controller.abort();
+                break;
+            }
+        }
+    } catch (error) {
+        if (error?.name !== 'AbortError') throw error;
+        aborted = true;
+    }
+    return { response, body: null, text, aborted };
+}
+
+// Drives a request that the backend may never finish, for example when the
+// provider dies mid-stream. The bound is a scenario constant, not a timing
+// measurement: the capture records whether the backend completed or left the
+// caller hanging, and whatever it had already delivered.
+async function requestUntilTimeout(url, headers, body, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+        response = await fetch(url, { method: 'POST', headers, body, redirect: 'manual', signal: controller.signal });
+    } catch (error) {
+        clearTimeout(timer);
+        if (error?.name === 'AbortError') return { response: { status: 0, headers: new Headers() }, body: null, text: '', timedOut: true };
+        throw error;
+    }
+    let text = '';
+    let timedOut = false;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            text += decoder.decode(value, { stream: true });
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') timedOut = true;
+        else if (String(error?.message ?? '').includes('terminated')) timedOut = true;
+        else throw error;
+    } finally {
+        clearTimeout(timer);
+    }
+    return { response, body: null, text, timedOut };
+}
+
+// Parses a Server-Sent Events body into its event sequence. The event name and
+// the data payload are kept verbatim rather than JSON-decoded, so an encoding or
+// formatting difference cannot round-trip away. Per ARCHITECTURE.md section 17
+// the parsed event sequence is compared, not TCP packet boundaries.
+function parseSSE(text) {
+    const events = [];
+    let current = { event: null, data: [] };
+    for (const rawLine of text.split('\n')) {
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+        if (line === '') {
+            if (current.data.length > 0 || current.event !== null) {
+                events.push({ event: current.event, data: current.data.join('\n') });
+            }
+            current = { event: null, data: [] };
+            continue;
+        }
+        if (line.startsWith('event:')) {
+            current.event = line.slice('event:'.length).trim();
+        } else if (line.startsWith('data:')) {
+            current.data.push(line.slice('data:'.length).replace(/^ /, ''));
+        }
+    }
+    if (current.data.length > 0 || current.event !== null) {
+        events.push({ event: current.event, data: current.data.join('\n') });
+    }
+    return events;
+}
+
 function stableHeaders(headers) {
     return Object.fromEntries([...headers.entries()]
         .filter(([name]) => !['connection', 'date', 'keep-alive', 'set-cookie', 'transfer-encoding', 'content-length', 'x-response-time'].includes(name))
@@ -278,19 +371,45 @@ for (const { file, definition } of scenarios) {
             if (typeof body[key] === 'string') body[key] = body[key].replace('<mock>', `http://${mock.address}`);
         }
         const rawBody = JSON.stringify(body);
-        const generated = await request(`${server.origin}${definition.request.path}`, 'POST', {
-            Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
-        }, rawBody);
+        const generated = definition.abortAfterFirstEvent
+            ? await requestAbortingAfterFirstEvent(`${server.origin}${definition.request.path}`, {
+                Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+            }, rawBody)
+            : definition.driverTimeoutMs
+                ? await requestUntilTimeout(`${server.origin}${definition.request.path}`, {
+                    Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+                }, rawBody, definition.driverTimeoutMs)
+                : await request(`${server.origin}${definition.request.path}`, 'POST', {
+                    Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+                }, rawBody);
 
-        const recorded = await request(`http://${mock.address}/__mock/recording`);
-        if (recorded.response.status !== 200) {
-            throw new Error(`mock provider recording unavailable: ${recorded.response.status}`);
+        // Cancellation is observed at the provider, so give the backend a bounded
+        // moment to tear the upstream connection down before reading the
+        // recording. The wait is bounded rather than timed so the capture stays
+        // deterministic.
+        let recordingText;
+        for (let attempt = 0; attempt < 40; attempt++) {
+            const polled = await request(`http://${mock.address}/__mock/recording`);
+            if (polled.response.status !== 200) {
+                throw new Error(`mock provider recording unavailable: ${polled.response.status}`);
+            }
+            recordingText = polled.body;
+            const disconnected = (recordingText.requests ?? []).every(entry => entry.clientDisconnected);
+            if (!definition.abortAfterFirstEvent || disconnected) break;
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
+        const recorded = { body: recordingText };
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
         const normalizedProvider = normalizeProvider(recorded.body, mock.address);
         const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
 
+        // The scenario declares whether the generation is streamed. Detecting it
+        // from the response content type would be wrong: the pinned streaming
+        // path forwards the body WITHOUT a content-type header, and that
+        // omission is itself part of the captured contract, so it is recorded
+        // rather than used to decide how to parse.
+        const isEventStream = definition.request.body.stream === true;
         captures[definition.name] = {
             scenario: file,
             purpose: definition.purpose,
@@ -311,11 +430,18 @@ for (const { file, definition } of scenarios) {
                 observed: true,
                 requests: normalizedProvider.requests,
             },
+            // Observer C: the provider-to-browser leg. For a stream the parsed
+            // event sequence is compared, not the raw framing; for a non-stream
+            // response the parsed body is compared.
             providerResponse: {
                 observed: true,
                 status: generated.response.status,
                 headers: stableHeaders(generated.response.headers),
-                body: generated.body,
+                contentType: generated.response.headers.get('content-type') ?? null,
+                abortedByDriver: generated.aborted === true,
+                driverTimedOut: generated.timedOut === true,
+                events: isEventStream ? parseSSE(generated.text) : undefined,
+                body: isEventStream ? undefined : generated.body,
             },
             browserEvents: {
                 observed: false,
