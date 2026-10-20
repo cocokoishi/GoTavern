@@ -82,6 +82,7 @@ function stableHeaders(response) {
 
 function capture(result, normalizeSpriteList = false) {
     let body = result.body;
+    const headers = stableHeaders(result.response);
     if (normalizeSpriteList && Array.isArray(body)) {
         // Pinned src/endpoints/sprites.js:126 builds the list from
         // fs.readdirSync(spritesPath) with no sort, so the array order is the
@@ -90,9 +91,16 @@ function capture(result, normalizeSpriteList = false) {
         // UTF-8 bytes of "path" makes the observation host independent; the Go
         // differential test compares the response as an unordered multiset for
         // the same reason. The filtered/labelled entry set is unchanged.
+        if (body.length > 1) {
+            // The ETag digests the exact response bytes, so with more than one
+            // entry it inherits the host directory order and cannot be compared
+            // across hosts. The entry set itself is still compared exactly; for
+            // zero or one entry the digest is order independent and kept.
+            headers.etag = '<host-ordered-etag>';
+        }
         body = [...body].sort((left, right) => Buffer.compare(Buffer.from(left.path), Buffer.from(right.path)));
     }
-    return { status: result.response.status, headers: stableHeaders(result.response), body };
+    return { status: result.response.status, headers, body };
 }
 
 function cookiesFrom(response) {

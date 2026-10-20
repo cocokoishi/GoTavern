@@ -209,21 +209,41 @@ func TestPinnedNodeExpressionsSpriteListing(t *testing.T) {
 // recorded oracle and the Go response are both canonicalised by sorting on
 // "path" before the differential comparison; the entry set, labels, paths and
 // query timestamps are still compared exactly.
+//
+// The ETag digests the exact response bytes, so for a multi-entry list it
+// inherits the host directory order on both sides and is normalised; the
+// recorded oracle and the Go response are produced by different readdir orders
+// and can never agree on it. Zero- and one-entry lists keep the exact ETag.
 func assertSpriteListResponse(t *testing.T, label string, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
 	t.Helper()
 	canonical := want
 	canonical.Body = sortedSpriteListBody(want.Body)
+	if entries, ok := want.Body.([]any); ok && len(entries) > 1 {
+		canonical.Headers = normalizedSpriteListHeaders(canonical.Headers)
+	}
 	gotBody := any(nil)
 	if got.Body.Len() > 0 {
 		if json.Unmarshal(got.Body.Bytes(), &gotBody) != nil {
 			gotBody = got.Body.String()
 		}
 	}
-	gotBody = sortedSpriteListBody(gotBody)
 	gotHeaders := stableAccountBackupHeaders(got.Header())
+	if entries, ok := gotBody.([]any); ok && len(entries) > 1 {
+		gotHeaders = normalizedSpriteListHeaders(gotHeaders)
+	}
+	gotBody = sortedSpriteListBody(gotBody)
 	if got.Code != canonical.Status || !reflect.DeepEqual(gotHeaders, canonical.Headers) || !reflect.DeepEqual(gotBody, canonical.Body) {
 		t.Fatalf("sprite response %s differs from pinned Node:\n status=%d want=%d\n headers=%#v want=%#v\n body=%#v want=%#v", label, got.Code, canonical.Status, gotHeaders, canonical.Headers, gotBody, canonical.Body)
 	}
+}
+
+func normalizedSpriteListHeaders(headers map[string]string) map[string]string {
+	normalized := make(map[string]string, len(headers))
+	for name, value := range headers {
+		normalized[name] = value
+	}
+	normalized["etag"] = "<host-ordered-etag>"
+	return normalized
 }
 
 func sortedSpriteListBody(body any) any {
