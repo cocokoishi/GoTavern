@@ -293,9 +293,29 @@ try {
     }
 
     const scenarios = {};
+    // /api/groups/create derives the group id and file name from Date.now(), so
+    // two creates inside the same millisecond collide on one file name and the
+    // second overwrites the first. Wait until the clock has advanced past the
+    // previous generated id before the next create, so three creates always
+    // produce three distinct files. This is a timing dependence, not a platform
+    // one: without the wait the tree depends on how fast the calls happened to
+    // run, which is why it passed on a slower local machine and failed on CI.
+    let lastGeneratedId = 0;
+    const waitForDistinctGeneratedId = async () => {
+        while (Date.now() <= lastGeneratedId) {
+            await new Promise(resolve => setTimeout(resolve, 1));
+        }
+    };
+
     const runScenario = async (name, route, body, options = {}) => {
         console.error('scenario: ' + name);
+        if (route === '/api/groups/create') {
+            await waitForDistinctGeneratedId();
+        }
         const result = await post(route, body);
+        if (result.body && typeof result.body.id === 'string' && /^\d{13}$/.test(result.body.id)) {
+            lastGeneratedId = Number(result.body.id);
+        }
         const captured = normalizeGroupResponse({
             status: result.response.status,
             headers: stableHeaders(result.response),
@@ -360,7 +380,7 @@ try {
         normalization: [
             'date_added and create_date in /all come from the group file birthtime, which depends on the filesystem and cannot be seeded, so they are recorded as <birthtimeMs> and <birthtimeIso>; the Go test asserts the pinned derivation between them instead.',
             'The /all array is recorded sorted by id because pinned fs.readdirSync order is filesystem-dependent (NTFS is sorted, ext4 is not).',
-            'Group ids and file names produced by Date.now() are recorded as <nowMs>, and a file whose name carries that id records its digest as <derived-from-generated-id> because the id is embedded in its content.',
+            'Group ids and file names produced by Date.now() are recorded as <nowMs>, and a file whose name carries that id records its digest as <derived-from-generated-id> because the id is embedded in its content. The probe waits for the clock to pass the previous generated id before each /api/groups/create, because two creates inside one millisecond collide on a single file name; that collision is timing-dependent, not host-dependent.',
             'Group chat mtimes are seeded to distinct fixed values so newest-wins comparisons are observable.',
         ],
         inputs: {

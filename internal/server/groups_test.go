@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -138,13 +139,28 @@ func TestPinnedNodeGroups(t *testing.T) {
 	}
 	sessionCookie := cookiesFrom(login)
 
+	// /api/groups/create derives the id and file name from Date.now(), so two
+	// creates inside one millisecond collide on a single file name. Wait for the
+	// clock to pass the previous generated id before each create so the test
+	// produces the same number of files as the oracle on any host. This is a
+	// timing dependence: without it the tree depends on how fast the requests
+	// happened to run.
+	lastGeneratedID := int64(0)
 	for _, name := range fixture.ScenarioOrder {
 		scenario, exists := fixture.Scenarios[name]
 		if !exists {
 			t.Fatalf("groups oracle has no %q scenario", name)
 		}
 		t.Run(name, func(t *testing.T) {
+			if scenario.Route == "/api/groups/create" {
+				for time.Now().UnixMilli() <= lastGeneratedID {
+					time.Sleep(time.Millisecond)
+				}
+			}
 			response := serve(http.MethodPost, scenario.Route, sessionCookie, csrf.Token, "application/json", scenario.Request)
+			if generated := generatedGroupID(response.Body.Bytes()); generated > lastGeneratedID {
+				lastGeneratedID = generated
+			}
 			if strings.Contains(scenario.Response.BodyText, "<birthtimeMs>") {
 				assertGroupsBirthtimeDerivation(t, name, response, fixture.Inputs.GroupFileMtimeMs)
 			}
@@ -154,6 +170,24 @@ func TestPinnedNodeGroups(t *testing.T) {
 			assertGroupsTree(t, name+" groups", snapshotChatsTree(t, directories["groups"]), scenario.Groups)
 		})
 	}
+}
+
+// generatedGroupID returns the 13-digit id a /api/groups/create response
+// carries, or 0 when the body has none.
+func generatedGroupID(body []byte) int64 {
+	parsed, err := decodeOrderedNodeJSON(body)
+	if err != nil {
+		return 0
+	}
+	id, ok := nodeGet(parsed, "id").stringValue()
+	if !ok || !generatedIDPattern.MatchString(id) {
+		return 0
+	}
+	value, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return value
 }
 
 // assertGroupsBirthtimeDerivation checks the pinned derivation between the two
