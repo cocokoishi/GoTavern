@@ -1,0 +1,2680 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned frontend-extension management routes: discover/version/branches/switch/update/install/move/delete, feature guard, sanitization, permission checks and the resulting extension trees",
+  "normalizations": [
+    "Absolute runtime paths are recorded as <runtime> and the pinned checkout path as <install>, because both differ per recording host. The path suffixes after each placeholder are recorded unchanged.",
+    "Recorded strings have their backslashes rewritten to forward slashes, because Node path.join on Windows and on POSIX differ only in the separator.",
+    "The loopback git server port is recorded as <port>, because the probe binds an ephemeral port.",
+    "Pinned /discover returns fs.readdirSync order, which is a property of the host filesystem (ext4 hash order, NTFS name order). The fixture sorts each pinned group (system, local, global) by name and the comparison is order-insensitive within a group; src/endpoints/extensions.js:506-530 performs no sort.",
+    "A thrown route error answers with Express finalhandler's HTML page, whose <pre> block is the V8 stack with host-absolute source paths and pinned line numbers. Those responses are recorded in errorPages as a status only; GoTavern answers the same status with a plain-text body.",
+    "git output is recorded as pinned Node returns it. The probe builds every repository with fixed identities, fixed author/committer dates and an empty git config, so commit hashes and branch labels are reproducible off the recording host; the probe fails rather than record a branch abbreviation other than the pinned seven characters.",
+    "For a response body that carries a path or the loopback port, content-length and ETag are recorded as <path-body-length> and <path-body-etag>: Express derives both from the raw bytes, which embed this host's absolute paths and this host's path separators. The decision is made on the normalized body, so it does not itself depend on the recording host."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-extensions-cookie-secret",
+    "seededUsers": [
+      {
+        "handle": "default-user",
+        "name": "Extensions Probe",
+        "created": 1700000000000,
+        "password": "",
+        "admin": true,
+        "enabled": true,
+        "salt": "",
+        "probeUnknownField": {
+          "preserve": true
+        }
+      },
+      {
+        "handle": "plainuser",
+        "name": "Plain User",
+        "created": 1700000000001,
+        "password": "",
+        "admin": false,
+        "enabled": true,
+        "salt": ""
+      }
+    ],
+    "builtInExtensions": [
+      {
+        "name": "assets",
+        "hasManifest": true
+      },
+      {
+        "name": "attachments",
+        "hasManifest": true
+      },
+      {
+        "name": "caption",
+        "hasManifest": true
+      },
+      {
+        "name": "connection-manager",
+        "hasManifest": true
+      },
+      {
+        "name": "expressions",
+        "hasManifest": true
+      },
+      {
+        "name": "gallery",
+        "hasManifest": true
+      },
+      {
+        "name": "memory",
+        "hasManifest": true
+      },
+      {
+        "name": "quick-reply",
+        "hasManifest": true
+      },
+      {
+        "name": "regex",
+        "hasManifest": true
+      },
+      {
+        "name": "stable-diffusion",
+        "hasManifest": true
+      },
+      {
+        "name": "third-party",
+        "hasManifest": true
+      },
+      {
+        "name": "token-counter",
+        "hasManifest": true
+      },
+      {
+        "name": "translate",
+        "hasManifest": true
+      },
+      {
+        "name": "tts",
+        "hasManifest": true
+      },
+      {
+        "name": "vectors",
+        "hasManifest": true
+      }
+    ],
+    "localExtensions": {
+      "probe-local-one": {
+        "manifest.json": "{\n  \"display_name\": \"Probe Local One\",\n  \"version\": \"1.0.0\",\n  \"author\": \"Probe\",\n  \"unknownManifestField\": {\n    \"keep\": true\n  }\n}",
+        "data.txt": "local one\n"
+      },
+      "probe-local-nomanifest": {
+        "data.txt": "no manifest\n"
+      },
+      "probe-global-conflict": {
+        "manifest.json": "{\"display_name\":\"User Copy\"}"
+      },
+      "probe-local-file.txt": "plain file\n",
+      "My%20Repo": {
+        "placeholder.txt": "percent\n"
+      }
+    },
+    "globalExtensions": {
+      "probe-global-one": {
+        "manifest.json": "{\"display_name\":\"Global One\"}"
+      },
+      "probe-global-conflict": {
+        "manifest.json": "{\"display_name\":\"Global Copy\"}"
+      },
+      "probe-global-nomanifest": {
+        "data.txt": "no manifest\n"
+      },
+      "probe-global-file.txt": "plain file\n",
+      "manifest.json": "{\"display_name\":\"Third Party Container\"}"
+    },
+    "plainUserExtensions": {
+      "probe-other-one": {
+        "manifest.json": "{\"display_name\":\"Plain One\"}"
+      }
+    },
+    "git": {
+      "fullCommitHashes": {
+        "originFirst": "fdfc094fc28ea1148188c32ea1bb83844cf40dfc",
+        "originSecond": "029cddb1aa3aaddb5fea4dba02b33b1c4fa14a09",
+        "originThird": "e1d50fd43cdfe858ee1bb7f421a9524440169cfa",
+        "manifestMain": "e40e156fca9435a45befa70d1dd372b28ca72907",
+        "manifestAlt": "7be04c7c282db8bda51118ecaaefda29de740e05"
+      },
+      "originBranch": "main",
+      "originBranchTip": "fdfc094fc28ea1148188c32ea1bb83844cf40dfc",
+      "featureBranch": "feature-b",
+      "altBranch": "alt",
+      "commitMessages": {
+        "first": "first commit",
+        "second": "second commit",
+        "third": "third commit"
+      },
+      "originRemoteSuffix": "git/origin.git",
+      "installRepos": {
+        "manifest": "manifest.git",
+        "partial": "partial.git",
+        "nofields": "nofields.git",
+        "nomanifest": "nomanifest.git",
+        "badmanifest": "badmanifest.git",
+        "arraymanifest": "arraymanifest.git",
+        "nullmanifest": "nullmanifest.git",
+        "global": "global.git"
+      },
+      "installManifests": {
+        "main": "{\"display_name\":\"Manifest Extension\",\"version\":\"1.2.3\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"main\"}}",
+        "alt": "{\"display_name\":\"Manifest Extension Alt\",\"version\":\"9.9.9\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"alt\"}}"
+      }
+    }
+  },
+  "responses": {
+    "discoverAdmin": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "type": "system",
+          "name": "assets"
+        },
+        {
+          "type": "system",
+          "name": "attachments"
+        },
+        {
+          "type": "system",
+          "name": "caption"
+        },
+        {
+          "type": "system",
+          "name": "connection-manager"
+        },
+        {
+          "type": "system",
+          "name": "expressions"
+        },
+        {
+          "type": "system",
+          "name": "gallery"
+        },
+        {
+          "type": "system",
+          "name": "memory"
+        },
+        {
+          "type": "system",
+          "name": "quick-reply"
+        },
+        {
+          "type": "system",
+          "name": "regex"
+        },
+        {
+          "type": "system",
+          "name": "stable-diffusion"
+        },
+        {
+          "type": "system",
+          "name": "token-counter"
+        },
+        {
+          "type": "system",
+          "name": "translate"
+        },
+        {
+          "type": "system",
+          "name": "tts"
+        },
+        {
+          "type": "system",
+          "name": "vectors"
+        },
+        {
+          "type": "local",
+          "name": "third-party/probe-global-conflict"
+        },
+        {
+          "type": "local",
+          "name": "third-party/probe-local-one"
+        },
+        {
+          "type": "global",
+          "name": "third-party/probe-global-one"
+        }
+      ]
+    },
+    "discoverPlain": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "type": "system",
+          "name": "assets"
+        },
+        {
+          "type": "system",
+          "name": "attachments"
+        },
+        {
+          "type": "system",
+          "name": "caption"
+        },
+        {
+          "type": "system",
+          "name": "connection-manager"
+        },
+        {
+          "type": "system",
+          "name": "expressions"
+        },
+        {
+          "type": "system",
+          "name": "gallery"
+        },
+        {
+          "type": "system",
+          "name": "memory"
+        },
+        {
+          "type": "system",
+          "name": "quick-reply"
+        },
+        {
+          "type": "system",
+          "name": "regex"
+        },
+        {
+          "type": "system",
+          "name": "stable-diffusion"
+        },
+        {
+          "type": "system",
+          "name": "token-counter"
+        },
+        {
+          "type": "system",
+          "name": "translate"
+        },
+        {
+          "type": "system",
+          "name": "tts"
+        },
+        {
+          "type": "system",
+          "name": "vectors"
+        },
+        {
+          "type": "local",
+          "name": "third-party/probe-other-one"
+        },
+        {
+          "type": "global",
+          "name": "third-party/probe-global-conflict"
+        },
+        {
+          "type": "global",
+          "name": "third-party/probe-global-one"
+        }
+      ]
+    },
+    "discoverWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "discoverRecreatesUserDirectory": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "type": "system",
+          "name": "assets"
+        },
+        {
+          "type": "system",
+          "name": "attachments"
+        },
+        {
+          "type": "system",
+          "name": "caption"
+        },
+        {
+          "type": "system",
+          "name": "connection-manager"
+        },
+        {
+          "type": "system",
+          "name": "expressions"
+        },
+        {
+          "type": "system",
+          "name": "gallery"
+        },
+        {
+          "type": "system",
+          "name": "memory"
+        },
+        {
+          "type": "system",
+          "name": "quick-reply"
+        },
+        {
+          "type": "system",
+          "name": "regex"
+        },
+        {
+          "type": "system",
+          "name": "stable-diffusion"
+        },
+        {
+          "type": "system",
+          "name": "token-counter"
+        },
+        {
+          "type": "system",
+          "name": "translate"
+        },
+        {
+          "type": "system",
+          "name": "tts"
+        },
+        {
+          "type": "system",
+          "name": "vectors"
+        },
+        {
+          "type": "global",
+          "name": "third-party/probe-global-conflict"
+        },
+        {
+          "type": "global",
+          "name": "third-party/probe-global-one"
+        }
+      ]
+    },
+    "versionNonRepo": {
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-KxXx96M5+/C3KjrqEkw/qP95TRE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "currentBranchName": "",
+        "currentCommitHash": "",
+        "isUpToDate": true,
+        "remoteUrl": ""
+      }
+    },
+    "versionGit": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "currentBranchName": "main",
+        "currentCommitHash": "029cddb1aa3aaddb5fea4dba02b33b1c4fa14a09",
+        "isUpToDate": true,
+        "remoteUrl": "file:///<runtime>/git/origin.git"
+      }
+    },
+    "versionMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory does not exist at <runtime>/data/default-user/extensions/probe-missing"
+    },
+    "versionSanitizesToEmpty": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "versionNonString": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "versionNoName": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "versionGlobalNonAdmin": {
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-KxXx96M5+/C3KjrqEkw/qP95TRE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "currentBranchName": "",
+        "currentCommitHash": "",
+        "isUpToDate": true,
+        "remoteUrl": ""
+      }
+    },
+    "versionNestedRepo": {
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-KxXx96M5+/C3KjrqEkw/qP95TRE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "currentBranchName": "",
+        "currentCommitHash": "",
+        "isUpToDate": true,
+        "remoteUrl": ""
+      }
+    },
+    "updateNestedRepo": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "versionWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "branchesGit": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": [
+        {
+          "current": true,
+          "commit": "029cddb",
+          "name": "main",
+          "label": "second commit"
+        },
+        {
+          "current": false,
+          "commit": "fdfc094",
+          "name": "origin/feature-b",
+          "label": "first commit"
+        },
+        {
+          "current": false,
+          "commit": "029cddb",
+          "name": "origin/main",
+          "label": "second commit"
+        }
+      ]
+    },
+    "branchesNonGit": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "branchesMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory does not exist at <runtime>/data/default-user/extensions/probe-missing"
+    },
+    "branchesNonString": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "branchesGlobalNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "63",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3f-MR4royC/ykj+LSz+l9dHnc/XW7A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to list branches of global extensions."
+    },
+    "switchMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory does not exist at <runtime>/data/default-user/extensions/probe-missing"
+    },
+    "switchNoBranch": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-OXYb2V2WdgJdUE/b8vu92kaVSzI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName and branch are required in the request body."
+    },
+    "switchNonStringBranch": {
+      "status": 404,
+      "headers": {
+        "content-length": "31",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1f-m1qM9tDBWnzV7ECk4VRRtu+Vpn8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Branch 5 does not exist locally"
+    },
+    "switchUnknownLocal": {
+      "status": 404,
+      "headers": {
+        "content-length": "34",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-W6I54kjl+tiEBYWXEu0GFCWm6+8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Branch nope does not exist locally"
+    },
+    "switchToRemoteBranch": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "switchAlreadyCheckedOut": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "switchBackToMain": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "switchGlobalNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "65",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"41-Bg+Qhcd0ViLtoYkWYRViNVRp4dE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to switch branches of global extensions."
+    },
+    "updateGit": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "shortCommitHash": "e1d50fd",
+        "extensionPath": "<runtime>/data/default-user/extensions/probe-git",
+        "isUpToDate": false,
+        "remoteUrl": "file:///<runtime>/git/origin.git"
+      }
+    },
+    "updateAgain": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "shortCommitHash": "e1d50fd",
+        "extensionPath": "<runtime>/data/default-user/extensions/probe-git",
+        "isUpToDate": true,
+        "remoteUrl": "file:///<runtime>/git/origin.git"
+      }
+    },
+    "versionAfterUpdate": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "currentBranchName": "main",
+        "currentCommitHash": "e1d50fd43cdfe858ee1bb7f421a9524440169cfa",
+        "isUpToDate": true,
+        "remoteUrl": "file:///<runtime>/git/origin.git"
+      }
+    },
+    "updateNonGit": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "updateMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory does not exist at <runtime>/data/default-user/extensions/probe-missing"
+    },
+    "updateNonString": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "updateGlobalNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"35-1+lJ25AmkJsnxabQuC79krer4lI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to update global extensions."
+    },
+    "moveUserToGlobal": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "moveGlobalToUser": {
+      "status": 204,
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "moveSameGlobalSource": {
+      "status": 409,
+      "headers": {
+        "content-length": "37",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-JzN+8wWEXjnFRW+aYhN1ciJj+iA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Destination directory already exists."
+    },
+    "moveSourceMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "32",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-4bEY1c6iUQTnQOOGazsv6wJQAHI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Source directory does not exist."
+    },
+    "moveDestinationExists": {
+      "status": 409,
+      "headers": {
+        "content-length": "37",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-JzN+8wWEXjnFRW+aYhN1ciJj+iA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Destination directory already exists."
+    },
+    "moveSourceIsFile": {
+      "status": 404,
+      "headers": {
+        "content-length": "32",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-4bEY1c6iUQTnQOOGazsv6wJQAHI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Source directory does not exist."
+    },
+    "moveMissingDestination": {
+      "status": 400,
+      "headers": {
+        "content-length": "93",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5d-fGV101dkSPTnUSOr1BYZU79DPJE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName, source, and destination are required in the request body."
+    },
+    "moveNonString": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "moveSanitizesToEmpty": {
+      "status": 400,
+      "headers": {
+        "content-length": "93",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5d-fGV101dkSPTnUSOr1BYZU79DPJE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName, source, and destination are required in the request body."
+    },
+    "moveNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "44",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2c-YWailCT51uGMLzWuyiCTx/0BW04\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to move extensions."
+    },
+    "moveGlobalSourceNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "44",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2c-YWailCT51uGMLzWuyiCTx/0BW04\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to move extensions."
+    },
+    "moveWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "deleteUserExtension": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Extension has been deleted at <runtime>/data/default-user/extensions/probe-local-nomanifest"
+    },
+    "deleteGlobalExtension": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Extension has been deleted at public/scripts/extensions/third-party/probe-local-one"
+    },
+    "deleteMissing": {
+      "status": 404,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory does not exist at <runtime>/data/default-user/extensions/probe-missing"
+    },
+    "deleteNonString": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "deleteSanitizesToEmpty": {
+      "status": 400,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"43-N+KEIRJTNlGGbDUiVnadfth5MDM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid extensionName is required in the request body."
+    },
+    "deleteGlobalNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"35-DgmQeaiaRBt7crLT2vKShQsDpyk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to delete global extensions."
+    },
+    "deleteWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "installValid": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "version": "1.2.3",
+        "author": "Probe Author",
+        "display_name": "Manifest Extension",
+        "extensionPath": "<runtime>/data/default-user/extensions/manifest",
+        "folderName": "manifest"
+      }
+    },
+    "installBranchGlobal": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "version": "9.9.9",
+        "author": "Probe Author",
+        "display_name": "Manifest Extension Alt",
+        "extensionPath": "public/scripts/extensions/third-party/manifest",
+        "folderName": "manifest"
+      }
+    },
+    "installPartialManifest": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "display_name": "Partial Extension",
+        "extensionPath": "<runtime>/data/default-user/extensions/partial",
+        "folderName": "partial"
+      }
+    },
+    "installNoFields": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "extensionPath": "<runtime>/data/default-user/extensions/nofields",
+        "folderName": "nofields"
+      }
+    },
+    "installExistingDirectory": {
+      "status": 409,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory already exists at <runtime>/data/default-user/extensions/manifest"
+    },
+    "installEncodedNameNotDecoded": {
+      "status": 409,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory already exists at <runtime>/data/default-user/extensions/My%20Repo"
+    },
+    "installSpaceNameEncoded": {
+      "status": 409,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Directory already exists at <runtime>/data/default-user/extensions/My%20Repo"
+    },
+    "installNoManifest": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installBadManifest": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installArrayManifest": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installNullManifest": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installCloneFailure": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installInvalidURL": {
+      "status": 400,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"39-hNPLp7/lWBEsHBu/Wz93mrB5G38\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid URL is required in the request body."
+    },
+    "installRelativeURL": {
+      "status": 400,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"39-hNPLp7/lWBEsHBu/Wz93mrB5G38\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid URL is required in the request body."
+    },
+    "installFileProtocol": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-a3bqi5thej14pbsuS78LpZx+1SI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: Only HTTP and HTTPS protocols are supported for the Extension URL."
+    },
+    "installMailtoProtocol": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-a3bqi5thej14pbsuS78LpZx+1SI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: Only HTTP and HTTPS protocols are supported for the Extension URL."
+    },
+    "installMissingURL": {
+      "status": 400,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"39-hNPLp7/lWBEsHBu/Wz93mrB5G38\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid URL is required in the request body."
+    },
+    "installNonStringURL": {
+      "status": 400,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"39-hNPLp7/lWBEsHBu/Wz93mrB5G38\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request: A valid URL is required in the request body."
+    },
+    "installEmptyNameURL": {
+      "status": 400,
+      "headers": {
+        "content-length": "95",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"5f-sB1YZEvF3+Ki5+Bx72EQsB1/xzs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Could not determine the extension name from the URL. Please provide a valid git repository URL."
+    },
+    "installDotGitURL": {
+      "status": 500,
+      "headers": {
+        "content-length": "62",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"3e-a4GdADda0PBcNBaGSe+rHU8AIhk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error. Check the server logs for more details."
+    },
+    "installWrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "installGlobalNonAdminInvalidURL": {
+      "status": 403,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"36-C9KvgNTjtm6/YTMneGI4NbmfE5M\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to install global extensions."
+    },
+    "installGlobalNonAdmin": {
+      "status": 403,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"36-C9KvgNTjtm6/YTMneGI4NbmfE5M\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden: No permission to install global extensions."
+    },
+    "installGlobalAdmin": {
+      "status": 200,
+      "headers": {
+        "content-length": "<path-body-length>",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "<path-body-etag>",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "version": "2.0.0",
+        "author": "Global Author",
+        "display_name": "Global Extension",
+        "extensionPath": "public/scripts/extensions/third-party/global",
+        "folderName": "global"
+      }
+    }
+  },
+  "errorPages": {
+    "versionMalformedBody": {
+      "status": 400
+    }
+  },
+  "extra": {
+    "userExtensionsDirectoryRecreated": true,
+    "switchToRemoteBranchFile": "one\n",
+    "switchToRemoteBranchBranch": "feature-b",
+    "switchBackToMainFile": "two\n",
+    "updatePulledCommit": "e1d50fd43cdfe858ee1bb7f421a9524440169cfa",
+    "updatePulledFile": "three\n"
+  },
+  "state": {
+    "userAfterMove": [
+      {
+        "path": "My%20Repo",
+        "kind": "directory"
+      },
+      {
+        "path": "My%20Repo/placeholder.txt",
+        "kind": "file",
+        "content": "percent\n"
+      },
+      {
+        "path": "probe-git",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-git/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "probe-git/probe.txt",
+        "kind": "file",
+        "content": "three\n"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"User Copy\"}"
+      },
+      {
+        "path": "probe-global-one",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-one/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global One\"}"
+      },
+      {
+        "path": "probe-local-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-local-nomanifest",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-local-nomanifest/data.txt",
+        "kind": "file",
+        "content": "no manifest\n"
+      },
+      {
+        "path": "probe-nested",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-nested/.git",
+        "kind": "git-directory"
+      }
+    ],
+    "globalAfterMove": [
+      {
+        "path": ".gitkeep",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Third Party Container\"}"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global Copy\"}"
+      },
+      {
+        "path": "probe-global-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-global-nomanifest",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-nomanifest/data.txt",
+        "kind": "file",
+        "content": "no manifest\n"
+      },
+      {
+        "path": "probe-local-one",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-local-one/data.txt",
+        "kind": "file",
+        "content": "local one\n"
+      },
+      {
+        "path": "probe-local-one/manifest.json",
+        "kind": "file",
+        "content": "{\n  \"display_name\": \"Probe Local One\",\n  \"version\": \"1.0.0\",\n  \"author\": \"Probe\",\n  \"unknownManifestField\": {\n    \"keep\": true\n  }\n}"
+      }
+    ],
+    "userAfterDelete": [
+      {
+        "path": "My%20Repo",
+        "kind": "directory"
+      },
+      {
+        "path": "My%20Repo/placeholder.txt",
+        "kind": "file",
+        "content": "percent\n"
+      },
+      {
+        "path": "probe-git",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-git/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "probe-git/probe.txt",
+        "kind": "file",
+        "content": "three\n"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"User Copy\"}"
+      },
+      {
+        "path": "probe-global-one",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-one/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global One\"}"
+      },
+      {
+        "path": "probe-local-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-nested",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-nested/.git",
+        "kind": "git-directory"
+      }
+    ],
+    "globalAfterDelete": [
+      {
+        "path": ".gitkeep",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Third Party Container\"}"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global Copy\"}"
+      },
+      {
+        "path": "probe-global-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-global-nomanifest",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-nomanifest/data.txt",
+        "kind": "file",
+        "content": "no manifest\n"
+      }
+    ],
+    "userAfterInstall": [
+      {
+        "path": "My%20Repo",
+        "kind": "directory"
+      },
+      {
+        "path": "My%20Repo/placeholder.txt",
+        "kind": "file",
+        "content": "percent\n"
+      },
+      {
+        "path": "manifest",
+        "kind": "directory"
+      },
+      {
+        "path": "manifest/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "manifest/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Manifest Extension\",\"version\":\"1.2.3\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"main\"}}"
+      },
+      {
+        "path": "manifest/probe.txt",
+        "kind": "file",
+        "content": "main\n"
+      },
+      {
+        "path": "nofields",
+        "kind": "directory"
+      },
+      {
+        "path": "nofields/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "nofields/manifest.json",
+        "kind": "file",
+        "content": "{}"
+      },
+      {
+        "path": "partial",
+        "kind": "directory"
+      },
+      {
+        "path": "partial/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "partial/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Partial Extension\"}"
+      },
+      {
+        "path": "probe-git",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-git/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "probe-git/probe.txt",
+        "kind": "file",
+        "content": "three\n"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"User Copy\"}"
+      },
+      {
+        "path": "probe-global-one",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-one/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global One\"}"
+      },
+      {
+        "path": "probe-local-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-nested",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-nested/.git",
+        "kind": "git-directory"
+      }
+    ],
+    "globalAfterInstall": [
+      {
+        "path": ".gitkeep",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "path": "global",
+        "kind": "directory"
+      },
+      {
+        "path": "global/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "global/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global Extension\",\"version\":\"2.0.0\",\"author\":\"Global Author\"}"
+      },
+      {
+        "path": "manifest",
+        "kind": "directory"
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Third Party Container\"}"
+      },
+      {
+        "path": "manifest/.git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "manifest/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Manifest Extension Alt\",\"version\":\"9.9.9\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"alt\"}}"
+      },
+      {
+        "path": "manifest/probe.txt",
+        "kind": "file",
+        "content": "alt\n"
+      },
+      {
+        "path": "probe-global-conflict",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-conflict/manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global Copy\"}"
+      },
+      {
+        "path": "probe-global-file.txt",
+        "kind": "file",
+        "content": "plain file\n"
+      },
+      {
+        "path": "probe-global-nomanifest",
+        "kind": "directory"
+      },
+      {
+        "path": "probe-global-nomanifest/data.txt",
+        "kind": "file",
+        "content": "no manifest\n"
+      }
+    ],
+    "installedTree": [
+      {
+        "path": ".git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Manifest Extension\",\"version\":\"1.2.3\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"main\"}}"
+      },
+      {
+        "path": "probe.txt",
+        "kind": "file",
+        "content": "main\n"
+      }
+    ],
+    "installedGlobalTree": [
+      {
+        "path": ".git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Manifest Extension Alt\",\"version\":\"9.9.9\",\"author\":\"Probe Author\",\"unknownManifestField\":{\"keep\":\"alt\"}}"
+      },
+      {
+        "path": "probe.txt",
+        "kind": "file",
+        "content": "alt\n"
+      }
+    ],
+    "installedGlobalRepoTree": [
+      {
+        "path": ".git",
+        "kind": "git-directory"
+      },
+      {
+        "path": "manifest.json",
+        "kind": "file",
+        "content": "{\"display_name\":\"Global Extension\",\"version\":\"2.0.0\",\"author\":\"Global Author\"}"
+      }
+    ]
+  },
+  "disabled": {
+    "install": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "update": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "branches": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "switch": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "move": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "version": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "delete": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "discover": {
+      "status": 404,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Not Found"
+    },
+    "unauthenticatedDiscover": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    }
+  }
+}
