@@ -523,8 +523,28 @@ promoting them to `AGENTS.md`.
 - **A single-token warm-up cost**: the engine merges by rescanning the symbol list, which is O(n²) in the
   number of symbols for one call. Correctness is unaffected and the recorded corpus runs in milliseconds,
   but a very long prompt has not been benchmarked against the pinned port.
+- **The HF unpaired-surrogate class is `partial`.** The pinned HF wrapper tokenizes an unpaired surrogate as
+  its WTF-8 bytes — three separate, unmerged byte tokens — which is a *third* rule, different from the
+  SentencePiece port's unvalidated pairing and from the tiktoken WASM's U+FFFD substitution. The engine
+  escapes those bytes to private-use runes so the rune-based pre-tokenizer patterns cannot mangle them, and
+  that reproduces `claude` and `llama3`; it does **not** yet reproduce `command-r`/`command-a`, where the
+  pinned capture shows two tokens where the engine produces three. Eight HF cases are excluded and counted
+  by `wantHFSurrogateCases`, so nothing about that class is claimed. The private-use escape also means a real
+  input character in U+E000..U+E3FF alongside a surrogate would be misread; no pinned case contains one.
+- **NFKC is not distinguished from NFC by the corpus.** Flipping the engine to always apply NFC leaves the
+  HF replay green, because no recorded input contains a compatibility character (U+FB01, fullwidth forms and
+  so on) that NFKC would fold and NFC would not. `claude` is the only NFKC file, so its normalizer choice is
+  currently unverified.
+- **The added-token longest-match rule is unverified.** Making the matcher take the first match rather than
+  the longest leaves the replay green: no recorded input has two added tokens overlapping at the same
+  position. Both this and the NFKC gap are closable with one more corpus input each.
 
 ## 10. HF tokenizer structures (enumerated from the vendored bytes)
+
+The engine that reads these structures is `internal/tokenizers/hftokenizer.go`. It implements `ByteLevel`,
+`Digits(individual_digits)`, `Split(pattern, Isolated)`, the normalizers `null`/`NFC`/`NFKC`/`Sequence([])`,
+added-token matching and ByteLevel decoding, and it refuses any other shape at load time. It deliberately
+does **not** implement post-processors, because the capture shows they never run.
 
 Enumerated 2026-10-20 by decompressing the vendored files themselves — `upstream/tokenizers/external/*.json.gz`
 for the five externally fetched tokenizers and `upstream/tokenizers/{claude,llama3}.json` for the two the
