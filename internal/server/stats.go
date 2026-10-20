@@ -11,9 +11,11 @@ package server
 // this route exists because the frontend calls it while building the chat view for a send.
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -33,6 +35,8 @@ func registerStatsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundP
 		})
 	}
 	post("/api/stats/get", accounts.serveStatsGet)
+	post("/api/stats/update", accounts.serveStatsUpdate)
+	registerStatsAliases(mux)
 }
 
 // serveStatsGet answers the user's stats object, or `{}` when the user has none.
@@ -61,4 +65,60 @@ func readStatsFile(directories startup.UserDirectories) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+// serveStatsUpdate reproduces POST /api/stats/update (stats.js:465): a body is required, the stored
+// object is replaced with it plus a fresh `timestamp`, and the route answers 200 with no content.
+//
+// Note on ordering: the pinned code sets `stats.timestamp` on the parsed object and persists it, so
+// its key order is the body's order with `timestamp` inserted where it already was. This writes the
+// object through a Go map, so key ORDER is not preserved (values are). That is recorded as a gap for
+// the storage-parity increment rather than silently accepted.
+func (runtime *accountRuntime) serveStatsUpdate(w http.ResponseWriter, request *http.Request) {
+	_, directories, ok := runtime.extensionAccount(w, request)
+	if !ok {
+		return
+	}
+	body, bodyOK := tokenizerRawBody(request)
+	if !bodyOK || len(body) == 0 || string(body) == "null" {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	var stats map[string]any
+	if err := json.Unmarshal(body, &stats); err != nil {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	stats["timestamp"] = time.Now().UnixMilli()
+	encoded, err := json.Marshal(stats)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	root := directories["root"]
+	if root == "" {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if err := startup.WriteFileAtomic(filepath.Join(root, "stats.json"), encoded); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	serveStatusText(w, http.StatusOK)
+}
+
+// Deprecated stats aliases, from redirectDeprecatedEndpoints (server-startup.js:114-116): they are
+// HTTP redirects to the canonical routes, not second handlers, so one implementation serves both.
+func registerStatsAliases(mux *http.ServeMux) {
+	redirects := map[string]string{
+		"/getstats":      "/api/stats/get",
+		"/updatestats":   "/api/stats/update",
+		"/recreatestats": "/api/stats/recreate",
+	}
+	for source, destination := range redirects {
+		destination := destination
+		mux.HandleFunc(source, func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, destination, http.StatusFound)
+		})
+	}
 }

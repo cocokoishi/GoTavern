@@ -260,3 +260,9 @@ func WriteSecret(directories UserDirectories, keyID, value, label string) (strin
 	}
 	return id, nil
 }
+
+// WriteFileAtomic replaces path with body through the same atomic replacement the secrets migration
+// uses, so a caller outside this package does not need a second write path (rule 12).
+func WriteFileAtomic(path string, body []byte) error {
+	return atomicReplace(path, body)
+}
