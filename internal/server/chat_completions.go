@@ -141,7 +141,6 @@ func pinnedChatCompletionErrorFlag() orderedNodeJSON {
 }
 
 func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter, request *http.Request) {
-	w = withPinnedResponseTime(w)
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
 		// Express's JSON body parser answers its own 400 page for a malformed

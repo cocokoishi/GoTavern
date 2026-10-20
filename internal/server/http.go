@@ -478,7 +478,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage, options)
 	})
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
 		setPinnedCORSBaseVary(w.Header(), corsSettings)
 		if servePinnedCORS(w, r, corsSettings) {
@@ -548,7 +548,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 			return
 		}
 		mux.ServeHTTP(w, r)
-	})
+	}))
 }
 
 func setPinnedSecurityHeaders(header http.Header) {

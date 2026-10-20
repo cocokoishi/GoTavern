@@ -338,6 +338,11 @@ func stableAccountBackupHeaders(headers http.Header) map[string]string {
 	copy.Del("Connection")
 	values := make(map[string]string, len(copy))
 	for name, entries := range copy {
+		// The shared predicate excludes headers whose value no fixture can pin,
+		// such as the response-time middleware's wall-clock duration.
+		if pinnedHeaderIsUnpinnable(name) {
+			continue
+		}
 		values[strings.ToLower(name)] = strings.Join(entries, ", ")
 	}
 	return values

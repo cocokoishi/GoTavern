@@ -62,17 +62,43 @@ func readFreshStartFixture(t *testing.T) freshStartFixture {
 	return fixture
 }
 
+// pinnedUnpinnableResponseHeaders are response headers no fixture can compare:
+// their value is a wall-clock measurement or a transport artifact of the host.
+//
+// X-Response-Time is the pinned response-time middleware's duration
+// (src/server-main.js:108). Its value cannot be pinned, so the domain probes
+// filter it out of what they record, which is why they could never notice that
+// GoTavern omitted the header entirely. Presence is asserted where it genuinely
+// can be: the provider-wire differential's headerCoverage rule fails closed
+// when a declared normalization rule names a header the backend never sent.
+// That check is what found the omission, so this exclusion covers the value
+// only, and it is applied once here rather than at every call site.
+var pinnedUnpinnableResponseHeaders = map[string]bool{
+	"x-response-time": true,
+}
+
+func pinnedHeaderIsUnpinnable(name string) bool {
+	return pinnedUnpinnableResponseHeaders[strings.ToLower(name)]
+}
+
 func assertPinnedHeaders(t *testing.T, got http.Header, want map[string]string) {
 	t.Helper()
 	normalized := make(map[string]string, len(got))
 	for name, values := range got {
-		if len(values) == 0 {
+		if len(values) == 0 || pinnedHeaderIsUnpinnable(name) {
 			continue
 		}
 		normalized[strings.ToLower(name)] = strings.Join(values, ", ")
 	}
-	if !reflect.DeepEqual(normalized, want) {
-		t.Fatalf("headers differ from pinned Node oracle:\n got: %#v\nwant: %#v", normalized, want)
+	expected := make(map[string]string, len(want))
+	for name, value := range want {
+		if pinnedHeaderIsUnpinnable(name) {
+			continue
+		}
+		expected[strings.ToLower(name)] = value
+	}
+	if !reflect.DeepEqual(normalized, expected) {
+		t.Fatalf("headers differ from pinned Node oracle:\n got: %#v\nwant: %#v", normalized, expected)
 	}
 }
 
