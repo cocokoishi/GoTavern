@@ -331,7 +331,10 @@ try {
     writeFileSync(indexPath, goRoundTripInput.index);
     const goPort = await choosePort();
     goServerOrigin = 'http://127.0.0.1:' + goPort;
-    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort)], { cwd: repositoryRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // image-metadata-roundtrip requires the configured thumbnail dimensions
+    // (tools/image-metadata-roundtrip/main.go usage). This route never
+    // generates metadata, so the empty default matches the probe's config.
+    goChild = spawn('go', ['run', './tools/image-metadata-roundtrip', dataRoot, String(goPort), '{}'], { cwd: repositoryRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     goChild.stdout.setEncoding('utf8');
     goChild.stderr.setEncoding('utf8');
     goChild.stdout.on('data', chunk => goLogs.push(chunk));
