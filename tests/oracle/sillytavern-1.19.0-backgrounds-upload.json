@@ -1,0 +1,595 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "POST /api/backgrounds/upload matches pinned multipart field handling, filename decoding/sanitization, overwrite behavior, staged upload cleanup, thumbnail invalidation, best-effort metadata generation, and Node readback of Go-written metadata",
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backgrounds-upload-cookie-secret",
+    "imageBytes": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVR4AQXBAQEAAAjDIG7/zhNEEnVKjHmOrAj8shvh6QAAAABJRU5ErkJggg==",
+    "initialBackgroundBytes": "b2xkIGltYWdlIGJ5dGVz",
+    "initialIndex": "{\n    \"version\": 17,\n    \"images\": {\n        \"backgrounds/overwrite.png\": {\n            \"mtime\": -1,\n            \"hash\": \"old-hash\",\n            \"folderIds\": [\n                \"forest\"\n            ],\n            \"oldUnknown\": true\n        }\n    },\n    \"folders\": [\n        {\n            \"id\": \"forest\",\n            \"name\": \"Forest\",\n            \"thumbnailFile\": \"overwrite.png\",\n            \"unknownFolderField\": 31\n        }\n    ],\n    \"unknownRoot\": {\n        \"preserved\": true\n    }\n}"
+  },
+  "responses": {
+    "unauthorized": {
+      "status": 403,
+      "headers": {
+        "content-length": "9",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Forbidden"
+    },
+    "invalidCSRF": {
+      "status": 403,
+      "headers": {
+        "content-length": "201",
+        "content-security-policy": "default-src 'none'",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>ForbiddenError: Invalid CSRF token. Please refresh the page and try again.</pre>\n</body>\n</html>\n"
+    },
+    "wrongMethod": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodHead": {
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "wrongMethodOptions": {
+      "status": 204,
+      "headers": {
+        "access-control-allow-methods": "OPTIONS",
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Access-Control-Request-Headers",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null
+    },
+    "missingFile": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request"
+    },
+    "wrongFileField": {
+      "status": 500,
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "body": null
+    },
+    "overwrite": {
+      "status": 200,
+      "headers": {
+        "content-length": "13",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"d-779dSKFxbfTUfRkoAQbSRgzDLj8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "overwrite.png"
+    },
+    "sanitizedFilename": {
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-BOohUF37afhGoIBOCSoovFPK+Rs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "adventureland.png"
+    },
+    "unicodeFilename": {
+      "status": 200,
+      "headers": {
+        "content-length": "16",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10-ssM/Ldc+8edXJBn/Cqx09Z0x4XE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "森の背景.png"
+    },
+    "thumbnailFailure": {
+      "status": 500,
+      "headers": {
+        "content-length": "21",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Internal Server Error"
+    }
+  },
+  "state": {
+    "afterOverwrite": {
+      "content": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVR4AQXBAQEAAAjDIG7/zhNEEnVKjHmOrAj8shvh6QAAAABJRU5ErkJggg==",
+      "thumbnailExists": false,
+      "uploads": [],
+      "index": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      }
+    },
+    "afterNodeUploads": {
+      "sanitizedExists": true,
+      "unicodeExists": true,
+      "uploads": [],
+      "index": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/adventureland.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/森の背景.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      }
+    },
+    "afterThumbnailFailure": {
+      "backgroundExists": true,
+      "thumbnailDirectoryExists": true,
+      "uploads": [],
+      "index": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/adventureland.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/森の背景.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      }
+    },
+    "goRoundTrip": {
+      "nodeResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-APFGj0JvlCIokSQc++lL88WSy5c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "go-roundtrip.png"
+      },
+      "goResponse": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-APFGj0JvlCIokSQc++lL88WSy5c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "go-roundtrip.png"
+      },
+      "nodeReadbackStatus": 200,
+      "nodeReadbackIndex": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/adventureland.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/森の背景.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/go-roundtrip.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      },
+      "goIndex": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/adventureland.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/森の背景.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/go-roundtrip.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      },
+      "content": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVR4AQXBAQEAAAjDIG7/zhNEEnVKjHmOrAj8shvh6QAAAABJRU5ErkJggg==",
+      "uploads": [],
+      "nodeOracleIndex": {
+        "version": 17,
+        "images": {
+          "backgrounds/overwrite.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [
+              "forest"
+            ],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/adventureland.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/森の背景.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          },
+          "backgrounds/go-roundtrip.png": {
+            "hash": "3af160cf125db314e95eb0280443bf564d152b49e0a7630369e73156d6f9fe4b",
+            "aspectRatio": 1.5,
+            "isAnimated": false,
+            "dominantColor": "#6a6a6a",
+            "folderIds": [],
+            "addedTimestamp": "__ADDEDTIMESTAMP__",
+            "thumbnailResolution": 14400,
+            "mtime": "__MTIME__"
+          }
+        },
+        "folders": [
+          {
+            "id": "forest",
+            "name": "Forest",
+            "thumbnailFile": "overwrite.png",
+            "unknownFolderField": 31
+          }
+        ],
+        "unknownRoot": {
+          "preserved": true
+        }
+      }
+    },
+    "accountRecordUnchanged": true
+  }
+}

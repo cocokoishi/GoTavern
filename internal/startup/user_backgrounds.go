@@ -156,6 +156,190 @@ func RenameUserBackground(dataRoot, handle, oldFilename, newFilename string) (bo
 	return true, nil
 }
 
+// CreateUploadStagingFile creates a Multer-compatible random file directly in
+// DATA_ROOT/_uploads. The caller owns closing and removing the returned file.
+func CreateUploadStagingFile(dataRoot string) (*os.File, error) {
+	root, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve upload data root: %w", err)
+	}
+	stagingDirectory := filepath.Join(root, "_uploads")
+	if err := ensureContained(root, stagingDirectory); err != nil {
+		return nil, fmt.Errorf("invalid upload staging path: %w", err)
+	}
+	stagingInfo, err := os.Stat(stagingDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("read upload staging directory: %w", err)
+	}
+	if !stagingInfo.IsDir() {
+		return nil, fmt.Errorf("upload staging path is not a directory")
+	}
+	if err := ensureResolvedContained(root, stagingDirectory); err != nil {
+		return nil, fmt.Errorf("upload staging directory escapes data root: %w", err)
+	}
+	for attempt := 0; attempt < 8; attempt++ {
+		token := make([]byte, 16)
+		if _, err := rand.Read(token); err != nil {
+			return nil, err
+		}
+		name := hex.EncodeToString(token)
+		file, err := os.OpenFile(filepath.Join(stagingDirectory, name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
+		if os.IsExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
+	}
+	return nil, fmt.Errorf("could not allocate an upload staging file")
+}
+
+// InstallUserBackgroundUpload copies a staged upload into the user's
+// backgrounds directory, removes its staging file, and invalidates its cached
+// thumbnail. It preserves the pinned operation order while serializing the
+// persistent mutation and replacing the destination atomically.
+func InstallUserBackgroundUpload(dataRoot, handle, stagingPath, filename string) error {
+	directories, userRoot, lock, err := lockUserContentRoot(dataRoot, handle)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+
+	dataRootAbsolute, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return fmt.Errorf("resolve upload data root: %w", err)
+	}
+	stagingDirectory := filepath.Join(dataRootAbsolute, "_uploads")
+	stagingPath, err = filepath.Abs(stagingPath)
+	if err != nil {
+		return fmt.Errorf("resolve staged upload: %w", err)
+	}
+	if err := ensureContained(stagingDirectory, stagingPath); err != nil {
+		return fmt.Errorf("staged upload is outside the upload directory: %w", err)
+	}
+	if err := ensureResolvedContained(dataRootAbsolute, stagingPath); err != nil {
+		return fmt.Errorf("staged upload escapes the data root: %w", err)
+	}
+	stagingInfo, err := os.Lstat(stagingPath)
+	if err != nil {
+		return err
+	}
+	if !stagingInfo.Mode().IsRegular() {
+		return fmt.Errorf("staged upload is not a regular file")
+	}
+
+	backgroundDirectory, err := backgroundUserDirectory(userRoot, directories["backgrounds"])
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(backgroundDirectory, filename)
+	if err := ensureContained(userRoot, target); err != nil {
+		return fmt.Errorf("background upload path escapes user data root: %w", err)
+	}
+	if err := ensureResolvedContained(userRoot, target); err != nil {
+		return fmt.Errorf("background upload path escapes user data root: %w", err)
+	}
+	if err := copyBackgroundUploadAtomically(stagingPath, target); err != nil {
+		return err
+	}
+	if err := os.Remove(stagingPath); err != nil {
+		return err
+	}
+
+	thumbnailDirectory, err := backgroundUserDirectory(userRoot, directories["thumbnailsBg"])
+	if err != nil {
+		return err
+	}
+	thumbnailPath := filepath.Join(thumbnailDirectory, filename)
+	if err := ensureContained(userRoot, thumbnailPath); err != nil {
+		return fmt.Errorf("background thumbnail path escapes user data root: %w", err)
+	}
+	if _, err := os.Stat(thumbnailPath); err != nil {
+		// Node's existsSync treats missing files and filesystem errors as absent.
+		return nil
+	}
+	thumbnailInfo, err := os.Lstat(thumbnailPath)
+	if err != nil {
+		return err
+	}
+	if thumbnailInfo.IsDir() {
+		return fmt.Errorf("background thumbnail path %q is a directory", filename)
+	}
+	return os.Remove(thumbnailPath)
+}
+
+func copyBackgroundUploadAtomically(source, target string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+
+	sourceInfo, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	if !sourceInfo.Mode().IsRegular() {
+		return fmt.Errorf("staged background upload is not a regular file")
+	}
+	mode := sourceInfo.Mode().Perm()
+	if existing, err := os.Lstat(target); err == nil {
+		if !existing.Mode().IsRegular() {
+			return fmt.Errorf("background upload destination is not a regular file")
+		}
+		mode = existing.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	var temporary *os.File
+	for attempt := 0; attempt < 8; attempt++ {
+		token := make([]byte, 16)
+		if _, err := rand.Read(token); err != nil {
+			return err
+		}
+		name := ".gotavern-background-upload-" + hex.EncodeToString(token) + ".tmp"
+		file, err := os.OpenFile(filepath.Join(filepath.Dir(target), name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+		if os.IsExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		temporary = file
+		break
+	}
+	if temporary == nil {
+		return fmt.Errorf("could not allocate a background upload temporary file")
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if _, err := io.Copy(temporary, input); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Chmod(mode); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(temporaryPath, target); err != nil {
+		return err
+	}
+	if directory, err := os.Open(filepath.Dir(target)); err == nil {
+		_ = directory.Sync()
+		_ = directory.Close()
+	}
+	return nil
+}
+
 func copyBackgroundFileAtomically(source, target string) error {
 	input, err := os.Open(source)
 	if err != nil {

@@ -353,6 +353,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		accounts.serveBackgroundsRename(w, r)
 	})
+	mux.HandleFunc("/api/backgrounds/upload", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveBackgroundsUpload(w, r)
+	})
 	mux.HandleFunc("/api/backgrounds/folders", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			serveStatic(w, r, notFoundPage, options)
