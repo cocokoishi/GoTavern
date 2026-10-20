@@ -705,6 +705,102 @@ try {
         throw new Error(`server-protocol oracle changed across identical Node runs at: ${paths.join(', ')}`);
     }
 
+    const backgroundAllProbe = path.join(buildRoot, '.gotavern-probe-backgrounds-all.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-backgrounds-all.mjs'), backgroundAllProbe);
+    const backgroundAllFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-all.json');
+    run(process.execPath, [backgroundAllProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstBackgroundAllProbe = readFileSync(backgroundAllFixturePath);
+    run(process.execPath, [backgroundAllProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondBackgroundAllProbe = readFileSync(backgroundAllFixturePath);
+    if (!firstBackgroundAllProbe.equals(secondBackgroundAllProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstBackgroundAllProbe), JSON.parse(secondBackgroundAllProbe));
+        throw new Error(`backgrounds-all oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const backgroundDeleteProbe = path.join(buildRoot, '.gotavern-probe-backgrounds-delete.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-backgrounds-delete.mjs'), backgroundDeleteProbe);
+    const backgroundDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-delete.json');
+    run(process.execPath, [backgroundDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstBackgroundDeleteProbe = readFileSync(backgroundDeleteFixturePath);
+    run(process.execPath, [backgroundDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondBackgroundDeleteProbe = readFileSync(backgroundDeleteFixturePath);
+    if (!firstBackgroundDeleteProbe.equals(secondBackgroundDeleteProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstBackgroundDeleteProbe), JSON.parse(secondBackgroundDeleteProbe));
+        throw new Error(`backgrounds-delete oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const backgroundRenameProbe = path.join(buildRoot, '.gotavern-probe-backgrounds-rename.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-backgrounds-rename.mjs'), backgroundRenameProbe);
+    const backgroundRenameFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-rename.json');
+    run(process.execPath, [backgroundRenameProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstBackgroundRenameProbe = readFileSync(backgroundRenameFixturePath);
+    run(process.execPath, [backgroundRenameProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondBackgroundRenameProbe = readFileSync(backgroundRenameFixturePath);
+    if (!firstBackgroundRenameProbe.equals(secondBackgroundRenameProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstBackgroundRenameProbe), JSON.parse(secondBackgroundRenameProbe));
+        throw new Error(`backgrounds-rename oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const backgroundUploadProbe = path.join(buildRoot, '.gotavern-probe-backgrounds-upload.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-backgrounds-upload.mjs'), backgroundUploadProbe);
+    const backgroundUploadFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-backgrounds-upload.json');
+    run(process.execPath, [backgroundUploadProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstBackgroundUploadProbe = readFileSync(backgroundUploadFixturePath);
+    run(process.execPath, [backgroundUploadProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondBackgroundUploadProbe = readFileSync(backgroundUploadFixturePath);
+    if (!firstBackgroundUploadProbe.equals(secondBackgroundUploadProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstBackgroundUploadProbe), JSON.parse(secondBackgroundUploadProbe));
+        throw new Error(`backgrounds-upload oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const filesDeleteProbe = path.join(buildRoot, '.gotavern-probe-files-delete.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-files-delete.mjs'), filesDeleteProbe);
+    const filesDeleteFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-files-delete.json');
+    run(process.execPath, [filesDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstFilesDeleteProbe = readFileSync(filesDeleteFixturePath);
+    run(process.execPath, [filesDeleteProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondFilesDeleteProbe = readFileSync(filesDeleteFixturePath);
+    if (!firstFilesDeleteProbe.equals(secondFilesDeleteProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstFilesDeleteProbe), JSON.parse(secondFilesDeleteProbe));
+        throw new Error(`files-delete oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const filesSanitizeProbe = path.join(buildRoot, '.gotavern-probe-files-sanitize-filename.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-files-sanitize-filename.mjs'), filesSanitizeProbe);
+    const filesSanitizeFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-files-sanitize-filename.json');
+    run(process.execPath, [filesSanitizeProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstFilesSanitizeProbe = readFileSync(filesSanitizeFixturePath);
+    run(process.execPath, [filesSanitizeProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondFilesSanitizeProbe = readFileSync(filesSanitizeFixturePath);
+    if (!firstFilesSanitizeProbe.equals(secondFilesSanitizeProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstFilesSanitizeProbe), JSON.parse(secondFilesSanitizeProbe));
+        throw new Error(`files-sanitize-filename oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const filesUploadProbe = path.join(buildRoot, '.gotavern-probe-files-upload.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-files-upload.mjs'), filesUploadProbe);
+    const filesUploadFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-files-upload.json');
+    run(process.execPath, [filesUploadProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstFilesUploadProbe = readFileSync(filesUploadFixturePath);
+    run(process.execPath, [filesUploadProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondFilesUploadProbe = readFileSync(filesUploadFixturePath);
+    if (!firstFilesUploadProbe.equals(secondFilesUploadProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstFilesUploadProbe), JSON.parse(secondFilesUploadProbe));
+        throw new Error(`files-upload oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    const filesVerifyProbe = path.join(buildRoot, '.gotavern-probe-files-verify.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-files-verify.mjs'), filesVerifyProbe);
+    const filesVerifyFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-files-verify.json');
+    run(process.execPath, [filesVerifyProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstFilesVerifyProbe = readFileSync(filesVerifyFixturePath);
+    run(process.execPath, [filesVerifyProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondFilesVerifyProbe = readFileSync(filesVerifyFixturePath);
+    if (!firstFilesVerifyProbe.equals(secondFilesVerifyProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstFilesVerifyProbe), JSON.parse(secondFilesVerifyProbe));
+        throw new Error(`files-verify oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const compiler = `
 import { copyFileSync } from 'node:fs';
 import path from 'node:path';
@@ -755,6 +851,18 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
     if (!firstCustom404Probe.equals(secondCustom404Probe)) {
         const paths = changedJSONPaths(JSON.parse(firstCustom404Probe), JSON.parse(secondCustom404Probe));
         throw new Error(`custom 404 oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
+    // A probe that is never run by this script produces a fixture that CI
+    // cannot re-verify, so its compatibility claim is unfalsifiable. Fail loudly
+    // instead of silently accumulating unverified oracle fixtures.
+    const ownSource = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+    const unwiredProbes = readdirSync(path.join(repositoryRoot, 'tools'))
+        .filter(name => name.startsWith('probe-') && name.endsWith('.mjs'))
+        .filter(name => !ownSource.includes(name))
+        .sort();
+    if (unwiredProbes.length > 0) {
+        throw new Error('probe scripts are not wired into the deterministic rebuild: ' + unwiredProbes.join(', '));
     }
 
     const packageJson = JSON.parse(readFileSync(path.join(buildRoot, 'package.json'), 'utf8'));
