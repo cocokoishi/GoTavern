@@ -1,3 +1,25 @@
+// Generation probe: does a send driven from the PINNED frontend produce a provider request?
+//
+// WHAT IT MEASURES. It boots GoTavern (or is pointed at any other server with PROBE_BASE_URL), drives
+// one send the way the frontend itself does -- load and select a character through the frontend's own
+// functions, wait for the state a user can send from, then click #send_but -- and polls the recording
+// mock provider for an arriving request. It also records EVERY page request unfiltered, so a negative
+// finding ("this call never happened") comes from a log that would have shown it.
+//
+// WHAT ITS LAST RUN SHOWED (2026-10-20, GoTavern from a fresh data root): the character binds, the chat
+// opens, the send button is enabled, the frontend assembles a prompt (three POST /api/tokenizers/llama/
+// encode -> 200), every /api call answers 2xx/204, and NO backend call is made, so no provider request
+// arrives. Page errors: none. Requests recorded: 241.
+//
+// WHAT IT DOES NOT CONCLUDE. "No provider request" with no failing request and no page error is a
+// probe-faithfulness question (AGENTS.md verification rule 10), not a product finding: the drive's
+// oai_settings are a partial configuration compared with what a user's custom-source setup contains.
+// The next step is a differential against pinned Node with PROBE_BASE_URL and, if needed, a recorded
+// user settings snapshot -- not more fields added until something happens.
+//
+// PROVENANCE IS PART OF THE OUTPUT. The report records which server was driven, whether the page
+// loaded, how many requests were recorded, and the diagnostics at the point of the send; a bit quoted
+// without them is not evidence.
 // Generation probe (increment 0b), deliberately minimal.
 //
 // ONE question: does a send driven from the pinned frontend produce a provider request at all?
@@ -110,7 +132,7 @@ server.stderr.on('data', chunk => serverLog.push(chunk.toString()));
 
 const report = {
     question: 'does a send driven from the pinned frontend produce a provider request?',
-    gotavern: `http://127.0.0.1:${port}`,
+    gotavern: process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`,
     mockProvider: `http://${mockAddress}`,
     requestArrived: false,
     recording: null,
@@ -120,8 +142,11 @@ const report = {
 };
 
 let browser;
+// PROBE_BASE_URL points the identical drive at another server (pinned Node) for a differential, and
+// the same factoring is what the provider comparison will need.
+const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
 try {
-    await waitFor(`http://127.0.0.1:${port}/version`, 'gotavern');
+    await waitFor(`${baseURL}/version`, 'server');
     browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
@@ -172,16 +197,25 @@ try {
             return response;
         };
     });
-    await page.goto(`http://127.0.0.1:${port}/`);
+    await page.goto(`${baseURL}/`);
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 60000 });
 
     const outcome = await page.evaluate(async mockUrl => {
-        // The frontend modules are imported in-page, exactly as the pinned specs do.
+        // Faithful drive: load and select a character through the frontend's OWN functions, then send
+        // through the UI button. The earlier version pushed into a temporary chat and called
+        // Generate() with the frontend already mid-operation and no character bound, which a user
+        // cannot do; it short-circuited on a guard and reported "no request" with no error.
         const script = await import('./script.js');
         const { oai_settings } = await import('./scripts/openai.js');
-        await script.newAssistantChat({ temporary: true });
-        script.chat.push({ name: 'User', is_user: true, is_system: false, mes: 'probe user marker', extra: {} });
-        await script.addOneMessage(script.chat.at(-1));
+        const secretsModule = await import('./scripts/secrets.js');
+        // The custom OpenAI-compatible source needs a key in secret_state; a user would paste one.
+        await secretsModule.writeSecret(secretsModule.SECRET_KEYS.CUSTOM, 'probe-synthetic-key');
+
+        await script.getCharacters();
+        if (!Array.isArray(script.characters) || script.characters.length === 0) {
+            return { preconditions: { charactersLoaded: false }, error: 'no characters available after getCharacters()' };
+        }
+        await script.selectCharacterById(0, { switchMenu: false });
 
         oai_settings.chat_completion_source = 'custom';
         oai_settings.custom_url = mockUrl;
@@ -195,20 +229,39 @@ try {
             charactersLength: Array.isArray(script.characters) ? script.characters.length : 'not-array',
             chatLength: Array.isArray(script.chat) ? script.chat.length : 'not-array',
             isGenerating: Boolean(script.isGenerating),
+            generatingAttribute: document.body.dataset.generating ?? null,
+            sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
             hasSendButton: Boolean(document.querySelector('#send_but')),
         });
         const before = diagnostics();
-        try {
-            const returned = await script.Generate('normal');
-            return { generated: true, error: null, before, after: diagnostics(), returnedType: typeof returned };
-        } catch (error) {
-            return { generated: false, error: String(error?.message ?? error), before, after: diagnostics() };
+        // Preconditions a real user action implies. Asserted, not assumed: an unfaithful drive must
+        // fail loudly instead of reporting a false negative.
+        if (before.thisChid === 'undefined' || before.charactersLength === 0) {
+            return { preconditions: { charactersLoaded: false, ...before }, error: 'no character bound before the send' };
         }
+        // The user-facing gate is the DOM/live flag the frontend itself uses (body[data-generating]
+        // and the disabled send button), not the internal isGenerating variable, which reports true
+        // on a freshly loaded page and would reject a legitimate user state.
+        if (before.generatingAttribute !== null || before.sendButtonDisabled) {
+            return { preconditions: { charactersLoaded: true, ...before }, error: 'the send button was not in a user-sendable state' };
+        }
+
+        const composer = document.querySelector('#send_textarea');
+        if (composer) {
+            composer.value = 'probe user marker';
+            composer.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        const sendButton = document.querySelector('#send_but');
+        sendButton.click();
+
+        // Give the frontend time to build and post the request.
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics() };
     }, `http://${mockAddress}`);
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
-    report.diagnostics = outcome.before ? { before: outcome.before, after: outcome.after, returnedType: outcome.returnedType ?? null } : null;
+    report.diagnostics = outcome.preconditions ?? null;
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }
