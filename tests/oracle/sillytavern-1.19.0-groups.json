@@ -1,0 +1,1399 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/groups/all, /create, /edit and /delete",
+  "normalization": [
+    "date_added and create_date in /all come from the group file birthtime, which depends on the filesystem and cannot be seeded, so they are recorded as <birthtimeMs> and <birthtimeIso>; the Go test asserts the pinned derivation between them instead.",
+    "The /all array is recorded sorted by id because pinned fs.readdirSync order is filesystem-dependent (NTFS is sorted, ext4 is not).",
+    "Group ids and file names produced by Date.now() are recorded as <nowMs>, and a file whose name carries that id records its digest as <derived-from-generated-id> because the id is embedded in its content.",
+    "Group chat mtimes are seeded to distinct fixed values so newest-wins comparisons are observable."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-groups-cookie-secret",
+    "newestMtimeMs": 1700000700000,
+    "groupFileMtimeMs": 1699999800000,
+    "groupFiles": {
+      "group-one.json": {
+        "body": "{\n    \"id\": \"seed-group-one\",\n    \"name\": \"Group One\",\n    \"members\": [\n        \"Alice.png\",\n        \"Bob.png\"\n    ],\n    \"avatar_url\": \"group-one.png\",\n    \"allow_self_responses\": false,\n    \"activation_strategy\": 0,\n    \"disabled_members\": [],\n    \"fav\": false,\n    \"chat_id\": \"seed-group-one\",\n    \"chats\": [\n        \"chat-one-a\",\n        \"chat-one-b\"\n    ],\n    \"auto_mode_delay\": 5,\n    \"generation_mode\": 0,\n    \"generation_mode_join_prefix\": \"\",\n    \"generation_mode_join_suffix\": \"\",\n    \"probeUnknownGroupField\": {\n        \"keep\": true\n    }\n}"
+      },
+      "group-two.json": {
+        "body": "{\n    \"id\": \"seed-group-two\",\n    \"name\": \"Group Two\",\n    \"members\": [\n        \"Alice.png\"\n    ],\n    \"chats\": [\n        \"chat-two-a\"\n    ],\n    \"chat_metadata\": {\n        \"deprecated\": true\n    },\n    \"past_metadata\": {\n        \"deprecated\": true\n    }\n}"
+      },
+      "notes.txt": {
+        "body": "ignored because the extension is not .json"
+      }
+    },
+    "groupChatFiles": {
+      "chat-one-a.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-05-01T00:00:00.000Z\",\"mes\":\"one a\"}",
+        "mtime": 1700000699000
+      },
+      "chat-one-b.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Bob\",\"is_user\":false,\"send_date\":\"2024-05-02T00:00:00.000Z\",\"mes\":\"one b\"}",
+        "mtime": 1700000698000
+      },
+      "chat-two-a.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-05-03T00:00:00.000Z\",\"mes\":\"two a\"}",
+        "mtime": 1700000700000
+      },
+      "unrelated.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Nobody\",\"is_user\":true,\"send_date\":\"2024-05-04T00:00:00.000Z\",\"mes\":\"unrelated\"}",
+        "mtime": 1700000697000
+      }
+    }
+  },
+  "scenarioOrder": [
+    "groupsAll",
+    "groupsCreate",
+    "groupsCreateDefaults",
+    "groupsCreateDeprecatedKeys",
+    "groupsEdit",
+    "groupsEditDeprecatedKeys",
+    "groupsEditNoId",
+    "groupsEditForbiddenId",
+    "groupsDelete",
+    "groupsDeleteMissing",
+    "groupsDeleteNoId",
+    "groupsAllAfterMutations"
+  ],
+  "scenarios": {
+    "groupsAll": {
+      "route": "/api/groups/all",
+      "request": "{}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "seed-group-one",
+            "name": "Group One",
+            "members": [
+              "Alice.png",
+              "Bob.png"
+            ],
+            "avatar_url": "group-one.png",
+            "allow_self_responses": false,
+            "activation_strategy": 0,
+            "disabled_members": [],
+            "fav": false,
+            "chat_id": "seed-group-one",
+            "chats": [
+              "chat-one-a",
+              "chat-one-b"
+            ],
+            "auto_mode_delay": 5,
+            "generation_mode": 0,
+            "generation_mode_join_prefix": "",
+            "generation_mode_join_suffix": "",
+            "probeUnknownGroupField": {
+              "keep": true
+            },
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 1700000699000,
+            "chat_size": 341
+          },
+          {
+            "id": "seed-group-two",
+            "name": "Group Two",
+            "members": [
+              "Alice.png"
+            ],
+            "chats": [
+              "chat-two-a"
+            ],
+            "chat_metadata": {
+              "deprecated": true
+            },
+            "past_metadata": {
+              "deprecated": true
+            },
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 1700000700000,
+            "chat_size": 171
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"id\":\"seed-group-one\",\"name\":\"Group One\",\"members\":[\"Alice.png\",\"Bob.png\"],\"avatar_url\":\"group-one.png\",\"allow_self_responses\":false,\"activation_strategy\":0,\"disabled_members\":[],\"fav\":false,\"chat_id\":\"seed-group-one\",\"chats\":[\"chat-one-a\",\"chat-one-b\"],\"auto_mode_delay\":5,\"generation_mode\":0,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\",\"probeUnknownGroupField\":{\"keep\":true},\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":1700000699000,\"chat_size\":341},{\"id\":\"seed-group-two\",\"name\":\"Group Two\",\"members\":[\"Alice.png\"],\"chats\":[\"chat-two-a\"],\"chat_metadata\":{\"deprecated\":true},\"past_metadata\":{\"deprecated\":true},\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":1700000700000,\"chat_size\":171}]"
+      },
+      "groups": [
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsCreate": {
+      "route": "/api/groups/create",
+      "request": "{\"name\":\"Created Group\",\"members\":[\"Alice.png\",\"Bob.png\"],\"avatar_url\":\"created.png\",\"allow_self_responses\":true,\"activation_strategy\":1,\"generation_mode\":2,\"disabled_members\":[\"Bob.png\"],\"fav\":true,\"auto_mode_delay\":9,\"generation_mode_join_prefix\":\"pre\",\"generation_mode_join_suffix\":\"post\",\"probeUnknownGroupField\":{\"keep\":true}}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "365",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "<nowMs>",
+          "name": "Created Group",
+          "members": [
+            "Alice.png",
+            "Bob.png"
+          ],
+          "avatar_url": "created.png",
+          "allow_self_responses": true,
+          "activation_strategy": 1,
+          "generation_mode": 2,
+          "disabled_members": [
+            "Bob.png"
+          ],
+          "fav": true,
+          "chat_id": "<nowMs>",
+          "chats": [
+            "<nowMs>"
+          ],
+          "auto_mode_delay": 9,
+          "generation_mode_join_prefix": "pre",
+          "generation_mode_join_suffix": "post"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"id\":\"<nowMs>\",\"name\":\"Created Group\",\"members\":[\"Alice.png\",\"Bob.png\"],\"avatar_url\":\"created.png\",\"allow_self_responses\":true,\"activation_strategy\":1,\"generation_mode\":2,\"disabled_members\":[\"Bob.png\"],\"fav\":true,\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":9,\"generation_mode_join_prefix\":\"pre\",\"generation_mode_join_suffix\":\"post\"}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsCreateDefaults": {
+      "route": "/api/groups/create",
+      "request": "{}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "287",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "<nowMs>",
+          "name": "New Group",
+          "members": [],
+          "allow_self_responses": false,
+          "activation_strategy": 0,
+          "generation_mode": 0,
+          "disabled_members": [],
+          "chat_id": "<nowMs>",
+          "chats": [
+            "<nowMs>"
+          ],
+          "auto_mode_delay": 5,
+          "generation_mode_join_prefix": "",
+          "generation_mode_join_suffix": ""
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"id\":\"<nowMs>\",\"name\":\"New Group\",\"members\":[],\"allow_self_responses\":false,\"activation_strategy\":0,\"generation_mode\":0,\"disabled_members\":[],\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":5,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\"}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsCreateDeprecatedKeys": {
+      "route": "/api/groups/create",
+      "request": "{\"name\":\"Deprecated Keys\",\"chat_metadata\":{\"drop\":true},\"past_metadata\":{\"drop\":true}}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "293",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "<nowMs>",
+          "name": "Deprecated Keys",
+          "members": [],
+          "allow_self_responses": false,
+          "activation_strategy": 0,
+          "generation_mode": 0,
+          "disabled_members": [],
+          "chat_id": "<nowMs>",
+          "chats": [
+            "<nowMs>"
+          ],
+          "auto_mode_delay": 5,
+          "generation_mode_join_prefix": "",
+          "generation_mode_join_suffix": ""
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"id\":\"<nowMs>\",\"name\":\"Deprecated Keys\",\"members\":[],\"allow_self_responses\":false,\"activation_strategy\":0,\"generation_mode\":0,\"disabled_members\":[],\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":5,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\"}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsEdit": {
+      "route": "/api/groups/edit",
+      "request": "{\"id\":\"seed-group-one\",\"name\":\"Group One Edited\",\"members\":[\"Alice.png\"],\"chats\":[\"chat-one-a\"],\"probeUnknownGroupField\":{\"keep\":\"edited\"}}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-one.json",
+          "kind": "file",
+          "sha256": "ceb30434863ed6e46b77cea22bd9589dff5e5a6db0520ee1148b6430fc0b6bb1",
+          "bytes": 213
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsEditDeprecatedKeys": {
+      "route": "/api/groups/edit",
+      "request": "{\"id\":\"seed-group-two\",\"name\":\"Group Two\",\"chat_metadata\":{\"drop\":true},\"past_metadata\":{\"drop\":true}}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-one.json",
+          "kind": "file",
+          "sha256": "ceb30434863ed6e46b77cea22bd9589dff5e5a6db0520ee1148b6430fc0b6bb1",
+          "bytes": 213
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsEditNoId": {
+      "route": "/api/groups/edit",
+      "request": "{\"name\":\"No Id\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-one.json",
+          "kind": "file",
+          "sha256": "ceb30434863ed6e46b77cea22bd9589dff5e5a6db0520ee1148b6430fc0b6bb1",
+          "bytes": 213
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsEditForbiddenId": {
+      "route": "/api/groups/edit",
+      "request": "{\"id\":\"../escape\",\"name\":\"Escape\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-one.json",
+          "kind": "file",
+          "sha256": "ceb30434863ed6e46b77cea22bd9589dff5e5a6db0520ee1148b6430fc0b6bb1",
+          "bytes": 213
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-a.jsonl",
+          "kind": "file",
+          "sha256": "667be96b521ec0a1b54c5164f406d10d33c6f80227e4084ba590ef95be5e9d36",
+          "bytes": 171
+        },
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsDelete": {
+      "route": "/api/groups/delete",
+      "request": "{\"id\":\"seed-group-one\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsDeleteMissing": {
+      "route": "/api/groups/delete",
+      "request": "{\"id\":\"9999999999999\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsDeleteNoId": {
+      "route": "/api/groups/delete",
+      "request": "{}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    },
+    "groupsAllAfterMutations": {
+      "route": "/api/groups/all",
+      "request": "{}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-normalized-body>"
+        },
+        "body": [
+          {
+            "id": "<nowMs>",
+            "name": "Created Group",
+            "members": [
+              "Alice.png",
+              "Bob.png"
+            ],
+            "avatar_url": "created.png",
+            "allow_self_responses": true,
+            "activation_strategy": 1,
+            "generation_mode": 2,
+            "disabled_members": [
+              "Bob.png"
+            ],
+            "fav": true,
+            "chat_id": "<nowMs>",
+            "chats": [
+              "<nowMs>"
+            ],
+            "auto_mode_delay": 9,
+            "generation_mode_join_prefix": "pre",
+            "generation_mode_join_suffix": "post",
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 0,
+            "chat_size": 0
+          },
+          {
+            "id": "<nowMs>",
+            "name": "New Group",
+            "members": [],
+            "allow_self_responses": false,
+            "activation_strategy": 0,
+            "generation_mode": 0,
+            "disabled_members": [],
+            "chat_id": "<nowMs>",
+            "chats": [
+              "<nowMs>"
+            ],
+            "auto_mode_delay": 5,
+            "generation_mode_join_prefix": "",
+            "generation_mode_join_suffix": "",
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 0,
+            "chat_size": 0
+          },
+          {
+            "id": "<nowMs>",
+            "name": "Deprecated Keys",
+            "members": [],
+            "allow_self_responses": false,
+            "activation_strategy": 0,
+            "generation_mode": 0,
+            "disabled_members": [],
+            "chat_id": "<nowMs>",
+            "chats": [
+              "<nowMs>"
+            ],
+            "auto_mode_delay": 5,
+            "generation_mode_join_prefix": "",
+            "generation_mode_join_suffix": "",
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 0,
+            "chat_size": 0
+          },
+          {
+            "id": "seed-group-one",
+            "name": "Group One",
+            "members": [
+              "Alice.png",
+              "Bob.png"
+            ],
+            "avatar_url": "group-one.png",
+            "allow_self_responses": false,
+            "activation_strategy": 0,
+            "disabled_members": [],
+            "fav": false,
+            "chat_id": "seed-group-one",
+            "chats": [
+              "chat-one-a",
+              "chat-one-b"
+            ],
+            "auto_mode_delay": 5,
+            "generation_mode": 0,
+            "generation_mode_join_prefix": "",
+            "generation_mode_join_suffix": "",
+            "probeUnknownGroupField": {
+              "keep": true
+            },
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 1700000698000,
+            "chat_size": 170
+          },
+          {
+            "id": "seed-group-two",
+            "name": "Group Two",
+            "members": [
+              "Alice.png"
+            ],
+            "chats": [
+              "chat-two-a"
+            ],
+            "chat_metadata": {
+              "deprecated": true
+            },
+            "past_metadata": {
+              "deprecated": true
+            },
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 1700000700000,
+            "chat_size": 171
+          },
+          {
+            "id": "seed-group-two",
+            "name": "Group Two",
+            "date_added": "<birthtimeMs>",
+            "create_date": "<birthtimeIso>",
+            "date_last_chat": 0,
+            "chat_size": 0
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"id\":\"<nowMs>\",\"name\":\"Created Group\",\"members\":[\"Alice.png\",\"Bob.png\"],\"avatar_url\":\"created.png\",\"allow_self_responses\":true,\"activation_strategy\":1,\"generation_mode\":2,\"disabled_members\":[\"Bob.png\"],\"fav\":true,\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":9,\"generation_mode_join_prefix\":\"pre\",\"generation_mode_join_suffix\":\"post\",\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":0,\"chat_size\":0},{\"id\":\"<nowMs>\",\"name\":\"New Group\",\"members\":[],\"allow_self_responses\":false,\"activation_strategy\":0,\"generation_mode\":0,\"disabled_members\":[],\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":5,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\",\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":0,\"chat_size\":0},{\"id\":\"<nowMs>\",\"name\":\"Deprecated Keys\",\"members\":[],\"allow_self_responses\":false,\"activation_strategy\":0,\"generation_mode\":0,\"disabled_members\":[],\"chat_id\":\"<nowMs>\",\"chats\":[\"<nowMs>\"],\"auto_mode_delay\":5,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\",\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":0,\"chat_size\":0},{\"id\":\"seed-group-one\",\"name\":\"Group One\",\"members\":[\"Alice.png\",\"Bob.png\"],\"avatar_url\":\"group-one.png\",\"allow_self_responses\":false,\"activation_strategy\":0,\"disabled_members\":[],\"fav\":false,\"chat_id\":\"seed-group-one\",\"chats\":[\"chat-one-a\",\"chat-one-b\"],\"auto_mode_delay\":5,\"generation_mode\":0,\"generation_mode_join_prefix\":\"\",\"generation_mode_join_suffix\":\"\",\"probeUnknownGroupField\":{\"keep\":true},\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":1700000698000,\"chat_size\":170},{\"id\":\"seed-group-two\",\"name\":\"Group Two\",\"members\":[\"Alice.png\"],\"chats\":[\"chat-two-a\"],\"chat_metadata\":{\"deprecated\":true},\"past_metadata\":{\"deprecated\":true},\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":1700000700000,\"chat_size\":171},{\"id\":\"seed-group-two\",\"name\":\"Group Two\",\"date_added\":\"<birthtimeMs>\",\"create_date\":\"<birthtimeIso>\",\"date_last_chat\":0,\"chat_size\":0}]"
+      },
+      "groups": [
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 501
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 374
+        },
+        {
+          "path": "<nowMs>.json",
+          "kind": "file",
+          "sha256": "<derived-from-generated-id>",
+          "bytes": 380
+        },
+        {
+          "path": "group-one.json",
+          "kind": "file",
+          "sha256": "34704cd0d872eecd0b98b1bfd2e4b170369a8b512222e3bbfc3f517b9a86295d",
+          "bytes": 552
+        },
+        {
+          "path": "group-two.json",
+          "kind": "file",
+          "sha256": "1555617d5fb28452efb446a1bdfa95fb7eb7c668cc115058726306b2a7265740",
+          "bytes": 256
+        },
+        {
+          "path": "notes.txt",
+          "kind": "file",
+          "sha256": "da462462d3784fa61cae160017c87a4f93ce00b26d5e82e0524b4b2d229ca430",
+          "bytes": 42
+        },
+        {
+          "path": "seed-group-two.json",
+          "kind": "file",
+          "sha256": "ef6b346bb8c33a0332a23415373b123cebda15e8c078679b762f181a7f43aef5",
+          "bytes": 55
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "chat-one-b.jsonl",
+          "kind": "file",
+          "sha256": "eea16a69e89e757eb33914a2f4481ad01f4120bb1deaf83854b7c5ec15c6204f",
+          "bytes": 170
+        },
+        {
+          "path": "chat-two-a.jsonl",
+          "kind": "file",
+          "sha256": "3518fcd14c2d51ad6ae85de5af3b33426243315eb56b4f0671f4c47450d33af4",
+          "bytes": 171
+        },
+        {
+          "path": "unrelated.jsonl",
+          "kind": "file",
+          "sha256": "94dae2e47818c21ef2e514fed8b352c95fa901f04e9a2d9144bf319b4d823abe",
+          "bytes": 176
+        }
+      ]
+    }
+  }
+}

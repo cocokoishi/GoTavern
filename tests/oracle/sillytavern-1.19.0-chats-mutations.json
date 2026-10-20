@@ -1,0 +1,2499 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/chats rename, delete, export and the group chat routes",
+  "normalization": [
+    "File names and response fields produced by humanizedDateTime() are recorded as <humanizedDateTime>.",
+    "Recorded strings that embed the probe runtime root (the export 404 message) are recorded as <runtimeRoot>/data with forward slashes.",
+    "Express-derived content-length and ETag are recorded as <derived-from-normalized-body> for any response whose body carries one of those markers, because they are functions of the un-normalized bytes.",
+    "Directory listings are recorded with sorted names because pinned fs.readdirSync order is filesystem-dependent (NTFS is sorted, ext4 is not).",
+    "Chat file mtimes are seeded to distinct fixed values so newest-wins comparisons are observable."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-chats-mutations-cookie-secret",
+    "newestMtimeMs": 1700000600000,
+    "chatFiles": {
+      "CharA/chat-a.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-01-01T00:00:00.000Z\",\"mes\":\"hello there\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-01-02T00:00:00.000Z\",\"mes\":\"first line\\nsecond line\"}",
+        "mtime": 1700000597000
+      },
+      "CharA/chat-b.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"CharA\",\"is_user\":false,\"is_system\":true,\"send_date\":\"2024-02-01T00:00:00.000Z\",\"mes\":\"hidden system line\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-02-02T00:00:00.000Z\",\"mes\":\"visible line\",\"extra\":{\"display_text\":\"displayed text\"}}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-02-03T00:00:00.000Z\",\"mes\":\"\"}",
+        "mtime": 1700000598000
+      },
+      "CharA/chat-c.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-03-01T00:00:00.000Z\",\"mes\":\"no extension chat\"}",
+        "mtime": 1700000599000
+      },
+      "CharA/chat-e.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-03-01T00:00:00.000Z\",\"mes\":\"no extension chat\"}",
+        "mtime": 1700000598500
+      },
+      "CharA/notes.txt": {
+        "body": "ignored because the extension is not .jsonl",
+        "mtime": 1700000600000
+      },
+      "root-chat.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-01-01T00:00:00.000Z\",\"mes\":\"hello there\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-01-02T00:00:00.000Z\",\"mes\":\"first line\\nsecond line\"}",
+        "mtime": 1700000596000
+      }
+    },
+    "groupChatFiles": {
+      "group-a.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-04-01T00:00:00.000Z\",\"mes\":\"group hello\"}",
+        "mtime": 1700000595000
+      },
+      "group-b.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"CharA\",\"is_user\":false,\"is_system\":true,\"send_date\":\"2024-02-01T00:00:00.000Z\",\"mes\":\"hidden system line\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-02-02T00:00:00.000Z\",\"mes\":\"visible line\",\"extra\":{\"display_text\":\"displayed text\"}}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-02-03T00:00:00.000Z\",\"mes\":\"\"}",
+        "mtime": 1700000594000
+      }
+    }
+  },
+  "scenarioOrder": [
+    "exportJsonl",
+    "exportText",
+    "exportGroup",
+    "exportMissing",
+    "exportNoFile",
+    "exportGroupWithoutAvatar",
+    "renameCharacter",
+    "renameGroup",
+    "renameSanitized",
+    "renameMissingSource",
+    "renameExistingDestination",
+    "renameMissingFields",
+    "renameForbiddenAvatar",
+    "deleteChat",
+    "deleteWithoutExtension",
+    "deleteMissing",
+    "deleteForbiddenAvatar",
+    "groupGet",
+    "groupGetMissing",
+    "groupGetNoId",
+    "groupInfo",
+    "groupInfoMissing",
+    "groupInfoNoId",
+    "groupSave",
+    "groupSaveNotArray",
+    "groupSaveNoId",
+    "groupDelete",
+    "groupDeleteMissing",
+    "groupDeleteNoId",
+    "groupImport"
+  ],
+  "scenarios": {
+    "exportJsonl": {
+      "route": "/api/chats/export",
+      "request": "{\"avatar_url\":\"CharA.png\",\"file\":\"chat-a.jsonl\",\"format\":\"jsonl\",\"exportfilename\":\"out.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "375",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"177-lPRUwyQzWDivDT3lyIcRvLwRDfU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "Chat saved to out.jsonl",
+          "result": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-01-01T00:00:00.000Z\",\"mes\":\"hello there\"}\n{\"name\":\"CharA\",\"is_user\":false,\"send_date\":\"2024-01-02T00:00:00.000Z\",\"mes\":\"first line\\nsecond line\"}"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"message\":\"Chat saved to out.jsonl\",\"result\":\"{\\\"chat_metadata\\\":{\\\"integrity\\\":\\\"probe\\\"},\\\"user_name\\\":\\\"unused\\\",\\\"character_name\\\":\\\"unused\\\"}\\n{\\\"name\\\":\\\"Alice\\\",\\\"is_user\\\":true,\\\"send_date\\\":\\\"2024-01-01T00:00:00.000Z\\\",\\\"mes\\\":\\\"hello there\\\"}\\n{\\\"name\\\":\\\"CharA\\\",\\\"is_user\\\":false,\\\"send_date\\\":\\\"2024-01-02T00:00:00.000Z\\\",\\\"mes\\\":\\\"first line\\\\nsecond line\\\"}\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "exportText": {
+      "route": "/api/chats/export",
+      "request": "{\"avatar_url\":\"CharA.png\",\"file\":\"chat-b.jsonl\",\"format\":\"text\",\"exportfilename\":\"out.txt\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "72",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"48-PdNf3FHNDByB8WhYHM/8/Av0br0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "Chat saved to out.txt",
+          "result": "CharA: displayed text\n\n"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"message\":\"Chat saved to out.txt\",\"result\":\"CharA: displayed text\\n\\n\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "exportGroup": {
+      "route": "/api/chats/export",
+      "request": "{\"is_group\":true,\"file\":\"group-a.jsonl\",\"format\":\"jsonl\",\"exportfilename\":\"group.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "257",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"101-G0G65Y4WRNm7XefN4G3tO6d5MwM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "Chat saved to group.jsonl",
+          "result": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-04-01T00:00:00.000Z\",\"mes\":\"group hello\"}"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"message\":\"Chat saved to group.jsonl\",\"result\":\"{\\\"chat_metadata\\\":{\\\"integrity\\\":\\\"probe\\\"},\\\"user_name\\\":\\\"unused\\\",\\\"character_name\\\":\\\"unused\\\"}\\n{\\\"name\\\":\\\"Alice\\\",\\\"is_user\\\":true,\\\"send_date\\\":\\\"2024-04-01T00:00:00.000Z\\\",\\\"mes\\\":\\\"group hello\\\"}\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "exportMissing": {
+      "route": "/api/chats/export",
+      "request": "{\"avatar_url\":\"CharA.png\",\"file\":\"nope.jsonl\",\"format\":\"jsonl\",\"exportfilename\":\"out.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "Could not find JSONL file to export. Source chat file: <runtimeRoot>/data/default-user/chats/CharA/nope.jsonl."
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"message\":\"Could not find JSONL file to export. Source chat file: <runtimeRoot>/data/default-user/chats/CharA/nope.jsonl.\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "exportNoFile": {
+      "route": "/api/chats/export",
+      "request": "{\"avatar_url\":\"CharA.png\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "exportGroupWithoutAvatar": {
+      "route": "/api/chats/export",
+      "request": "{\"file\":\"x.jsonl\",\"is_group\":false}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-a.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "renameCharacter": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"CharA.png\",\"original_file\":\"chat-a.jsonl\",\"renamed_file\":\"chat-renamed.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "46",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2e-V1EJq8JR+rOElb9g87CzfU5PU+A\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true,
+          "sanitizedFileName": "chat-renamed"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true,\"sanitizedFileName\":\"chat-renamed\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-a.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        }
+      ]
+    },
+    "renameGroup": {
+      "route": "/api/chats/rename",
+      "request": "{\"is_group\":true,\"original_file\":\"group-a.jsonl\",\"renamed_file\":\"group-renamed.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "47",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2f-wPVMgwbv6niZJco5YG+8ieTN1GY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true,
+          "sanitizedFileName": "group-renamed"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true,\"sanitizedFileName\":\"group-renamed\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-c.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "renameSanitized": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"CharA.png\",\"original_file\":\"chat-c.jsonl\",\"renamed_file\":\"we:ird/name?.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-sjs5qVVov9O5h8A49qEqQXnjxqY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true,
+          "sanitizedFileName": "weirdname"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true,\"sanitizedFileName\":\"weirdname\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "renameMissingSource": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"CharA.png\",\"original_file\":\"nope.jsonl\",\"renamed_file\":\"whatever.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "renameExistingDestination": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"CharA.png\",\"original_file\":\"notes.txt\",\"renamed_file\":\"chat-renamed.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "renameMissingFields": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"CharA.png\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "renameForbiddenAvatar": {
+      "route": "/api/chats/rename",
+      "request": "{\"avatar_url\":\"../escape.png\",\"original_file\":\"chat-a.jsonl\",\"renamed_file\":\"x.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "deleteChat": {
+      "route": "/api/chats/delete",
+      "request": "{\"avatar_url\":\"CharA.png\",\"chatfile\":\"chat-b.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-e.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "deleteWithoutExtension": {
+      "route": "/api/chats/delete",
+      "request": "{\"avatar_url\":\"CharA.png\",\"chatfile\":\"chat-e\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "deleteMissing": {
+      "route": "/api/chats/delete",
+      "request": "{\"avatar_url\":\"CharA.png\",\"chatfile\":\"nope.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "deleteForbiddenAvatar": {
+      "route": "/api/chats/delete",
+      "request": "{\"avatar_url\":\"../x.png\",\"chatfile\":\"chat.jsonl\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupGet": {
+      "route": "/api/chats/group/get",
+      "request": "{\"id\":\"group-renamed\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "179",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b3-sTcMckUWpLvaofLgnacKnvmDQdQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "chat_metadata": {
+              "integrity": "probe"
+            },
+            "user_name": "unused",
+            "character_name": "unused"
+          },
+          {
+            "name": "Alice",
+            "is_user": true,
+            "send_date": "2024-04-01T00:00:00.000Z",
+            "mes": "group hello"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"},{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-04-01T00:00:00.000Z\",\"mes\":\"group hello\"}]"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupGetMissing": {
+      "route": "/api/chats/group/get",
+      "request": "{\"id\":\"nope\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupGetNoId": {
+      "route": "/api/chats/group/get",
+      "request": "{}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupInfo": {
+      "route": "/api/chats/group/info",
+      "request": "{\"id\":\"group-renamed\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "166",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a6-O3/o4SJVL9gl9bUuNfTk7Ljr0IU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "match": true,
+          "file_id": "group-renamed",
+          "file_name": "group-renamed.jsonl",
+          "file_size": "177B",
+          "chat_items": 1,
+          "mes": "group hello",
+          "last_mes": "2024-04-01T00:00:00.000Z"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"match\":true,\"file_id\":\"group-renamed\",\"file_name\":\"group-renamed.jsonl\",\"file_size\":\"177B\",\"chat_items\":1,\"mes\":\"group hello\",\"last_mes\":\"2024-04-01T00:00:00.000Z\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupInfoMissing": {
+      "route": "/api/chats/group/info",
+      "request": "{\"id\":\"nope\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-UE2ETGver2cWMg4U/Jr5mZx9ZnE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "match": false
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"match\":false}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupInfoNoId": {
+      "route": "/api/chats/group/info",
+      "request": "{}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupSave": {
+      "route": "/api/chats/group/save",
+      "request": "{\"id\":\"group-saved\",\"chat\":[{\"chat_metadata\":{},\"user_name\":\"unused\",\"character_name\":\"unused\"},{\"name\":\"Alice\",\"is_user\":true,\"mes\":\"saved\"}]}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-saved.jsonl",
+          "kind": "file",
+          "sha256": "bbc781939270b8a615468ecdba508bcb59e5e102336998b4049859dcdd6599af",
+          "bytes": 113
+        }
+      ]
+    },
+    "groupSaveNotArray": {
+      "route": "/api/chats/group/save",
+      "request": "{\"id\":\"group-saved\",\"chat\":\"not an array\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-WcbEob8LGvffeIcwb/vVnneoiZ0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "The request's body.chat is not an array."
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-saved.jsonl",
+          "kind": "file",
+          "sha256": "bbc781939270b8a615468ecdba508bcb59e5e102336998b4049859dcdd6599af",
+          "bytes": 113
+        }
+      ]
+    },
+    "groupSaveNoId": {
+      "route": "/api/chats/group/save",
+      "request": "{\"chat\":[]}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-saved.jsonl",
+          "kind": "file",
+          "sha256": "bbc781939270b8a615468ecdba508bcb59e5e102336998b4049859dcdd6599af",
+          "bytes": 113
+        }
+      ]
+    },
+    "groupDelete": {
+      "route": "/api/chats/group/delete",
+      "request": "{\"id\":\"group-saved\"}",
+      "multipart": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "11",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "ok": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"ok\":true}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupDeleteMissing": {
+      "route": "/api/chats/group/delete",
+      "request": "{\"id\":\"nope\"}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupDeleteNoId": {
+      "route": "/api/chats/group/delete",
+      "request": "{}",
+      "multipart": null,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    },
+    "groupImport": {
+      "route": "/api/chats/group/import",
+      "request": null,
+      "multipart": {
+        "field": "avatar",
+        "filename": "imported.jsonl",
+        "bytesHex": "7b22636861745f6d65746164617461223a7b22696e74656772697479223a2270726f6265227d2c22757365725f6e616d65223a22756e75736564222c226368617261637465725f6e616d65223a22756e75736564227d0a7b226e616d65223a22416c696365222c2269735f75736572223a747275652c2273656e645f64617465223a22323032342d30342d30315430303a30303a30302e3030305a222c226d6573223a2267726f75702068656c6c6f227d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": "<humanizedDateTime>"
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":\"<humanizedDateTime>\"}"
+      },
+      "chats": [
+        {
+          "path": "CharA",
+          "kind": "directory"
+        },
+        {
+          "path": "CharA/chat-renamed.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        },
+        {
+          "path": "CharA/notes.txt",
+          "kind": "file",
+          "sha256": "2852c7a157865c938051a5250f299b9d1062c801fbee753a9da2b7904fa0158c",
+          "bytes": 43
+        },
+        {
+          "path": "CharA/weirdname.jsonl",
+          "kind": "file",
+          "sha256": "718cd9b88b5740aac426db614acae93bada8caab3188cacd1709cece1c374577",
+          "bytes": 184
+        },
+        {
+          "path": "root-chat.jsonl",
+          "kind": "file",
+          "sha256": "5e200724ea5825d41ae86dfdc581f89e90e6874a8c2c1382e63e7031121bd9fa",
+          "bytes": 281
+        }
+      ],
+      "groupChats": [
+        {
+          "path": "<humanizedDateTime>.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        },
+        {
+          "path": "group-b.jsonl",
+          "kind": "file",
+          "sha256": "2d00e97b1c4cdb314579e1b494c12c1022ff6d4efc307f6929345990dd47d389",
+          "bytes": 417
+        },
+        {
+          "path": "group-renamed.jsonl",
+          "kind": "file",
+          "sha256": "2c431c7428afdf9983dea91fcd082dd625ab5fd2268b8be93e147c059a032644",
+          "bytes": 177
+        }
+      ]
+    }
+  }
+}
