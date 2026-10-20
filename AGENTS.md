@@ -77,6 +77,12 @@ domain.
    fail, reverts that silently no-op, cached test results and probes that never ran are all the
    same failure: evidence that reads as proof but cannot fail. Where a fixture cannot
    discriminate, make the test refuse to run rather than pass vacuously.
+8. **A non-zero exit in a PowerShell pipeline may be manufactured by stderr.** When a native
+   command writes to stderr and its output is piped or redirected, PowerShell can raise
+   `NativeCommandError` and surface a non-zero status even though the command succeeded. Confirm
+   a suspected failure by redirecting to a file and reading the command's own exit code, not by
+   trusting the pipeline's. The same caution applies to any wrapper that re-derives a status from
+   captured text rather than propagating the process status.
 
 ## Phase order
 
