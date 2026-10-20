@@ -97,11 +97,32 @@ func TestPinnedNodeCharactersRead(t *testing.T) {
 // stat size is not (Linux ext4 reports 4096, Windows reports 0), which is why
 // no chats directory that participates in a chat_size contains a
 // subdirectory; see the fixture's normalization notes.
+//
+// The newest-wins assertion only has discriminating power when the seeded
+// mtimes are distinct, so the fixture inputs are required to contain at least
+// one entry strictly older than the newest; otherwise an oldest-wins
+// implementation would satisfy it.
 func assertCharacterChatStatistics(t *testing.T, env *charactersOracleEnv, fixture charactersFixture) {
 	t.Helper()
 	expectedChatSize := 0
 	for _, body := range fixture.Inputs.ChatFiles {
 		expectedChatSize += len(body)
+	}
+	expectedLastChat := fixture.Inputs.FixedMtimeMS
+	strictlyOlder := 0
+	for name, mtime := range fixture.Inputs.ChatFileMtimes {
+		if _, exists := fixture.Inputs.ChatFiles[name]; !exists {
+			continue
+		}
+		if mtime < expectedLastChat {
+			strictlyOlder++
+		}
+		if mtime > expectedLastChat {
+			t.Fatalf("%s is seeded newer than the recorded epoch, so date_last_chat is no longer a fixed value", name)
+		}
+	}
+	if strictlyOlder == 0 {
+		t.Fatal("fixture seeds no chat file strictly older than the newest, so the newest-wins assertion cannot fail")
 	}
 	response := env.serve(t, http.MethodPost, "/api/characters/all", "application/json", "{}")
 	parsed, err := decodeOrderedNodeJSON(response.Body.Bytes())
@@ -124,8 +145,8 @@ func assertCharacterChatStatistics(t *testing.T, env *charactersOracleEnv, fixtu
 		t.Fatalf("%s chat_size = %v; the pinned value sums every entry of its chats directory (%d bytes of files)",
 			fixture.Inputs.ChatCharacter, size, expectedChatSize)
 	}
-	if last, ok := jsNumber(nodeGet(character, "date_last_chat")); !ok || last != fixture.Inputs.FixedMtimeMS {
-		t.Fatalf("%s date_last_chat = %v; the pinned value is the newest entry mtime (%v)",
-			fixture.Inputs.ChatCharacter, last, fixture.Inputs.FixedMtimeMS)
+	if last, ok := jsNumber(nodeGet(character, "date_last_chat")); !ok || last != expectedLastChat {
+		t.Fatalf("%s date_last_chat = %v; the pinned value is the newest entry mtime (%v), not the oldest",
+			fixture.Inputs.ChatCharacter, last, expectedLastChat)
 	}
 }

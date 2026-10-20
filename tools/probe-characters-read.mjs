@@ -373,6 +373,23 @@ const CHAT_FILES = {
     'notes.txt': 'ignored because the extension is not .jsonl',
 };
 
+// Distinct mtimes so the newest-wins semantic of calculateChatSize's
+// date_last_chat is observable: with one shared timestamp max and min are the
+// same value and an oldest-wins implementation would pass unnoticed. The newest
+// entry keeps the recorded epoch, so the expected date_last_chat stays fixed.
+//
+// The newest entry is deliberately the zero-byte chat-empty.jsonl, so "newest
+// over every entry" is also discriminated from "newest over non-empty entries".
+// The all-entries summation is covered separately by chat_size: notes.txt is
+// not a .jsonl file yet its 43 bytes are part of the 409 total, so an
+// implementation that only counted .jsonl files would fail that assertion.
+const CHAT_FILE_MTIMES = {
+    'chat-empty.jsonl': FIXED_MTIME_MS,
+    'chat-a.jsonl': FIXED_MTIME_MS - 1000,
+    'chat-corrupt.jsonl': FIXED_MTIME_MS - 2000,
+    'notes.txt': FIXED_MTIME_MS - 3000,
+};
+
 // A chats directory whose character card no longer exists. It carries a
 // subdirectory named `nested.jsonl` so only the pinned `file.isFile()` check can
 // exclude it (the extension check alone would keep it), plus a non-.jsonl file
@@ -458,7 +475,8 @@ async function main() {
     for (const [name, body] of Object.entries(CHAT_FILES)) {
         const target = path.join(aliceChats, name);
         writeFileSync(target, body);
-        utimesSync(target, fixedTime, fixedTime);
+        const mtime = new Date(CHAT_FILE_MTIMES[name] ?? FIXED_MTIME_MS);
+        utimesSync(target, mtime, mtime);
     }
     // Empty chat directory: exists but has no .jsonl files.
     mkdirSync(path.join(chatsRoot, 'Backfill V2'), { recursive: true });
@@ -547,7 +565,7 @@ async function main() {
             'date_added is the file ctime in milliseconds, which cannot be reproduced in a separate fixture tree, so it is recorded as "<ctimeMs>".',
             'For bodies that carry the ctime marker, Express-derived content-length and ETag are recorded as "<derived-from-normalized-body>" because they are functions of the normalized bytes.',
             'The /all and /chats arrays are sorted with Array.prototype.sort code-unit order because pinned fs.readdirSync order is filesystem-dependent and not part of the route contract; Go compares its byte-sorted os.ReadDir order, which agrees for these names.',
-            'Chat file mtimes are pinned to a fixed epoch in both the probe and the Go test so date_last_chat and empty-chat last_mes are reproducible.',
+            'Chat file mtimes are seeded to distinct fixed values in both the probe and the Go test, with the newest equal to the recorded epoch, so date_last_chat and empty-chat last_mes are reproducible and the newest-wins semantic is observable.',
             'No chats directory that participates in a chat_size is given a subdirectory: a directory stat size is host-dependent (Linux ext4 reports 4096, Windows reports 0), so the exact chat_size assertion would otherwise encode the probe host. The directory-skipping behavior of /api/characters/chats is covered by the OrphanChats directory, which has no character card and therefore contributes to no chat_size; its subdirectory is named `nested.jsonl` so only the pinned file.isFile() check can exclude it.',
         ],
         inputs: {
@@ -555,6 +573,7 @@ async function main() {
             fixedMtimeMs: FIXED_MTIME_MS,
             cards: CARDS.map(card => ({ file: card.file, bytesHex: card.bytes.toString('hex') })),
             chatFiles: CHAT_FILES,
+            chatFileMtimesMs: CHAT_FILE_MTIMES,
             chatCharacter: 'Alice V2',
             orphanChats: {
                 character: ORPHAN_CHATS,

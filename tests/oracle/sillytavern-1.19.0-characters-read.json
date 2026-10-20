@@ -9,7 +9,7 @@
     "date_added is the file ctime in milliseconds, which cannot be reproduced in a separate fixture tree, so it is recorded as \"<ctimeMs>\".",
     "For bodies that carry the ctime marker, Express-derived content-length and ETag are recorded as \"<derived-from-normalized-body>\" because they are functions of the normalized bytes.",
     "The /all and /chats arrays are sorted with Array.prototype.sort code-unit order because pinned fs.readdirSync order is filesystem-dependent and not part of the route contract; Go compares its byte-sorted os.ReadDir order, which agrees for these names.",
-    "Chat file mtimes are pinned to a fixed epoch in both the probe and the Go test so date_last_chat and empty-chat last_mes are reproducible.",
+    "Chat file mtimes are seeded to distinct fixed values in both the probe and the Go test, with the newest equal to the recorded epoch, so date_last_chat and empty-chat last_mes are reproducible and the newest-wins semantic is observable.",
     "No chats directory that participates in a chat_size is given a subdirectory: a directory stat size is host-dependent (Linux ext4 reports 4096, Windows reports 0), so the exact chat_size assertion would otherwise encode the probe host. The directory-skipping behavior of /api/characters/chats is covered by the OrphanChats directory, which has no character card and therefore contributes to no chat_size; its subdirectory is named `nested.jsonl` so only the pinned file.isFile() check can exclude it."
   ],
   "inputs": {
@@ -58,6 +58,12 @@
       "chat-empty.jsonl": "",
       "chat-corrupt.jsonl": "{\"chat_metadata\":{},\"user_name\":\"user\",\"character_name\":\"Alice V2\"}\n{\"name\":\"Alice V2\",\"mes\":\"truncated\"",
       "notes.txt": "ignored because the extension is not .jsonl"
+    },
+    "chatFileMtimesMs": {
+      "chat-empty.jsonl": 1700000500000,
+      "chat-a.jsonl": 1700000499000,
+      "chat-corrupt.jsonl": 1700000498000,
+      "notes.txt": 1700000497000
     },
     "chatCharacter": "Alice V2",
     "orphanChats": {
@@ -886,7 +892,7 @@
         "content-type": "application/json; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"1dd-aCLe4NTg5wR/AI5JlwIzi4qMT7A\"",
+        "etag": "W/\"1dd-hZqj4GVRdr58Azp/cS2Rv6wDGWg\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -915,7 +921,7 @@
           "file_size": "104B",
           "chat_items": 0,
           "mes": "[The message is empty]",
-          "last_mes": 1700000500000
+          "last_mes": 1700000498000
         },
         {
           "match": false,
@@ -928,7 +934,7 @@
         }
       ],
       "bodyIsJSON": true,
-      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000500000},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
+      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000498000},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
     },
     "chatsSimple": {
       "status": 200,
@@ -973,7 +979,7 @@
         "content-type": "application/json; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"239-hDaAF0nsFbRYf9ufZcJ3BVsKes8\"",
+        "etag": "W/\"239-uxwqIlhsGlheghd4Z6f6yFg3498\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -1006,7 +1012,7 @@
           "file_size": "104B",
           "chat_items": 0,
           "mes": "[The message is empty]",
-          "last_mes": 1700000500000,
+          "last_mes": 1700000498000,
           "chat_metadata": {}
         },
         {
@@ -1020,7 +1026,7 @@
         }
       ],
       "bodyIsJSON": true,
-      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\",\"chat_metadata\":{\"integrity\":\"probe-integrity\",\"probeUnknownMetadata\":7}},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000500000,\"chat_metadata\":{}},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
+      "bodyText": "[{\"match\":true,\"file_id\":\"chat-a\",\"file_name\":\"chat-a.jsonl\",\"file_size\":\"262B\",\"chat_items\":1,\"mes\":\"hello from alice\",\"last_mes\":\"2024-01-02T00:00:00.000Z\",\"chat_metadata\":{\"integrity\":\"probe-integrity\",\"probeUnknownMetadata\":7}},{\"match\":true,\"file_id\":\"chat-corrupt\",\"file_name\":\"chat-corrupt.jsonl\",\"file_size\":\"104B\",\"chat_items\":0,\"mes\":\"[The message is empty]\",\"last_mes\":1700000498000,\"chat_metadata\":{}},{\"match\":false,\"file_id\":\"chat-empty\",\"file_name\":\"chat-empty.jsonl\",\"file_size\":\"0B\",\"chat_items\":0,\"mes\":\"[The chat is empty]\",\"last_mes\":1700000500000}]"
     },
     "chatsEmptyDirectory": {
       "status": 200,

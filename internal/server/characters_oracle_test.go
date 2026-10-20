@@ -44,6 +44,7 @@ type charactersFixture struct {
 		FixedMtimeMS   float64                `json:"fixedMtimeMs"`
 		Cards          []characterCardFixture `json:"cards"`
 		ChatFiles      map[string]string      `json:"chatFiles"`
+		ChatFileMtimes map[string]float64     `json:"chatFileMtimesMs"`
 		ChatCharacter  string                 `json:"chatCharacter"`
 		ChatCharacters []string               `json:"chatCharacters"`
 		WorldInfo      json.RawMessage        `json:"worldInfo"`
@@ -223,7 +224,13 @@ func (env *charactersOracleEnv) writeFixtureChats(t *testing.T, fixture characte
 		t.Fatal(err)
 	}
 	for name, body := range fixture.Inputs.ChatFiles {
-		writeFixtureFile(t, filepath.Join(characterChats, name), []byte(body), fixture.Inputs.FixedMtimeMS)
+		// Distinct seeded mtimes: with one shared timestamp the newest-wins
+		// semantic of date_last_chat would not be observable.
+		mtime := fixture.Inputs.FixedMtimeMS
+		if seeded, exists := fixture.Inputs.ChatFileMtimes[name]; exists {
+			mtime = seeded
+		}
+		writeFixtureFile(t, filepath.Join(characterChats, name), []byte(body), mtime)
 	}
 	if err := os.MkdirAll(filepath.Join(chatsRoot, "Backfill V2"), 0o777); err != nil {
 		t.Fatal(err)
