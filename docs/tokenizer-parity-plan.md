@@ -555,6 +555,18 @@ promoting them to `AGENTS.md`.
   two properties that ARE server behaviour — tail stability and same-count-different-tokens — and the budget
   flip is a labelable contract assertion, not a claim about this repository. The real provider-request
   assertion is Phase 4 work for the E2E harness. This is recorded here rather than implied by a green suite.
+- **The budget-flip contract assertion must be anchored, and the count is not additive.** Two findings from
+  `internal/server/tokenizers_boundary_test.go`, both of which the first version of that test got wrong:
+  (1) every number in it is measured through the count route, so a route whose count is shifted by one cancels
+  against a budget computed from the same route and the test passes. The fix is an anchor: the route's answer
+  for a recorded `openai/count` case is compared against the capture's fixed `token_count` first, and
+  `count+1`/`count-1` mutations then fail on it. (2) The pinned count is **not additive** —
+  `countSentencepieceArrayTokens` flattens the message values and tokenizes the joined string once, so
+  per-message counts do not sum to the history count (measured: 38 whole versus 23 + 13 parts). A budget rule
+  that summed per-message counts would be wrong; the contract trimmer re-counts the whole list each step.
+  The first version also POSTed `{"messages": [...]}` instead of the array the pinned route reads as
+  `request.body`, so every "count" it compared was the guesstimate of an unparseable body and the internal
+  consistency still passed. The anchor is what surfaced it.
 
 ### Tail stability is not a universal law
 
