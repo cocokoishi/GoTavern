@@ -16,11 +16,11 @@
   "observations": {
     "missingAuthorization": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -35,17 +35,17 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     },
     "wrongScheme": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -60,17 +60,17 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     },
     "invalidCredentialFirst": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -85,17 +85,17 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     },
     "invalidCredentialSecond": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -110,9 +110,9 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     },
     "invalidCredentialLimit": {
       "headers": {
@@ -166,11 +166,11 @@
     },
     "invalidCredentialBeforeSuccess": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -185,9 +185,9 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     },
     "validCredentialClearsLimit": {
       "headers": {
@@ -215,11 +215,11 @@
     },
     "invalidCredentialAfterSuccess": {
       "headers": {
-        "content-length": "358",
+        "content-length": "341",
         "content-type": "text/html; charset=utf-8",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "etag": "W/\"166-WK3M0LXhNgJwcnmt+UuNEHGY32Y\"",
+        "etag": "W/\"155-T7EagjrTM34NbkJuNmLNC5gK8rI\"",
         "origin-agent-cluster": "?1",
         "referrer-policy": "no-referrer",
         "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -234,9 +234,9 @@
       },
       "status": 401,
       "contentType": "text/html; charset=utf-8",
-      "bytes": 358,
-      "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Unauthorized</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Unauthorized</h1>\r\n    <p>\r\n        If you are the system administrator, you can configure the\r\n        <code>basicAuthUser</code> credentials by editing\r\n        <code>config.yaml</code> in the root directory of your installation.\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 341,
+      "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Unauthorized</title>\n</head>\n\n<body>\n    <h1>Unauthorized</h1>\n    <p>\n        If you are the system administrator, you can configure the\n        <code>basicAuthUser</code> credentials by editing\n        <code>config.yaml</code> in the root directory of your installation.\n    </p>\n</body>\n\n</html>\n"
     }
   }
 }

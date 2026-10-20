@@ -226,193 +226,193 @@
       "files": [
         {
           "path": "KoboldAI Settings/Deterministic.json",
-          "sha256": "af73c5ca66820e68064c2159c6e1af3f558c958009f85d2c37d2ca1b244b9c56",
-          "bytes": 436
+          "sha256": "41cd7f2443b6fd1ae4e594007a39bc7345aca07dee82b40a16b957fe93d650f4",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/Neutral.json",
-          "sha256": "ecf0d5696b7df61cb1174d07af06f8134f373e7addf307ab8abc75c8930fe953",
-          "bytes": 436
+          "sha256": "b86461c767efe7b3d3dd2f1fbb3f133e1561830e8b189a2af102d5beba8ebdf1",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/RecoveredRuins.json",
-          "sha256": "c23d970bcb603ba970e32b2c774452c77e3c52a933a59bca473ac7fbafb36dce",
-          "bytes": 446
+          "sha256": "1bab77d576ac351000af7f34980720d7e495c8070b80c69205a126415992d2d2",
+          "bytes": 420
         },
         {
           "path": "KoboldAI Settings/Universal-Creative.json",
-          "sha256": "f58925de79f2e0bde707450eeb17d61da39405f3489cb45cd7273b93c26e19c6",
-          "bytes": 440
+          "sha256": "b707bf3af0832f9b31123baebd1216fdc8530251cfaeb0df1918b9d791cbf911",
+          "bytes": 414
         },
         {
           "path": "KoboldAI Settings/Universal-Light.json",
-          "sha256": "8726b4b94e1a5d33105ac08c0643a5927ed65a8460454533fabefbd7c22e4e55",
-          "bytes": 441
+          "sha256": "2e4240692c6157fb7385c2fe7c180c1eb5c1d8f02427f5312a44eb14f1ee7465",
+          "bytes": 415
         },
         {
           "path": "KoboldAI Settings/Universal-Super-Creative.json",
-          "sha256": "8c342c8ca0cddcf869c16395711fb5f3a4fd9d4277cdb88798bbe0cc57e50020",
-          "bytes": 438
+          "sha256": "d8e8f1cee2f8bb43b56c0b4fde45c3810c9055b58cac9c7a9badcda2fcc7c763",
+          "bytes": 412
         },
         {
           "path": "NovelAI Settings/Asper-Kayra.json",
-          "sha256": "1145a9d57f9e4cea88e2b8943270af30fc467013b9bc4712d6f3cfef1f2ea255",
-          "bytes": 572
+          "sha256": "62453ef27d02b1979fb70bc707242344e5f02682c053ee0437c35b16a205c36e",
+          "bytes": 549
         },
         {
           "path": "NovelAI Settings/Blended-Coffee-Kayra.json",
-          "sha256": "d40b947863c65f77ef616f7c3676a68c33ba69224c182568a93718692895f842",
-          "bytes": 521
+          "sha256": "e0cc42dae0a136b0cc6fe750c78d0a632c528ce23203fff058352f7ec638f1a1",
+          "bytes": 499
         },
         {
           "path": "NovelAI Settings/Blook-Kayra.json",
-          "sha256": "e858660ec349f200f68e57d5486877a12c1ee83a67f48cbeefb1f4f5243b42ea",
-          "bytes": 564
+          "sha256": "65d93da5a92561190ccd5f910da4179e52d509aec8e882228ee2cd773bfb0c76",
+          "bytes": 541
         },
         {
           "path": "NovelAI Settings/Carefree-Kayra.json",
-          "sha256": "78753a8ce0457e5c9cae80b55024d5f904d1205e74e08dbeb51816b43e51b52d",
-          "bytes": 590
-        },
-        {
-          "path": "NovelAI Settings/CosmicCube-Kayra.json",
-          "sha256": "6bcf8cc5cf4047bb763f545e7f333fca8a2678c744591f895e6c0ef185a4330f",
-          "bytes": 556
-        },
-        {
-          "path": "NovelAI Settings/Edgewise-Clio.json",
-          "sha256": "4cf251d551c84b3823fc02f89c95f726e947aa957a294a2f6f3feb9209f1cedd",
-          "bytes": 605
-        },
-        {
-          "path": "NovelAI Settings/Erato-Dragonfruit.json",
-          "sha256": "897d99f8441b86d567e8236ffd0d753d492b34b2c5a871f3472c725e4ea62ad8",
-          "bytes": 689
-        },
-        {
-          "path": "NovelAI Settings/Erato-Golden Arrow.json",
-          "sha256": "32da5acfa22ab856b47977c25f249105d71294c19e0e8fe7d06fe22f294093fb",
-          "bytes": 623
-        },
-        {
-          "path": "NovelAI Settings/Erato-Shosetsu.json",
-          "sha256": "4c36f8d4f44e052ec8ade2ed9e43f770676030b6f8f652bf7fa40f969aa3b199",
-          "bytes": 643
-        },
-        {
-          "path": "NovelAI Settings/Erato-Wilder.json",
-          "sha256": "b35819dacf8c790c8fdab49e9e3ff2a1737f3d46d84adbeeb9d97a5d7cdd4e7f",
-          "bytes": 645
-        },
-        {
-          "path": "NovelAI Settings/Erato-Zany Scribe.json",
-          "sha256": "c84b2fffb79856a15930236ea951d4746a1f6a6c4e783cb7c9ebae1de81dd484",
-          "bytes": 630
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
-          "sha256": "35a6dc4dda6ae2c689b5ec6fcb8b8cd476210391d3b27c29c19d555e3c833b3a",
-          "bytes": 602
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
-          "sha256": "68275b77712a4e0eb1e7e099ba7a73a0e7d06a7c5529166a92ac92d990a14aab",
-          "bytes": 559
-        },
-        {
-          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
-          "sha256": "df11db66ca13f65d7c9b40e44879bee57190b8d5d76272e93d24c285fc14036e",
+          "sha256": "ba59661b184f066abdef36588421a8e038e846125820c58b737234b91052548d",
           "bytes": 566
         },
         {
-          "path": "NovelAI Settings/Keelback-Clio.json",
-          "sha256": "151554dcf0fc64e178cd0ca2f37b137d2c0c5c44bebd24dccee49206bdcb4222",
-          "bytes": 602
+          "path": "NovelAI Settings/CosmicCube-Kayra.json",
+          "sha256": "5e3f3a0c1cc9b948bf93de8fa6ef7490572cddeba8e7e4dafd0c193bbfb4d9c6",
+          "bytes": 533
         },
         {
-          "path": "NovelAI Settings/Long-Press-Clio.json",
-          "sha256": "4ddb3cee1584a863ef6d844f6b8ae843c0c6a2f42bb11d1f49d6ed29c23c2d2e",
-          "bytes": 617
+          "path": "NovelAI Settings/Edgewise-Clio.json",
+          "sha256": "397fbf98f18b6db90c200fffcf5e0098fec4b5ccaec23f0622eb0ed50aa4c5ca",
+          "bytes": 581
         },
         {
-          "path": "NovelAI Settings/Pilotfish-Kayra.json",
-          "sha256": "e327ae13ecbdd0eee66f537cb6279d8f11c2a72d364dacb22f75e0c87b840cac",
-          "bytes": 617
+          "path": "NovelAI Settings/Erato-Dragonfruit.json",
+          "sha256": "a11fc21f0812289432f4f05d3520f81b1fcd8cf13f3964e6bdd7e9fe2f82e00b",
+          "bytes": 658
         },
         {
-          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
-          "sha256": "3c0a75649905330f3f5c99ad2ccbaad2bafeef4f6c212484a04c644d3f610fec",
-          "bytes": 572
+          "path": "NovelAI Settings/Erato-Golden Arrow.json",
+          "sha256": "20ee8c0f32eba9c86c4f6b7fd2cd5a44300d517c805a9be8a2b716c94365c81c",
+          "bytes": 596
         },
         {
-          "path": "NovelAI Settings/Stelenes-Kayra.json",
-          "sha256": "9c32001589440de12af7054f2920e17c8af5b5440feac18ddaeccb658c13f4b9",
-          "bytes": 509
+          "path": "NovelAI Settings/Erato-Shosetsu.json",
+          "sha256": "0aa07cc2a224fec15278010cfa26c3683f83117d4739eba3c8c4590484cd97ce",
+          "bytes": 616
         },
         {
-          "path": "NovelAI Settings/Talker-Chat-Clio.json",
-          "sha256": "f96d2dd4a51a32182b564a36f1fc06dbb5b1aa25f1ab5a32237b6c9ced64cafa",
+          "path": "NovelAI Settings/Erato-Wilder.json",
+          "sha256": "cfdedae25a050434d5e7991541ecd70b78fce43de985baa1d3f0dd9b9f7a65f1",
           "bytes": 618
         },
         {
+          "path": "NovelAI Settings/Erato-Zany Scribe.json",
+          "sha256": "27175b37a84aa5bf5bb09eb60f2b40307a841e65ec61b13bc715250e80f8c7b8",
+          "bytes": 603
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
+          "sha256": "3a8491e574df4f2a969169cd9b828a4258098f470d9a7ac1b92134164c3fab2e",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
+          "sha256": "9993c29bebd762626af522db59f893700495ca0f6736a28e9ece56848ef77f6b",
+          "bytes": 536
+        },
+        {
+          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
+          "sha256": "0e7cb6bef9571ea0ecb827838d84010176ce0e52a124a055d034780fa22762ab",
+          "bytes": 543
+        },
+        {
+          "path": "NovelAI Settings/Keelback-Clio.json",
+          "sha256": "b5650f9e006efab28e6c0688d1b92437f4fa817ec6957db24a8b7aaa7f9147fe",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Long-Press-Clio.json",
+          "sha256": "27e8f89acc9337d1d9371266c0849f5de06759242fca8ab1d4a2fd8d701824fd",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pilotfish-Kayra.json",
+          "sha256": "65bd2126589b555343dbb4ce738ec4061975bacb5dd41036d8b08f91da04c35d",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
+          "sha256": "5a45580ed4b5db1d9358a1cb6999ea9e3d6a0f178f0a27a8b7eaba21ee228d99",
+          "bytes": 549
+        },
+        {
+          "path": "NovelAI Settings/Stelenes-Kayra.json",
+          "sha256": "6d493dacfa1b74f8992175344ad45e61029e58eceef57f59d17f459939ad1216",
+          "bytes": 488
+        },
+        {
+          "path": "NovelAI Settings/Talker-Chat-Clio.json",
+          "sha256": "129571faf582970837444e912caf3c0f981a2d893ac07bbb5e96309af270aa9e",
+          "bytes": 593
+        },
+        {
           "path": "NovelAI Settings/Tea_Time-Kayra.json",
-          "sha256": "f5332ff1e6c3e8cfab2a15151175608eb337370066fc5396edab48caa01ec7ee",
-          "bytes": 535
+          "sha256": "7a76d1fb6eac2323c08ca6355ba0b8af79b87177f717cd10b1843f072b19a932",
+          "bytes": 513
         },
         {
           "path": "NovelAI Settings/Tesseract-Kayra.json",
-          "sha256": "30a9350f46cef1795e9b74b7cb952234bd172b0559dd58f43bbe6aa412eb774e",
-          "bytes": 514
+          "sha256": "6338244f11a8b702618a7b53ab84720489e5d5f719e508742bb1b9c1af26ec57",
+          "bytes": 493
         },
         {
           "path": "NovelAI Settings/Vingt-Un-Clio.json",
-          "sha256": "511ea577103858993268176b0685a5299bff82f08d76e9e50e0d6f17ba335577",
-          "bytes": 613
+          "sha256": "31a0a3b08abf8a66cfe3f4ce518c5b6f22cf0392595a5addf7eedbfb13c71278",
+          "bytes": 588
         },
         {
           "path": "NovelAI Settings/Writers-Daemon-Kayra.json",
-          "sha256": "312924b363dc2886140a1c83f1eb649456336a76daff3dbd8aba43af60749386",
-          "bytes": 611
+          "sha256": "4277b68e73f20b88d6054e5d1b412c60ddc10fbe8f6112d76da9b353e3493749",
+          "bytes": 586
         },
         {
           "path": "OpenAI Settings/Default.json",
-          "sha256": "3d375226d9cbb69bfa1fca6fb9a5a4bf33a54223edd7a969755c17f87661a00e",
-          "bytes": 8004
+          "sha256": "a2b1bdcfd190d69b91452baff91281480c32020950092589e692ad6e2c1523bd",
+          "bytes": 7759
         },
         {
           "path": "QuickReplies/Default.json",
-          "sha256": "16d1d8a45efe3d5955866ffdf49388a7472e6855825e96b8fcdd366e9b415c03",
-          "bytes": 509
+          "sha256": "d75fd132a1971f96272f0d9544a2c89d7fc9af5dcb69f6cfc53aab913bcb744e",
+          "bytes": 486
         },
         {
           "path": "TextGen Settings/Default.json",
-          "sha256": "88b29cac684d8827b62f005befb1f52a087baca0cf6c1fc6064026ceaaa27164",
-          "bytes": 2689
+          "sha256": "60363ca2be2216a17cea3a5a3aa7613e68cddb03e91085f27d47f499a28b5ce0",
+          "bytes": 2570
         },
         {
           "path": "TextGen Settings/Deterministic.json",
-          "sha256": "803ad89598b854b928eaedacc4428c5d7013ec74e6622ad9633ae2477fa34a6b",
-          "bytes": 2682
+          "sha256": "d2b265ee734eadf7ce46184ec0d8e063813e8e56fe06c8055d55398776af5f65",
+          "bytes": 2563
         },
         {
           "path": "TextGen Settings/Neutral.json",
-          "sha256": "d6ef1c9f2dbcf5ad7acaf96bf7b530e220ca30d28a4c73b8199cade502d28a5d",
-          "bytes": 2681
+          "sha256": "a4b0695e9d1fca8f377c3cd09d810bcc36cdcc6f3f6ec8db7cbba73d164c20f6",
+          "bytes": 2562
         },
         {
           "path": "TextGen Settings/Universal-Creative.json",
-          "sha256": "459870d3e3063a8edce4340c8fa0f845b03fcd02ad4c220753f678fd934bb98b",
-          "bytes": 2686
+          "sha256": "a777940603c4d6d7dd33c53b3f6db740bb6bd28ced1e875c811b22b5c627fece",
+          "bytes": 2567
         },
         {
           "path": "TextGen Settings/Universal-Light.json",
-          "sha256": "c7ccafee0db9183c5aafe69ef4d2a849e7c6b55f8669cf65b55f676e7ee9d2de",
-          "bytes": 2687
+          "sha256": "d6d43adf814716a117cbc1dca0ab5faad3f094c1d346278f8d86a584d2d7cf20",
+          "bytes": 2568
         },
         {
           "path": "TextGen Settings/Universal-Super-Creative.json",
-          "sha256": "116688520173d57a2949e04faac751afd18f3aee3421ef82d410b183a1c34c61",
-          "bytes": 2684
+          "sha256": "0c390ec645e85fbe5fa935e92d5e82bfe7fc6e1838fdb92e1d97aa2697965a02",
+          "bytes": 2565
         },
         {
           "path": "User Avatars/user-default.png",
@@ -686,393 +686,393 @@
         },
         {
           "path": "context/Adventure.json",
-          "sha256": "7e3619707cda7005c8b54dfcbb69658ff7edda086ce5c56eff23eef0b674c73a",
-          "bytes": 718
-        },
-        {
-          "path": "context/Alpaca-Single-Turn.json",
-          "sha256": "625f93178371f84d4a31e8eaac1c37c8a1d05450cdc3a44a9e2bf74759364d59",
-          "bytes": 728
-        },
-        {
-          "path": "context/Alpaca.json",
-          "sha256": "206828b70e8e027c20e204b767daf814c20451f4e06ea66fc993f0a1093e3486",
-          "bytes": 715
-        },
-        {
-          "path": "context/ChatML-Names.json",
-          "sha256": "a048775c2a455aac97a0d4d422fab6c8aa1f0843d690dd64a0d8056d1d8f609a",
-          "bytes": 721
-        },
-        {
-          "path": "context/ChatML.json",
-          "sha256": "24570cc76693da9a67e22cf13b8cd7badf6598610b1def663f1e26ba82dd34bb",
-          "bytes": 715
-        },
-        {
-          "path": "context/Command R.json",
-          "sha256": "1ffa82c3083eeeca49a64a11ac23fd2e333d9a728e1b9ae5798277f6327b0cdd",
-          "bytes": 718
-        },
-        {
-          "path": "context/DeepSeek-V2.5.json",
-          "sha256": "fc7b65c231b352457a9f3c37d8265146b70fecc83ce8c6aa5c0dff28183ec015",
-          "bytes": 722
-        },
-        {
-          "path": "context/Default.json",
-          "sha256": "90437a80dff193fa0be3d0e6ab95845ad8b49fc9c6ebb9d39588bb39477b4888",
-          "bytes": 722
-        },
-        {
-          "path": "context/Dots1.json",
-          "sha256": "0d4909d12f44737cad4da7286cb93e32a1e6a7b47c1a6d336c4d32dda784ffa4",
-          "bytes": 714
-        },
-        {
-          "path": "context/GLM-4.json",
-          "sha256": "52b3b989544b69ee685128123f58ff57fc61606709451e9180826b758bda2810",
-          "bytes": 714
-        },
-        {
-          "path": "context/Gemma 2.json",
-          "sha256": "2d1ab0197461287d9cafd0fc277e761b6b16f861b0b6da55bb5935fcfe59f8cb",
-          "bytes": 716
-        },
-        {
-          "path": "context/Gemma 4.json",
-          "sha256": "4722f024cd2601b88a29542e046602c63ae1b33fc132b142740cc95e723e4ae1",
-          "bytes": 716
-        },
-        {
-          "path": "context/Libra-32B.json",
-          "sha256": "67a056686862823fbff872c4bbbeca221d363512d75e7193e19bbac8a6e97cea",
-          "bytes": 749
-        },
-        {
-          "path": "context/Lightning 1.1.json",
-          "sha256": "e7d73dc14de9c556ff86b72e4f9f460ed10c334d8dbce906f78f4c304d7a2591",
-          "bytes": 788
-        },
-        {
-          "path": "context/Llama 2 Chat.json",
-          "sha256": "8dbc8dd7fa33d4a29946c38584c3a7dd19ceda2f0043cf6cee3ddcd85e119fa5",
-          "bytes": 721
-        },
-        {
-          "path": "context/Llama 3 Instruct.json",
-          "sha256": "a1a14403605d9eff26adfee3aaf3b746bb9ceb5d9e5d99601ead8cd0a3800ad8",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama 4 Instruct.json",
-          "sha256": "db06ee7de1da1c6266d8a046d0df52164517e3526513556cd5edfc881db1dfcf",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama-3-Instruct-Names.json",
-          "sha256": "f0d075a49f3f5a4d54af464f7728e2e579cf27eba682a7c7ce1007b232a4911d",
-          "bytes": 731
-        },
-        {
-          "path": "context/Metharme.json",
-          "sha256": "703e73e82ac7666014ef3b46eaa45bab50267130b5f43830a0e9049a37f6af55",
-          "bytes": 717
-        },
-        {
-          "path": "context/Minimalist.json",
-          "sha256": "8d869998d4d78e0763ff7b73ecfeb9d238928da9efa58cb4dec672e02f9b5578",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V1.json",
-          "sha256": "eee140f7d861f26bf58f7f3941f9e84099b81dba4ca361e0f080430a6e0a2570",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V2 & V3.json",
-          "sha256": "530999503beb216adafa61f77bc1516aaa0d93bec2df8f1399c4d07d0926d6d8",
-          "bytes": 724
-        },
-        {
-          "path": "context/Mistral V3-Tekken.json",
-          "sha256": "15b2a602b0dea7fbeb417e11b46baba214dea7db8f72258d23940af67b2fc001",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7-Tekken.json",
-          "sha256": "161b1df96a84b98a3f0486744a9a939c3ca4e11bd4fc5b72c4a122a5b0a1968a",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7.json",
-          "sha256": "5de90cd4f7082f1b69f78fd1d0ca5c918dcc02495b8e7b50a11eedae873ad943",
-          "bytes": 719
-        },
-        {
-          "path": "context/Moonshot AI.json",
-          "sha256": "1a9ddec80ca34bb1c430b1196a50891a64e603778b59ed66b1568bd38af4cf2c",
-          "bytes": 720
-        },
-        {
-          "path": "context/NovelAI.json",
-          "sha256": "aab948f349b7f46d0356961708df46c9dbf52eff044ccf3b7d534aea03b7ad33",
-          "bytes": 722
-        },
-        {
-          "path": "context/OldDefault.json",
-          "sha256": "8eec6c48ac10e67c8ade58019b4596a5e66b0854145791e8147527bee693bfd2",
-          "bytes": 874
-        },
-        {
-          "path": "context/OpenAI Harmony.json",
-          "sha256": "0f912f4922bca0740982aed3b1619d17f90dd1551c156ade2661e8921c6121f1",
-          "bytes": 723
-        },
-        {
-          "path": "context/Phi.json",
-          "sha256": "4b41862e7aef53eb39910bc896712cce2dc99047113883ff2ed44d6faf313aad",
-          "bytes": 712
-        },
-        {
-          "path": "context/Story.json",
-          "sha256": "1e813bb003eb8c2d9d80afeca8e5dfa841c42f167802b2fc2a95ec165d477c91",
-          "bytes": 714
-        },
-        {
-          "path": "context/Synthia.json",
-          "sha256": "343da773c09a0f43a12eafd6fbbd55f586dc0fc262dc7ea47799b4b0a24be874",
-          "bytes": 716
-        },
-        {
-          "path": "context/Tulu.json",
-          "sha256": "b96e22b7346afa334574a3a27e9792f2dbcdba1839a6a747f795e4132f67b212",
-          "bytes": 713
-        },
-        {
-          "path": "context/simple-proxy-for-tavern.json",
-          "sha256": "384240293e643a689716977f0d6c81c1ff6ae83ef94098d06c47f0558df92b96",
-          "bytes": 792
-        },
-        {
-          "path": "instruct/Adventure.json",
-          "sha256": "d6659f665b04e9ad005b27ade79eec7fd69752963ffe1cb6b1827d9cb429b52c",
-          "bytes": 684
-        },
-        {
-          "path": "instruct/Alpaca-Single-Turn.json",
-          "sha256": "b9a59e0bfe10787c65d2f472e486e011f4fd671ba1a0c93a81933c4151e47ea7",
-          "bytes": 851
-        },
-        {
-          "path": "instruct/Alpaca.json",
-          "sha256": "71d4cb67cf267406816499cf50c8165831244fb2020c2ed42654953892e95f58",
-          "bytes": 737
-        },
-        {
-          "path": "instruct/ChatML-Names.json",
-          "sha256": "aa4c76d64a21101f447171d48453089c038f9992a91b53cfc9ed21416694c17c",
-          "bytes": 821
-        },
-        {
-          "path": "instruct/ChatML.json",
-          "sha256": "02b5bc3361e5ce423576b00cc2c971c8e1c797a8db0d5e4490b4df5bef4ad672",
-          "bytes": 813
-        },
-        {
-          "path": "instruct/Command R.json",
-          "sha256": "b3aa4d52478eee5be8be1c4eff573c2666aea1bddbf6c06f05e0824d43196a14",
-          "bytes": 946
-        },
-        {
-          "path": "instruct/DeepSeek-V2.5.json",
-          "sha256": "56658074d237ebd6044e179353bec46df931d17e01786d7d647dfbf2b9686b67",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Dots1.json",
-          "sha256": "ee2b4b6fb2918cc1215dfdd30befecd2937286e1c139d0fb7e9152386aa37850",
-          "bytes": 818
-        },
-        {
-          "path": "instruct/GLM-4.json",
-          "sha256": "77a65cc6f196d64355b7e758399fd48b36128049e35d151ab9701be624cc270c",
-          "bytes": 720
-        },
-        {
-          "path": "instruct/Gemma 2.json",
-          "sha256": "6599d486248efa620a3b6460ff5d07e2dd071d18c86a3d33975f74b2129a17f0",
-          "bytes": 834
-        },
-        {
-          "path": "instruct/Gemma 4.json",
-          "sha256": "c7f53f8de92b3d6ccdb52aac5a709ba91d42b67d8c72881e2fd0b9577f5f5607",
-          "bytes": 784
-        },
-        {
-          "path": "instruct/Koala.json",
-          "sha256": "5adb6972265e602026b6f5744c4f42ca1c8b90543567101aacbb0804d59ea81b",
-          "bytes": 726
-        },
-        {
-          "path": "instruct/KoboldAI.json",
-          "sha256": "4f1b6dd1f05c73b4680a37aa356f6f5609e25ac7eb16d353eb7e602df1a5b88e",
-          "bytes": 795
-        },
-        {
-          "path": "instruct/Libra-32B.json",
-          "sha256": "5af960c28cdbcf1119bc39f77c9f63f21cb7055b6f78a7fa31cc5c1187f4685c",
-          "bytes": 717
-        },
-        {
-          "path": "instruct/Lightning 1.1.json",
-          "sha256": "6288477ca1123fd9a90862e2f0532bb69bdfc61d7ec085eab0d7df4c9557268d",
-          "bytes": 888
-        },
-        {
-          "path": "instruct/Llama 2 Chat.json",
-          "sha256": "fcaf16a9c412b52b4f56a6204a181b252e56c88a9a402668728a443da8aebb82",
-          "bytes": 844
-        },
-        {
-          "path": "instruct/Llama 3 Instruct.json",
-          "sha256": "ccff79de3190ba55080c432d0e8354ef5fd24ba07d594131bccefe83dc5f6a18",
-          "bytes": 928
-        },
-        {
-          "path": "instruct/Llama 4 Instruct.json",
-          "sha256": "061962e65a22701fdaadc431f35e1fce9de42d328f710c568860ce04a9afba1a",
-          "bytes": 906
-        },
-        {
-          "path": "instruct/Llama-3-Instruct-Names.json",
-          "sha256": "b3abcc0f823fbcfb34248a8f5a179bedd1f21cb8c936cda1eb97b6d4d8989f94",
-          "bytes": 935
-        },
-        {
-          "path": "instruct/Metharme.json",
-          "sha256": "8b9952080d7d5d7dc56ab914ee1aed179c1df88bd3edbbefbc51760ac342feb5",
-          "bytes": 715
-        },
-        {
-          "path": "instruct/Mistral V1.json",
-          "sha256": "6c6abd486d8a6b41a40962a4c51af404b2120fa33c9274c96b2e5a21ba3fc957",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V2 & V3.json",
-          "sha256": "a411a87e0fb832f7461546967dea5684dced77928596e9d1ae8f615b455f687c",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V3-Tekken.json",
-          "sha256": "3ade2f534f7155e6456e20e7cb108993c4f11049d6fc5fd9087431c4f2835372",
-          "bytes": 829
-        },
-        {
-          "path": "instruct/Mistral V7-Tekken.json",
-          "sha256": "300a8a67e4efaa369011124659698a2acd450a14b501bb9d229f30702354964a",
-          "bytes": 777
-        },
-        {
-          "path": "instruct/Mistral V7.json",
-          "sha256": "c607c3bbe214f67f6395c14c4289bb6638b89a8fc8d4b60052573cf89110cc8c",
-          "bytes": 774
-        },
-        {
-          "path": "instruct/Moonshot AI.json",
-          "sha256": "f93efa0f02de67e4b438ac41bb198e5c9b99a6d4d62d3a6272005f30ada3aaac",
-          "bytes": 868
-        },
-        {
-          "path": "instruct/OpenAI Harmony (Thinking).json",
-          "sha256": "b62cf90501933a6a9853c665ad944b7874c1bbbe78ec431fe57f6aa52023ac2c",
-          "bytes": 863
-        },
-        {
-          "path": "instruct/OpenAI Harmony.json",
-          "sha256": "2c9e6e44ef07b4a2fdf47349027b52ef14024bd84bb30eea6c868facf8bf75aa",
-          "bytes": 843
-        },
-        {
-          "path": "instruct/OpenOrca-OpenChat.json",
-          "sha256": "fa8709f8f4f60d327652b38a0f75054ad898773111bf38b3eb539f429ab80688",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Phi.json",
-          "sha256": "7dc643b9888c947858bbe72555edaf2e1f55403ff3fd8e108c149d88cf486d15",
-          "bytes": 772
-        },
-        {
-          "path": "instruct/Story.json",
-          "sha256": "83800aaae309619363ddb4eab0b28e8ba8e39f0b344c0a7fda00af05f7e7e3c0",
-          "bytes": 680
-        },
-        {
-          "path": "instruct/Synthia.json",
-          "sha256": "7712fdb777bc911af024a9d4c033b5acb2dbeec9588cc5c8e1f578f282bf4748",
-          "bytes": 816
-        },
-        {
-          "path": "instruct/Tulu.json",
-          "sha256": "c9ae396053e2bddb0302cd6fcfceb2670bff39fe27518d2820f9af59bb3f4396",
-          "bytes": 768
-        },
-        {
-          "path": "instruct/Vicuna 1.0.json",
-          "sha256": "62044743559d4900360ba40e7d4ef6df28ce979f41913434114b35d9e63f666e",
-          "bytes": 709
-        },
-        {
-          "path": "instruct/Vicuna 1.1.json",
-          "sha256": "333fd8ee5bede5c10ee5fbc3faddf88cd89fbd311e2c7c06b34867ae25ddcc0f",
-          "bytes": 738
-        },
-        {
-          "path": "instruct/WizardLM-13B.json",
-          "sha256": "b27c9d4e069488ebee0a3e430cc9e2977248006ff19aecf9f95a94610589fbd1",
+          "sha256": "8f6fee53a0db25251bd0adba8c8d887461a42764fdc577d2b7b4424696c06025",
           "bytes": 704
         },
         {
-          "path": "instruct/WizardLM.json",
-          "sha256": "07403d0971a6c7482e4b0de14728afe52a48f05ef83b6fba1c4315f29c4e4fb9",
+          "path": "context/Alpaca-Single-Turn.json",
+          "sha256": "88e0bdec60617ad9d33a451727ef8e0e6daf58e338f5d63e6b950679a21835df",
+          "bytes": 714
+        },
+        {
+          "path": "context/Alpaca.json",
+          "sha256": "5b6dd66b41b8100fae585a389ffe9c0801e5d414ce41d3d64b8bbc59ec9cc3eb",
           "bytes": 701
         },
         {
+          "path": "context/ChatML-Names.json",
+          "sha256": "c87008547980ec6a228dce0c69af489b7a7ca4c8329a360337e81e1196f14a9f",
+          "bytes": 707
+        },
+        {
+          "path": "context/ChatML.json",
+          "sha256": "f818ec35136a8a517059638d8586e186679479f34130ecf6f0ee79452c23d02e",
+          "bytes": 701
+        },
+        {
+          "path": "context/Command R.json",
+          "sha256": "14f0c238738c7e407070cefdf647307e3bb76595c6f886395dec752bf62f04cf",
+          "bytes": 704
+        },
+        {
+          "path": "context/DeepSeek-V2.5.json",
+          "sha256": "976875b234db3e94d7e5b5c5bc8a48cbe665f05f1ea5486ea329cf29a124cce8",
+          "bytes": 708
+        },
+        {
+          "path": "context/Default.json",
+          "sha256": "e3c31deba3ef2857c4a43e7d8f25149ca75f7ed68962a63f40f10b72d830ccc1",
+          "bytes": 708
+        },
+        {
+          "path": "context/Dots1.json",
+          "sha256": "3a99f6eeb42a59a6e1277f654a66c0352caff46bf4f54519d6797ae23606aad7",
+          "bytes": 700
+        },
+        {
+          "path": "context/GLM-4.json",
+          "sha256": "a651ab25f9726bc12fdb4f2551c18670611b87e4f21d418bb53c7ae5c02c01a2",
+          "bytes": 700
+        },
+        {
+          "path": "context/Gemma 2.json",
+          "sha256": "8526d23b85efcb42045e6e13d037c66a453044cd38ff411673da8ce62a91794b",
+          "bytes": 702
+        },
+        {
+          "path": "context/Gemma 4.json",
+          "sha256": "c73fb0b0145d19d6d3004c3150838f1ad67cc9f50a532a6baa92eba2b8320c2d",
+          "bytes": 702
+        },
+        {
+          "path": "context/Libra-32B.json",
+          "sha256": "a9b8814a5040e77126279ffbf62342391fb646e0995597dac226a5d41db28022",
+          "bytes": 735
+        },
+        {
+          "path": "context/Lightning 1.1.json",
+          "sha256": "d8e914990a7727e9f369c19884ba13f429d5a7607aa000820b7facb7fcd27e19",
+          "bytes": 774
+        },
+        {
+          "path": "context/Llama 2 Chat.json",
+          "sha256": "5ff8983605efe00af7f91d6d6d6e4ed4efe432ae3d65a45d556592abae1fded7",
+          "bytes": 707
+        },
+        {
+          "path": "context/Llama 3 Instruct.json",
+          "sha256": "75e03c49d5845caf2079cc0b3e80037d0121f0410a10ed1e77624cae2e31b545",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama 4 Instruct.json",
+          "sha256": "1b509c13037b2c9eaf94b3a78632a3e57770346448f86ad45630fdae16a4e6f2",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama-3-Instruct-Names.json",
+          "sha256": "859071917419895b87a6c603e21b9c0f0ab764069f7666b970d4e8d3bd7d6dbb",
+          "bytes": 717
+        },
+        {
+          "path": "context/Metharme.json",
+          "sha256": "9c62ebb06665a6c17d882e907b466f3a68d1bdea798c313701304a274d98e337",
+          "bytes": 703
+        },
+        {
+          "path": "context/Minimalist.json",
+          "sha256": "d66109a5311c5c61fb6efae797278e00edff9b14d50370a484cafd83194b89d1",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V1.json",
+          "sha256": "5ec9359c07bda4184840186901350e2a58779eb1e32baabdde48463ced4cbf03",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V2 & V3.json",
+          "sha256": "b2ba0ac1238c0434599b49e155a586bd609ca0aad7ffea92d4f7b14b8fc5f260",
+          "bytes": 710
+        },
+        {
+          "path": "context/Mistral V3-Tekken.json",
+          "sha256": "196b6299a32b2aebfcbaf92cf0188f9679aebb4fb45c447cfc47b332fbd26757",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7-Tekken.json",
+          "sha256": "678e4de11ab2df643106cc96284f75f8ce5d9d4fa1091c36c466c1874c65a505",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7.json",
+          "sha256": "fdf72d4893b589ea21f1e877abac8fdfdd30c7c4aab6cb13dafd33f4e4b9a6ff",
+          "bytes": 705
+        },
+        {
+          "path": "context/Moonshot AI.json",
+          "sha256": "3e8515424fdf4ddec0f05566cc956f398820cb0ce6e324c177f6d2fb9e1387d4",
+          "bytes": 706
+        },
+        {
+          "path": "context/NovelAI.json",
+          "sha256": "9b73d710a15bb51ba67a01530818963da2820ec44ad8c3b20b366f2071b54a08",
+          "bytes": 708
+        },
+        {
+          "path": "context/OldDefault.json",
+          "sha256": "29aaf2df139558798174de42e9990e38a4665ce3d4e0184e0db43b03342af2eb",
+          "bytes": 860
+        },
+        {
+          "path": "context/OpenAI Harmony.json",
+          "sha256": "0f461a5f9c00471aa13f6a2b2547e484c9b3d246d6de4ba8190059a5e3ff2837",
+          "bytes": 709
+        },
+        {
+          "path": "context/Phi.json",
+          "sha256": "7e53ac47730997ae35823387cfd025ccf6418d719fff14a1bf40fdc6e5ccdbd9",
+          "bytes": 698
+        },
+        {
+          "path": "context/Story.json",
+          "sha256": "1a27af7873e184352a56a57de305e973128d11bbbfe2e35c88ff891881ce4bde",
+          "bytes": 700
+        },
+        {
+          "path": "context/Synthia.json",
+          "sha256": "d7f470e285b98af3e5f2e0e5b670ca55890bdd118bbfd3128b9634c07f9b4846",
+          "bytes": 702
+        },
+        {
+          "path": "context/Tulu.json",
+          "sha256": "4138354ae74f1340e03013c6b57736594cb5ef5a1b27443105ad22b12ae90478",
+          "bytes": 699
+        },
+        {
+          "path": "context/simple-proxy-for-tavern.json",
+          "sha256": "67e891c6e2874f9bf692b638a7aee733718a2ba8ac2e45233d1ff1922a54bfdb",
+          "bytes": 778
+        },
+        {
+          "path": "instruct/Adventure.json",
+          "sha256": "cfd2193894604766899132553ce53b7119688c034d1164e23259abdd892974ee",
+          "bytes": 659
+        },
+        {
+          "path": "instruct/Alpaca-Single-Turn.json",
+          "sha256": "afb8a25bb44a031630d4f63040012c7a2e54a176c8324b7a81b96bb0612b5dd1",
+          "bytes": 826
+        },
+        {
+          "path": "instruct/Alpaca.json",
+          "sha256": "24979aeb1fbb029b0f11f4674bda3df89c6fcd221a7aa64c900fab3bbde46696",
+          "bytes": 712
+        },
+        {
+          "path": "instruct/ChatML-Names.json",
+          "sha256": "fff186d34de418ef71da00da96c30336effdcdfd4201823df1ca79944214cea7",
+          "bytes": 796
+        },
+        {
+          "path": "instruct/ChatML.json",
+          "sha256": "78d9b539e134364fab3c2fc99f95e09cb9d09302c36731c32d9b820f913ac97f",
+          "bytes": 788
+        },
+        {
+          "path": "instruct/Command R.json",
+          "sha256": "d3ec2ecf32cf0148cbca7c1495da1e0aff051a2f55224651a98f4bb7ce2079a7",
+          "bytes": 921
+        },
+        {
+          "path": "instruct/DeepSeek-V2.5.json",
+          "sha256": "7d41b202fb5de660bdfa64f5d79fb680ed5b46b47921345c3f01aa7dd96e942f",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Dots1.json",
+          "sha256": "6591347926bffd6479bc75432a0a580eecd7e9d802748fe937196e0713b89796",
+          "bytes": 793
+        },
+        {
+          "path": "instruct/GLM-4.json",
+          "sha256": "bcd87ffa0b26dee3ae48cdd1ab55705c090ab18dde638ffc269887c6c0d2e1c5",
+          "bytes": 695
+        },
+        {
+          "path": "instruct/Gemma 2.json",
+          "sha256": "c8ba76019e2d1125ffabade7bf9c41e905479cd36363e3d8cf1046d6fd8b64ab",
+          "bytes": 809
+        },
+        {
+          "path": "instruct/Gemma 4.json",
+          "sha256": "650877dd98059156834e2b6d85f08e0923929b2948bba29e2fe0d4f368d25a21",
+          "bytes": 759
+        },
+        {
+          "path": "instruct/Koala.json",
+          "sha256": "0fe43207c2db021e4699c75f08d29977d13282d205de21ae5e8169dae7473c16",
+          "bytes": 701
+        },
+        {
+          "path": "instruct/KoboldAI.json",
+          "sha256": "a32192f8cf86c5cf2d4f38939f2df4d24d8a346c189f46f4b0404e527bb3cf5c",
+          "bytes": 770
+        },
+        {
+          "path": "instruct/Libra-32B.json",
+          "sha256": "ed597cb300d0cb0b8677d7baad3a8d8803bbbe9988a207e82a070ef0f6108d9b",
+          "bytes": 692
+        },
+        {
+          "path": "instruct/Lightning 1.1.json",
+          "sha256": "f97043484e5a516e051f1a62246fd85153d8ec24ca18d8a7d050dddd3ee62da4",
+          "bytes": 863
+        },
+        {
+          "path": "instruct/Llama 2 Chat.json",
+          "sha256": "8361104ec1ad1a84c97a6f266c4ec637602a225e98709726ad47afee03dbd7f6",
+          "bytes": 819
+        },
+        {
+          "path": "instruct/Llama 3 Instruct.json",
+          "sha256": "e2f76dcd82997276872826f5283c2ae2e2c67b13332ca06d46d15ed7bd2c6b92",
+          "bytes": 903
+        },
+        {
+          "path": "instruct/Llama 4 Instruct.json",
+          "sha256": "7de20392634677210db7abc36e16cd70287b80afda3840ba6e9300cdc42a73ee",
+          "bytes": 881
+        },
+        {
+          "path": "instruct/Llama-3-Instruct-Names.json",
+          "sha256": "3e2d0bb0ce95d1819dff14dbbdf3085159f3797e9106dfc53baabaa83e6d0e87",
+          "bytes": 910
+        },
+        {
+          "path": "instruct/Metharme.json",
+          "sha256": "9dbedc51cd40642da6b4ab7abe91685cb4bd3e8ba5eee413a16415956899ab17",
+          "bytes": 690
+        },
+        {
+          "path": "instruct/Mistral V1.json",
+          "sha256": "417a87fe41a545fd7ae4f6a80936fbdb5d94242439ccdcef293b93e991a5ccf6",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V2 & V3.json",
+          "sha256": "59711599ce72ee8f887163bf8410727282a44fcc21a0f960ebaf5f322fbb0cdf",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V3-Tekken.json",
+          "sha256": "d1bbc949434ce1844b29b63f702500b2b1c813db23f3c8db0ba3b4146dd828ed",
+          "bytes": 804
+        },
+        {
+          "path": "instruct/Mistral V7-Tekken.json",
+          "sha256": "4851297554bbee8e08d491e23ab4037b5c1083e879e0c176b7c78955f7e1c68b",
+          "bytes": 752
+        },
+        {
+          "path": "instruct/Mistral V7.json",
+          "sha256": "90d7df1528aad72ea847e2e9d550a1aa312e6e95fe366daa505eaaa19a972cce",
+          "bytes": 749
+        },
+        {
+          "path": "instruct/Moonshot AI.json",
+          "sha256": "b8cba42a89dd628cae49b0deb941bda6a498798aea89a51af9363d525bf43292",
+          "bytes": 843
+        },
+        {
+          "path": "instruct/OpenAI Harmony (Thinking).json",
+          "sha256": "a2783c6631cdf4c65c1b1ac094235732de72a11ac84f473caf11818677167577",
+          "bytes": 838
+        },
+        {
+          "path": "instruct/OpenAI Harmony.json",
+          "sha256": "d2fac20f27e9401c9069676ecff376c4458df3c428105132225261174d8b8786",
+          "bytes": 818
+        },
+        {
+          "path": "instruct/OpenOrca-OpenChat.json",
+          "sha256": "8ff3a498026f19b3005ed079211db66d02622a282db31117ee4e490851ff9328",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Phi.json",
+          "sha256": "6545a91584fa6e2cc59d7e0915563bde91285d9042862c8f7eec674fbf777d84",
+          "bytes": 747
+        },
+        {
+          "path": "instruct/Story.json",
+          "sha256": "6f6f37ab66fd11ee3b9477ace44aa925a9c48e762171986073ad0cd14cde2e20",
+          "bytes": 655
+        },
+        {
+          "path": "instruct/Synthia.json",
+          "sha256": "a476546d022ab574ed402b89d3cd4e7e991c86fe16baef17889b3c7f2ab24aa6",
+          "bytes": 791
+        },
+        {
+          "path": "instruct/Tulu.json",
+          "sha256": "8cad767d4b3228c045be0c46b2427a4007821e42c1b5045cdcdf1efabcf59b7f",
+          "bytes": 743
+        },
+        {
+          "path": "instruct/Vicuna 1.0.json",
+          "sha256": "ca5b47ecc4e98510e95605c3a6f6de9c0104b011612258de154f772c0790a267",
+          "bytes": 684
+        },
+        {
+          "path": "instruct/Vicuna 1.1.json",
+          "sha256": "1b894152ff261fa146e6b9986a0faae04e844ed4bc33790da53cfd941b45219e",
+          "bytes": 713
+        },
+        {
+          "path": "instruct/WizardLM-13B.json",
+          "sha256": "e6f0ff8198bc68209d3f9e761ca0ad3bae496b3812387773c4f72c2edbe49e06",
+          "bytes": 679
+        },
+        {
+          "path": "instruct/WizardLM.json",
+          "sha256": "464930d7fd0294ac06dc9e28b0ddf3b4695ff36b8a91b66349c65d3bf9a929d3",
+          "bytes": 676
+        },
+        {
           "path": "instruct/simple-proxy-for-tavern.json",
-          "sha256": "06be3f557ef745e106a11d46dbb0c735b7a3b1d082e7caee760aa56027bd05f3",
-          "bytes": 1048
+          "sha256": "1e33538e745a1e9261fdb07bf638ed2aeda20c93a5dbe877c829552e91977e58",
+          "bytes": 1023
         },
         {
           "path": "movingUI/Default.json",
-          "sha256": "1fa78ee773086de8f234b48d453c8dd37ecd466ef9ef1321dba2ce7f280bbb55",
-          "bytes": 53
+          "sha256": "86b3f904489738265baa6b59fdc2fc014a84439f2528ab198eb4bc2f14841493",
+          "bytes": 50
         },
         {
           "path": "reasoning/Blank.json",
-          "sha256": "296d99ed54d78b9527002ac96af1405f88bfc6afa3718a0b5fac32d661b0b426",
-          "bytes": 87
+          "sha256": "118f822cecefe6dcb876b00315c9970cda0ed5c0fa18ba314153d3934b73b72c",
+          "bytes": 81
         },
         {
           "path": "reasoning/DeepSeek.json",
-          "sha256": "a251c703833fbd36cdef972fe2b00f5e2ffe2148c99d206bae64fc49ffd2bb26",
-          "bytes": 113
+          "sha256": "4dad3fae45e3d9568f804c13a74bc1a1ac2f2f6f49bce61664566a91f67a5e33",
+          "bytes": 107
         },
         {
           "path": "reasoning/Gemma 4.json",
-          "sha256": "60c22f5f8eefb5ffea9353d1086ccbb2b996959315d8bcb9df1f741537fe6618",
-          "bytes": 122
+          "sha256": "7137b59e8f811a8d4c5ed4df8d4b55cdd539198513f369b2c942322a2549124e",
+          "bytes": 116
         },
         {
           "path": "reasoning/OpenAI Harmony.json",
-          "sha256": "ab17b0d03e3347b201363b1b96592730ffe558a6f2975ee6379ebab12de2565f",
-          "bytes": 189
+          "sha256": "16e828f58bad44bdf096dddd823c14e2a3bf63cc252a87f0b54e825559478807",
+          "bytes": 183
         },
         {
           "path": "reasoning/Think XML.json",
-          "sha256": "969939751f10d8982c71e4b252428f299d70319ba3dea3e9e36cdf5f3dbc41c0",
-          "bytes": 108
+          "sha256": "6ed9257ba60d433ddc7c393a16ff741ee53f13cee6ad4cf3fa8a511baabb2cab",
+          "bytes": 102
         },
         {
           "path": "reset-settings-probe.sentinel",
@@ -1081,8 +1081,8 @@
         },
         {
           "path": "settings.json",
-          "sha256": "c8445ada83b82a5afacc36ab75c1d89b24c239e71de87511d1ea8719c21bb303",
-          "bytes": 27371
+          "sha256": "28ad07a54aeeebaf4fc64a1ba53e941d69709c6c4d17acae32ecfdb466465172",
+          "bytes": 26732
         },
         {
           "path": "stats.json",
@@ -1096,108 +1096,108 @@
         },
         {
           "path": "sysprompt/Actor.json",
-          "sha256": "61f6652bd929844b297eef6a09d7be441718151ec62be040c55939c6052d295d",
-          "bytes": 375
+          "sha256": "cd83fe29092d734775dc174d9588bf3d351576dcfeab16b7aae4861594a9f5e1",
+          "bytes": 370
         },
         {
           "path": "sysprompt/Assistant - Expert.json",
-          "sha256": "03b59bce8b68e0d31e93a68e9bc5b06bca287db1d8a8526444a58469caaa3be4",
-          "bytes": 784
+          "sha256": "e396003b00eb129d75e9f851678c0796ae114981218c9cfff81597fd07414845",
+          "bytes": 779
         },
         {
           "path": "sysprompt/Assistant - Simple.json",
-          "sha256": "b304599da3efbfa38580a3d1fc49bbb59a3722aeac330958322aaea8171da777",
-          "bytes": 241
+          "sha256": "efc53ed18e15713be7cb85417c798ff2d497b89c2db5a5e2b8c326940eff00ed",
+          "bytes": 236
         },
         {
           "path": "sysprompt/Blank.json",
-          "sha256": "4ab4d0e3c07f50164b3e3db6fbb8bbeaf53f3d48ba058d8cd5824b1f4711d49c",
-          "bytes": 72
+          "sha256": "933a2e96459c938d39f2b8d860ab975e64629303f46c582d79db95df807a9083",
+          "bytes": 67
         },
         {
           "path": "sysprompt/Chain of Thought.json",
-          "sha256": "d9705b025384ea3329863d1888843d31cc751507cc8cb30c5273e8af255a05fb",
-          "bytes": 252
+          "sha256": "a8c23b52b5f4ed9b8cd9c91ce8497171141b88804681cd0a3f4e3cc9f6116888",
+          "bytes": 247
         },
         {
           "path": "sysprompt/Lightning 1.1.json",
-          "sha256": "e4de29956a4f4da6daef153c9d2ad620912019df3f36d2b6ff8fe4ff3de6f212",
-          "bytes": 283
+          "sha256": "7bbf89c5c2e54d038541bcd6b494f3fa715f946be386073227aadf79e5736297",
+          "bytes": 278
         },
         {
           "path": "sysprompt/Neutral - Chat.json",
-          "sha256": "1800ffbe8d0b70f230a1a953209f895f107c169e0ea9c3881ae15b8469dcfc52",
-          "bytes": 159
+          "sha256": "4cf82c659c2b3e9e486cab5201e5464c7380deb5fa52e0c44e8bd14c7b565f5a",
+          "bytes": 154
         },
         {
           "path": "sysprompt/Roleplay - Detailed.json",
-          "sha256": "d349519d68f7225c16cb583800c9aa10e5b54f7a958243627b09c813c4c8c204",
-          "bytes": 295
+          "sha256": "abffc16a408355fd04893982a93d9acbfb232c5a4a7b91ea1356946500872b97",
+          "bytes": 290
         },
         {
           "path": "sysprompt/Roleplay - Immersive.json",
-          "sha256": "01b755d6a69c170dcfe1e01806eb86f91d942b45a02027c0b556ec1c6f00669e",
-          "bytes": 401
+          "sha256": "1b94cbcfc0afe9124570875c02a94470fa609dfba835919254a2bcb847114fb1",
+          "bytes": 396
         },
         {
           "path": "sysprompt/Roleplay - Simple.json",
-          "sha256": "cea11ead1e6fb2228170f9357743c1a5bfb2323e9a2ce144eaa75268031e1d3a",
-          "bytes": 165
+          "sha256": "76daa83d63143c37fc01a36a27a66d35e459e4bdbf0642ba2f332ce6f42605d6",
+          "bytes": 160
         },
         {
           "path": "sysprompt/Text Adventure.json",
-          "sha256": "4f440326d7c552592781061fead5531d350ee1c272996955b830998474d890fd",
-          "bytes": 349
+          "sha256": "bba7d4595d50cde27cf685c2b3b8134463cf2ce7203bac9a79d71f0057491b79",
+          "bytes": 344
         },
         {
           "path": "sysprompt/Writer - Creative.json",
-          "sha256": "a1b8b28615461c30104ed9646a488d5b1ad2f4ba3fe6cd3b9e8af5ddde72006c",
-          "bytes": 203
+          "sha256": "e4171cec4fc86ff0dbd8707b00af1a09c672ae1960295878f9a21c7973f2e57c",
+          "bytes": 198
         },
         {
           "path": "sysprompt/Writer - Realistic.json",
-          "sha256": "3458f8ea1f704beaf7df7eacd421bd658c58e5b6b87d9b60e79b01e9c9a3fb06",
-          "bytes": 150
+          "sha256": "a8443bc2b9ca641421765f00581a26e1f4d95a0ae761fd536e6b9001ca65b7ef",
+          "bytes": 145
         },
         {
           "path": "themes/Azure.json",
-          "sha256": "218a2fbf186f94dc71e14b8d78623959417e2ea45b0ced67ab412a8ca6192f72",
-          "bytes": 1212
+          "sha256": "87426170fa7018df583aeda71f440ceb8f6234794265b6427371706d7fb064b1",
+          "bytes": 1176
         },
         {
           "path": "themes/Cappuccino.json",
-          "sha256": "95572555ddec3be5665ada502d0a2c94e04159d6206fb05e56af4951ed9d4deb",
-          "bytes": 1225
+          "sha256": "06cea473697a1fd4042a3a57f40b1194c1d1db577b253486b893f3c17e941b95",
+          "bytes": 1189
         },
         {
           "path": "themes/Celestial Macaron.json",
-          "sha256": "083a8244f2c31db8890cf41b2e879f62475a62f995a5de98bea34d0d47f1fef7",
-          "bytes": 1269
+          "sha256": "d670ff830f0b4184d44fdc689bf394c33e0cd0d47b99e15026ac14fc008561e0",
+          "bytes": 1233
         },
         {
           "path": "themes/Dark Lite.json",
-          "sha256": "8785fd01494adcb7046222f20092e0333777589e7b746920c662e993937bd298",
-          "bytes": 1201
+          "sha256": "f894d42f22426d645f4b742ecf927a5901540050c26de3524bf9b3990c49f497",
+          "bytes": 1165
         },
         {
           "path": "themes/Dark V 1.0.json",
-          "sha256": "98f36c4b499cfe0a64d1265d1e66890d351c97a9794b8ddd07421ae7117f1f94",
-          "bytes": 1261
+          "sha256": "72b9adb0b173ce007abb37e5ab13d36def301764a5bba45ce08f218501fb03e3",
+          "bytes": 1224
         },
         {
           "path": "user/workflows/Char_Avatar_Comfy_Workflow.json",
-          "sha256": "9c1a75cfd01d17dc79d05fbfdba074e1bcc0fe66c5e4b9767c86c366349b2ba0",
-          "bytes": 2373
+          "sha256": "1f802ab459038f9f3a3d29b79946e55df4900e3ac5306b7edf23fd60a860ebdf",
+          "bytes": 2236
         },
         {
           "path": "user/workflows/Default_Comfy_Workflow.json",
-          "sha256": "b7140c29ce4c527ac77829a3d22277b358c6cd98adb4b444935a295e77c7e8c1",
-          "bytes": 1846
+          "sha256": "18f3e44cdedb1bbc4e9597ce5f759b95f2dfc18f887d3614ff619792366c4fab",
+          "bytes": 1760
         },
         {
           "path": "worlds/Eldoria.json",
-          "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd",
-          "bytes": 8734
+          "sha256": "bfc2548443c890746a54d54e35e41265b02d1b59fd06d72552b305bf9b1e063c",
+          "bytes": 8579
         }
       ]
     },
@@ -1239,193 +1239,193 @@
       "files": [
         {
           "path": "KoboldAI Settings/Deterministic.json",
-          "sha256": "af73c5ca66820e68064c2159c6e1af3f558c958009f85d2c37d2ca1b244b9c56",
-          "bytes": 436
+          "sha256": "41cd7f2443b6fd1ae4e594007a39bc7345aca07dee82b40a16b957fe93d650f4",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/Neutral.json",
-          "sha256": "ecf0d5696b7df61cb1174d07af06f8134f373e7addf307ab8abc75c8930fe953",
-          "bytes": 436
+          "sha256": "b86461c767efe7b3d3dd2f1fbb3f133e1561830e8b189a2af102d5beba8ebdf1",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/RecoveredRuins.json",
-          "sha256": "c23d970bcb603ba970e32b2c774452c77e3c52a933a59bca473ac7fbafb36dce",
-          "bytes": 446
+          "sha256": "1bab77d576ac351000af7f34980720d7e495c8070b80c69205a126415992d2d2",
+          "bytes": 420
         },
         {
           "path": "KoboldAI Settings/Universal-Creative.json",
-          "sha256": "f58925de79f2e0bde707450eeb17d61da39405f3489cb45cd7273b93c26e19c6",
-          "bytes": 440
+          "sha256": "b707bf3af0832f9b31123baebd1216fdc8530251cfaeb0df1918b9d791cbf911",
+          "bytes": 414
         },
         {
           "path": "KoboldAI Settings/Universal-Light.json",
-          "sha256": "8726b4b94e1a5d33105ac08c0643a5927ed65a8460454533fabefbd7c22e4e55",
-          "bytes": 441
+          "sha256": "2e4240692c6157fb7385c2fe7c180c1eb5c1d8f02427f5312a44eb14f1ee7465",
+          "bytes": 415
         },
         {
           "path": "KoboldAI Settings/Universal-Super-Creative.json",
-          "sha256": "8c342c8ca0cddcf869c16395711fb5f3a4fd9d4277cdb88798bbe0cc57e50020",
-          "bytes": 438
+          "sha256": "d8e8f1cee2f8bb43b56c0b4fde45c3810c9055b58cac9c7a9badcda2fcc7c763",
+          "bytes": 412
         },
         {
           "path": "NovelAI Settings/Asper-Kayra.json",
-          "sha256": "1145a9d57f9e4cea88e2b8943270af30fc467013b9bc4712d6f3cfef1f2ea255",
-          "bytes": 572
+          "sha256": "62453ef27d02b1979fb70bc707242344e5f02682c053ee0437c35b16a205c36e",
+          "bytes": 549
         },
         {
           "path": "NovelAI Settings/Blended-Coffee-Kayra.json",
-          "sha256": "d40b947863c65f77ef616f7c3676a68c33ba69224c182568a93718692895f842",
-          "bytes": 521
+          "sha256": "e0cc42dae0a136b0cc6fe750c78d0a632c528ce23203fff058352f7ec638f1a1",
+          "bytes": 499
         },
         {
           "path": "NovelAI Settings/Blook-Kayra.json",
-          "sha256": "e858660ec349f200f68e57d5486877a12c1ee83a67f48cbeefb1f4f5243b42ea",
-          "bytes": 564
+          "sha256": "65d93da5a92561190ccd5f910da4179e52d509aec8e882228ee2cd773bfb0c76",
+          "bytes": 541
         },
         {
           "path": "NovelAI Settings/Carefree-Kayra.json",
-          "sha256": "78753a8ce0457e5c9cae80b55024d5f904d1205e74e08dbeb51816b43e51b52d",
-          "bytes": 590
-        },
-        {
-          "path": "NovelAI Settings/CosmicCube-Kayra.json",
-          "sha256": "6bcf8cc5cf4047bb763f545e7f333fca8a2678c744591f895e6c0ef185a4330f",
-          "bytes": 556
-        },
-        {
-          "path": "NovelAI Settings/Edgewise-Clio.json",
-          "sha256": "4cf251d551c84b3823fc02f89c95f726e947aa957a294a2f6f3feb9209f1cedd",
-          "bytes": 605
-        },
-        {
-          "path": "NovelAI Settings/Erato-Dragonfruit.json",
-          "sha256": "897d99f8441b86d567e8236ffd0d753d492b34b2c5a871f3472c725e4ea62ad8",
-          "bytes": 689
-        },
-        {
-          "path": "NovelAI Settings/Erato-Golden Arrow.json",
-          "sha256": "32da5acfa22ab856b47977c25f249105d71294c19e0e8fe7d06fe22f294093fb",
-          "bytes": 623
-        },
-        {
-          "path": "NovelAI Settings/Erato-Shosetsu.json",
-          "sha256": "4c36f8d4f44e052ec8ade2ed9e43f770676030b6f8f652bf7fa40f969aa3b199",
-          "bytes": 643
-        },
-        {
-          "path": "NovelAI Settings/Erato-Wilder.json",
-          "sha256": "b35819dacf8c790c8fdab49e9e3ff2a1737f3d46d84adbeeb9d97a5d7cdd4e7f",
-          "bytes": 645
-        },
-        {
-          "path": "NovelAI Settings/Erato-Zany Scribe.json",
-          "sha256": "c84b2fffb79856a15930236ea951d4746a1f6a6c4e783cb7c9ebae1de81dd484",
-          "bytes": 630
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
-          "sha256": "35a6dc4dda6ae2c689b5ec6fcb8b8cd476210391d3b27c29c19d555e3c833b3a",
-          "bytes": 602
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
-          "sha256": "68275b77712a4e0eb1e7e099ba7a73a0e7d06a7c5529166a92ac92d990a14aab",
-          "bytes": 559
-        },
-        {
-          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
-          "sha256": "df11db66ca13f65d7c9b40e44879bee57190b8d5d76272e93d24c285fc14036e",
+          "sha256": "ba59661b184f066abdef36588421a8e038e846125820c58b737234b91052548d",
           "bytes": 566
         },
         {
-          "path": "NovelAI Settings/Keelback-Clio.json",
-          "sha256": "151554dcf0fc64e178cd0ca2f37b137d2c0c5c44bebd24dccee49206bdcb4222",
-          "bytes": 602
+          "path": "NovelAI Settings/CosmicCube-Kayra.json",
+          "sha256": "5e3f3a0c1cc9b948bf93de8fa6ef7490572cddeba8e7e4dafd0c193bbfb4d9c6",
+          "bytes": 533
         },
         {
-          "path": "NovelAI Settings/Long-Press-Clio.json",
-          "sha256": "4ddb3cee1584a863ef6d844f6b8ae843c0c6a2f42bb11d1f49d6ed29c23c2d2e",
-          "bytes": 617
+          "path": "NovelAI Settings/Edgewise-Clio.json",
+          "sha256": "397fbf98f18b6db90c200fffcf5e0098fec4b5ccaec23f0622eb0ed50aa4c5ca",
+          "bytes": 581
         },
         {
-          "path": "NovelAI Settings/Pilotfish-Kayra.json",
-          "sha256": "e327ae13ecbdd0eee66f537cb6279d8f11c2a72d364dacb22f75e0c87b840cac",
-          "bytes": 617
+          "path": "NovelAI Settings/Erato-Dragonfruit.json",
+          "sha256": "a11fc21f0812289432f4f05d3520f81b1fcd8cf13f3964e6bdd7e9fe2f82e00b",
+          "bytes": 658
         },
         {
-          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
-          "sha256": "3c0a75649905330f3f5c99ad2ccbaad2bafeef4f6c212484a04c644d3f610fec",
-          "bytes": 572
+          "path": "NovelAI Settings/Erato-Golden Arrow.json",
+          "sha256": "20ee8c0f32eba9c86c4f6b7fd2cd5a44300d517c805a9be8a2b716c94365c81c",
+          "bytes": 596
         },
         {
-          "path": "NovelAI Settings/Stelenes-Kayra.json",
-          "sha256": "9c32001589440de12af7054f2920e17c8af5b5440feac18ddaeccb658c13f4b9",
-          "bytes": 509
+          "path": "NovelAI Settings/Erato-Shosetsu.json",
+          "sha256": "0aa07cc2a224fec15278010cfa26c3683f83117d4739eba3c8c4590484cd97ce",
+          "bytes": 616
         },
         {
-          "path": "NovelAI Settings/Talker-Chat-Clio.json",
-          "sha256": "f96d2dd4a51a32182b564a36f1fc06dbb5b1aa25f1ab5a32237b6c9ced64cafa",
+          "path": "NovelAI Settings/Erato-Wilder.json",
+          "sha256": "cfdedae25a050434d5e7991541ecd70b78fce43de985baa1d3f0dd9b9f7a65f1",
           "bytes": 618
         },
         {
+          "path": "NovelAI Settings/Erato-Zany Scribe.json",
+          "sha256": "27175b37a84aa5bf5bb09eb60f2b40307a841e65ec61b13bc715250e80f8c7b8",
+          "bytes": 603
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
+          "sha256": "3a8491e574df4f2a969169cd9b828a4258098f470d9a7ac1b92134164c3fab2e",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
+          "sha256": "9993c29bebd762626af522db59f893700495ca0f6736a28e9ece56848ef77f6b",
+          "bytes": 536
+        },
+        {
+          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
+          "sha256": "0e7cb6bef9571ea0ecb827838d84010176ce0e52a124a055d034780fa22762ab",
+          "bytes": 543
+        },
+        {
+          "path": "NovelAI Settings/Keelback-Clio.json",
+          "sha256": "b5650f9e006efab28e6c0688d1b92437f4fa817ec6957db24a8b7aaa7f9147fe",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Long-Press-Clio.json",
+          "sha256": "27e8f89acc9337d1d9371266c0849f5de06759242fca8ab1d4a2fd8d701824fd",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pilotfish-Kayra.json",
+          "sha256": "65bd2126589b555343dbb4ce738ec4061975bacb5dd41036d8b08f91da04c35d",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
+          "sha256": "5a45580ed4b5db1d9358a1cb6999ea9e3d6a0f178f0a27a8b7eaba21ee228d99",
+          "bytes": 549
+        },
+        {
+          "path": "NovelAI Settings/Stelenes-Kayra.json",
+          "sha256": "6d493dacfa1b74f8992175344ad45e61029e58eceef57f59d17f459939ad1216",
+          "bytes": 488
+        },
+        {
+          "path": "NovelAI Settings/Talker-Chat-Clio.json",
+          "sha256": "129571faf582970837444e912caf3c0f981a2d893ac07bbb5e96309af270aa9e",
+          "bytes": 593
+        },
+        {
           "path": "NovelAI Settings/Tea_Time-Kayra.json",
-          "sha256": "f5332ff1e6c3e8cfab2a15151175608eb337370066fc5396edab48caa01ec7ee",
-          "bytes": 535
+          "sha256": "7a76d1fb6eac2323c08ca6355ba0b8af79b87177f717cd10b1843f072b19a932",
+          "bytes": 513
         },
         {
           "path": "NovelAI Settings/Tesseract-Kayra.json",
-          "sha256": "30a9350f46cef1795e9b74b7cb952234bd172b0559dd58f43bbe6aa412eb774e",
-          "bytes": 514
+          "sha256": "6338244f11a8b702618a7b53ab84720489e5d5f719e508742bb1b9c1af26ec57",
+          "bytes": 493
         },
         {
           "path": "NovelAI Settings/Vingt-Un-Clio.json",
-          "sha256": "511ea577103858993268176b0685a5299bff82f08d76e9e50e0d6f17ba335577",
-          "bytes": 613
+          "sha256": "31a0a3b08abf8a66cfe3f4ce518c5b6f22cf0392595a5addf7eedbfb13c71278",
+          "bytes": 588
         },
         {
           "path": "NovelAI Settings/Writers-Daemon-Kayra.json",
-          "sha256": "312924b363dc2886140a1c83f1eb649456336a76daff3dbd8aba43af60749386",
-          "bytes": 611
+          "sha256": "4277b68e73f20b88d6054e5d1b412c60ddc10fbe8f6112d76da9b353e3493749",
+          "bytes": 586
         },
         {
           "path": "OpenAI Settings/Default.json",
-          "sha256": "3d375226d9cbb69bfa1fca6fb9a5a4bf33a54223edd7a969755c17f87661a00e",
-          "bytes": 8004
+          "sha256": "a2b1bdcfd190d69b91452baff91281480c32020950092589e692ad6e2c1523bd",
+          "bytes": 7759
         },
         {
           "path": "QuickReplies/Default.json",
-          "sha256": "16d1d8a45efe3d5955866ffdf49388a7472e6855825e96b8fcdd366e9b415c03",
-          "bytes": 509
+          "sha256": "d75fd132a1971f96272f0d9544a2c89d7fc9af5dcb69f6cfc53aab913bcb744e",
+          "bytes": 486
         },
         {
           "path": "TextGen Settings/Default.json",
-          "sha256": "88b29cac684d8827b62f005befb1f52a087baca0cf6c1fc6064026ceaaa27164",
-          "bytes": 2689
+          "sha256": "60363ca2be2216a17cea3a5a3aa7613e68cddb03e91085f27d47f499a28b5ce0",
+          "bytes": 2570
         },
         {
           "path": "TextGen Settings/Deterministic.json",
-          "sha256": "803ad89598b854b928eaedacc4428c5d7013ec74e6622ad9633ae2477fa34a6b",
-          "bytes": 2682
+          "sha256": "d2b265ee734eadf7ce46184ec0d8e063813e8e56fe06c8055d55398776af5f65",
+          "bytes": 2563
         },
         {
           "path": "TextGen Settings/Neutral.json",
-          "sha256": "d6ef1c9f2dbcf5ad7acaf96bf7b530e220ca30d28a4c73b8199cade502d28a5d",
-          "bytes": 2681
+          "sha256": "a4b0695e9d1fca8f377c3cd09d810bcc36cdcc6f3f6ec8db7cbba73d164c20f6",
+          "bytes": 2562
         },
         {
           "path": "TextGen Settings/Universal-Creative.json",
-          "sha256": "459870d3e3063a8edce4340c8fa0f845b03fcd02ad4c220753f678fd934bb98b",
-          "bytes": 2686
+          "sha256": "a777940603c4d6d7dd33c53b3f6db740bb6bd28ced1e875c811b22b5c627fece",
+          "bytes": 2567
         },
         {
           "path": "TextGen Settings/Universal-Light.json",
-          "sha256": "c7ccafee0db9183c5aafe69ef4d2a849e7c6b55f8669cf65b55f676e7ee9d2de",
-          "bytes": 2687
+          "sha256": "d6d43adf814716a117cbc1dca0ab5faad3f094c1d346278f8d86a584d2d7cf20",
+          "bytes": 2568
         },
         {
           "path": "TextGen Settings/Universal-Super-Creative.json",
-          "sha256": "116688520173d57a2949e04faac751afd18f3aee3421ef82d410b183a1c34c61",
-          "bytes": 2684
+          "sha256": "0c390ec645e85fbe5fa935e92d5e82bfe7fc6e1838fdb92e1d97aa2697965a02",
+          "bytes": 2565
         },
         {
           "path": "User Avatars/user-default.png",
@@ -1699,393 +1699,393 @@
         },
         {
           "path": "context/Adventure.json",
-          "sha256": "7e3619707cda7005c8b54dfcbb69658ff7edda086ce5c56eff23eef0b674c73a",
-          "bytes": 718
-        },
-        {
-          "path": "context/Alpaca-Single-Turn.json",
-          "sha256": "625f93178371f84d4a31e8eaac1c37c8a1d05450cdc3a44a9e2bf74759364d59",
-          "bytes": 728
-        },
-        {
-          "path": "context/Alpaca.json",
-          "sha256": "206828b70e8e027c20e204b767daf814c20451f4e06ea66fc993f0a1093e3486",
-          "bytes": 715
-        },
-        {
-          "path": "context/ChatML-Names.json",
-          "sha256": "a048775c2a455aac97a0d4d422fab6c8aa1f0843d690dd64a0d8056d1d8f609a",
-          "bytes": 721
-        },
-        {
-          "path": "context/ChatML.json",
-          "sha256": "24570cc76693da9a67e22cf13b8cd7badf6598610b1def663f1e26ba82dd34bb",
-          "bytes": 715
-        },
-        {
-          "path": "context/Command R.json",
-          "sha256": "1ffa82c3083eeeca49a64a11ac23fd2e333d9a728e1b9ae5798277f6327b0cdd",
-          "bytes": 718
-        },
-        {
-          "path": "context/DeepSeek-V2.5.json",
-          "sha256": "fc7b65c231b352457a9f3c37d8265146b70fecc83ce8c6aa5c0dff28183ec015",
-          "bytes": 722
-        },
-        {
-          "path": "context/Default.json",
-          "sha256": "90437a80dff193fa0be3d0e6ab95845ad8b49fc9c6ebb9d39588bb39477b4888",
-          "bytes": 722
-        },
-        {
-          "path": "context/Dots1.json",
-          "sha256": "0d4909d12f44737cad4da7286cb93e32a1e6a7b47c1a6d336c4d32dda784ffa4",
-          "bytes": 714
-        },
-        {
-          "path": "context/GLM-4.json",
-          "sha256": "52b3b989544b69ee685128123f58ff57fc61606709451e9180826b758bda2810",
-          "bytes": 714
-        },
-        {
-          "path": "context/Gemma 2.json",
-          "sha256": "2d1ab0197461287d9cafd0fc277e761b6b16f861b0b6da55bb5935fcfe59f8cb",
-          "bytes": 716
-        },
-        {
-          "path": "context/Gemma 4.json",
-          "sha256": "4722f024cd2601b88a29542e046602c63ae1b33fc132b142740cc95e723e4ae1",
-          "bytes": 716
-        },
-        {
-          "path": "context/Libra-32B.json",
-          "sha256": "67a056686862823fbff872c4bbbeca221d363512d75e7193e19bbac8a6e97cea",
-          "bytes": 749
-        },
-        {
-          "path": "context/Lightning 1.1.json",
-          "sha256": "e7d73dc14de9c556ff86b72e4f9f460ed10c334d8dbce906f78f4c304d7a2591",
-          "bytes": 788
-        },
-        {
-          "path": "context/Llama 2 Chat.json",
-          "sha256": "8dbc8dd7fa33d4a29946c38584c3a7dd19ceda2f0043cf6cee3ddcd85e119fa5",
-          "bytes": 721
-        },
-        {
-          "path": "context/Llama 3 Instruct.json",
-          "sha256": "a1a14403605d9eff26adfee3aaf3b746bb9ceb5d9e5d99601ead8cd0a3800ad8",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama 4 Instruct.json",
-          "sha256": "db06ee7de1da1c6266d8a046d0df52164517e3526513556cd5edfc881db1dfcf",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama-3-Instruct-Names.json",
-          "sha256": "f0d075a49f3f5a4d54af464f7728e2e579cf27eba682a7c7ce1007b232a4911d",
-          "bytes": 731
-        },
-        {
-          "path": "context/Metharme.json",
-          "sha256": "703e73e82ac7666014ef3b46eaa45bab50267130b5f43830a0e9049a37f6af55",
-          "bytes": 717
-        },
-        {
-          "path": "context/Minimalist.json",
-          "sha256": "8d869998d4d78e0763ff7b73ecfeb9d238928da9efa58cb4dec672e02f9b5578",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V1.json",
-          "sha256": "eee140f7d861f26bf58f7f3941f9e84099b81dba4ca361e0f080430a6e0a2570",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V2 & V3.json",
-          "sha256": "530999503beb216adafa61f77bc1516aaa0d93bec2df8f1399c4d07d0926d6d8",
-          "bytes": 724
-        },
-        {
-          "path": "context/Mistral V3-Tekken.json",
-          "sha256": "15b2a602b0dea7fbeb417e11b46baba214dea7db8f72258d23940af67b2fc001",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7-Tekken.json",
-          "sha256": "161b1df96a84b98a3f0486744a9a939c3ca4e11bd4fc5b72c4a122a5b0a1968a",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7.json",
-          "sha256": "5de90cd4f7082f1b69f78fd1d0ca5c918dcc02495b8e7b50a11eedae873ad943",
-          "bytes": 719
-        },
-        {
-          "path": "context/Moonshot AI.json",
-          "sha256": "1a9ddec80ca34bb1c430b1196a50891a64e603778b59ed66b1568bd38af4cf2c",
-          "bytes": 720
-        },
-        {
-          "path": "context/NovelAI.json",
-          "sha256": "aab948f349b7f46d0356961708df46c9dbf52eff044ccf3b7d534aea03b7ad33",
-          "bytes": 722
-        },
-        {
-          "path": "context/OldDefault.json",
-          "sha256": "8eec6c48ac10e67c8ade58019b4596a5e66b0854145791e8147527bee693bfd2",
-          "bytes": 874
-        },
-        {
-          "path": "context/OpenAI Harmony.json",
-          "sha256": "0f912f4922bca0740982aed3b1619d17f90dd1551c156ade2661e8921c6121f1",
-          "bytes": 723
-        },
-        {
-          "path": "context/Phi.json",
-          "sha256": "4b41862e7aef53eb39910bc896712cce2dc99047113883ff2ed44d6faf313aad",
-          "bytes": 712
-        },
-        {
-          "path": "context/Story.json",
-          "sha256": "1e813bb003eb8c2d9d80afeca8e5dfa841c42f167802b2fc2a95ec165d477c91",
-          "bytes": 714
-        },
-        {
-          "path": "context/Synthia.json",
-          "sha256": "343da773c09a0f43a12eafd6fbbd55f586dc0fc262dc7ea47799b4b0a24be874",
-          "bytes": 716
-        },
-        {
-          "path": "context/Tulu.json",
-          "sha256": "b96e22b7346afa334574a3a27e9792f2dbcdba1839a6a747f795e4132f67b212",
-          "bytes": 713
-        },
-        {
-          "path": "context/simple-proxy-for-tavern.json",
-          "sha256": "384240293e643a689716977f0d6c81c1ff6ae83ef94098d06c47f0558df92b96",
-          "bytes": 792
-        },
-        {
-          "path": "instruct/Adventure.json",
-          "sha256": "d6659f665b04e9ad005b27ade79eec7fd69752963ffe1cb6b1827d9cb429b52c",
-          "bytes": 684
-        },
-        {
-          "path": "instruct/Alpaca-Single-Turn.json",
-          "sha256": "b9a59e0bfe10787c65d2f472e486e011f4fd671ba1a0c93a81933c4151e47ea7",
-          "bytes": 851
-        },
-        {
-          "path": "instruct/Alpaca.json",
-          "sha256": "71d4cb67cf267406816499cf50c8165831244fb2020c2ed42654953892e95f58",
-          "bytes": 737
-        },
-        {
-          "path": "instruct/ChatML-Names.json",
-          "sha256": "aa4c76d64a21101f447171d48453089c038f9992a91b53cfc9ed21416694c17c",
-          "bytes": 821
-        },
-        {
-          "path": "instruct/ChatML.json",
-          "sha256": "02b5bc3361e5ce423576b00cc2c971c8e1c797a8db0d5e4490b4df5bef4ad672",
-          "bytes": 813
-        },
-        {
-          "path": "instruct/Command R.json",
-          "sha256": "b3aa4d52478eee5be8be1c4eff573c2666aea1bddbf6c06f05e0824d43196a14",
-          "bytes": 946
-        },
-        {
-          "path": "instruct/DeepSeek-V2.5.json",
-          "sha256": "56658074d237ebd6044e179353bec46df931d17e01786d7d647dfbf2b9686b67",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Dots1.json",
-          "sha256": "ee2b4b6fb2918cc1215dfdd30befecd2937286e1c139d0fb7e9152386aa37850",
-          "bytes": 818
-        },
-        {
-          "path": "instruct/GLM-4.json",
-          "sha256": "77a65cc6f196d64355b7e758399fd48b36128049e35d151ab9701be624cc270c",
-          "bytes": 720
-        },
-        {
-          "path": "instruct/Gemma 2.json",
-          "sha256": "6599d486248efa620a3b6460ff5d07e2dd071d18c86a3d33975f74b2129a17f0",
-          "bytes": 834
-        },
-        {
-          "path": "instruct/Gemma 4.json",
-          "sha256": "c7f53f8de92b3d6ccdb52aac5a709ba91d42b67d8c72881e2fd0b9577f5f5607",
-          "bytes": 784
-        },
-        {
-          "path": "instruct/Koala.json",
-          "sha256": "5adb6972265e602026b6f5744c4f42ca1c8b90543567101aacbb0804d59ea81b",
-          "bytes": 726
-        },
-        {
-          "path": "instruct/KoboldAI.json",
-          "sha256": "4f1b6dd1f05c73b4680a37aa356f6f5609e25ac7eb16d353eb7e602df1a5b88e",
-          "bytes": 795
-        },
-        {
-          "path": "instruct/Libra-32B.json",
-          "sha256": "5af960c28cdbcf1119bc39f77c9f63f21cb7055b6f78a7fa31cc5c1187f4685c",
-          "bytes": 717
-        },
-        {
-          "path": "instruct/Lightning 1.1.json",
-          "sha256": "6288477ca1123fd9a90862e2f0532bb69bdfc61d7ec085eab0d7df4c9557268d",
-          "bytes": 888
-        },
-        {
-          "path": "instruct/Llama 2 Chat.json",
-          "sha256": "fcaf16a9c412b52b4f56a6204a181b252e56c88a9a402668728a443da8aebb82",
-          "bytes": 844
-        },
-        {
-          "path": "instruct/Llama 3 Instruct.json",
-          "sha256": "ccff79de3190ba55080c432d0e8354ef5fd24ba07d594131bccefe83dc5f6a18",
-          "bytes": 928
-        },
-        {
-          "path": "instruct/Llama 4 Instruct.json",
-          "sha256": "061962e65a22701fdaadc431f35e1fce9de42d328f710c568860ce04a9afba1a",
-          "bytes": 906
-        },
-        {
-          "path": "instruct/Llama-3-Instruct-Names.json",
-          "sha256": "b3abcc0f823fbcfb34248a8f5a179bedd1f21cb8c936cda1eb97b6d4d8989f94",
-          "bytes": 935
-        },
-        {
-          "path": "instruct/Metharme.json",
-          "sha256": "8b9952080d7d5d7dc56ab914ee1aed179c1df88bd3edbbefbc51760ac342feb5",
-          "bytes": 715
-        },
-        {
-          "path": "instruct/Mistral V1.json",
-          "sha256": "6c6abd486d8a6b41a40962a4c51af404b2120fa33c9274c96b2e5a21ba3fc957",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V2 & V3.json",
-          "sha256": "a411a87e0fb832f7461546967dea5684dced77928596e9d1ae8f615b455f687c",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V3-Tekken.json",
-          "sha256": "3ade2f534f7155e6456e20e7cb108993c4f11049d6fc5fd9087431c4f2835372",
-          "bytes": 829
-        },
-        {
-          "path": "instruct/Mistral V7-Tekken.json",
-          "sha256": "300a8a67e4efaa369011124659698a2acd450a14b501bb9d229f30702354964a",
-          "bytes": 777
-        },
-        {
-          "path": "instruct/Mistral V7.json",
-          "sha256": "c607c3bbe214f67f6395c14c4289bb6638b89a8fc8d4b60052573cf89110cc8c",
-          "bytes": 774
-        },
-        {
-          "path": "instruct/Moonshot AI.json",
-          "sha256": "f93efa0f02de67e4b438ac41bb198e5c9b99a6d4d62d3a6272005f30ada3aaac",
-          "bytes": 868
-        },
-        {
-          "path": "instruct/OpenAI Harmony (Thinking).json",
-          "sha256": "b62cf90501933a6a9853c665ad944b7874c1bbbe78ec431fe57f6aa52023ac2c",
-          "bytes": 863
-        },
-        {
-          "path": "instruct/OpenAI Harmony.json",
-          "sha256": "2c9e6e44ef07b4a2fdf47349027b52ef14024bd84bb30eea6c868facf8bf75aa",
-          "bytes": 843
-        },
-        {
-          "path": "instruct/OpenOrca-OpenChat.json",
-          "sha256": "fa8709f8f4f60d327652b38a0f75054ad898773111bf38b3eb539f429ab80688",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Phi.json",
-          "sha256": "7dc643b9888c947858bbe72555edaf2e1f55403ff3fd8e108c149d88cf486d15",
-          "bytes": 772
-        },
-        {
-          "path": "instruct/Story.json",
-          "sha256": "83800aaae309619363ddb4eab0b28e8ba8e39f0b344c0a7fda00af05f7e7e3c0",
-          "bytes": 680
-        },
-        {
-          "path": "instruct/Synthia.json",
-          "sha256": "7712fdb777bc911af024a9d4c033b5acb2dbeec9588cc5c8e1f578f282bf4748",
-          "bytes": 816
-        },
-        {
-          "path": "instruct/Tulu.json",
-          "sha256": "c9ae396053e2bddb0302cd6fcfceb2670bff39fe27518d2820f9af59bb3f4396",
-          "bytes": 768
-        },
-        {
-          "path": "instruct/Vicuna 1.0.json",
-          "sha256": "62044743559d4900360ba40e7d4ef6df28ce979f41913434114b35d9e63f666e",
-          "bytes": 709
-        },
-        {
-          "path": "instruct/Vicuna 1.1.json",
-          "sha256": "333fd8ee5bede5c10ee5fbc3faddf88cd89fbd311e2c7c06b34867ae25ddcc0f",
-          "bytes": 738
-        },
-        {
-          "path": "instruct/WizardLM-13B.json",
-          "sha256": "b27c9d4e069488ebee0a3e430cc9e2977248006ff19aecf9f95a94610589fbd1",
+          "sha256": "8f6fee53a0db25251bd0adba8c8d887461a42764fdc577d2b7b4424696c06025",
           "bytes": 704
         },
         {
-          "path": "instruct/WizardLM.json",
-          "sha256": "07403d0971a6c7482e4b0de14728afe52a48f05ef83b6fba1c4315f29c4e4fb9",
+          "path": "context/Alpaca-Single-Turn.json",
+          "sha256": "88e0bdec60617ad9d33a451727ef8e0e6daf58e338f5d63e6b950679a21835df",
+          "bytes": 714
+        },
+        {
+          "path": "context/Alpaca.json",
+          "sha256": "5b6dd66b41b8100fae585a389ffe9c0801e5d414ce41d3d64b8bbc59ec9cc3eb",
           "bytes": 701
         },
         {
+          "path": "context/ChatML-Names.json",
+          "sha256": "c87008547980ec6a228dce0c69af489b7a7ca4c8329a360337e81e1196f14a9f",
+          "bytes": 707
+        },
+        {
+          "path": "context/ChatML.json",
+          "sha256": "f818ec35136a8a517059638d8586e186679479f34130ecf6f0ee79452c23d02e",
+          "bytes": 701
+        },
+        {
+          "path": "context/Command R.json",
+          "sha256": "14f0c238738c7e407070cefdf647307e3bb76595c6f886395dec752bf62f04cf",
+          "bytes": 704
+        },
+        {
+          "path": "context/DeepSeek-V2.5.json",
+          "sha256": "976875b234db3e94d7e5b5c5bc8a48cbe665f05f1ea5486ea329cf29a124cce8",
+          "bytes": 708
+        },
+        {
+          "path": "context/Default.json",
+          "sha256": "e3c31deba3ef2857c4a43e7d8f25149ca75f7ed68962a63f40f10b72d830ccc1",
+          "bytes": 708
+        },
+        {
+          "path": "context/Dots1.json",
+          "sha256": "3a99f6eeb42a59a6e1277f654a66c0352caff46bf4f54519d6797ae23606aad7",
+          "bytes": 700
+        },
+        {
+          "path": "context/GLM-4.json",
+          "sha256": "a651ab25f9726bc12fdb4f2551c18670611b87e4f21d418bb53c7ae5c02c01a2",
+          "bytes": 700
+        },
+        {
+          "path": "context/Gemma 2.json",
+          "sha256": "8526d23b85efcb42045e6e13d037c66a453044cd38ff411673da8ce62a91794b",
+          "bytes": 702
+        },
+        {
+          "path": "context/Gemma 4.json",
+          "sha256": "c73fb0b0145d19d6d3004c3150838f1ad67cc9f50a532a6baa92eba2b8320c2d",
+          "bytes": 702
+        },
+        {
+          "path": "context/Libra-32B.json",
+          "sha256": "a9b8814a5040e77126279ffbf62342391fb646e0995597dac226a5d41db28022",
+          "bytes": 735
+        },
+        {
+          "path": "context/Lightning 1.1.json",
+          "sha256": "d8e914990a7727e9f369c19884ba13f429d5a7607aa000820b7facb7fcd27e19",
+          "bytes": 774
+        },
+        {
+          "path": "context/Llama 2 Chat.json",
+          "sha256": "5ff8983605efe00af7f91d6d6d6e4ed4efe432ae3d65a45d556592abae1fded7",
+          "bytes": 707
+        },
+        {
+          "path": "context/Llama 3 Instruct.json",
+          "sha256": "75e03c49d5845caf2079cc0b3e80037d0121f0410a10ed1e77624cae2e31b545",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama 4 Instruct.json",
+          "sha256": "1b509c13037b2c9eaf94b3a78632a3e57770346448f86ad45630fdae16a4e6f2",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama-3-Instruct-Names.json",
+          "sha256": "859071917419895b87a6c603e21b9c0f0ab764069f7666b970d4e8d3bd7d6dbb",
+          "bytes": 717
+        },
+        {
+          "path": "context/Metharme.json",
+          "sha256": "9c62ebb06665a6c17d882e907b466f3a68d1bdea798c313701304a274d98e337",
+          "bytes": 703
+        },
+        {
+          "path": "context/Minimalist.json",
+          "sha256": "d66109a5311c5c61fb6efae797278e00edff9b14d50370a484cafd83194b89d1",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V1.json",
+          "sha256": "5ec9359c07bda4184840186901350e2a58779eb1e32baabdde48463ced4cbf03",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V2 & V3.json",
+          "sha256": "b2ba0ac1238c0434599b49e155a586bd609ca0aad7ffea92d4f7b14b8fc5f260",
+          "bytes": 710
+        },
+        {
+          "path": "context/Mistral V3-Tekken.json",
+          "sha256": "196b6299a32b2aebfcbaf92cf0188f9679aebb4fb45c447cfc47b332fbd26757",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7-Tekken.json",
+          "sha256": "678e4de11ab2df643106cc96284f75f8ce5d9d4fa1091c36c466c1874c65a505",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7.json",
+          "sha256": "fdf72d4893b589ea21f1e877abac8fdfdd30c7c4aab6cb13dafd33f4e4b9a6ff",
+          "bytes": 705
+        },
+        {
+          "path": "context/Moonshot AI.json",
+          "sha256": "3e8515424fdf4ddec0f05566cc956f398820cb0ce6e324c177f6d2fb9e1387d4",
+          "bytes": 706
+        },
+        {
+          "path": "context/NovelAI.json",
+          "sha256": "9b73d710a15bb51ba67a01530818963da2820ec44ad8c3b20b366f2071b54a08",
+          "bytes": 708
+        },
+        {
+          "path": "context/OldDefault.json",
+          "sha256": "29aaf2df139558798174de42e9990e38a4665ce3d4e0184e0db43b03342af2eb",
+          "bytes": 860
+        },
+        {
+          "path": "context/OpenAI Harmony.json",
+          "sha256": "0f461a5f9c00471aa13f6a2b2547e484c9b3d246d6de4ba8190059a5e3ff2837",
+          "bytes": 709
+        },
+        {
+          "path": "context/Phi.json",
+          "sha256": "7e53ac47730997ae35823387cfd025ccf6418d719fff14a1bf40fdc6e5ccdbd9",
+          "bytes": 698
+        },
+        {
+          "path": "context/Story.json",
+          "sha256": "1a27af7873e184352a56a57de305e973128d11bbbfe2e35c88ff891881ce4bde",
+          "bytes": 700
+        },
+        {
+          "path": "context/Synthia.json",
+          "sha256": "d7f470e285b98af3e5f2e0e5b670ca55890bdd118bbfd3128b9634c07f9b4846",
+          "bytes": 702
+        },
+        {
+          "path": "context/Tulu.json",
+          "sha256": "4138354ae74f1340e03013c6b57736594cb5ef5a1b27443105ad22b12ae90478",
+          "bytes": 699
+        },
+        {
+          "path": "context/simple-proxy-for-tavern.json",
+          "sha256": "67e891c6e2874f9bf692b638a7aee733718a2ba8ac2e45233d1ff1922a54bfdb",
+          "bytes": 778
+        },
+        {
+          "path": "instruct/Adventure.json",
+          "sha256": "cfd2193894604766899132553ce53b7119688c034d1164e23259abdd892974ee",
+          "bytes": 659
+        },
+        {
+          "path": "instruct/Alpaca-Single-Turn.json",
+          "sha256": "afb8a25bb44a031630d4f63040012c7a2e54a176c8324b7a81b96bb0612b5dd1",
+          "bytes": 826
+        },
+        {
+          "path": "instruct/Alpaca.json",
+          "sha256": "24979aeb1fbb029b0f11f4674bda3df89c6fcd221a7aa64c900fab3bbde46696",
+          "bytes": 712
+        },
+        {
+          "path": "instruct/ChatML-Names.json",
+          "sha256": "fff186d34de418ef71da00da96c30336effdcdfd4201823df1ca79944214cea7",
+          "bytes": 796
+        },
+        {
+          "path": "instruct/ChatML.json",
+          "sha256": "78d9b539e134364fab3c2fc99f95e09cb9d09302c36731c32d9b820f913ac97f",
+          "bytes": 788
+        },
+        {
+          "path": "instruct/Command R.json",
+          "sha256": "d3ec2ecf32cf0148cbca7c1495da1e0aff051a2f55224651a98f4bb7ce2079a7",
+          "bytes": 921
+        },
+        {
+          "path": "instruct/DeepSeek-V2.5.json",
+          "sha256": "7d41b202fb5de660bdfa64f5d79fb680ed5b46b47921345c3f01aa7dd96e942f",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Dots1.json",
+          "sha256": "6591347926bffd6479bc75432a0a580eecd7e9d802748fe937196e0713b89796",
+          "bytes": 793
+        },
+        {
+          "path": "instruct/GLM-4.json",
+          "sha256": "bcd87ffa0b26dee3ae48cdd1ab55705c090ab18dde638ffc269887c6c0d2e1c5",
+          "bytes": 695
+        },
+        {
+          "path": "instruct/Gemma 2.json",
+          "sha256": "c8ba76019e2d1125ffabade7bf9c41e905479cd36363e3d8cf1046d6fd8b64ab",
+          "bytes": 809
+        },
+        {
+          "path": "instruct/Gemma 4.json",
+          "sha256": "650877dd98059156834e2b6d85f08e0923929b2948bba29e2fe0d4f368d25a21",
+          "bytes": 759
+        },
+        {
+          "path": "instruct/Koala.json",
+          "sha256": "0fe43207c2db021e4699c75f08d29977d13282d205de21ae5e8169dae7473c16",
+          "bytes": 701
+        },
+        {
+          "path": "instruct/KoboldAI.json",
+          "sha256": "a32192f8cf86c5cf2d4f38939f2df4d24d8a346c189f46f4b0404e527bb3cf5c",
+          "bytes": 770
+        },
+        {
+          "path": "instruct/Libra-32B.json",
+          "sha256": "ed597cb300d0cb0b8677d7baad3a8d8803bbbe9988a207e82a070ef0f6108d9b",
+          "bytes": 692
+        },
+        {
+          "path": "instruct/Lightning 1.1.json",
+          "sha256": "f97043484e5a516e051f1a62246fd85153d8ec24ca18d8a7d050dddd3ee62da4",
+          "bytes": 863
+        },
+        {
+          "path": "instruct/Llama 2 Chat.json",
+          "sha256": "8361104ec1ad1a84c97a6f266c4ec637602a225e98709726ad47afee03dbd7f6",
+          "bytes": 819
+        },
+        {
+          "path": "instruct/Llama 3 Instruct.json",
+          "sha256": "e2f76dcd82997276872826f5283c2ae2e2c67b13332ca06d46d15ed7bd2c6b92",
+          "bytes": 903
+        },
+        {
+          "path": "instruct/Llama 4 Instruct.json",
+          "sha256": "7de20392634677210db7abc36e16cd70287b80afda3840ba6e9300cdc42a73ee",
+          "bytes": 881
+        },
+        {
+          "path": "instruct/Llama-3-Instruct-Names.json",
+          "sha256": "3e2d0bb0ce95d1819dff14dbbdf3085159f3797e9106dfc53baabaa83e6d0e87",
+          "bytes": 910
+        },
+        {
+          "path": "instruct/Metharme.json",
+          "sha256": "9dbedc51cd40642da6b4ab7abe91685cb4bd3e8ba5eee413a16415956899ab17",
+          "bytes": 690
+        },
+        {
+          "path": "instruct/Mistral V1.json",
+          "sha256": "417a87fe41a545fd7ae4f6a80936fbdb5d94242439ccdcef293b93e991a5ccf6",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V2 & V3.json",
+          "sha256": "59711599ce72ee8f887163bf8410727282a44fcc21a0f960ebaf5f322fbb0cdf",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V3-Tekken.json",
+          "sha256": "d1bbc949434ce1844b29b63f702500b2b1c813db23f3c8db0ba3b4146dd828ed",
+          "bytes": 804
+        },
+        {
+          "path": "instruct/Mistral V7-Tekken.json",
+          "sha256": "4851297554bbee8e08d491e23ab4037b5c1083e879e0c176b7c78955f7e1c68b",
+          "bytes": 752
+        },
+        {
+          "path": "instruct/Mistral V7.json",
+          "sha256": "90d7df1528aad72ea847e2e9d550a1aa312e6e95fe366daa505eaaa19a972cce",
+          "bytes": 749
+        },
+        {
+          "path": "instruct/Moonshot AI.json",
+          "sha256": "b8cba42a89dd628cae49b0deb941bda6a498798aea89a51af9363d525bf43292",
+          "bytes": 843
+        },
+        {
+          "path": "instruct/OpenAI Harmony (Thinking).json",
+          "sha256": "a2783c6631cdf4c65c1b1ac094235732de72a11ac84f473caf11818677167577",
+          "bytes": 838
+        },
+        {
+          "path": "instruct/OpenAI Harmony.json",
+          "sha256": "d2fac20f27e9401c9069676ecff376c4458df3c428105132225261174d8b8786",
+          "bytes": 818
+        },
+        {
+          "path": "instruct/OpenOrca-OpenChat.json",
+          "sha256": "8ff3a498026f19b3005ed079211db66d02622a282db31117ee4e490851ff9328",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Phi.json",
+          "sha256": "6545a91584fa6e2cc59d7e0915563bde91285d9042862c8f7eec674fbf777d84",
+          "bytes": 747
+        },
+        {
+          "path": "instruct/Story.json",
+          "sha256": "6f6f37ab66fd11ee3b9477ace44aa925a9c48e762171986073ad0cd14cde2e20",
+          "bytes": 655
+        },
+        {
+          "path": "instruct/Synthia.json",
+          "sha256": "a476546d022ab574ed402b89d3cd4e7e991c86fe16baef17889b3c7f2ab24aa6",
+          "bytes": 791
+        },
+        {
+          "path": "instruct/Tulu.json",
+          "sha256": "8cad767d4b3228c045be0c46b2427a4007821e42c1b5045cdcdf1efabcf59b7f",
+          "bytes": 743
+        },
+        {
+          "path": "instruct/Vicuna 1.0.json",
+          "sha256": "ca5b47ecc4e98510e95605c3a6f6de9c0104b011612258de154f772c0790a267",
+          "bytes": 684
+        },
+        {
+          "path": "instruct/Vicuna 1.1.json",
+          "sha256": "1b894152ff261fa146e6b9986a0faae04e844ed4bc33790da53cfd941b45219e",
+          "bytes": 713
+        },
+        {
+          "path": "instruct/WizardLM-13B.json",
+          "sha256": "e6f0ff8198bc68209d3f9e761ca0ad3bae496b3812387773c4f72c2edbe49e06",
+          "bytes": 679
+        },
+        {
+          "path": "instruct/WizardLM.json",
+          "sha256": "464930d7fd0294ac06dc9e28b0ddf3b4695ff36b8a91b66349c65d3bf9a929d3",
+          "bytes": 676
+        },
+        {
           "path": "instruct/simple-proxy-for-tavern.json",
-          "sha256": "06be3f557ef745e106a11d46dbb0c735b7a3b1d082e7caee760aa56027bd05f3",
-          "bytes": 1048
+          "sha256": "1e33538e745a1e9261fdb07bf638ed2aeda20c93a5dbe877c829552e91977e58",
+          "bytes": 1023
         },
         {
           "path": "movingUI/Default.json",
-          "sha256": "1fa78ee773086de8f234b48d453c8dd37ecd466ef9ef1321dba2ce7f280bbb55",
-          "bytes": 53
+          "sha256": "86b3f904489738265baa6b59fdc2fc014a84439f2528ab198eb4bc2f14841493",
+          "bytes": 50
         },
         {
           "path": "reasoning/Blank.json",
-          "sha256": "296d99ed54d78b9527002ac96af1405f88bfc6afa3718a0b5fac32d661b0b426",
-          "bytes": 87
+          "sha256": "118f822cecefe6dcb876b00315c9970cda0ed5c0fa18ba314153d3934b73b72c",
+          "bytes": 81
         },
         {
           "path": "reasoning/DeepSeek.json",
-          "sha256": "a251c703833fbd36cdef972fe2b00f5e2ffe2148c99d206bae64fc49ffd2bb26",
-          "bytes": 113
+          "sha256": "4dad3fae45e3d9568f804c13a74bc1a1ac2f2f6f49bce61664566a91f67a5e33",
+          "bytes": 107
         },
         {
           "path": "reasoning/Gemma 4.json",
-          "sha256": "60c22f5f8eefb5ffea9353d1086ccbb2b996959315d8bcb9df1f741537fe6618",
-          "bytes": 122
+          "sha256": "7137b59e8f811a8d4c5ed4df8d4b55cdd539198513f369b2c942322a2549124e",
+          "bytes": 116
         },
         {
           "path": "reasoning/OpenAI Harmony.json",
-          "sha256": "ab17b0d03e3347b201363b1b96592730ffe558a6f2975ee6379ebab12de2565f",
-          "bytes": 189
+          "sha256": "16e828f58bad44bdf096dddd823c14e2a3bf63cc252a87f0b54e825559478807",
+          "bytes": 183
         },
         {
           "path": "reasoning/Think XML.json",
-          "sha256": "969939751f10d8982c71e4b252428f299d70319ba3dea3e9e36cdf5f3dbc41c0",
-          "bytes": 108
+          "sha256": "6ed9257ba60d433ddc7c393a16ff741ee53f13cee6ad4cf3fa8a511baabb2cab",
+          "bytes": 102
         },
         {
           "path": "reset-settings-probe.sentinel",
@@ -2094,8 +2094,8 @@
         },
         {
           "path": "settings.json",
-          "sha256": "c8445ada83b82a5afacc36ab75c1d89b24c239e71de87511d1ea8719c21bb303",
-          "bytes": 27371
+          "sha256": "28ad07a54aeeebaf4fc64a1ba53e941d69709c6c4d17acae32ecfdb466465172",
+          "bytes": 26732
         },
         {
           "path": "stats.json",
@@ -2109,108 +2109,108 @@
         },
         {
           "path": "sysprompt/Actor.json",
-          "sha256": "61f6652bd929844b297eef6a09d7be441718151ec62be040c55939c6052d295d",
-          "bytes": 375
+          "sha256": "cd83fe29092d734775dc174d9588bf3d351576dcfeab16b7aae4861594a9f5e1",
+          "bytes": 370
         },
         {
           "path": "sysprompt/Assistant - Expert.json",
-          "sha256": "03b59bce8b68e0d31e93a68e9bc5b06bca287db1d8a8526444a58469caaa3be4",
-          "bytes": 784
+          "sha256": "e396003b00eb129d75e9f851678c0796ae114981218c9cfff81597fd07414845",
+          "bytes": 779
         },
         {
           "path": "sysprompt/Assistant - Simple.json",
-          "sha256": "b304599da3efbfa38580a3d1fc49bbb59a3722aeac330958322aaea8171da777",
-          "bytes": 241
+          "sha256": "efc53ed18e15713be7cb85417c798ff2d497b89c2db5a5e2b8c326940eff00ed",
+          "bytes": 236
         },
         {
           "path": "sysprompt/Blank.json",
-          "sha256": "4ab4d0e3c07f50164b3e3db6fbb8bbeaf53f3d48ba058d8cd5824b1f4711d49c",
-          "bytes": 72
+          "sha256": "933a2e96459c938d39f2b8d860ab975e64629303f46c582d79db95df807a9083",
+          "bytes": 67
         },
         {
           "path": "sysprompt/Chain of Thought.json",
-          "sha256": "d9705b025384ea3329863d1888843d31cc751507cc8cb30c5273e8af255a05fb",
-          "bytes": 252
+          "sha256": "a8c23b52b5f4ed9b8cd9c91ce8497171141b88804681cd0a3f4e3cc9f6116888",
+          "bytes": 247
         },
         {
           "path": "sysprompt/Lightning 1.1.json",
-          "sha256": "e4de29956a4f4da6daef153c9d2ad620912019df3f36d2b6ff8fe4ff3de6f212",
-          "bytes": 283
+          "sha256": "7bbf89c5c2e54d038541bcd6b494f3fa715f946be386073227aadf79e5736297",
+          "bytes": 278
         },
         {
           "path": "sysprompt/Neutral - Chat.json",
-          "sha256": "1800ffbe8d0b70f230a1a953209f895f107c169e0ea9c3881ae15b8469dcfc52",
-          "bytes": 159
+          "sha256": "4cf82c659c2b3e9e486cab5201e5464c7380deb5fa52e0c44e8bd14c7b565f5a",
+          "bytes": 154
         },
         {
           "path": "sysprompt/Roleplay - Detailed.json",
-          "sha256": "d349519d68f7225c16cb583800c9aa10e5b54f7a958243627b09c813c4c8c204",
-          "bytes": 295
+          "sha256": "abffc16a408355fd04893982a93d9acbfb232c5a4a7b91ea1356946500872b97",
+          "bytes": 290
         },
         {
           "path": "sysprompt/Roleplay - Immersive.json",
-          "sha256": "01b755d6a69c170dcfe1e01806eb86f91d942b45a02027c0b556ec1c6f00669e",
-          "bytes": 401
+          "sha256": "1b94cbcfc0afe9124570875c02a94470fa609dfba835919254a2bcb847114fb1",
+          "bytes": 396
         },
         {
           "path": "sysprompt/Roleplay - Simple.json",
-          "sha256": "cea11ead1e6fb2228170f9357743c1a5bfb2323e9a2ce144eaa75268031e1d3a",
-          "bytes": 165
+          "sha256": "76daa83d63143c37fc01a36a27a66d35e459e4bdbf0642ba2f332ce6f42605d6",
+          "bytes": 160
         },
         {
           "path": "sysprompt/Text Adventure.json",
-          "sha256": "4f440326d7c552592781061fead5531d350ee1c272996955b830998474d890fd",
-          "bytes": 349
+          "sha256": "bba7d4595d50cde27cf685c2b3b8134463cf2ce7203bac9a79d71f0057491b79",
+          "bytes": 344
         },
         {
           "path": "sysprompt/Writer - Creative.json",
-          "sha256": "a1b8b28615461c30104ed9646a488d5b1ad2f4ba3fe6cd3b9e8af5ddde72006c",
-          "bytes": 203
+          "sha256": "e4171cec4fc86ff0dbd8707b00af1a09c672ae1960295878f9a21c7973f2e57c",
+          "bytes": 198
         },
         {
           "path": "sysprompt/Writer - Realistic.json",
-          "sha256": "3458f8ea1f704beaf7df7eacd421bd658c58e5b6b87d9b60e79b01e9c9a3fb06",
-          "bytes": 150
+          "sha256": "a8443bc2b9ca641421765f00581a26e1f4d95a0ae761fd536e6b9001ca65b7ef",
+          "bytes": 145
         },
         {
           "path": "themes/Azure.json",
-          "sha256": "218a2fbf186f94dc71e14b8d78623959417e2ea45b0ced67ab412a8ca6192f72",
-          "bytes": 1212
+          "sha256": "87426170fa7018df583aeda71f440ceb8f6234794265b6427371706d7fb064b1",
+          "bytes": 1176
         },
         {
           "path": "themes/Cappuccino.json",
-          "sha256": "95572555ddec3be5665ada502d0a2c94e04159d6206fb05e56af4951ed9d4deb",
-          "bytes": 1225
+          "sha256": "06cea473697a1fd4042a3a57f40b1194c1d1db577b253486b893f3c17e941b95",
+          "bytes": 1189
         },
         {
           "path": "themes/Celestial Macaron.json",
-          "sha256": "083a8244f2c31db8890cf41b2e879f62475a62f995a5de98bea34d0d47f1fef7",
-          "bytes": 1269
+          "sha256": "d670ff830f0b4184d44fdc689bf394c33e0cd0d47b99e15026ac14fc008561e0",
+          "bytes": 1233
         },
         {
           "path": "themes/Dark Lite.json",
-          "sha256": "8785fd01494adcb7046222f20092e0333777589e7b746920c662e993937bd298",
-          "bytes": 1201
+          "sha256": "f894d42f22426d645f4b742ecf927a5901540050c26de3524bf9b3990c49f497",
+          "bytes": 1165
         },
         {
           "path": "themes/Dark V 1.0.json",
-          "sha256": "98f36c4b499cfe0a64d1265d1e66890d351c97a9794b8ddd07421ae7117f1f94",
-          "bytes": 1261
+          "sha256": "72b9adb0b173ce007abb37e5ab13d36def301764a5bba45ce08f218501fb03e3",
+          "bytes": 1224
         },
         {
           "path": "user/workflows/Char_Avatar_Comfy_Workflow.json",
-          "sha256": "9c1a75cfd01d17dc79d05fbfdba074e1bcc0fe66c5e4b9767c86c366349b2ba0",
-          "bytes": 2373
+          "sha256": "1f802ab459038f9f3a3d29b79946e55df4900e3ac5306b7edf23fd60a860ebdf",
+          "bytes": 2236
         },
         {
           "path": "user/workflows/Default_Comfy_Workflow.json",
-          "sha256": "b7140c29ce4c527ac77829a3d22277b358c6cd98adb4b444935a295e77c7e8c1",
-          "bytes": 1846
+          "sha256": "18f3e44cdedb1bbc4e9597ce5f759b95f2dfc18f887d3614ff619792366c4fab",
+          "bytes": 1760
         },
         {
           "path": "worlds/Eldoria.json",
-          "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd",
-          "bytes": 8734
+          "sha256": "bfc2548443c890746a54d54e35e41265b02d1b59fd06d72552b305bf9b1e063c",
+          "bytes": 8579
         }
       ]
     },
@@ -2252,193 +2252,193 @@
       "files": [
         {
           "path": "KoboldAI Settings/Deterministic.json",
-          "sha256": "af73c5ca66820e68064c2159c6e1af3f558c958009f85d2c37d2ca1b244b9c56",
-          "bytes": 436
+          "sha256": "41cd7f2443b6fd1ae4e594007a39bc7345aca07dee82b40a16b957fe93d650f4",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/Neutral.json",
-          "sha256": "ecf0d5696b7df61cb1174d07af06f8134f373e7addf307ab8abc75c8930fe953",
-          "bytes": 436
+          "sha256": "b86461c767efe7b3d3dd2f1fbb3f133e1561830e8b189a2af102d5beba8ebdf1",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/RecoveredRuins.json",
-          "sha256": "c23d970bcb603ba970e32b2c774452c77e3c52a933a59bca473ac7fbafb36dce",
-          "bytes": 446
+          "sha256": "1bab77d576ac351000af7f34980720d7e495c8070b80c69205a126415992d2d2",
+          "bytes": 420
         },
         {
           "path": "KoboldAI Settings/Universal-Creative.json",
-          "sha256": "f58925de79f2e0bde707450eeb17d61da39405f3489cb45cd7273b93c26e19c6",
-          "bytes": 440
+          "sha256": "b707bf3af0832f9b31123baebd1216fdc8530251cfaeb0df1918b9d791cbf911",
+          "bytes": 414
         },
         {
           "path": "KoboldAI Settings/Universal-Light.json",
-          "sha256": "8726b4b94e1a5d33105ac08c0643a5927ed65a8460454533fabefbd7c22e4e55",
-          "bytes": 441
+          "sha256": "2e4240692c6157fb7385c2fe7c180c1eb5c1d8f02427f5312a44eb14f1ee7465",
+          "bytes": 415
         },
         {
           "path": "KoboldAI Settings/Universal-Super-Creative.json",
-          "sha256": "8c342c8ca0cddcf869c16395711fb5f3a4fd9d4277cdb88798bbe0cc57e50020",
-          "bytes": 438
+          "sha256": "d8e8f1cee2f8bb43b56c0b4fde45c3810c9055b58cac9c7a9badcda2fcc7c763",
+          "bytes": 412
         },
         {
           "path": "NovelAI Settings/Asper-Kayra.json",
-          "sha256": "1145a9d57f9e4cea88e2b8943270af30fc467013b9bc4712d6f3cfef1f2ea255",
-          "bytes": 572
+          "sha256": "62453ef27d02b1979fb70bc707242344e5f02682c053ee0437c35b16a205c36e",
+          "bytes": 549
         },
         {
           "path": "NovelAI Settings/Blended-Coffee-Kayra.json",
-          "sha256": "d40b947863c65f77ef616f7c3676a68c33ba69224c182568a93718692895f842",
-          "bytes": 521
+          "sha256": "e0cc42dae0a136b0cc6fe750c78d0a632c528ce23203fff058352f7ec638f1a1",
+          "bytes": 499
         },
         {
           "path": "NovelAI Settings/Blook-Kayra.json",
-          "sha256": "e858660ec349f200f68e57d5486877a12c1ee83a67f48cbeefb1f4f5243b42ea",
-          "bytes": 564
+          "sha256": "65d93da5a92561190ccd5f910da4179e52d509aec8e882228ee2cd773bfb0c76",
+          "bytes": 541
         },
         {
           "path": "NovelAI Settings/Carefree-Kayra.json",
-          "sha256": "78753a8ce0457e5c9cae80b55024d5f904d1205e74e08dbeb51816b43e51b52d",
-          "bytes": 590
-        },
-        {
-          "path": "NovelAI Settings/CosmicCube-Kayra.json",
-          "sha256": "6bcf8cc5cf4047bb763f545e7f333fca8a2678c744591f895e6c0ef185a4330f",
-          "bytes": 556
-        },
-        {
-          "path": "NovelAI Settings/Edgewise-Clio.json",
-          "sha256": "4cf251d551c84b3823fc02f89c95f726e947aa957a294a2f6f3feb9209f1cedd",
-          "bytes": 605
-        },
-        {
-          "path": "NovelAI Settings/Erato-Dragonfruit.json",
-          "sha256": "897d99f8441b86d567e8236ffd0d753d492b34b2c5a871f3472c725e4ea62ad8",
-          "bytes": 689
-        },
-        {
-          "path": "NovelAI Settings/Erato-Golden Arrow.json",
-          "sha256": "32da5acfa22ab856b47977c25f249105d71294c19e0e8fe7d06fe22f294093fb",
-          "bytes": 623
-        },
-        {
-          "path": "NovelAI Settings/Erato-Shosetsu.json",
-          "sha256": "4c36f8d4f44e052ec8ade2ed9e43f770676030b6f8f652bf7fa40f969aa3b199",
-          "bytes": 643
-        },
-        {
-          "path": "NovelAI Settings/Erato-Wilder.json",
-          "sha256": "b35819dacf8c790c8fdab49e9e3ff2a1737f3d46d84adbeeb9d97a5d7cdd4e7f",
-          "bytes": 645
-        },
-        {
-          "path": "NovelAI Settings/Erato-Zany Scribe.json",
-          "sha256": "c84b2fffb79856a15930236ea951d4746a1f6a6c4e783cb7c9ebae1de81dd484",
-          "bytes": 630
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
-          "sha256": "35a6dc4dda6ae2c689b5ec6fcb8b8cd476210391d3b27c29c19d555e3c833b3a",
-          "bytes": 602
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
-          "sha256": "68275b77712a4e0eb1e7e099ba7a73a0e7d06a7c5529166a92ac92d990a14aab",
-          "bytes": 559
-        },
-        {
-          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
-          "sha256": "df11db66ca13f65d7c9b40e44879bee57190b8d5d76272e93d24c285fc14036e",
+          "sha256": "ba59661b184f066abdef36588421a8e038e846125820c58b737234b91052548d",
           "bytes": 566
         },
         {
-          "path": "NovelAI Settings/Keelback-Clio.json",
-          "sha256": "151554dcf0fc64e178cd0ca2f37b137d2c0c5c44bebd24dccee49206bdcb4222",
-          "bytes": 602
+          "path": "NovelAI Settings/CosmicCube-Kayra.json",
+          "sha256": "5e3f3a0c1cc9b948bf93de8fa6ef7490572cddeba8e7e4dafd0c193bbfb4d9c6",
+          "bytes": 533
         },
         {
-          "path": "NovelAI Settings/Long-Press-Clio.json",
-          "sha256": "4ddb3cee1584a863ef6d844f6b8ae843c0c6a2f42bb11d1f49d6ed29c23c2d2e",
-          "bytes": 617
+          "path": "NovelAI Settings/Edgewise-Clio.json",
+          "sha256": "397fbf98f18b6db90c200fffcf5e0098fec4b5ccaec23f0622eb0ed50aa4c5ca",
+          "bytes": 581
         },
         {
-          "path": "NovelAI Settings/Pilotfish-Kayra.json",
-          "sha256": "e327ae13ecbdd0eee66f537cb6279d8f11c2a72d364dacb22f75e0c87b840cac",
-          "bytes": 617
+          "path": "NovelAI Settings/Erato-Dragonfruit.json",
+          "sha256": "a11fc21f0812289432f4f05d3520f81b1fcd8cf13f3964e6bdd7e9fe2f82e00b",
+          "bytes": 658
         },
         {
-          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
-          "sha256": "3c0a75649905330f3f5c99ad2ccbaad2bafeef4f6c212484a04c644d3f610fec",
-          "bytes": 572
+          "path": "NovelAI Settings/Erato-Golden Arrow.json",
+          "sha256": "20ee8c0f32eba9c86c4f6b7fd2cd5a44300d517c805a9be8a2b716c94365c81c",
+          "bytes": 596
         },
         {
-          "path": "NovelAI Settings/Stelenes-Kayra.json",
-          "sha256": "9c32001589440de12af7054f2920e17c8af5b5440feac18ddaeccb658c13f4b9",
-          "bytes": 509
+          "path": "NovelAI Settings/Erato-Shosetsu.json",
+          "sha256": "0aa07cc2a224fec15278010cfa26c3683f83117d4739eba3c8c4590484cd97ce",
+          "bytes": 616
         },
         {
-          "path": "NovelAI Settings/Talker-Chat-Clio.json",
-          "sha256": "f96d2dd4a51a32182b564a36f1fc06dbb5b1aa25f1ab5a32237b6c9ced64cafa",
+          "path": "NovelAI Settings/Erato-Wilder.json",
+          "sha256": "cfdedae25a050434d5e7991541ecd70b78fce43de985baa1d3f0dd9b9f7a65f1",
           "bytes": 618
         },
         {
+          "path": "NovelAI Settings/Erato-Zany Scribe.json",
+          "sha256": "27175b37a84aa5bf5bb09eb60f2b40307a841e65ec61b13bc715250e80f8c7b8",
+          "bytes": 603
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
+          "sha256": "3a8491e574df4f2a969169cd9b828a4258098f470d9a7ac1b92134164c3fab2e",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
+          "sha256": "9993c29bebd762626af522db59f893700495ca0f6736a28e9ece56848ef77f6b",
+          "bytes": 536
+        },
+        {
+          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
+          "sha256": "0e7cb6bef9571ea0ecb827838d84010176ce0e52a124a055d034780fa22762ab",
+          "bytes": 543
+        },
+        {
+          "path": "NovelAI Settings/Keelback-Clio.json",
+          "sha256": "b5650f9e006efab28e6c0688d1b92437f4fa817ec6957db24a8b7aaa7f9147fe",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Long-Press-Clio.json",
+          "sha256": "27e8f89acc9337d1d9371266c0849f5de06759242fca8ab1d4a2fd8d701824fd",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pilotfish-Kayra.json",
+          "sha256": "65bd2126589b555343dbb4ce738ec4061975bacb5dd41036d8b08f91da04c35d",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
+          "sha256": "5a45580ed4b5db1d9358a1cb6999ea9e3d6a0f178f0a27a8b7eaba21ee228d99",
+          "bytes": 549
+        },
+        {
+          "path": "NovelAI Settings/Stelenes-Kayra.json",
+          "sha256": "6d493dacfa1b74f8992175344ad45e61029e58eceef57f59d17f459939ad1216",
+          "bytes": 488
+        },
+        {
+          "path": "NovelAI Settings/Talker-Chat-Clio.json",
+          "sha256": "129571faf582970837444e912caf3c0f981a2d893ac07bbb5e96309af270aa9e",
+          "bytes": 593
+        },
+        {
           "path": "NovelAI Settings/Tea_Time-Kayra.json",
-          "sha256": "f5332ff1e6c3e8cfab2a15151175608eb337370066fc5396edab48caa01ec7ee",
-          "bytes": 535
+          "sha256": "7a76d1fb6eac2323c08ca6355ba0b8af79b87177f717cd10b1843f072b19a932",
+          "bytes": 513
         },
         {
           "path": "NovelAI Settings/Tesseract-Kayra.json",
-          "sha256": "30a9350f46cef1795e9b74b7cb952234bd172b0559dd58f43bbe6aa412eb774e",
-          "bytes": 514
+          "sha256": "6338244f11a8b702618a7b53ab84720489e5d5f719e508742bb1b9c1af26ec57",
+          "bytes": 493
         },
         {
           "path": "NovelAI Settings/Vingt-Un-Clio.json",
-          "sha256": "511ea577103858993268176b0685a5299bff82f08d76e9e50e0d6f17ba335577",
-          "bytes": 613
+          "sha256": "31a0a3b08abf8a66cfe3f4ce518c5b6f22cf0392595a5addf7eedbfb13c71278",
+          "bytes": 588
         },
         {
           "path": "NovelAI Settings/Writers-Daemon-Kayra.json",
-          "sha256": "312924b363dc2886140a1c83f1eb649456336a76daff3dbd8aba43af60749386",
-          "bytes": 611
+          "sha256": "4277b68e73f20b88d6054e5d1b412c60ddc10fbe8f6112d76da9b353e3493749",
+          "bytes": 586
         },
         {
           "path": "OpenAI Settings/Default.json",
-          "sha256": "3d375226d9cbb69bfa1fca6fb9a5a4bf33a54223edd7a969755c17f87661a00e",
-          "bytes": 8004
+          "sha256": "a2b1bdcfd190d69b91452baff91281480c32020950092589e692ad6e2c1523bd",
+          "bytes": 7759
         },
         {
           "path": "QuickReplies/Default.json",
-          "sha256": "16d1d8a45efe3d5955866ffdf49388a7472e6855825e96b8fcdd366e9b415c03",
-          "bytes": 509
+          "sha256": "d75fd132a1971f96272f0d9544a2c89d7fc9af5dcb69f6cfc53aab913bcb744e",
+          "bytes": 486
         },
         {
           "path": "TextGen Settings/Default.json",
-          "sha256": "88b29cac684d8827b62f005befb1f52a087baca0cf6c1fc6064026ceaaa27164",
-          "bytes": 2689
+          "sha256": "60363ca2be2216a17cea3a5a3aa7613e68cddb03e91085f27d47f499a28b5ce0",
+          "bytes": 2570
         },
         {
           "path": "TextGen Settings/Deterministic.json",
-          "sha256": "803ad89598b854b928eaedacc4428c5d7013ec74e6622ad9633ae2477fa34a6b",
-          "bytes": 2682
+          "sha256": "d2b265ee734eadf7ce46184ec0d8e063813e8e56fe06c8055d55398776af5f65",
+          "bytes": 2563
         },
         {
           "path": "TextGen Settings/Neutral.json",
-          "sha256": "d6ef1c9f2dbcf5ad7acaf96bf7b530e220ca30d28a4c73b8199cade502d28a5d",
-          "bytes": 2681
+          "sha256": "a4b0695e9d1fca8f377c3cd09d810bcc36cdcc6f3f6ec8db7cbba73d164c20f6",
+          "bytes": 2562
         },
         {
           "path": "TextGen Settings/Universal-Creative.json",
-          "sha256": "459870d3e3063a8edce4340c8fa0f845b03fcd02ad4c220753f678fd934bb98b",
-          "bytes": 2686
+          "sha256": "a777940603c4d6d7dd33c53b3f6db740bb6bd28ced1e875c811b22b5c627fece",
+          "bytes": 2567
         },
         {
           "path": "TextGen Settings/Universal-Light.json",
-          "sha256": "c7ccafee0db9183c5aafe69ef4d2a849e7c6b55f8669cf65b55f676e7ee9d2de",
-          "bytes": 2687
+          "sha256": "d6d43adf814716a117cbc1dca0ab5faad3f094c1d346278f8d86a584d2d7cf20",
+          "bytes": 2568
         },
         {
           "path": "TextGen Settings/Universal-Super-Creative.json",
-          "sha256": "116688520173d57a2949e04faac751afd18f3aee3421ef82d410b183a1c34c61",
-          "bytes": 2684
+          "sha256": "0c390ec645e85fbe5fa935e92d5e82bfe7fc6e1838fdb92e1d97aa2697965a02",
+          "bytes": 2565
         },
         {
           "path": "User Avatars/user-default.png",
@@ -2712,393 +2712,393 @@
         },
         {
           "path": "context/Adventure.json",
-          "sha256": "7e3619707cda7005c8b54dfcbb69658ff7edda086ce5c56eff23eef0b674c73a",
-          "bytes": 718
-        },
-        {
-          "path": "context/Alpaca-Single-Turn.json",
-          "sha256": "625f93178371f84d4a31e8eaac1c37c8a1d05450cdc3a44a9e2bf74759364d59",
-          "bytes": 728
-        },
-        {
-          "path": "context/Alpaca.json",
-          "sha256": "206828b70e8e027c20e204b767daf814c20451f4e06ea66fc993f0a1093e3486",
-          "bytes": 715
-        },
-        {
-          "path": "context/ChatML-Names.json",
-          "sha256": "a048775c2a455aac97a0d4d422fab6c8aa1f0843d690dd64a0d8056d1d8f609a",
-          "bytes": 721
-        },
-        {
-          "path": "context/ChatML.json",
-          "sha256": "24570cc76693da9a67e22cf13b8cd7badf6598610b1def663f1e26ba82dd34bb",
-          "bytes": 715
-        },
-        {
-          "path": "context/Command R.json",
-          "sha256": "1ffa82c3083eeeca49a64a11ac23fd2e333d9a728e1b9ae5798277f6327b0cdd",
-          "bytes": 718
-        },
-        {
-          "path": "context/DeepSeek-V2.5.json",
-          "sha256": "fc7b65c231b352457a9f3c37d8265146b70fecc83ce8c6aa5c0dff28183ec015",
-          "bytes": 722
-        },
-        {
-          "path": "context/Default.json",
-          "sha256": "90437a80dff193fa0be3d0e6ab95845ad8b49fc9c6ebb9d39588bb39477b4888",
-          "bytes": 722
-        },
-        {
-          "path": "context/Dots1.json",
-          "sha256": "0d4909d12f44737cad4da7286cb93e32a1e6a7b47c1a6d336c4d32dda784ffa4",
-          "bytes": 714
-        },
-        {
-          "path": "context/GLM-4.json",
-          "sha256": "52b3b989544b69ee685128123f58ff57fc61606709451e9180826b758bda2810",
-          "bytes": 714
-        },
-        {
-          "path": "context/Gemma 2.json",
-          "sha256": "2d1ab0197461287d9cafd0fc277e761b6b16f861b0b6da55bb5935fcfe59f8cb",
-          "bytes": 716
-        },
-        {
-          "path": "context/Gemma 4.json",
-          "sha256": "4722f024cd2601b88a29542e046602c63ae1b33fc132b142740cc95e723e4ae1",
-          "bytes": 716
-        },
-        {
-          "path": "context/Libra-32B.json",
-          "sha256": "67a056686862823fbff872c4bbbeca221d363512d75e7193e19bbac8a6e97cea",
-          "bytes": 749
-        },
-        {
-          "path": "context/Lightning 1.1.json",
-          "sha256": "e7d73dc14de9c556ff86b72e4f9f460ed10c334d8dbce906f78f4c304d7a2591",
-          "bytes": 788
-        },
-        {
-          "path": "context/Llama 2 Chat.json",
-          "sha256": "8dbc8dd7fa33d4a29946c38584c3a7dd19ceda2f0043cf6cee3ddcd85e119fa5",
-          "bytes": 721
-        },
-        {
-          "path": "context/Llama 3 Instruct.json",
-          "sha256": "a1a14403605d9eff26adfee3aaf3b746bb9ceb5d9e5d99601ead8cd0a3800ad8",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama 4 Instruct.json",
-          "sha256": "db06ee7de1da1c6266d8a046d0df52164517e3526513556cd5edfc881db1dfcf",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama-3-Instruct-Names.json",
-          "sha256": "f0d075a49f3f5a4d54af464f7728e2e579cf27eba682a7c7ce1007b232a4911d",
-          "bytes": 731
-        },
-        {
-          "path": "context/Metharme.json",
-          "sha256": "703e73e82ac7666014ef3b46eaa45bab50267130b5f43830a0e9049a37f6af55",
-          "bytes": 717
-        },
-        {
-          "path": "context/Minimalist.json",
-          "sha256": "8d869998d4d78e0763ff7b73ecfeb9d238928da9efa58cb4dec672e02f9b5578",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V1.json",
-          "sha256": "eee140f7d861f26bf58f7f3941f9e84099b81dba4ca361e0f080430a6e0a2570",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V2 & V3.json",
-          "sha256": "530999503beb216adafa61f77bc1516aaa0d93bec2df8f1399c4d07d0926d6d8",
-          "bytes": 724
-        },
-        {
-          "path": "context/Mistral V3-Tekken.json",
-          "sha256": "15b2a602b0dea7fbeb417e11b46baba214dea7db8f72258d23940af67b2fc001",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7-Tekken.json",
-          "sha256": "161b1df96a84b98a3f0486744a9a939c3ca4e11bd4fc5b72c4a122a5b0a1968a",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7.json",
-          "sha256": "5de90cd4f7082f1b69f78fd1d0ca5c918dcc02495b8e7b50a11eedae873ad943",
-          "bytes": 719
-        },
-        {
-          "path": "context/Moonshot AI.json",
-          "sha256": "1a9ddec80ca34bb1c430b1196a50891a64e603778b59ed66b1568bd38af4cf2c",
-          "bytes": 720
-        },
-        {
-          "path": "context/NovelAI.json",
-          "sha256": "aab948f349b7f46d0356961708df46c9dbf52eff044ccf3b7d534aea03b7ad33",
-          "bytes": 722
-        },
-        {
-          "path": "context/OldDefault.json",
-          "sha256": "8eec6c48ac10e67c8ade58019b4596a5e66b0854145791e8147527bee693bfd2",
-          "bytes": 874
-        },
-        {
-          "path": "context/OpenAI Harmony.json",
-          "sha256": "0f912f4922bca0740982aed3b1619d17f90dd1551c156ade2661e8921c6121f1",
-          "bytes": 723
-        },
-        {
-          "path": "context/Phi.json",
-          "sha256": "4b41862e7aef53eb39910bc896712cce2dc99047113883ff2ed44d6faf313aad",
-          "bytes": 712
-        },
-        {
-          "path": "context/Story.json",
-          "sha256": "1e813bb003eb8c2d9d80afeca8e5dfa841c42f167802b2fc2a95ec165d477c91",
-          "bytes": 714
-        },
-        {
-          "path": "context/Synthia.json",
-          "sha256": "343da773c09a0f43a12eafd6fbbd55f586dc0fc262dc7ea47799b4b0a24be874",
-          "bytes": 716
-        },
-        {
-          "path": "context/Tulu.json",
-          "sha256": "b96e22b7346afa334574a3a27e9792f2dbcdba1839a6a747f795e4132f67b212",
-          "bytes": 713
-        },
-        {
-          "path": "context/simple-proxy-for-tavern.json",
-          "sha256": "384240293e643a689716977f0d6c81c1ff6ae83ef94098d06c47f0558df92b96",
-          "bytes": 792
-        },
-        {
-          "path": "instruct/Adventure.json",
-          "sha256": "d6659f665b04e9ad005b27ade79eec7fd69752963ffe1cb6b1827d9cb429b52c",
-          "bytes": 684
-        },
-        {
-          "path": "instruct/Alpaca-Single-Turn.json",
-          "sha256": "b9a59e0bfe10787c65d2f472e486e011f4fd671ba1a0c93a81933c4151e47ea7",
-          "bytes": 851
-        },
-        {
-          "path": "instruct/Alpaca.json",
-          "sha256": "71d4cb67cf267406816499cf50c8165831244fb2020c2ed42654953892e95f58",
-          "bytes": 737
-        },
-        {
-          "path": "instruct/ChatML-Names.json",
-          "sha256": "aa4c76d64a21101f447171d48453089c038f9992a91b53cfc9ed21416694c17c",
-          "bytes": 821
-        },
-        {
-          "path": "instruct/ChatML.json",
-          "sha256": "02b5bc3361e5ce423576b00cc2c971c8e1c797a8db0d5e4490b4df5bef4ad672",
-          "bytes": 813
-        },
-        {
-          "path": "instruct/Command R.json",
-          "sha256": "b3aa4d52478eee5be8be1c4eff573c2666aea1bddbf6c06f05e0824d43196a14",
-          "bytes": 946
-        },
-        {
-          "path": "instruct/DeepSeek-V2.5.json",
-          "sha256": "56658074d237ebd6044e179353bec46df931d17e01786d7d647dfbf2b9686b67",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Dots1.json",
-          "sha256": "ee2b4b6fb2918cc1215dfdd30befecd2937286e1c139d0fb7e9152386aa37850",
-          "bytes": 818
-        },
-        {
-          "path": "instruct/GLM-4.json",
-          "sha256": "77a65cc6f196d64355b7e758399fd48b36128049e35d151ab9701be624cc270c",
-          "bytes": 720
-        },
-        {
-          "path": "instruct/Gemma 2.json",
-          "sha256": "6599d486248efa620a3b6460ff5d07e2dd071d18c86a3d33975f74b2129a17f0",
-          "bytes": 834
-        },
-        {
-          "path": "instruct/Gemma 4.json",
-          "sha256": "c7f53f8de92b3d6ccdb52aac5a709ba91d42b67d8c72881e2fd0b9577f5f5607",
-          "bytes": 784
-        },
-        {
-          "path": "instruct/Koala.json",
-          "sha256": "5adb6972265e602026b6f5744c4f42ca1c8b90543567101aacbb0804d59ea81b",
-          "bytes": 726
-        },
-        {
-          "path": "instruct/KoboldAI.json",
-          "sha256": "4f1b6dd1f05c73b4680a37aa356f6f5609e25ac7eb16d353eb7e602df1a5b88e",
-          "bytes": 795
-        },
-        {
-          "path": "instruct/Libra-32B.json",
-          "sha256": "5af960c28cdbcf1119bc39f77c9f63f21cb7055b6f78a7fa31cc5c1187f4685c",
-          "bytes": 717
-        },
-        {
-          "path": "instruct/Lightning 1.1.json",
-          "sha256": "6288477ca1123fd9a90862e2f0532bb69bdfc61d7ec085eab0d7df4c9557268d",
-          "bytes": 888
-        },
-        {
-          "path": "instruct/Llama 2 Chat.json",
-          "sha256": "fcaf16a9c412b52b4f56a6204a181b252e56c88a9a402668728a443da8aebb82",
-          "bytes": 844
-        },
-        {
-          "path": "instruct/Llama 3 Instruct.json",
-          "sha256": "ccff79de3190ba55080c432d0e8354ef5fd24ba07d594131bccefe83dc5f6a18",
-          "bytes": 928
-        },
-        {
-          "path": "instruct/Llama 4 Instruct.json",
-          "sha256": "061962e65a22701fdaadc431f35e1fce9de42d328f710c568860ce04a9afba1a",
-          "bytes": 906
-        },
-        {
-          "path": "instruct/Llama-3-Instruct-Names.json",
-          "sha256": "b3abcc0f823fbcfb34248a8f5a179bedd1f21cb8c936cda1eb97b6d4d8989f94",
-          "bytes": 935
-        },
-        {
-          "path": "instruct/Metharme.json",
-          "sha256": "8b9952080d7d5d7dc56ab914ee1aed179c1df88bd3edbbefbc51760ac342feb5",
-          "bytes": 715
-        },
-        {
-          "path": "instruct/Mistral V1.json",
-          "sha256": "6c6abd486d8a6b41a40962a4c51af404b2120fa33c9274c96b2e5a21ba3fc957",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V2 & V3.json",
-          "sha256": "a411a87e0fb832f7461546967dea5684dced77928596e9d1ae8f615b455f687c",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V3-Tekken.json",
-          "sha256": "3ade2f534f7155e6456e20e7cb108993c4f11049d6fc5fd9087431c4f2835372",
-          "bytes": 829
-        },
-        {
-          "path": "instruct/Mistral V7-Tekken.json",
-          "sha256": "300a8a67e4efaa369011124659698a2acd450a14b501bb9d229f30702354964a",
-          "bytes": 777
-        },
-        {
-          "path": "instruct/Mistral V7.json",
-          "sha256": "c607c3bbe214f67f6395c14c4289bb6638b89a8fc8d4b60052573cf89110cc8c",
-          "bytes": 774
-        },
-        {
-          "path": "instruct/Moonshot AI.json",
-          "sha256": "f93efa0f02de67e4b438ac41bb198e5c9b99a6d4d62d3a6272005f30ada3aaac",
-          "bytes": 868
-        },
-        {
-          "path": "instruct/OpenAI Harmony (Thinking).json",
-          "sha256": "b62cf90501933a6a9853c665ad944b7874c1bbbe78ec431fe57f6aa52023ac2c",
-          "bytes": 863
-        },
-        {
-          "path": "instruct/OpenAI Harmony.json",
-          "sha256": "2c9e6e44ef07b4a2fdf47349027b52ef14024bd84bb30eea6c868facf8bf75aa",
-          "bytes": 843
-        },
-        {
-          "path": "instruct/OpenOrca-OpenChat.json",
-          "sha256": "fa8709f8f4f60d327652b38a0f75054ad898773111bf38b3eb539f429ab80688",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Phi.json",
-          "sha256": "7dc643b9888c947858bbe72555edaf2e1f55403ff3fd8e108c149d88cf486d15",
-          "bytes": 772
-        },
-        {
-          "path": "instruct/Story.json",
-          "sha256": "83800aaae309619363ddb4eab0b28e8ba8e39f0b344c0a7fda00af05f7e7e3c0",
-          "bytes": 680
-        },
-        {
-          "path": "instruct/Synthia.json",
-          "sha256": "7712fdb777bc911af024a9d4c033b5acb2dbeec9588cc5c8e1f578f282bf4748",
-          "bytes": 816
-        },
-        {
-          "path": "instruct/Tulu.json",
-          "sha256": "c9ae396053e2bddb0302cd6fcfceb2670bff39fe27518d2820f9af59bb3f4396",
-          "bytes": 768
-        },
-        {
-          "path": "instruct/Vicuna 1.0.json",
-          "sha256": "62044743559d4900360ba40e7d4ef6df28ce979f41913434114b35d9e63f666e",
-          "bytes": 709
-        },
-        {
-          "path": "instruct/Vicuna 1.1.json",
-          "sha256": "333fd8ee5bede5c10ee5fbc3faddf88cd89fbd311e2c7c06b34867ae25ddcc0f",
-          "bytes": 738
-        },
-        {
-          "path": "instruct/WizardLM-13B.json",
-          "sha256": "b27c9d4e069488ebee0a3e430cc9e2977248006ff19aecf9f95a94610589fbd1",
+          "sha256": "8f6fee53a0db25251bd0adba8c8d887461a42764fdc577d2b7b4424696c06025",
           "bytes": 704
         },
         {
-          "path": "instruct/WizardLM.json",
-          "sha256": "07403d0971a6c7482e4b0de14728afe52a48f05ef83b6fba1c4315f29c4e4fb9",
+          "path": "context/Alpaca-Single-Turn.json",
+          "sha256": "88e0bdec60617ad9d33a451727ef8e0e6daf58e338f5d63e6b950679a21835df",
+          "bytes": 714
+        },
+        {
+          "path": "context/Alpaca.json",
+          "sha256": "5b6dd66b41b8100fae585a389ffe9c0801e5d414ce41d3d64b8bbc59ec9cc3eb",
           "bytes": 701
         },
         {
+          "path": "context/ChatML-Names.json",
+          "sha256": "c87008547980ec6a228dce0c69af489b7a7ca4c8329a360337e81e1196f14a9f",
+          "bytes": 707
+        },
+        {
+          "path": "context/ChatML.json",
+          "sha256": "f818ec35136a8a517059638d8586e186679479f34130ecf6f0ee79452c23d02e",
+          "bytes": 701
+        },
+        {
+          "path": "context/Command R.json",
+          "sha256": "14f0c238738c7e407070cefdf647307e3bb76595c6f886395dec752bf62f04cf",
+          "bytes": 704
+        },
+        {
+          "path": "context/DeepSeek-V2.5.json",
+          "sha256": "976875b234db3e94d7e5b5c5bc8a48cbe665f05f1ea5486ea329cf29a124cce8",
+          "bytes": 708
+        },
+        {
+          "path": "context/Default.json",
+          "sha256": "e3c31deba3ef2857c4a43e7d8f25149ca75f7ed68962a63f40f10b72d830ccc1",
+          "bytes": 708
+        },
+        {
+          "path": "context/Dots1.json",
+          "sha256": "3a99f6eeb42a59a6e1277f654a66c0352caff46bf4f54519d6797ae23606aad7",
+          "bytes": 700
+        },
+        {
+          "path": "context/GLM-4.json",
+          "sha256": "a651ab25f9726bc12fdb4f2551c18670611b87e4f21d418bb53c7ae5c02c01a2",
+          "bytes": 700
+        },
+        {
+          "path": "context/Gemma 2.json",
+          "sha256": "8526d23b85efcb42045e6e13d037c66a453044cd38ff411673da8ce62a91794b",
+          "bytes": 702
+        },
+        {
+          "path": "context/Gemma 4.json",
+          "sha256": "c73fb0b0145d19d6d3004c3150838f1ad67cc9f50a532a6baa92eba2b8320c2d",
+          "bytes": 702
+        },
+        {
+          "path": "context/Libra-32B.json",
+          "sha256": "a9b8814a5040e77126279ffbf62342391fb646e0995597dac226a5d41db28022",
+          "bytes": 735
+        },
+        {
+          "path": "context/Lightning 1.1.json",
+          "sha256": "d8e914990a7727e9f369c19884ba13f429d5a7607aa000820b7facb7fcd27e19",
+          "bytes": 774
+        },
+        {
+          "path": "context/Llama 2 Chat.json",
+          "sha256": "5ff8983605efe00af7f91d6d6d6e4ed4efe432ae3d65a45d556592abae1fded7",
+          "bytes": 707
+        },
+        {
+          "path": "context/Llama 3 Instruct.json",
+          "sha256": "75e03c49d5845caf2079cc0b3e80037d0121f0410a10ed1e77624cae2e31b545",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama 4 Instruct.json",
+          "sha256": "1b509c13037b2c9eaf94b3a78632a3e57770346448f86ad45630fdae16a4e6f2",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama-3-Instruct-Names.json",
+          "sha256": "859071917419895b87a6c603e21b9c0f0ab764069f7666b970d4e8d3bd7d6dbb",
+          "bytes": 717
+        },
+        {
+          "path": "context/Metharme.json",
+          "sha256": "9c62ebb06665a6c17d882e907b466f3a68d1bdea798c313701304a274d98e337",
+          "bytes": 703
+        },
+        {
+          "path": "context/Minimalist.json",
+          "sha256": "d66109a5311c5c61fb6efae797278e00edff9b14d50370a484cafd83194b89d1",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V1.json",
+          "sha256": "5ec9359c07bda4184840186901350e2a58779eb1e32baabdde48463ced4cbf03",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V2 & V3.json",
+          "sha256": "b2ba0ac1238c0434599b49e155a586bd609ca0aad7ffea92d4f7b14b8fc5f260",
+          "bytes": 710
+        },
+        {
+          "path": "context/Mistral V3-Tekken.json",
+          "sha256": "196b6299a32b2aebfcbaf92cf0188f9679aebb4fb45c447cfc47b332fbd26757",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7-Tekken.json",
+          "sha256": "678e4de11ab2df643106cc96284f75f8ce5d9d4fa1091c36c466c1874c65a505",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7.json",
+          "sha256": "fdf72d4893b589ea21f1e877abac8fdfdd30c7c4aab6cb13dafd33f4e4b9a6ff",
+          "bytes": 705
+        },
+        {
+          "path": "context/Moonshot AI.json",
+          "sha256": "3e8515424fdf4ddec0f05566cc956f398820cb0ce6e324c177f6d2fb9e1387d4",
+          "bytes": 706
+        },
+        {
+          "path": "context/NovelAI.json",
+          "sha256": "9b73d710a15bb51ba67a01530818963da2820ec44ad8c3b20b366f2071b54a08",
+          "bytes": 708
+        },
+        {
+          "path": "context/OldDefault.json",
+          "sha256": "29aaf2df139558798174de42e9990e38a4665ce3d4e0184e0db43b03342af2eb",
+          "bytes": 860
+        },
+        {
+          "path": "context/OpenAI Harmony.json",
+          "sha256": "0f461a5f9c00471aa13f6a2b2547e484c9b3d246d6de4ba8190059a5e3ff2837",
+          "bytes": 709
+        },
+        {
+          "path": "context/Phi.json",
+          "sha256": "7e53ac47730997ae35823387cfd025ccf6418d719fff14a1bf40fdc6e5ccdbd9",
+          "bytes": 698
+        },
+        {
+          "path": "context/Story.json",
+          "sha256": "1a27af7873e184352a56a57de305e973128d11bbbfe2e35c88ff891881ce4bde",
+          "bytes": 700
+        },
+        {
+          "path": "context/Synthia.json",
+          "sha256": "d7f470e285b98af3e5f2e0e5b670ca55890bdd118bbfd3128b9634c07f9b4846",
+          "bytes": 702
+        },
+        {
+          "path": "context/Tulu.json",
+          "sha256": "4138354ae74f1340e03013c6b57736594cb5ef5a1b27443105ad22b12ae90478",
+          "bytes": 699
+        },
+        {
+          "path": "context/simple-proxy-for-tavern.json",
+          "sha256": "67e891c6e2874f9bf692b638a7aee733718a2ba8ac2e45233d1ff1922a54bfdb",
+          "bytes": 778
+        },
+        {
+          "path": "instruct/Adventure.json",
+          "sha256": "cfd2193894604766899132553ce53b7119688c034d1164e23259abdd892974ee",
+          "bytes": 659
+        },
+        {
+          "path": "instruct/Alpaca-Single-Turn.json",
+          "sha256": "afb8a25bb44a031630d4f63040012c7a2e54a176c8324b7a81b96bb0612b5dd1",
+          "bytes": 826
+        },
+        {
+          "path": "instruct/Alpaca.json",
+          "sha256": "24979aeb1fbb029b0f11f4674bda3df89c6fcd221a7aa64c900fab3bbde46696",
+          "bytes": 712
+        },
+        {
+          "path": "instruct/ChatML-Names.json",
+          "sha256": "fff186d34de418ef71da00da96c30336effdcdfd4201823df1ca79944214cea7",
+          "bytes": 796
+        },
+        {
+          "path": "instruct/ChatML.json",
+          "sha256": "78d9b539e134364fab3c2fc99f95e09cb9d09302c36731c32d9b820f913ac97f",
+          "bytes": 788
+        },
+        {
+          "path": "instruct/Command R.json",
+          "sha256": "d3ec2ecf32cf0148cbca7c1495da1e0aff051a2f55224651a98f4bb7ce2079a7",
+          "bytes": 921
+        },
+        {
+          "path": "instruct/DeepSeek-V2.5.json",
+          "sha256": "7d41b202fb5de660bdfa64f5d79fb680ed5b46b47921345c3f01aa7dd96e942f",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Dots1.json",
+          "sha256": "6591347926bffd6479bc75432a0a580eecd7e9d802748fe937196e0713b89796",
+          "bytes": 793
+        },
+        {
+          "path": "instruct/GLM-4.json",
+          "sha256": "bcd87ffa0b26dee3ae48cdd1ab55705c090ab18dde638ffc269887c6c0d2e1c5",
+          "bytes": 695
+        },
+        {
+          "path": "instruct/Gemma 2.json",
+          "sha256": "c8ba76019e2d1125ffabade7bf9c41e905479cd36363e3d8cf1046d6fd8b64ab",
+          "bytes": 809
+        },
+        {
+          "path": "instruct/Gemma 4.json",
+          "sha256": "650877dd98059156834e2b6d85f08e0923929b2948bba29e2fe0d4f368d25a21",
+          "bytes": 759
+        },
+        {
+          "path": "instruct/Koala.json",
+          "sha256": "0fe43207c2db021e4699c75f08d29977d13282d205de21ae5e8169dae7473c16",
+          "bytes": 701
+        },
+        {
+          "path": "instruct/KoboldAI.json",
+          "sha256": "a32192f8cf86c5cf2d4f38939f2df4d24d8a346c189f46f4b0404e527bb3cf5c",
+          "bytes": 770
+        },
+        {
+          "path": "instruct/Libra-32B.json",
+          "sha256": "ed597cb300d0cb0b8677d7baad3a8d8803bbbe9988a207e82a070ef0f6108d9b",
+          "bytes": 692
+        },
+        {
+          "path": "instruct/Lightning 1.1.json",
+          "sha256": "f97043484e5a516e051f1a62246fd85153d8ec24ca18d8a7d050dddd3ee62da4",
+          "bytes": 863
+        },
+        {
+          "path": "instruct/Llama 2 Chat.json",
+          "sha256": "8361104ec1ad1a84c97a6f266c4ec637602a225e98709726ad47afee03dbd7f6",
+          "bytes": 819
+        },
+        {
+          "path": "instruct/Llama 3 Instruct.json",
+          "sha256": "e2f76dcd82997276872826f5283c2ae2e2c67b13332ca06d46d15ed7bd2c6b92",
+          "bytes": 903
+        },
+        {
+          "path": "instruct/Llama 4 Instruct.json",
+          "sha256": "7de20392634677210db7abc36e16cd70287b80afda3840ba6e9300cdc42a73ee",
+          "bytes": 881
+        },
+        {
+          "path": "instruct/Llama-3-Instruct-Names.json",
+          "sha256": "3e2d0bb0ce95d1819dff14dbbdf3085159f3797e9106dfc53baabaa83e6d0e87",
+          "bytes": 910
+        },
+        {
+          "path": "instruct/Metharme.json",
+          "sha256": "9dbedc51cd40642da6b4ab7abe91685cb4bd3e8ba5eee413a16415956899ab17",
+          "bytes": 690
+        },
+        {
+          "path": "instruct/Mistral V1.json",
+          "sha256": "417a87fe41a545fd7ae4f6a80936fbdb5d94242439ccdcef293b93e991a5ccf6",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V2 & V3.json",
+          "sha256": "59711599ce72ee8f887163bf8410727282a44fcc21a0f960ebaf5f322fbb0cdf",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V3-Tekken.json",
+          "sha256": "d1bbc949434ce1844b29b63f702500b2b1c813db23f3c8db0ba3b4146dd828ed",
+          "bytes": 804
+        },
+        {
+          "path": "instruct/Mistral V7-Tekken.json",
+          "sha256": "4851297554bbee8e08d491e23ab4037b5c1083e879e0c176b7c78955f7e1c68b",
+          "bytes": 752
+        },
+        {
+          "path": "instruct/Mistral V7.json",
+          "sha256": "90d7df1528aad72ea847e2e9d550a1aa312e6e95fe366daa505eaaa19a972cce",
+          "bytes": 749
+        },
+        {
+          "path": "instruct/Moonshot AI.json",
+          "sha256": "b8cba42a89dd628cae49b0deb941bda6a498798aea89a51af9363d525bf43292",
+          "bytes": 843
+        },
+        {
+          "path": "instruct/OpenAI Harmony (Thinking).json",
+          "sha256": "a2783c6631cdf4c65c1b1ac094235732de72a11ac84f473caf11818677167577",
+          "bytes": 838
+        },
+        {
+          "path": "instruct/OpenAI Harmony.json",
+          "sha256": "d2fac20f27e9401c9069676ecff376c4458df3c428105132225261174d8b8786",
+          "bytes": 818
+        },
+        {
+          "path": "instruct/OpenOrca-OpenChat.json",
+          "sha256": "8ff3a498026f19b3005ed079211db66d02622a282db31117ee4e490851ff9328",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Phi.json",
+          "sha256": "6545a91584fa6e2cc59d7e0915563bde91285d9042862c8f7eec674fbf777d84",
+          "bytes": 747
+        },
+        {
+          "path": "instruct/Story.json",
+          "sha256": "6f6f37ab66fd11ee3b9477ace44aa925a9c48e762171986073ad0cd14cde2e20",
+          "bytes": 655
+        },
+        {
+          "path": "instruct/Synthia.json",
+          "sha256": "a476546d022ab574ed402b89d3cd4e7e991c86fe16baef17889b3c7f2ab24aa6",
+          "bytes": 791
+        },
+        {
+          "path": "instruct/Tulu.json",
+          "sha256": "8cad767d4b3228c045be0c46b2427a4007821e42c1b5045cdcdf1efabcf59b7f",
+          "bytes": 743
+        },
+        {
+          "path": "instruct/Vicuna 1.0.json",
+          "sha256": "ca5b47ecc4e98510e95605c3a6f6de9c0104b011612258de154f772c0790a267",
+          "bytes": 684
+        },
+        {
+          "path": "instruct/Vicuna 1.1.json",
+          "sha256": "1b894152ff261fa146e6b9986a0faae04e844ed4bc33790da53cfd941b45219e",
+          "bytes": 713
+        },
+        {
+          "path": "instruct/WizardLM-13B.json",
+          "sha256": "e6f0ff8198bc68209d3f9e761ca0ad3bae496b3812387773c4f72c2edbe49e06",
+          "bytes": 679
+        },
+        {
+          "path": "instruct/WizardLM.json",
+          "sha256": "464930d7fd0294ac06dc9e28b0ddf3b4695ff36b8a91b66349c65d3bf9a929d3",
+          "bytes": 676
+        },
+        {
           "path": "instruct/simple-proxy-for-tavern.json",
-          "sha256": "06be3f557ef745e106a11d46dbb0c735b7a3b1d082e7caee760aa56027bd05f3",
-          "bytes": 1048
+          "sha256": "1e33538e745a1e9261fdb07bf638ed2aeda20c93a5dbe877c829552e91977e58",
+          "bytes": 1023
         },
         {
           "path": "movingUI/Default.json",
-          "sha256": "1fa78ee773086de8f234b48d453c8dd37ecd466ef9ef1321dba2ce7f280bbb55",
-          "bytes": 53
+          "sha256": "86b3f904489738265baa6b59fdc2fc014a84439f2528ab198eb4bc2f14841493",
+          "bytes": 50
         },
         {
           "path": "reasoning/Blank.json",
-          "sha256": "296d99ed54d78b9527002ac96af1405f88bfc6afa3718a0b5fac32d661b0b426",
-          "bytes": 87
+          "sha256": "118f822cecefe6dcb876b00315c9970cda0ed5c0fa18ba314153d3934b73b72c",
+          "bytes": 81
         },
         {
           "path": "reasoning/DeepSeek.json",
-          "sha256": "a251c703833fbd36cdef972fe2b00f5e2ffe2148c99d206bae64fc49ffd2bb26",
-          "bytes": 113
+          "sha256": "4dad3fae45e3d9568f804c13a74bc1a1ac2f2f6f49bce61664566a91f67a5e33",
+          "bytes": 107
         },
         {
           "path": "reasoning/Gemma 4.json",
-          "sha256": "60c22f5f8eefb5ffea9353d1086ccbb2b996959315d8bcb9df1f741537fe6618",
-          "bytes": 122
+          "sha256": "7137b59e8f811a8d4c5ed4df8d4b55cdd539198513f369b2c942322a2549124e",
+          "bytes": 116
         },
         {
           "path": "reasoning/OpenAI Harmony.json",
-          "sha256": "ab17b0d03e3347b201363b1b96592730ffe558a6f2975ee6379ebab12de2565f",
-          "bytes": 189
+          "sha256": "16e828f58bad44bdf096dddd823c14e2a3bf63cc252a87f0b54e825559478807",
+          "bytes": 183
         },
         {
           "path": "reasoning/Think XML.json",
-          "sha256": "969939751f10d8982c71e4b252428f299d70319ba3dea3e9e36cdf5f3dbc41c0",
-          "bytes": 108
+          "sha256": "6ed9257ba60d433ddc7c393a16ff741ee53f13cee6ad4cf3fa8a511baabb2cab",
+          "bytes": 102
         },
         {
           "path": "reset-settings-probe.sentinel",
@@ -3107,8 +3107,8 @@
         },
         {
           "path": "settings.json",
-          "sha256": "c8445ada83b82a5afacc36ab75c1d89b24c239e71de87511d1ea8719c21bb303",
-          "bytes": 27371
+          "sha256": "28ad07a54aeeebaf4fc64a1ba53e941d69709c6c4d17acae32ecfdb466465172",
+          "bytes": 26732
         },
         {
           "path": "stats.json",
@@ -3122,108 +3122,108 @@
         },
         {
           "path": "sysprompt/Actor.json",
-          "sha256": "61f6652bd929844b297eef6a09d7be441718151ec62be040c55939c6052d295d",
-          "bytes": 375
+          "sha256": "cd83fe29092d734775dc174d9588bf3d351576dcfeab16b7aae4861594a9f5e1",
+          "bytes": 370
         },
         {
           "path": "sysprompt/Assistant - Expert.json",
-          "sha256": "03b59bce8b68e0d31e93a68e9bc5b06bca287db1d8a8526444a58469caaa3be4",
-          "bytes": 784
+          "sha256": "e396003b00eb129d75e9f851678c0796ae114981218c9cfff81597fd07414845",
+          "bytes": 779
         },
         {
           "path": "sysprompt/Assistant - Simple.json",
-          "sha256": "b304599da3efbfa38580a3d1fc49bbb59a3722aeac330958322aaea8171da777",
-          "bytes": 241
+          "sha256": "efc53ed18e15713be7cb85417c798ff2d497b89c2db5a5e2b8c326940eff00ed",
+          "bytes": 236
         },
         {
           "path": "sysprompt/Blank.json",
-          "sha256": "4ab4d0e3c07f50164b3e3db6fbb8bbeaf53f3d48ba058d8cd5824b1f4711d49c",
-          "bytes": 72
+          "sha256": "933a2e96459c938d39f2b8d860ab975e64629303f46c582d79db95df807a9083",
+          "bytes": 67
         },
         {
           "path": "sysprompt/Chain of Thought.json",
-          "sha256": "d9705b025384ea3329863d1888843d31cc751507cc8cb30c5273e8af255a05fb",
-          "bytes": 252
+          "sha256": "a8c23b52b5f4ed9b8cd9c91ce8497171141b88804681cd0a3f4e3cc9f6116888",
+          "bytes": 247
         },
         {
           "path": "sysprompt/Lightning 1.1.json",
-          "sha256": "e4de29956a4f4da6daef153c9d2ad620912019df3f36d2b6ff8fe4ff3de6f212",
-          "bytes": 283
+          "sha256": "7bbf89c5c2e54d038541bcd6b494f3fa715f946be386073227aadf79e5736297",
+          "bytes": 278
         },
         {
           "path": "sysprompt/Neutral - Chat.json",
-          "sha256": "1800ffbe8d0b70f230a1a953209f895f107c169e0ea9c3881ae15b8469dcfc52",
-          "bytes": 159
+          "sha256": "4cf82c659c2b3e9e486cab5201e5464c7380deb5fa52e0c44e8bd14c7b565f5a",
+          "bytes": 154
         },
         {
           "path": "sysprompt/Roleplay - Detailed.json",
-          "sha256": "d349519d68f7225c16cb583800c9aa10e5b54f7a958243627b09c813c4c8c204",
-          "bytes": 295
+          "sha256": "abffc16a408355fd04893982a93d9acbfb232c5a4a7b91ea1356946500872b97",
+          "bytes": 290
         },
         {
           "path": "sysprompt/Roleplay - Immersive.json",
-          "sha256": "01b755d6a69c170dcfe1e01806eb86f91d942b45a02027c0b556ec1c6f00669e",
-          "bytes": 401
+          "sha256": "1b94cbcfc0afe9124570875c02a94470fa609dfba835919254a2bcb847114fb1",
+          "bytes": 396
         },
         {
           "path": "sysprompt/Roleplay - Simple.json",
-          "sha256": "cea11ead1e6fb2228170f9357743c1a5bfb2323e9a2ce144eaa75268031e1d3a",
-          "bytes": 165
+          "sha256": "76daa83d63143c37fc01a36a27a66d35e459e4bdbf0642ba2f332ce6f42605d6",
+          "bytes": 160
         },
         {
           "path": "sysprompt/Text Adventure.json",
-          "sha256": "4f440326d7c552592781061fead5531d350ee1c272996955b830998474d890fd",
-          "bytes": 349
+          "sha256": "bba7d4595d50cde27cf685c2b3b8134463cf2ce7203bac9a79d71f0057491b79",
+          "bytes": 344
         },
         {
           "path": "sysprompt/Writer - Creative.json",
-          "sha256": "a1b8b28615461c30104ed9646a488d5b1ad2f4ba3fe6cd3b9e8af5ddde72006c",
-          "bytes": 203
+          "sha256": "e4171cec4fc86ff0dbd8707b00af1a09c672ae1960295878f9a21c7973f2e57c",
+          "bytes": 198
         },
         {
           "path": "sysprompt/Writer - Realistic.json",
-          "sha256": "3458f8ea1f704beaf7df7eacd421bd658c58e5b6b87d9b60e79b01e9c9a3fb06",
-          "bytes": 150
+          "sha256": "a8443bc2b9ca641421765f00581a26e1f4d95a0ae761fd536e6b9001ca65b7ef",
+          "bytes": 145
         },
         {
           "path": "themes/Azure.json",
-          "sha256": "218a2fbf186f94dc71e14b8d78623959417e2ea45b0ced67ab412a8ca6192f72",
-          "bytes": 1212
+          "sha256": "87426170fa7018df583aeda71f440ceb8f6234794265b6427371706d7fb064b1",
+          "bytes": 1176
         },
         {
           "path": "themes/Cappuccino.json",
-          "sha256": "95572555ddec3be5665ada502d0a2c94e04159d6206fb05e56af4951ed9d4deb",
-          "bytes": 1225
+          "sha256": "06cea473697a1fd4042a3a57f40b1194c1d1db577b253486b893f3c17e941b95",
+          "bytes": 1189
         },
         {
           "path": "themes/Celestial Macaron.json",
-          "sha256": "083a8244f2c31db8890cf41b2e879f62475a62f995a5de98bea34d0d47f1fef7",
-          "bytes": 1269
+          "sha256": "d670ff830f0b4184d44fdc689bf394c33e0cd0d47b99e15026ac14fc008561e0",
+          "bytes": 1233
         },
         {
           "path": "themes/Dark Lite.json",
-          "sha256": "8785fd01494adcb7046222f20092e0333777589e7b746920c662e993937bd298",
-          "bytes": 1201
+          "sha256": "f894d42f22426d645f4b742ecf927a5901540050c26de3524bf9b3990c49f497",
+          "bytes": 1165
         },
         {
           "path": "themes/Dark V 1.0.json",
-          "sha256": "98f36c4b499cfe0a64d1265d1e66890d351c97a9794b8ddd07421ae7117f1f94",
-          "bytes": 1261
+          "sha256": "72b9adb0b173ce007abb37e5ab13d36def301764a5bba45ce08f218501fb03e3",
+          "bytes": 1224
         },
         {
           "path": "user/workflows/Char_Avatar_Comfy_Workflow.json",
-          "sha256": "9c1a75cfd01d17dc79d05fbfdba074e1bcc0fe66c5e4b9767c86c366349b2ba0",
-          "bytes": 2373
+          "sha256": "1f802ab459038f9f3a3d29b79946e55df4900e3ac5306b7edf23fd60a860ebdf",
+          "bytes": 2236
         },
         {
           "path": "user/workflows/Default_Comfy_Workflow.json",
-          "sha256": "b7140c29ce4c527ac77829a3d22277b358c6cd98adb4b444935a295e77c7e8c1",
-          "bytes": 1846
+          "sha256": "18f3e44cdedb1bbc4e9597ce5f759b95f2dfc18f887d3614ff619792366c4fab",
+          "bytes": 1760
         },
         {
           "path": "worlds/Eldoria.json",
-          "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd",
-          "bytes": 8734
+          "sha256": "bfc2548443c890746a54d54e35e41265b02d1b59fd06d72552b305bf9b1e063c",
+          "bytes": 8579
         }
       ]
     },
@@ -3265,193 +3265,193 @@
       "files": [
         {
           "path": "KoboldAI Settings/Deterministic.json",
-          "sha256": "af73c5ca66820e68064c2159c6e1af3f558c958009f85d2c37d2ca1b244b9c56",
-          "bytes": 436
+          "sha256": "41cd7f2443b6fd1ae4e594007a39bc7345aca07dee82b40a16b957fe93d650f4",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/Neutral.json",
-          "sha256": "ecf0d5696b7df61cb1174d07af06f8134f373e7addf307ab8abc75c8930fe953",
-          "bytes": 436
+          "sha256": "b86461c767efe7b3d3dd2f1fbb3f133e1561830e8b189a2af102d5beba8ebdf1",
+          "bytes": 410
         },
         {
           "path": "KoboldAI Settings/RecoveredRuins.json",
-          "sha256": "c23d970bcb603ba970e32b2c774452c77e3c52a933a59bca473ac7fbafb36dce",
-          "bytes": 446
+          "sha256": "1bab77d576ac351000af7f34980720d7e495c8070b80c69205a126415992d2d2",
+          "bytes": 420
         },
         {
           "path": "KoboldAI Settings/Universal-Creative.json",
-          "sha256": "f58925de79f2e0bde707450eeb17d61da39405f3489cb45cd7273b93c26e19c6",
-          "bytes": 440
+          "sha256": "b707bf3af0832f9b31123baebd1216fdc8530251cfaeb0df1918b9d791cbf911",
+          "bytes": 414
         },
         {
           "path": "KoboldAI Settings/Universal-Light.json",
-          "sha256": "8726b4b94e1a5d33105ac08c0643a5927ed65a8460454533fabefbd7c22e4e55",
-          "bytes": 441
+          "sha256": "2e4240692c6157fb7385c2fe7c180c1eb5c1d8f02427f5312a44eb14f1ee7465",
+          "bytes": 415
         },
         {
           "path": "KoboldAI Settings/Universal-Super-Creative.json",
-          "sha256": "8c342c8ca0cddcf869c16395711fb5f3a4fd9d4277cdb88798bbe0cc57e50020",
-          "bytes": 438
+          "sha256": "d8e8f1cee2f8bb43b56c0b4fde45c3810c9055b58cac9c7a9badcda2fcc7c763",
+          "bytes": 412
         },
         {
           "path": "NovelAI Settings/Asper-Kayra.json",
-          "sha256": "1145a9d57f9e4cea88e2b8943270af30fc467013b9bc4712d6f3cfef1f2ea255",
-          "bytes": 572
+          "sha256": "62453ef27d02b1979fb70bc707242344e5f02682c053ee0437c35b16a205c36e",
+          "bytes": 549
         },
         {
           "path": "NovelAI Settings/Blended-Coffee-Kayra.json",
-          "sha256": "d40b947863c65f77ef616f7c3676a68c33ba69224c182568a93718692895f842",
-          "bytes": 521
+          "sha256": "e0cc42dae0a136b0cc6fe750c78d0a632c528ce23203fff058352f7ec638f1a1",
+          "bytes": 499
         },
         {
           "path": "NovelAI Settings/Blook-Kayra.json",
-          "sha256": "e858660ec349f200f68e57d5486877a12c1ee83a67f48cbeefb1f4f5243b42ea",
-          "bytes": 564
+          "sha256": "65d93da5a92561190ccd5f910da4179e52d509aec8e882228ee2cd773bfb0c76",
+          "bytes": 541
         },
         {
           "path": "NovelAI Settings/Carefree-Kayra.json",
-          "sha256": "78753a8ce0457e5c9cae80b55024d5f904d1205e74e08dbeb51816b43e51b52d",
-          "bytes": 590
-        },
-        {
-          "path": "NovelAI Settings/CosmicCube-Kayra.json",
-          "sha256": "6bcf8cc5cf4047bb763f545e7f333fca8a2678c744591f895e6c0ef185a4330f",
-          "bytes": 556
-        },
-        {
-          "path": "NovelAI Settings/Edgewise-Clio.json",
-          "sha256": "4cf251d551c84b3823fc02f89c95f726e947aa957a294a2f6f3feb9209f1cedd",
-          "bytes": 605
-        },
-        {
-          "path": "NovelAI Settings/Erato-Dragonfruit.json",
-          "sha256": "897d99f8441b86d567e8236ffd0d753d492b34b2c5a871f3472c725e4ea62ad8",
-          "bytes": 689
-        },
-        {
-          "path": "NovelAI Settings/Erato-Golden Arrow.json",
-          "sha256": "32da5acfa22ab856b47977c25f249105d71294c19e0e8fe7d06fe22f294093fb",
-          "bytes": 623
-        },
-        {
-          "path": "NovelAI Settings/Erato-Shosetsu.json",
-          "sha256": "4c36f8d4f44e052ec8ade2ed9e43f770676030b6f8f652bf7fa40f969aa3b199",
-          "bytes": 643
-        },
-        {
-          "path": "NovelAI Settings/Erato-Wilder.json",
-          "sha256": "b35819dacf8c790c8fdab49e9e3ff2a1737f3d46d84adbeeb9d97a5d7cdd4e7f",
-          "bytes": 645
-        },
-        {
-          "path": "NovelAI Settings/Erato-Zany Scribe.json",
-          "sha256": "c84b2fffb79856a15930236ea951d4746a1f6a6c4e783cb7c9ebae1de81dd484",
-          "bytes": 630
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
-          "sha256": "35a6dc4dda6ae2c689b5ec6fcb8b8cd476210391d3b27c29c19d555e3c833b3a",
-          "bytes": 602
-        },
-        {
-          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
-          "sha256": "68275b77712a4e0eb1e7e099ba7a73a0e7d06a7c5529166a92ac92d990a14aab",
-          "bytes": 559
-        },
-        {
-          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
-          "sha256": "df11db66ca13f65d7c9b40e44879bee57190b8d5d76272e93d24c285fc14036e",
+          "sha256": "ba59661b184f066abdef36588421a8e038e846125820c58b737234b91052548d",
           "bytes": 566
         },
         {
-          "path": "NovelAI Settings/Keelback-Clio.json",
-          "sha256": "151554dcf0fc64e178cd0ca2f37b137d2c0c5c44bebd24dccee49206bdcb4222",
-          "bytes": 602
+          "path": "NovelAI Settings/CosmicCube-Kayra.json",
+          "sha256": "5e3f3a0c1cc9b948bf93de8fa6ef7490572cddeba8e7e4dafd0c193bbfb4d9c6",
+          "bytes": 533
         },
         {
-          "path": "NovelAI Settings/Long-Press-Clio.json",
-          "sha256": "4ddb3cee1584a863ef6d844f6b8ae843c0c6a2f42bb11d1f49d6ed29c23c2d2e",
-          "bytes": 617
+          "path": "NovelAI Settings/Edgewise-Clio.json",
+          "sha256": "397fbf98f18b6db90c200fffcf5e0098fec4b5ccaec23f0622eb0ed50aa4c5ca",
+          "bytes": 581
         },
         {
-          "path": "NovelAI Settings/Pilotfish-Kayra.json",
-          "sha256": "e327ae13ecbdd0eee66f537cb6279d8f11c2a72d364dacb22f75e0c87b840cac",
-          "bytes": 617
+          "path": "NovelAI Settings/Erato-Dragonfruit.json",
+          "sha256": "a11fc21f0812289432f4f05d3520f81b1fcd8cf13f3964e6bdd7e9fe2f82e00b",
+          "bytes": 658
         },
         {
-          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
-          "sha256": "3c0a75649905330f3f5c99ad2ccbaad2bafeef4f6c212484a04c644d3f610fec",
-          "bytes": 572
+          "path": "NovelAI Settings/Erato-Golden Arrow.json",
+          "sha256": "20ee8c0f32eba9c86c4f6b7fd2cd5a44300d517c805a9be8a2b716c94365c81c",
+          "bytes": 596
         },
         {
-          "path": "NovelAI Settings/Stelenes-Kayra.json",
-          "sha256": "9c32001589440de12af7054f2920e17c8af5b5440feac18ddaeccb658c13f4b9",
-          "bytes": 509
+          "path": "NovelAI Settings/Erato-Shosetsu.json",
+          "sha256": "0aa07cc2a224fec15278010cfa26c3683f83117d4739eba3c8c4590484cd97ce",
+          "bytes": 616
         },
         {
-          "path": "NovelAI Settings/Talker-Chat-Clio.json",
-          "sha256": "f96d2dd4a51a32182b564a36f1fc06dbb5b1aa25f1ab5a32237b6c9ced64cafa",
+          "path": "NovelAI Settings/Erato-Wilder.json",
+          "sha256": "cfdedae25a050434d5e7991541ecd70b78fce43de985baa1d3f0dd9b9f7a65f1",
           "bytes": 618
         },
         {
+          "path": "NovelAI Settings/Erato-Zany Scribe.json",
+          "sha256": "27175b37a84aa5bf5bb09eb60f2b40307a841e65ec61b13bc715250e80f8c7b8",
+          "bytes": 603
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Clio.json",
+          "sha256": "3a8491e574df4f2a969169cd9b828a4258098f470d9a7ac1b92134164c3fab2e",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Fresh-Coffee-Kayra.json",
+          "sha256": "9993c29bebd762626af522db59f893700495ca0f6736a28e9ece56848ef77f6b",
+          "bytes": 536
+        },
+        {
+          "path": "NovelAI Settings/Green-Active-Writer-Kayra.json",
+          "sha256": "0e7cb6bef9571ea0ecb827838d84010176ce0e52a124a055d034780fa22762ab",
+          "bytes": 543
+        },
+        {
+          "path": "NovelAI Settings/Keelback-Clio.json",
+          "sha256": "b5650f9e006efab28e6c0688d1b92437f4fa817ec6957db24a8b7aaa7f9147fe",
+          "bytes": 577
+        },
+        {
+          "path": "NovelAI Settings/Long-Press-Clio.json",
+          "sha256": "27e8f89acc9337d1d9371266c0849f5de06759242fca8ab1d4a2fd8d701824fd",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pilotfish-Kayra.json",
+          "sha256": "65bd2126589b555343dbb4ce738ec4061975bacb5dd41036d8b08f91da04c35d",
+          "bytes": 592
+        },
+        {
+          "path": "NovelAI Settings/Pro_Writer-Kayra.json",
+          "sha256": "5a45580ed4b5db1d9358a1cb6999ea9e3d6a0f178f0a27a8b7eaba21ee228d99",
+          "bytes": 549
+        },
+        {
+          "path": "NovelAI Settings/Stelenes-Kayra.json",
+          "sha256": "6d493dacfa1b74f8992175344ad45e61029e58eceef57f59d17f459939ad1216",
+          "bytes": 488
+        },
+        {
+          "path": "NovelAI Settings/Talker-Chat-Clio.json",
+          "sha256": "129571faf582970837444e912caf3c0f981a2d893ac07bbb5e96309af270aa9e",
+          "bytes": 593
+        },
+        {
           "path": "NovelAI Settings/Tea_Time-Kayra.json",
-          "sha256": "f5332ff1e6c3e8cfab2a15151175608eb337370066fc5396edab48caa01ec7ee",
-          "bytes": 535
+          "sha256": "7a76d1fb6eac2323c08ca6355ba0b8af79b87177f717cd10b1843f072b19a932",
+          "bytes": 513
         },
         {
           "path": "NovelAI Settings/Tesseract-Kayra.json",
-          "sha256": "30a9350f46cef1795e9b74b7cb952234bd172b0559dd58f43bbe6aa412eb774e",
-          "bytes": 514
+          "sha256": "6338244f11a8b702618a7b53ab84720489e5d5f719e508742bb1b9c1af26ec57",
+          "bytes": 493
         },
         {
           "path": "NovelAI Settings/Vingt-Un-Clio.json",
-          "sha256": "511ea577103858993268176b0685a5299bff82f08d76e9e50e0d6f17ba335577",
-          "bytes": 613
+          "sha256": "31a0a3b08abf8a66cfe3f4ce518c5b6f22cf0392595a5addf7eedbfb13c71278",
+          "bytes": 588
         },
         {
           "path": "NovelAI Settings/Writers-Daemon-Kayra.json",
-          "sha256": "312924b363dc2886140a1c83f1eb649456336a76daff3dbd8aba43af60749386",
-          "bytes": 611
+          "sha256": "4277b68e73f20b88d6054e5d1b412c60ddc10fbe8f6112d76da9b353e3493749",
+          "bytes": 586
         },
         {
           "path": "OpenAI Settings/Default.json",
-          "sha256": "3d375226d9cbb69bfa1fca6fb9a5a4bf33a54223edd7a969755c17f87661a00e",
-          "bytes": 8004
+          "sha256": "a2b1bdcfd190d69b91452baff91281480c32020950092589e692ad6e2c1523bd",
+          "bytes": 7759
         },
         {
           "path": "QuickReplies/Default.json",
-          "sha256": "16d1d8a45efe3d5955866ffdf49388a7472e6855825e96b8fcdd366e9b415c03",
-          "bytes": 509
+          "sha256": "d75fd132a1971f96272f0d9544a2c89d7fc9af5dcb69f6cfc53aab913bcb744e",
+          "bytes": 486
         },
         {
           "path": "TextGen Settings/Default.json",
-          "sha256": "88b29cac684d8827b62f005befb1f52a087baca0cf6c1fc6064026ceaaa27164",
-          "bytes": 2689
+          "sha256": "60363ca2be2216a17cea3a5a3aa7613e68cddb03e91085f27d47f499a28b5ce0",
+          "bytes": 2570
         },
         {
           "path": "TextGen Settings/Deterministic.json",
-          "sha256": "803ad89598b854b928eaedacc4428c5d7013ec74e6622ad9633ae2477fa34a6b",
-          "bytes": 2682
+          "sha256": "d2b265ee734eadf7ce46184ec0d8e063813e8e56fe06c8055d55398776af5f65",
+          "bytes": 2563
         },
         {
           "path": "TextGen Settings/Neutral.json",
-          "sha256": "d6ef1c9f2dbcf5ad7acaf96bf7b530e220ca30d28a4c73b8199cade502d28a5d",
-          "bytes": 2681
+          "sha256": "a4b0695e9d1fca8f377c3cd09d810bcc36cdcc6f3f6ec8db7cbba73d164c20f6",
+          "bytes": 2562
         },
         {
           "path": "TextGen Settings/Universal-Creative.json",
-          "sha256": "459870d3e3063a8edce4340c8fa0f845b03fcd02ad4c220753f678fd934bb98b",
-          "bytes": 2686
+          "sha256": "a777940603c4d6d7dd33c53b3f6db740bb6bd28ced1e875c811b22b5c627fece",
+          "bytes": 2567
         },
         {
           "path": "TextGen Settings/Universal-Light.json",
-          "sha256": "c7ccafee0db9183c5aafe69ef4d2a849e7c6b55f8669cf65b55f676e7ee9d2de",
-          "bytes": 2687
+          "sha256": "d6d43adf814716a117cbc1dca0ab5faad3f094c1d346278f8d86a584d2d7cf20",
+          "bytes": 2568
         },
         {
           "path": "TextGen Settings/Universal-Super-Creative.json",
-          "sha256": "116688520173d57a2949e04faac751afd18f3aee3421ef82d410b183a1c34c61",
-          "bytes": 2684
+          "sha256": "0c390ec645e85fbe5fa935e92d5e82bfe7fc6e1838fdb92e1d97aa2697965a02",
+          "bytes": 2565
         },
         {
           "path": "User Avatars/user-default.png",
@@ -3725,393 +3725,393 @@
         },
         {
           "path": "context/Adventure.json",
-          "sha256": "7e3619707cda7005c8b54dfcbb69658ff7edda086ce5c56eff23eef0b674c73a",
-          "bytes": 718
-        },
-        {
-          "path": "context/Alpaca-Single-Turn.json",
-          "sha256": "625f93178371f84d4a31e8eaac1c37c8a1d05450cdc3a44a9e2bf74759364d59",
-          "bytes": 728
-        },
-        {
-          "path": "context/Alpaca.json",
-          "sha256": "206828b70e8e027c20e204b767daf814c20451f4e06ea66fc993f0a1093e3486",
-          "bytes": 715
-        },
-        {
-          "path": "context/ChatML-Names.json",
-          "sha256": "a048775c2a455aac97a0d4d422fab6c8aa1f0843d690dd64a0d8056d1d8f609a",
-          "bytes": 721
-        },
-        {
-          "path": "context/ChatML.json",
-          "sha256": "24570cc76693da9a67e22cf13b8cd7badf6598610b1def663f1e26ba82dd34bb",
-          "bytes": 715
-        },
-        {
-          "path": "context/Command R.json",
-          "sha256": "1ffa82c3083eeeca49a64a11ac23fd2e333d9a728e1b9ae5798277f6327b0cdd",
-          "bytes": 718
-        },
-        {
-          "path": "context/DeepSeek-V2.5.json",
-          "sha256": "fc7b65c231b352457a9f3c37d8265146b70fecc83ce8c6aa5c0dff28183ec015",
-          "bytes": 722
-        },
-        {
-          "path": "context/Default.json",
-          "sha256": "90437a80dff193fa0be3d0e6ab95845ad8b49fc9c6ebb9d39588bb39477b4888",
-          "bytes": 722
-        },
-        {
-          "path": "context/Dots1.json",
-          "sha256": "0d4909d12f44737cad4da7286cb93e32a1e6a7b47c1a6d336c4d32dda784ffa4",
-          "bytes": 714
-        },
-        {
-          "path": "context/GLM-4.json",
-          "sha256": "52b3b989544b69ee685128123f58ff57fc61606709451e9180826b758bda2810",
-          "bytes": 714
-        },
-        {
-          "path": "context/Gemma 2.json",
-          "sha256": "2d1ab0197461287d9cafd0fc277e761b6b16f861b0b6da55bb5935fcfe59f8cb",
-          "bytes": 716
-        },
-        {
-          "path": "context/Gemma 4.json",
-          "sha256": "4722f024cd2601b88a29542e046602c63ae1b33fc132b142740cc95e723e4ae1",
-          "bytes": 716
-        },
-        {
-          "path": "context/Libra-32B.json",
-          "sha256": "67a056686862823fbff872c4bbbeca221d363512d75e7193e19bbac8a6e97cea",
-          "bytes": 749
-        },
-        {
-          "path": "context/Lightning 1.1.json",
-          "sha256": "e7d73dc14de9c556ff86b72e4f9f460ed10c334d8dbce906f78f4c304d7a2591",
-          "bytes": 788
-        },
-        {
-          "path": "context/Llama 2 Chat.json",
-          "sha256": "8dbc8dd7fa33d4a29946c38584c3a7dd19ceda2f0043cf6cee3ddcd85e119fa5",
-          "bytes": 721
-        },
-        {
-          "path": "context/Llama 3 Instruct.json",
-          "sha256": "a1a14403605d9eff26adfee3aaf3b746bb9ceb5d9e5d99601ead8cd0a3800ad8",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama 4 Instruct.json",
-          "sha256": "db06ee7de1da1c6266d8a046d0df52164517e3526513556cd5edfc881db1dfcf",
-          "bytes": 725
-        },
-        {
-          "path": "context/Llama-3-Instruct-Names.json",
-          "sha256": "f0d075a49f3f5a4d54af464f7728e2e579cf27eba682a7c7ce1007b232a4911d",
-          "bytes": 731
-        },
-        {
-          "path": "context/Metharme.json",
-          "sha256": "703e73e82ac7666014ef3b46eaa45bab50267130b5f43830a0e9049a37f6af55",
-          "bytes": 717
-        },
-        {
-          "path": "context/Minimalist.json",
-          "sha256": "8d869998d4d78e0763ff7b73ecfeb9d238928da9efa58cb4dec672e02f9b5578",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V1.json",
-          "sha256": "eee140f7d861f26bf58f7f3941f9e84099b81dba4ca361e0f080430a6e0a2570",
-          "bytes": 719
-        },
-        {
-          "path": "context/Mistral V2 & V3.json",
-          "sha256": "530999503beb216adafa61f77bc1516aaa0d93bec2df8f1399c4d07d0926d6d8",
-          "bytes": 724
-        },
-        {
-          "path": "context/Mistral V3-Tekken.json",
-          "sha256": "15b2a602b0dea7fbeb417e11b46baba214dea7db8f72258d23940af67b2fc001",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7-Tekken.json",
-          "sha256": "161b1df96a84b98a3f0486744a9a939c3ca4e11bd4fc5b72c4a122a5b0a1968a",
-          "bytes": 726
-        },
-        {
-          "path": "context/Mistral V7.json",
-          "sha256": "5de90cd4f7082f1b69f78fd1d0ca5c918dcc02495b8e7b50a11eedae873ad943",
-          "bytes": 719
-        },
-        {
-          "path": "context/Moonshot AI.json",
-          "sha256": "1a9ddec80ca34bb1c430b1196a50891a64e603778b59ed66b1568bd38af4cf2c",
-          "bytes": 720
-        },
-        {
-          "path": "context/NovelAI.json",
-          "sha256": "aab948f349b7f46d0356961708df46c9dbf52eff044ccf3b7d534aea03b7ad33",
-          "bytes": 722
-        },
-        {
-          "path": "context/OldDefault.json",
-          "sha256": "8eec6c48ac10e67c8ade58019b4596a5e66b0854145791e8147527bee693bfd2",
-          "bytes": 874
-        },
-        {
-          "path": "context/OpenAI Harmony.json",
-          "sha256": "0f912f4922bca0740982aed3b1619d17f90dd1551c156ade2661e8921c6121f1",
-          "bytes": 723
-        },
-        {
-          "path": "context/Phi.json",
-          "sha256": "4b41862e7aef53eb39910bc896712cce2dc99047113883ff2ed44d6faf313aad",
-          "bytes": 712
-        },
-        {
-          "path": "context/Story.json",
-          "sha256": "1e813bb003eb8c2d9d80afeca8e5dfa841c42f167802b2fc2a95ec165d477c91",
-          "bytes": 714
-        },
-        {
-          "path": "context/Synthia.json",
-          "sha256": "343da773c09a0f43a12eafd6fbbd55f586dc0fc262dc7ea47799b4b0a24be874",
-          "bytes": 716
-        },
-        {
-          "path": "context/Tulu.json",
-          "sha256": "b96e22b7346afa334574a3a27e9792f2dbcdba1839a6a747f795e4132f67b212",
-          "bytes": 713
-        },
-        {
-          "path": "context/simple-proxy-for-tavern.json",
-          "sha256": "384240293e643a689716977f0d6c81c1ff6ae83ef94098d06c47f0558df92b96",
-          "bytes": 792
-        },
-        {
-          "path": "instruct/Adventure.json",
-          "sha256": "d6659f665b04e9ad005b27ade79eec7fd69752963ffe1cb6b1827d9cb429b52c",
-          "bytes": 684
-        },
-        {
-          "path": "instruct/Alpaca-Single-Turn.json",
-          "sha256": "b9a59e0bfe10787c65d2f472e486e011f4fd671ba1a0c93a81933c4151e47ea7",
-          "bytes": 851
-        },
-        {
-          "path": "instruct/Alpaca.json",
-          "sha256": "71d4cb67cf267406816499cf50c8165831244fb2020c2ed42654953892e95f58",
-          "bytes": 737
-        },
-        {
-          "path": "instruct/ChatML-Names.json",
-          "sha256": "aa4c76d64a21101f447171d48453089c038f9992a91b53cfc9ed21416694c17c",
-          "bytes": 821
-        },
-        {
-          "path": "instruct/ChatML.json",
-          "sha256": "02b5bc3361e5ce423576b00cc2c971c8e1c797a8db0d5e4490b4df5bef4ad672",
-          "bytes": 813
-        },
-        {
-          "path": "instruct/Command R.json",
-          "sha256": "b3aa4d52478eee5be8be1c4eff573c2666aea1bddbf6c06f05e0824d43196a14",
-          "bytes": 946
-        },
-        {
-          "path": "instruct/DeepSeek-V2.5.json",
-          "sha256": "56658074d237ebd6044e179353bec46df931d17e01786d7d647dfbf2b9686b67",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Dots1.json",
-          "sha256": "ee2b4b6fb2918cc1215dfdd30befecd2937286e1c139d0fb7e9152386aa37850",
-          "bytes": 818
-        },
-        {
-          "path": "instruct/GLM-4.json",
-          "sha256": "77a65cc6f196d64355b7e758399fd48b36128049e35d151ab9701be624cc270c",
-          "bytes": 720
-        },
-        {
-          "path": "instruct/Gemma 2.json",
-          "sha256": "6599d486248efa620a3b6460ff5d07e2dd071d18c86a3d33975f74b2129a17f0",
-          "bytes": 834
-        },
-        {
-          "path": "instruct/Gemma 4.json",
-          "sha256": "c7f53f8de92b3d6ccdb52aac5a709ba91d42b67d8c72881e2fd0b9577f5f5607",
-          "bytes": 784
-        },
-        {
-          "path": "instruct/Koala.json",
-          "sha256": "5adb6972265e602026b6f5744c4f42ca1c8b90543567101aacbb0804d59ea81b",
-          "bytes": 726
-        },
-        {
-          "path": "instruct/KoboldAI.json",
-          "sha256": "4f1b6dd1f05c73b4680a37aa356f6f5609e25ac7eb16d353eb7e602df1a5b88e",
-          "bytes": 795
-        },
-        {
-          "path": "instruct/Libra-32B.json",
-          "sha256": "5af960c28cdbcf1119bc39f77c9f63f21cb7055b6f78a7fa31cc5c1187f4685c",
-          "bytes": 717
-        },
-        {
-          "path": "instruct/Lightning 1.1.json",
-          "sha256": "6288477ca1123fd9a90862e2f0532bb69bdfc61d7ec085eab0d7df4c9557268d",
-          "bytes": 888
-        },
-        {
-          "path": "instruct/Llama 2 Chat.json",
-          "sha256": "fcaf16a9c412b52b4f56a6204a181b252e56c88a9a402668728a443da8aebb82",
-          "bytes": 844
-        },
-        {
-          "path": "instruct/Llama 3 Instruct.json",
-          "sha256": "ccff79de3190ba55080c432d0e8354ef5fd24ba07d594131bccefe83dc5f6a18",
-          "bytes": 928
-        },
-        {
-          "path": "instruct/Llama 4 Instruct.json",
-          "sha256": "061962e65a22701fdaadc431f35e1fce9de42d328f710c568860ce04a9afba1a",
-          "bytes": 906
-        },
-        {
-          "path": "instruct/Llama-3-Instruct-Names.json",
-          "sha256": "b3abcc0f823fbcfb34248a8f5a179bedd1f21cb8c936cda1eb97b6d4d8989f94",
-          "bytes": 935
-        },
-        {
-          "path": "instruct/Metharme.json",
-          "sha256": "8b9952080d7d5d7dc56ab914ee1aed179c1df88bd3edbbefbc51760ac342feb5",
-          "bytes": 715
-        },
-        {
-          "path": "instruct/Mistral V1.json",
-          "sha256": "6c6abd486d8a6b41a40962a4c51af404b2120fa33c9274c96b2e5a21ba3fc957",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V2 & V3.json",
-          "sha256": "a411a87e0fb832f7461546967dea5684dced77928596e9d1ae8f615b455f687c",
-          "bytes": 838
-        },
-        {
-          "path": "instruct/Mistral V3-Tekken.json",
-          "sha256": "3ade2f534f7155e6456e20e7cb108993c4f11049d6fc5fd9087431c4f2835372",
-          "bytes": 829
-        },
-        {
-          "path": "instruct/Mistral V7-Tekken.json",
-          "sha256": "300a8a67e4efaa369011124659698a2acd450a14b501bb9d229f30702354964a",
-          "bytes": 777
-        },
-        {
-          "path": "instruct/Mistral V7.json",
-          "sha256": "c607c3bbe214f67f6395c14c4289bb6638b89a8fc8d4b60052573cf89110cc8c",
-          "bytes": 774
-        },
-        {
-          "path": "instruct/Moonshot AI.json",
-          "sha256": "f93efa0f02de67e4b438ac41bb198e5c9b99a6d4d62d3a6272005f30ada3aaac",
-          "bytes": 868
-        },
-        {
-          "path": "instruct/OpenAI Harmony (Thinking).json",
-          "sha256": "b62cf90501933a6a9853c665ad944b7874c1bbbe78ec431fe57f6aa52023ac2c",
-          "bytes": 863
-        },
-        {
-          "path": "instruct/OpenAI Harmony.json",
-          "sha256": "2c9e6e44ef07b4a2fdf47349027b52ef14024bd84bb30eea6c868facf8bf75aa",
-          "bytes": 843
-        },
-        {
-          "path": "instruct/OpenOrca-OpenChat.json",
-          "sha256": "fa8709f8f4f60d327652b38a0f75054ad898773111bf38b3eb539f429ab80688",
-          "bytes": 745
-        },
-        {
-          "path": "instruct/Phi.json",
-          "sha256": "7dc643b9888c947858bbe72555edaf2e1f55403ff3fd8e108c149d88cf486d15",
-          "bytes": 772
-        },
-        {
-          "path": "instruct/Story.json",
-          "sha256": "83800aaae309619363ddb4eab0b28e8ba8e39f0b344c0a7fda00af05f7e7e3c0",
-          "bytes": 680
-        },
-        {
-          "path": "instruct/Synthia.json",
-          "sha256": "7712fdb777bc911af024a9d4c033b5acb2dbeec9588cc5c8e1f578f282bf4748",
-          "bytes": 816
-        },
-        {
-          "path": "instruct/Tulu.json",
-          "sha256": "c9ae396053e2bddb0302cd6fcfceb2670bff39fe27518d2820f9af59bb3f4396",
-          "bytes": 768
-        },
-        {
-          "path": "instruct/Vicuna 1.0.json",
-          "sha256": "62044743559d4900360ba40e7d4ef6df28ce979f41913434114b35d9e63f666e",
-          "bytes": 709
-        },
-        {
-          "path": "instruct/Vicuna 1.1.json",
-          "sha256": "333fd8ee5bede5c10ee5fbc3faddf88cd89fbd311e2c7c06b34867ae25ddcc0f",
-          "bytes": 738
-        },
-        {
-          "path": "instruct/WizardLM-13B.json",
-          "sha256": "b27c9d4e069488ebee0a3e430cc9e2977248006ff19aecf9f95a94610589fbd1",
+          "sha256": "8f6fee53a0db25251bd0adba8c8d887461a42764fdc577d2b7b4424696c06025",
           "bytes": 704
         },
         {
-          "path": "instruct/WizardLM.json",
-          "sha256": "07403d0971a6c7482e4b0de14728afe52a48f05ef83b6fba1c4315f29c4e4fb9",
+          "path": "context/Alpaca-Single-Turn.json",
+          "sha256": "88e0bdec60617ad9d33a451727ef8e0e6daf58e338f5d63e6b950679a21835df",
+          "bytes": 714
+        },
+        {
+          "path": "context/Alpaca.json",
+          "sha256": "5b6dd66b41b8100fae585a389ffe9c0801e5d414ce41d3d64b8bbc59ec9cc3eb",
           "bytes": 701
         },
         {
+          "path": "context/ChatML-Names.json",
+          "sha256": "c87008547980ec6a228dce0c69af489b7a7ca4c8329a360337e81e1196f14a9f",
+          "bytes": 707
+        },
+        {
+          "path": "context/ChatML.json",
+          "sha256": "f818ec35136a8a517059638d8586e186679479f34130ecf6f0ee79452c23d02e",
+          "bytes": 701
+        },
+        {
+          "path": "context/Command R.json",
+          "sha256": "14f0c238738c7e407070cefdf647307e3bb76595c6f886395dec752bf62f04cf",
+          "bytes": 704
+        },
+        {
+          "path": "context/DeepSeek-V2.5.json",
+          "sha256": "976875b234db3e94d7e5b5c5bc8a48cbe665f05f1ea5486ea329cf29a124cce8",
+          "bytes": 708
+        },
+        {
+          "path": "context/Default.json",
+          "sha256": "e3c31deba3ef2857c4a43e7d8f25149ca75f7ed68962a63f40f10b72d830ccc1",
+          "bytes": 708
+        },
+        {
+          "path": "context/Dots1.json",
+          "sha256": "3a99f6eeb42a59a6e1277f654a66c0352caff46bf4f54519d6797ae23606aad7",
+          "bytes": 700
+        },
+        {
+          "path": "context/GLM-4.json",
+          "sha256": "a651ab25f9726bc12fdb4f2551c18670611b87e4f21d418bb53c7ae5c02c01a2",
+          "bytes": 700
+        },
+        {
+          "path": "context/Gemma 2.json",
+          "sha256": "8526d23b85efcb42045e6e13d037c66a453044cd38ff411673da8ce62a91794b",
+          "bytes": 702
+        },
+        {
+          "path": "context/Gemma 4.json",
+          "sha256": "c73fb0b0145d19d6d3004c3150838f1ad67cc9f50a532a6baa92eba2b8320c2d",
+          "bytes": 702
+        },
+        {
+          "path": "context/Libra-32B.json",
+          "sha256": "a9b8814a5040e77126279ffbf62342391fb646e0995597dac226a5d41db28022",
+          "bytes": 735
+        },
+        {
+          "path": "context/Lightning 1.1.json",
+          "sha256": "d8e914990a7727e9f369c19884ba13f429d5a7607aa000820b7facb7fcd27e19",
+          "bytes": 774
+        },
+        {
+          "path": "context/Llama 2 Chat.json",
+          "sha256": "5ff8983605efe00af7f91d6d6d6e4ed4efe432ae3d65a45d556592abae1fded7",
+          "bytes": 707
+        },
+        {
+          "path": "context/Llama 3 Instruct.json",
+          "sha256": "75e03c49d5845caf2079cc0b3e80037d0121f0410a10ed1e77624cae2e31b545",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama 4 Instruct.json",
+          "sha256": "1b509c13037b2c9eaf94b3a78632a3e57770346448f86ad45630fdae16a4e6f2",
+          "bytes": 711
+        },
+        {
+          "path": "context/Llama-3-Instruct-Names.json",
+          "sha256": "859071917419895b87a6c603e21b9c0f0ab764069f7666b970d4e8d3bd7d6dbb",
+          "bytes": 717
+        },
+        {
+          "path": "context/Metharme.json",
+          "sha256": "9c62ebb06665a6c17d882e907b466f3a68d1bdea798c313701304a274d98e337",
+          "bytes": 703
+        },
+        {
+          "path": "context/Minimalist.json",
+          "sha256": "d66109a5311c5c61fb6efae797278e00edff9b14d50370a484cafd83194b89d1",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V1.json",
+          "sha256": "5ec9359c07bda4184840186901350e2a58779eb1e32baabdde48463ced4cbf03",
+          "bytes": 705
+        },
+        {
+          "path": "context/Mistral V2 & V3.json",
+          "sha256": "b2ba0ac1238c0434599b49e155a586bd609ca0aad7ffea92d4f7b14b8fc5f260",
+          "bytes": 710
+        },
+        {
+          "path": "context/Mistral V3-Tekken.json",
+          "sha256": "196b6299a32b2aebfcbaf92cf0188f9679aebb4fb45c447cfc47b332fbd26757",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7-Tekken.json",
+          "sha256": "678e4de11ab2df643106cc96284f75f8ce5d9d4fa1091c36c466c1874c65a505",
+          "bytes": 712
+        },
+        {
+          "path": "context/Mistral V7.json",
+          "sha256": "fdf72d4893b589ea21f1e877abac8fdfdd30c7c4aab6cb13dafd33f4e4b9a6ff",
+          "bytes": 705
+        },
+        {
+          "path": "context/Moonshot AI.json",
+          "sha256": "3e8515424fdf4ddec0f05566cc956f398820cb0ce6e324c177f6d2fb9e1387d4",
+          "bytes": 706
+        },
+        {
+          "path": "context/NovelAI.json",
+          "sha256": "9b73d710a15bb51ba67a01530818963da2820ec44ad8c3b20b366f2071b54a08",
+          "bytes": 708
+        },
+        {
+          "path": "context/OldDefault.json",
+          "sha256": "29aaf2df139558798174de42e9990e38a4665ce3d4e0184e0db43b03342af2eb",
+          "bytes": 860
+        },
+        {
+          "path": "context/OpenAI Harmony.json",
+          "sha256": "0f461a5f9c00471aa13f6a2b2547e484c9b3d246d6de4ba8190059a5e3ff2837",
+          "bytes": 709
+        },
+        {
+          "path": "context/Phi.json",
+          "sha256": "7e53ac47730997ae35823387cfd025ccf6418d719fff14a1bf40fdc6e5ccdbd9",
+          "bytes": 698
+        },
+        {
+          "path": "context/Story.json",
+          "sha256": "1a27af7873e184352a56a57de305e973128d11bbbfe2e35c88ff891881ce4bde",
+          "bytes": 700
+        },
+        {
+          "path": "context/Synthia.json",
+          "sha256": "d7f470e285b98af3e5f2e0e5b670ca55890bdd118bbfd3128b9634c07f9b4846",
+          "bytes": 702
+        },
+        {
+          "path": "context/Tulu.json",
+          "sha256": "4138354ae74f1340e03013c6b57736594cb5ef5a1b27443105ad22b12ae90478",
+          "bytes": 699
+        },
+        {
+          "path": "context/simple-proxy-for-tavern.json",
+          "sha256": "67e891c6e2874f9bf692b638a7aee733718a2ba8ac2e45233d1ff1922a54bfdb",
+          "bytes": 778
+        },
+        {
+          "path": "instruct/Adventure.json",
+          "sha256": "cfd2193894604766899132553ce53b7119688c034d1164e23259abdd892974ee",
+          "bytes": 659
+        },
+        {
+          "path": "instruct/Alpaca-Single-Turn.json",
+          "sha256": "afb8a25bb44a031630d4f63040012c7a2e54a176c8324b7a81b96bb0612b5dd1",
+          "bytes": 826
+        },
+        {
+          "path": "instruct/Alpaca.json",
+          "sha256": "24979aeb1fbb029b0f11f4674bda3df89c6fcd221a7aa64c900fab3bbde46696",
+          "bytes": 712
+        },
+        {
+          "path": "instruct/ChatML-Names.json",
+          "sha256": "fff186d34de418ef71da00da96c30336effdcdfd4201823df1ca79944214cea7",
+          "bytes": 796
+        },
+        {
+          "path": "instruct/ChatML.json",
+          "sha256": "78d9b539e134364fab3c2fc99f95e09cb9d09302c36731c32d9b820f913ac97f",
+          "bytes": 788
+        },
+        {
+          "path": "instruct/Command R.json",
+          "sha256": "d3ec2ecf32cf0148cbca7c1495da1e0aff051a2f55224651a98f4bb7ce2079a7",
+          "bytes": 921
+        },
+        {
+          "path": "instruct/DeepSeek-V2.5.json",
+          "sha256": "7d41b202fb5de660bdfa64f5d79fb680ed5b46b47921345c3f01aa7dd96e942f",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Dots1.json",
+          "sha256": "6591347926bffd6479bc75432a0a580eecd7e9d802748fe937196e0713b89796",
+          "bytes": 793
+        },
+        {
+          "path": "instruct/GLM-4.json",
+          "sha256": "bcd87ffa0b26dee3ae48cdd1ab55705c090ab18dde638ffc269887c6c0d2e1c5",
+          "bytes": 695
+        },
+        {
+          "path": "instruct/Gemma 2.json",
+          "sha256": "c8ba76019e2d1125ffabade7bf9c41e905479cd36363e3d8cf1046d6fd8b64ab",
+          "bytes": 809
+        },
+        {
+          "path": "instruct/Gemma 4.json",
+          "sha256": "650877dd98059156834e2b6d85f08e0923929b2948bba29e2fe0d4f368d25a21",
+          "bytes": 759
+        },
+        {
+          "path": "instruct/Koala.json",
+          "sha256": "0fe43207c2db021e4699c75f08d29977d13282d205de21ae5e8169dae7473c16",
+          "bytes": 701
+        },
+        {
+          "path": "instruct/KoboldAI.json",
+          "sha256": "a32192f8cf86c5cf2d4f38939f2df4d24d8a346c189f46f4b0404e527bb3cf5c",
+          "bytes": 770
+        },
+        {
+          "path": "instruct/Libra-32B.json",
+          "sha256": "ed597cb300d0cb0b8677d7baad3a8d8803bbbe9988a207e82a070ef0f6108d9b",
+          "bytes": 692
+        },
+        {
+          "path": "instruct/Lightning 1.1.json",
+          "sha256": "f97043484e5a516e051f1a62246fd85153d8ec24ca18d8a7d050dddd3ee62da4",
+          "bytes": 863
+        },
+        {
+          "path": "instruct/Llama 2 Chat.json",
+          "sha256": "8361104ec1ad1a84c97a6f266c4ec637602a225e98709726ad47afee03dbd7f6",
+          "bytes": 819
+        },
+        {
+          "path": "instruct/Llama 3 Instruct.json",
+          "sha256": "e2f76dcd82997276872826f5283c2ae2e2c67b13332ca06d46d15ed7bd2c6b92",
+          "bytes": 903
+        },
+        {
+          "path": "instruct/Llama 4 Instruct.json",
+          "sha256": "7de20392634677210db7abc36e16cd70287b80afda3840ba6e9300cdc42a73ee",
+          "bytes": 881
+        },
+        {
+          "path": "instruct/Llama-3-Instruct-Names.json",
+          "sha256": "3e2d0bb0ce95d1819dff14dbbdf3085159f3797e9106dfc53baabaa83e6d0e87",
+          "bytes": 910
+        },
+        {
+          "path": "instruct/Metharme.json",
+          "sha256": "9dbedc51cd40642da6b4ab7abe91685cb4bd3e8ba5eee413a16415956899ab17",
+          "bytes": 690
+        },
+        {
+          "path": "instruct/Mistral V1.json",
+          "sha256": "417a87fe41a545fd7ae4f6a80936fbdb5d94242439ccdcef293b93e991a5ccf6",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V2 & V3.json",
+          "sha256": "59711599ce72ee8f887163bf8410727282a44fcc21a0f960ebaf5f322fbb0cdf",
+          "bytes": 813
+        },
+        {
+          "path": "instruct/Mistral V3-Tekken.json",
+          "sha256": "d1bbc949434ce1844b29b63f702500b2b1c813db23f3c8db0ba3b4146dd828ed",
+          "bytes": 804
+        },
+        {
+          "path": "instruct/Mistral V7-Tekken.json",
+          "sha256": "4851297554bbee8e08d491e23ab4037b5c1083e879e0c176b7c78955f7e1c68b",
+          "bytes": 752
+        },
+        {
+          "path": "instruct/Mistral V7.json",
+          "sha256": "90d7df1528aad72ea847e2e9d550a1aa312e6e95fe366daa505eaaa19a972cce",
+          "bytes": 749
+        },
+        {
+          "path": "instruct/Moonshot AI.json",
+          "sha256": "b8cba42a89dd628cae49b0deb941bda6a498798aea89a51af9363d525bf43292",
+          "bytes": 843
+        },
+        {
+          "path": "instruct/OpenAI Harmony (Thinking).json",
+          "sha256": "a2783c6631cdf4c65c1b1ac094235732de72a11ac84f473caf11818677167577",
+          "bytes": 838
+        },
+        {
+          "path": "instruct/OpenAI Harmony.json",
+          "sha256": "d2fac20f27e9401c9069676ecff376c4458df3c428105132225261174d8b8786",
+          "bytes": 818
+        },
+        {
+          "path": "instruct/OpenOrca-OpenChat.json",
+          "sha256": "8ff3a498026f19b3005ed079211db66d02622a282db31117ee4e490851ff9328",
+          "bytes": 720
+        },
+        {
+          "path": "instruct/Phi.json",
+          "sha256": "6545a91584fa6e2cc59d7e0915563bde91285d9042862c8f7eec674fbf777d84",
+          "bytes": 747
+        },
+        {
+          "path": "instruct/Story.json",
+          "sha256": "6f6f37ab66fd11ee3b9477ace44aa925a9c48e762171986073ad0cd14cde2e20",
+          "bytes": 655
+        },
+        {
+          "path": "instruct/Synthia.json",
+          "sha256": "a476546d022ab574ed402b89d3cd4e7e991c86fe16baef17889b3c7f2ab24aa6",
+          "bytes": 791
+        },
+        {
+          "path": "instruct/Tulu.json",
+          "sha256": "8cad767d4b3228c045be0c46b2427a4007821e42c1b5045cdcdf1efabcf59b7f",
+          "bytes": 743
+        },
+        {
+          "path": "instruct/Vicuna 1.0.json",
+          "sha256": "ca5b47ecc4e98510e95605c3a6f6de9c0104b011612258de154f772c0790a267",
+          "bytes": 684
+        },
+        {
+          "path": "instruct/Vicuna 1.1.json",
+          "sha256": "1b894152ff261fa146e6b9986a0faae04e844ed4bc33790da53cfd941b45219e",
+          "bytes": 713
+        },
+        {
+          "path": "instruct/WizardLM-13B.json",
+          "sha256": "e6f0ff8198bc68209d3f9e761ca0ad3bae496b3812387773c4f72c2edbe49e06",
+          "bytes": 679
+        },
+        {
+          "path": "instruct/WizardLM.json",
+          "sha256": "464930d7fd0294ac06dc9e28b0ddf3b4695ff36b8a91b66349c65d3bf9a929d3",
+          "bytes": 676
+        },
+        {
           "path": "instruct/simple-proxy-for-tavern.json",
-          "sha256": "06be3f557ef745e106a11d46dbb0c735b7a3b1d082e7caee760aa56027bd05f3",
-          "bytes": 1048
+          "sha256": "1e33538e745a1e9261fdb07bf638ed2aeda20c93a5dbe877c829552e91977e58",
+          "bytes": 1023
         },
         {
           "path": "movingUI/Default.json",
-          "sha256": "1fa78ee773086de8f234b48d453c8dd37ecd466ef9ef1321dba2ce7f280bbb55",
-          "bytes": 53
+          "sha256": "86b3f904489738265baa6b59fdc2fc014a84439f2528ab198eb4bc2f14841493",
+          "bytes": 50
         },
         {
           "path": "reasoning/Blank.json",
-          "sha256": "296d99ed54d78b9527002ac96af1405f88bfc6afa3718a0b5fac32d661b0b426",
-          "bytes": 87
+          "sha256": "118f822cecefe6dcb876b00315c9970cda0ed5c0fa18ba314153d3934b73b72c",
+          "bytes": 81
         },
         {
           "path": "reasoning/DeepSeek.json",
-          "sha256": "a251c703833fbd36cdef972fe2b00f5e2ffe2148c99d206bae64fc49ffd2bb26",
-          "bytes": 113
+          "sha256": "4dad3fae45e3d9568f804c13a74bc1a1ac2f2f6f49bce61664566a91f67a5e33",
+          "bytes": 107
         },
         {
           "path": "reasoning/Gemma 4.json",
-          "sha256": "60c22f5f8eefb5ffea9353d1086ccbb2b996959315d8bcb9df1f741537fe6618",
-          "bytes": 122
+          "sha256": "7137b59e8f811a8d4c5ed4df8d4b55cdd539198513f369b2c942322a2549124e",
+          "bytes": 116
         },
         {
           "path": "reasoning/OpenAI Harmony.json",
-          "sha256": "ab17b0d03e3347b201363b1b96592730ffe558a6f2975ee6379ebab12de2565f",
-          "bytes": 189
+          "sha256": "16e828f58bad44bdf096dddd823c14e2a3bf63cc252a87f0b54e825559478807",
+          "bytes": 183
         },
         {
           "path": "reasoning/Think XML.json",
-          "sha256": "969939751f10d8982c71e4b252428f299d70319ba3dea3e9e36cdf5f3dbc41c0",
-          "bytes": 108
+          "sha256": "6ed9257ba60d433ddc7c393a16ff741ee53f13cee6ad4cf3fa8a511baabb2cab",
+          "bytes": 102
         },
         {
           "path": "reset-settings-probe.sentinel",
@@ -4120,8 +4120,8 @@
         },
         {
           "path": "settings.json",
-          "sha256": "c8445ada83b82a5afacc36ab75c1d89b24c239e71de87511d1ea8719c21bb303",
-          "bytes": 27371
+          "sha256": "28ad07a54aeeebaf4fc64a1ba53e941d69709c6c4d17acae32ecfdb466465172",
+          "bytes": 26732
         },
         {
           "path": "stats.json",
@@ -4135,108 +4135,108 @@
         },
         {
           "path": "sysprompt/Actor.json",
-          "sha256": "61f6652bd929844b297eef6a09d7be441718151ec62be040c55939c6052d295d",
-          "bytes": 375
+          "sha256": "cd83fe29092d734775dc174d9588bf3d351576dcfeab16b7aae4861594a9f5e1",
+          "bytes": 370
         },
         {
           "path": "sysprompt/Assistant - Expert.json",
-          "sha256": "03b59bce8b68e0d31e93a68e9bc5b06bca287db1d8a8526444a58469caaa3be4",
-          "bytes": 784
+          "sha256": "e396003b00eb129d75e9f851678c0796ae114981218c9cfff81597fd07414845",
+          "bytes": 779
         },
         {
           "path": "sysprompt/Assistant - Simple.json",
-          "sha256": "b304599da3efbfa38580a3d1fc49bbb59a3722aeac330958322aaea8171da777",
-          "bytes": 241
+          "sha256": "efc53ed18e15713be7cb85417c798ff2d497b89c2db5a5e2b8c326940eff00ed",
+          "bytes": 236
         },
         {
           "path": "sysprompt/Blank.json",
-          "sha256": "4ab4d0e3c07f50164b3e3db6fbb8bbeaf53f3d48ba058d8cd5824b1f4711d49c",
-          "bytes": 72
+          "sha256": "933a2e96459c938d39f2b8d860ab975e64629303f46c582d79db95df807a9083",
+          "bytes": 67
         },
         {
           "path": "sysprompt/Chain of Thought.json",
-          "sha256": "d9705b025384ea3329863d1888843d31cc751507cc8cb30c5273e8af255a05fb",
-          "bytes": 252
+          "sha256": "a8c23b52b5f4ed9b8cd9c91ce8497171141b88804681cd0a3f4e3cc9f6116888",
+          "bytes": 247
         },
         {
           "path": "sysprompt/Lightning 1.1.json",
-          "sha256": "e4de29956a4f4da6daef153c9d2ad620912019df3f36d2b6ff8fe4ff3de6f212",
-          "bytes": 283
+          "sha256": "7bbf89c5c2e54d038541bcd6b494f3fa715f946be386073227aadf79e5736297",
+          "bytes": 278
         },
         {
           "path": "sysprompt/Neutral - Chat.json",
-          "sha256": "1800ffbe8d0b70f230a1a953209f895f107c169e0ea9c3881ae15b8469dcfc52",
-          "bytes": 159
+          "sha256": "4cf82c659c2b3e9e486cab5201e5464c7380deb5fa52e0c44e8bd14c7b565f5a",
+          "bytes": 154
         },
         {
           "path": "sysprompt/Roleplay - Detailed.json",
-          "sha256": "d349519d68f7225c16cb583800c9aa10e5b54f7a958243627b09c813c4c8c204",
-          "bytes": 295
+          "sha256": "abffc16a408355fd04893982a93d9acbfb232c5a4a7b91ea1356946500872b97",
+          "bytes": 290
         },
         {
           "path": "sysprompt/Roleplay - Immersive.json",
-          "sha256": "01b755d6a69c170dcfe1e01806eb86f91d942b45a02027c0b556ec1c6f00669e",
-          "bytes": 401
+          "sha256": "1b94cbcfc0afe9124570875c02a94470fa609dfba835919254a2bcb847114fb1",
+          "bytes": 396
         },
         {
           "path": "sysprompt/Roleplay - Simple.json",
-          "sha256": "cea11ead1e6fb2228170f9357743c1a5bfb2323e9a2ce144eaa75268031e1d3a",
-          "bytes": 165
+          "sha256": "76daa83d63143c37fc01a36a27a66d35e459e4bdbf0642ba2f332ce6f42605d6",
+          "bytes": 160
         },
         {
           "path": "sysprompt/Text Adventure.json",
-          "sha256": "4f440326d7c552592781061fead5531d350ee1c272996955b830998474d890fd",
-          "bytes": 349
+          "sha256": "bba7d4595d50cde27cf685c2b3b8134463cf2ce7203bac9a79d71f0057491b79",
+          "bytes": 344
         },
         {
           "path": "sysprompt/Writer - Creative.json",
-          "sha256": "a1b8b28615461c30104ed9646a488d5b1ad2f4ba3fe6cd3b9e8af5ddde72006c",
-          "bytes": 203
+          "sha256": "e4171cec4fc86ff0dbd8707b00af1a09c672ae1960295878f9a21c7973f2e57c",
+          "bytes": 198
         },
         {
           "path": "sysprompt/Writer - Realistic.json",
-          "sha256": "3458f8ea1f704beaf7df7eacd421bd658c58e5b6b87d9b60e79b01e9c9a3fb06",
-          "bytes": 150
+          "sha256": "a8443bc2b9ca641421765f00581a26e1f4d95a0ae761fd536e6b9001ca65b7ef",
+          "bytes": 145
         },
         {
           "path": "themes/Azure.json",
-          "sha256": "218a2fbf186f94dc71e14b8d78623959417e2ea45b0ced67ab412a8ca6192f72",
-          "bytes": 1212
+          "sha256": "87426170fa7018df583aeda71f440ceb8f6234794265b6427371706d7fb064b1",
+          "bytes": 1176
         },
         {
           "path": "themes/Cappuccino.json",
-          "sha256": "95572555ddec3be5665ada502d0a2c94e04159d6206fb05e56af4951ed9d4deb",
-          "bytes": 1225
+          "sha256": "06cea473697a1fd4042a3a57f40b1194c1d1db577b253486b893f3c17e941b95",
+          "bytes": 1189
         },
         {
           "path": "themes/Celestial Macaron.json",
-          "sha256": "083a8244f2c31db8890cf41b2e879f62475a62f995a5de98bea34d0d47f1fef7",
-          "bytes": 1269
+          "sha256": "d670ff830f0b4184d44fdc689bf394c33e0cd0d47b99e15026ac14fc008561e0",
+          "bytes": 1233
         },
         {
           "path": "themes/Dark Lite.json",
-          "sha256": "8785fd01494adcb7046222f20092e0333777589e7b746920c662e993937bd298",
-          "bytes": 1201
+          "sha256": "f894d42f22426d645f4b742ecf927a5901540050c26de3524bf9b3990c49f497",
+          "bytes": 1165
         },
         {
           "path": "themes/Dark V 1.0.json",
-          "sha256": "98f36c4b499cfe0a64d1265d1e66890d351c97a9794b8ddd07421ae7117f1f94",
-          "bytes": 1261
+          "sha256": "72b9adb0b173ce007abb37e5ab13d36def301764a5bba45ce08f218501fb03e3",
+          "bytes": 1224
         },
         {
           "path": "user/workflows/Char_Avatar_Comfy_Workflow.json",
-          "sha256": "9c1a75cfd01d17dc79d05fbfdba074e1bcc0fe66c5e4b9767c86c366349b2ba0",
-          "bytes": 2373
+          "sha256": "1f802ab459038f9f3a3d29b79946e55df4900e3ac5306b7edf23fd60a860ebdf",
+          "bytes": 2236
         },
         {
           "path": "user/workflows/Default_Comfy_Workflow.json",
-          "sha256": "b7140c29ce4c527ac77829a3d22277b358c6cd98adb4b444935a295e77c7e8c1",
-          "bytes": 1846
+          "sha256": "18f3e44cdedb1bbc4e9597ce5f759b95f2dfc18f887d3614ff619792366c4fab",
+          "bytes": 1760
         },
         {
           "path": "worlds/Eldoria.json",
-          "sha256": "ff973568a3e97b016ee74155aee38346f4c28cbb165d542312038a48ea9af5bd",
-          "bytes": 8734
+          "sha256": "bfc2548443c890746a54d54e35e41265b02d1b59fd06d72552b305bf9b1e063c",
+          "bytes": 8579
         }
       ]
     },
@@ -4250,23 +4250,23 @@
         "files": [
           {
             "path": "forbidden-by-whitelist.html",
-            "sha256": "123b84855ce2104be082c58438641532a92b71fb17848ac828000c1b88f0ede0",
-            "bytes": 494
+            "sha256": "fb177a81be2d7d7648fd5fa9df0a9d8b70cd8cd2e53fc69719de0918493cb5a0",
+            "bytes": 472
           },
           {
             "path": "host-not-allowed.html",
-            "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-            "bytes": 509
+            "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+            "bytes": 488
           },
           {
             "path": "unauthorized.html",
-            "sha256": "73dedf591007624f87281ecb8a553b9cad1ba6e67e7bb89f963b269324d018b8",
-            "bytes": 358
+            "sha256": "883a12e42f368d6a972c706927fdbbd48979bc5d7f714c612bbb1d5c39a3234b",
+            "bytes": 341
           },
           {
             "path": "url-not-found.html",
-            "sha256": "3c9c01243df0eb3beaa4cd0b55c8b1caa30b54fd30348bca1e8452f91a101cbe",
-            "bytes": 204
+            "sha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bytes": 189
           }
         ]
       },
@@ -4275,8 +4275,8 @@
         "files": [
           {
             "path": "user.css",
-            "sha256": "1f7de5d083b051cd0ab1ec8ead1f3bdda256e28fdaa103e40b8f4b40310fc345",
-            "bytes": 31
+            "sha256": "27c9cd8a9a93e8d8fa487116153c03b36ee383ff77068664529a545d556169cf",
+            "bytes": 30
           }
         ]
       }

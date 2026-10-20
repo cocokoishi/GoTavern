@@ -13,6 +13,18 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// Pinned src/util.js:149 reports /version's gitRevision with
+// `git rev-parse --short HEAD`, whose abbreviation length is derived from the
+// checkout's object database (git's core.abbrev=auto): a full clone yields 9
+// characters while CI's fetch-depth 1 checkout yields 7. That changes the
+// recorded /version body, content-length and ETag per host. Forcing the length
+// makes the pinned server report the same revision everywhere, so the
+// observation is host independent without rewriting any recorded value.
+const PINNED_GIT_ENVIRONMENT = {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.abbrev',
+    GIT_CONFIG_VALUE_0: '9',
+};
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const outputRoot = path.resolve(process.argv[3] ?? '');
 const probeMode = process.argv[4] ?? 'fresh-start';
@@ -197,7 +209,7 @@ try {
         '--port', String(port),
         '--browserLaunchEnabled', 'false',
         '--heartbeatInterval', '0',
-    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test', ...PINNED_GIT_ENVIRONMENT }, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');

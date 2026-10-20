@@ -86,9 +86,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "subdomainOfExactHost": {
       "host": "api.trusted.example.com",
@@ -110,9 +110,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "dotPatternApex": {
       "host": "example.net",
@@ -209,9 +209,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "hostSuffixAttack": {
       "host": "example.net.evil.test",
@@ -233,9 +233,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "localhost": {
       "host": "localhost",
@@ -407,9 +407,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "invalidIPv6Prefix": {
       "host": "[::zz]",
@@ -431,9 +431,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "invalidHostWithColon": {
       "host": "untrusted.example.org:1234",
@@ -455,9 +455,9 @@
       },
       "status": 403,
       "contentType": "text/html",
-      "bytes": 509,
-      "sha256": "abe2288467514e97897ea10981116f55cc23050f88be797b7f5b808b4370b0eb",
-      "body": "<!DOCTYPE html>\r\n<html>\r\n\r\n<head>\r\n    <title>Forbidden</title>\r\n</head>\r\n\r\n<body>\r\n    <h1>Forbidden</h1>\r\n    <p>\r\n        If you are the system administrator, add the hostname you are accessing from to the\r\n        host whitelist, or disable host whitelisting in the\r\n        <code>config.yaml</code> file located in the root directory of your installation.\r\n    </p>\r\n    <hr />\r\n    <p>\r\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\r\n    </p>\r\n</body>\r\n\r\n</html>\r\n"
+      "bytes": 488,
+      "sha256": "01a8748f57751cceb2af35c4568734707fc2bd290d038b03dd6b73773cd16db5",
+      "body": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Forbidden</title>\n</head>\n\n<body>\n    <h1>Forbidden</h1>\n    <p>\n        If you are the system administrator, add the hostname you are accessing from to the\n        host whitelist, or disable host whitelisting in the\n        <code>config.yaml</code> file located in the root directory of your installation.\n    </p>\n    <hr />\n    <p>\n        <em>Access from this host is not allowed. This attempt has been logged.</em>\n    </p>\n</body>\n\n</html>\n"
     },
     "allowedHostWithNonNumericPort": {
       "host": "example.net:not-a-port",
