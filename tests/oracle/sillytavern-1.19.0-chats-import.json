@@ -1,0 +1,1459 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned POST /api/chats/import",
+  "normalization": [
+    "Imported messages carry new Date().toISOString() and the written file is named `${characterName} - ${humanizedDateTime()} imported.jsonl`, so both are recorded as <isoDate> and <humanizedDateTime>.",
+    "The file name has millisecond resolution, so the probe waits for the clock to pass the previous import timestamp before each import; without that, two imports inside one millisecond would write the same file. This is a timing dependence, not a platform one.",
+    "Directory listings are recorded sorted because pinned fs.readdirSync order is filesystem-dependent (NTFS is sorted, ext4 is not).",
+    "Imported file digests are taken over the content with the generated timestamps normalized, so a digest still asserts the imported text, message order and JSON shape without depending on when the import ran.",
+    "Express-derived ETag and content-length are recorded as <derived-from-normalized-body> for responses whose body carries a generated timestamp, because they are functions of the un-normalized bytes.",
+    "The unknown-file_type case is not probed: the pinned handler sends no response and the request hangs until the client times out. GoTavern answers 400 and the gap is recorded in docs/compat-matrix.md."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-chats-import-cookie-secret",
+    "uploads": {
+      "importKoboldLite": {
+        "file_type": "json",
+        "body": "{\"savedsettings\":{\"chatname\":\"Kobold User\",\"chatopponent\":\"Kobold Char||$||extra\"},\"prompt\":\"{{[INPUT]}}kobold prompt\",\"actions\":[\"{{[OUTPUT]}}kobold reply\",\"{{[INPUT]}}kobold follow-up\"]}"
+      },
+      "importOoba": {
+        "file_type": "json",
+        "body": "{\"data_visible\":[[\"ooba user\",\"ooba char\"],[\"\",\"ooba char only\"],[\"ooba user only\",\"\"]]}"
+      },
+      "importAgnai": {
+        "file_type": "json",
+        "body": "{\"messages\":[{\"userId\":\"u1\",\"msg\":\"agnai user\"},{\"msg\":\"agnai char\"}]}"
+      },
+      "importRisu": {
+        "file_type": "json",
+        "body": "{\"type\":\"risuChat\",\"data\":{\"message\":[{\"role\":\"user\",\"data\":\"risu user\",\"time\":1717000000000},{\"role\":\"char\",\"name\":\"Named Char\",\"data\":\"risu char\",\"time\":1717000001000}]}}"
+      },
+      "importCAIEmpty": {
+        "file_type": "json",
+        "body": "{\"histories\":{\"histories\":[]}}"
+      },
+      "importCAIWithHistory": {
+        "file_type": "json",
+        "body": "{\"histories\":{\"histories\":[{\"msgs\":[{\"src\":{\"is_human\":true},\"text\":\"cai user\"}]}]}}"
+      },
+      "importUnknownJSON": {
+        "file_type": "json",
+        "body": "{\"nothing\":\"useful\"}"
+      },
+      "importInvalidJSON": {
+        "file_type": "json",
+        "body": "this is not json"
+      },
+      "importJSONLPlain": {
+        "file_type": "jsonl",
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-07-01T00:00:00.000Z\",\"mes\":\"plain jsonl message\"}"
+      },
+      "importJSONLChub": {
+        "file_type": "jsonl",
+        "body": "{\"user_name\":\"unused\",\"character_name\":\"unused\",\"chat_metadata\":{}}\n{\"name\":\"Chub Char\",\"is_user\":false,\"mes\":{\"message\":\"chub nested message\"},\"swipes\":[{\"message\":\"swipe one\"},\"swipe two\"]}"
+      },
+      "importJSONLBadHeader": {
+        "file_type": "jsonl",
+        "body": "not json at all\n{\"name\":\"Alice\",\"mes\":\"x\"}"
+      },
+      "importJSONLWrongHeader": {
+        "file_type": "jsonl",
+        "body": "{\"unrelated\":true}\n{\"name\":\"Alice\",\"mes\":\"x\"}"
+      }
+    }
+  },
+  "scenarioOrder": [
+    "importKoboldLite",
+    "importOoba",
+    "importAgnai",
+    "importRisu",
+    "importCAIEmpty",
+    "importCAIWithHistory",
+    "importUnknownJSON",
+    "importInvalidJSON",
+    "importJSONLPlain",
+    "importJSONLChub",
+    "importJSONLBadHeader",
+    "importJSONLWrongHeader",
+    "importEmptyNames",
+    "importMissingCharacterDirectory",
+    "importForbiddenAvatar",
+    "importMissingFile"
+  ],
+  "scenarios": {
+    "importKoboldLite": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22736176656473657474696e6773223a7b22636861746e616d65223a224b6f626f6c642055736572222c22636861746f70706f6e656e74223a224b6f626f6c6420436861727c7c247c7c6578747261227d2c2270726f6d7074223a227b7b5b494e5055545d7d7d6b6f626f6c642070726f6d7074222c22616374696f6e73223a5b227b7b5b4f55545055545d7d7d6b6f626f6c64207265706c79222c227b7b5b494e5055545d7d7d6b6f626f6c6420666f6c6c6f772d7570225d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        }
+      ]
+    },
+    "importOoba": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22646174615f76697369626c65223a5b5b226f6f62612075736572222c226f6f62612063686172225d2c5b22222c226f6f62612063686172206f6e6c79225d2c5b226f6f62612075736572206f6e6c79222c22225d5d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        }
+      ]
+    },
+    "importAgnai": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b226d65737361676573223a5b7b22757365724964223a227531222c226d7367223a2261676e61692075736572227d2c7b226d7367223a2261676e61692063686172227d5d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        }
+      ]
+    },
+    "importRisu": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b2274797065223a227269737543686174222c2264617461223a7b226d657373616765223a5b7b22726f6c65223a2275736572222c2264617461223a22726973752075736572222c2274696d65223a313731373030303030303030307d2c7b22726f6c65223a2263686172222c226e616d65223a224e616d65642043686172222c2264617461223a22726973752063686172222c2274696d65223a313731373030303030313030307d5d7d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        }
+      ]
+    },
+    "importCAIEmpty": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22686973746f72696573223a7b22686973746f72696573223a5b5d7d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "27",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1b-GvTbpFO5wU6kEhqRuzqPcq317PE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": []
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        }
+      ]
+    },
+    "importCAIWithHistory": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22686973746f72696573223a7b22686973746f72696573223a5b7b226d736773223a5b7b22737263223a7b2269735f68756d616e223a747275657d2c2274657874223a226361692075736572227d5d7d5d7d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        }
+      ]
+    },
+    "importUnknownJSON": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b226e6f7468696e67223a2275736566756c227d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        }
+      ]
+    },
+    "importInvalidJSON": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "74686973206973206e6f74206a736f6e"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        }
+      ]
+    },
+    "importJSONLPlain": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "jsonl"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22636861745f6d65746164617461223a7b22696e74656772697479223a2270726f6265227d2c22757365725f6e616d65223a22756e75736564222c226368617261637465725f6e616d65223a22756e75736564227d0a7b226e616d65223a22416c696365222c2269735f75736572223a747275652c2273656e645f64617465223a22323032342d30372d30315430303a30303a30302e3030305a222c226d6573223a22706c61696e206a736f6e6c206d657373616765227d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        }
+      ]
+    },
+    "importJSONLChub": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "jsonl"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22757365725f6e616d65223a22756e75736564222c226368617261637465725f6e616d65223a22756e75736564222c22636861745f6d65746164617461223a7b7d7d0a7b226e616d65223a22436875622043686172222c2269735f75736572223a66616c73652c226d6573223a7b226d657373616765223a2263687562206e6573746564206d657373616765227d2c22737769706573223a5b7b226d657373616765223a227377697065206f6e65227d2c2273776970652074776f225d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Imported Char - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Imported Char - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importJSONLBadHeader": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "jsonl"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "6e6f74206a736f6e20617420616c6c0a7b226e616d65223a22416c696365222c226d6573223a2278227d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importJSONLWrongHeader": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "jsonl"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22756e72656c61746564223a747275657d0a7b226e616d65223a22416c696365222c226d6573223a2278227d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importEmptyNames": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Alice.png"
+          ],
+          [
+            "character_name",
+            ""
+          ],
+          [
+            "user_name",
+            ""
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22736176656473657474696e6773223a7b22636861746e616d65223a224b6f626f6c642055736572222c22636861746f70706f6e656e74223a224b6f626f6c6420436861727c7c247c7c6578747261227d2c2270726f6d7074223a227b7b5b494e5055545d7d7d6b6f626f6c642070726f6d7074222c22616374696f6e73223a5b227b7b5b4f55545055545d7d7d6b6f626f6c64207265706c79222c227b7b5b494e5055545d7d7d6b6f626f6c6420666f6c6c6f772d7570225d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "<derived-from-normalized-body>",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<derived-from-normalized-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "res": true,
+          "fileNames": [
+            "Character - <humanizedDateTime> imported.jsonl"
+          ]
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"res\":true,\"fileNames\":[\"Character - <humanizedDateTime> imported.jsonl\"]}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Character - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importMissingCharacterDirectory": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "Bob.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b22736176656473657474696e6773223a7b22636861746e616d65223a224b6f626f6c642055736572222c22636861746f70706f6e656e74223a224b6f626f6c6420436861727c7c247c7c6578747261227d2c2270726f6d7074223a227b7b5b494e5055545d7d7d6b6f626f6c642070726f6d7074222c22616374696f6e73223a5b227b7b5b4f55545055545d7d7d6b6f626f6c64207265706c79222c227b7b5b494e5055545d7d7d6b6f626f6c6420666f6c6c6f772d7570225d7d"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyIsJSON": true,
+        "bodyText": "{\"error\":true}"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Character - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importForbiddenAvatar": {
+      "route": "/api/chats/import",
+      "multipart": {
+        "fields": [
+          [
+            "file_type",
+            "json"
+          ],
+          [
+            "avatar_url",
+            "../escape.png"
+          ],
+          [
+            "character_name",
+            "Imported Char"
+          ],
+          [
+            "user_name",
+            "Imported User"
+          ]
+        ],
+        "field": "avatar",
+        "filename": "chat.txt",
+        "bytesHex": "7b7d"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Character - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    },
+    "importMissingFile": {
+      "route": "/api/chats/import",
+      "json": "{\"file_type\":\"json\",\"avatar_url\":\"Alice.png\",\"character_name\":\"Imported Char\",\"user_name\":\"Imported User\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      },
+      "chats": [
+        {
+          "path": "Alice",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice/Character - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "49169923e11e9955577be34caccaa435d55c0290f2d4ac4baeb894d44b148a2c",
+          "bytes": 400
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "654d136442e3d1a0473aec4fc4112976a39863a0208c2018c82730aef28a51f7",
+          "bytes": 511
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1d0f03b4d28e9f64a19af2c19a2c234e2b47fd3fab90ead4f96e2771056704bf",
+          "bytes": 286
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "1452b7574c4c53b42d22ccb55c54bcf31f38df99b9d9a1671eb2592b4d35d4c0",
+          "bytes": 281
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "8b89d73d9060cafa06af159ab2dedf8d8861370c049ccf18da04c67e3fd5b741",
+          "bytes": 185
+        },
+        {
+          "path": "Alice/Imported Char - <humanizedDateTime> imported.jsonl",
+          "kind": "file",
+          "sha256": "68226c59ca3f8ef4e25b76e2a7e4bc0f6f93fc8f8f462fcffea5ffaad8959258",
+          "bytes": 167
+        }
+      ]
+    }
+  }
+}
