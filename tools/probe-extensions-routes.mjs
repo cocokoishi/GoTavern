@@ -24,7 +24,11 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
-// @gotavern-oracle: fixture=sillytavern-1.19.0-extensions-routes.json label="frontend extension management routes"
+// @gotavern-oracle: fixture=sillytavern-1.19.0-extensions-routes.json label="frontend extension management routes" sharedWrite=true
+// sharedWrite: this probe writes into PUBLIC_DIRECTORIES.globalExtensions
+// (public/scripts/extensions/third-party) under the server directory. Pinned
+// server.js:11 chdirs to that directory, so the write lands in the build root
+// regardless of the spawn cwd and would race any sibling probe reading it.
 const COOKIE_SECRET = 'gotavern-pinned-extensions-cookie-secret';
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');

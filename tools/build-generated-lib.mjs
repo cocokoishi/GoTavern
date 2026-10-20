@@ -16,7 +16,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
@@ -111,6 +111,80 @@ function runAsync(command, args, cwd) {
     });
 }
 
+// Paths under the build root that more than one probe could write.
+//
+// Pinned src/constants.js PUBLIC_DIRECTORIES are relative to the server
+// directory, and pinned server.js:11 does `process.chdir(serverDirectory)`, so a
+// probe that touches one of these writes into the shared build root no matter
+// what cwd it was spawned with. Spawning with an isolated cwd cannot help.
+//
+// These are exactly the four PUBLIC_DIRECTORIES subtrees; `extensions` contains
+// `third-party`, and both are listed because both are named upstream and either
+// could be touched directly. Add a fifth explicitly, with a comment, rather than
+// widening this to the whole build root: a blanket lock could break something
+// legitimate for a reason nobody would connect to this change.
+const sharedWritePaths = [
+    'public/img',
+    'public/sounds',
+    'public/scripts/extensions',
+    'public/scripts/extensions/third-party',
+];
+
+// Records the mode of every entry under the shared paths so the lock can be
+// undone exactly, and detects a write that happened anyway (which is how the
+// enforcement reports itself on a platform where it cannot be applied).
+function fingerprintSharedPaths(root) {
+    const entries = [];
+    for (const relative of sharedWritePaths) {
+        const target = path.join(root, relative);
+        if (!existsSync(target)) continue;
+        const stack = [target];
+        while (stack.length > 0) {
+            const current = stack.pop();
+            const info = statSync(current);
+            entries.push({ path: current, mode: info.mode, mtimeMs: info.mtimeMs, isDirectory: info.isDirectory() });
+            if (info.isDirectory()) {
+                for (const name of readdirSync(current)) stack.push(path.join(current, name));
+            }
+        }
+    }
+    return entries;
+}
+
+// Makes the shared subtrees read-only for the probe phase. Preventive rather
+// than detective on purpose: a probe that writes and then restores leaves a
+// clean tree, so no after-the-fact check can see the race.
+function lockSharedPaths(root) {
+    if (process.platform === 'win32') {
+        console.log('shared-write enforcement is INACTIVE on Windows: the read-only lock is POSIX-only, so a local run does not prove probes are isolated.');
+        return null;
+    }
+    const before = fingerprintSharedPaths(root);
+    for (const entry of before) {
+        chmodSync(entry.path, entry.isDirectory ? 0o555 : 0o444);
+    }
+    console.log(`shared-write lock applied to ${sharedWritePaths.join(', ')} (${before.length} entries)`);
+    return before;
+}
+
+function unlockSharedPaths(before) {
+    if (!before) return;
+    for (const entry of before.slice().reverse()) {
+        chmodSync(entry.path, entry.mode);
+    }
+    console.log('shared-write lock released');
+}
+
+// Reports a write into a shared path with the probe that attempted it, so the
+// failure reads as an instruction rather than as a mystery permission error.
+function describeSharedWrite(label, output) {
+    if (!/EACCES|EPERM|permission denied|read-only/i.test(output)) return null;
+    const mentioned = sharedWritePaths.filter(relative => output.includes(relative));
+    const where = mentioned.length > 0 ? mentioned.join(', ') : sharedWritePaths.join(', ');
+    return `probe ${label} attempted to write under ${where}, which is shared with other probes. `
+        + 'Declare sharedWrite=true on its @gotavern-oracle line to give it a private build root, or stop writing there.';
+}
+
 // Runs one probe twice and compares the two fixtures byte for byte. The
 // double-run determinism check and the fixture comparison are the load-bearing
 // parts of the oracle; parallelism changes only when probes run, and failure
@@ -122,8 +196,8 @@ function compareProbeRuns(label, first, second) {
     recordProbeFailure(label, new Error(`oracle changed across identical pinned Node runs at: ${paths.join(', ')}`));
 }
 
-async function verifyProbe({ script, fixture, label, args = [] }) {
-    const scriptPath = path.join(buildRoot, `.gotavern-${script}`);
+async function verifyProbe({ script, fixture, label, args = [], root = buildRoot }) {
+    const scriptPath = path.join(root, `.gotavern-${script}`);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
     const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
     // Both runs always execute, even if the first one fails: the determinism
@@ -136,13 +210,13 @@ async function verifyProbe({ script, fixture, label, args = [] }) {
     let second;
     let failure;
     try {
-        outputs.push(await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot));
+        outputs.push(await runAsync(process.execPath, [scriptPath, root, repositoryRoot, ...args], root));
         first = readFileSync(fixturePath);
     } catch (error) {
         failure = error;
     }
     try {
-        outputs.push(await runAsync(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot));
+        outputs.push(await runAsync(process.execPath, [scriptPath, root, repositoryRoot, ...args], root));
         second = readFileSync(fixturePath);
     } catch (error) {
         failure = failure ?? error;
@@ -150,34 +224,36 @@ async function verifyProbe({ script, fixture, label, args = [] }) {
     const observed = outputs.join('').trim();
     if (observed) console.log(observed);
     if (failure) {
-        recordProbeFailure(label, failure);
+        const sharedWrite = describeSharedWrite(label, `${observed}\n${failure.message}`);
+        recordProbeFailure(label, sharedWrite ? new Error(`${failure.message}\n${sharedWrite}`) : failure);
         return null;
     }
     compareProbeRuns(label, first, second);
     return first;
 }
 
-function verifyProbeSerial({ script, fixture, label, args = [] }) {
-    const scriptPath = path.join(buildRoot, `.gotavern-${script}`);
+function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot }) {
+    const scriptPath = path.join(root, `.gotavern-${script}`);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
     const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
     let first;
     let second;
     let failure;
     try {
-        run(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot);
+        run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
         first = readFileSync(fixturePath);
     } catch (error) {
         failure = error;
     }
     try {
-        run(process.execPath, [scriptPath, buildRoot, repositoryRoot, ...args], buildRoot);
+        run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
         second = readFileSync(fixturePath);
     } catch (error) {
         failure = failure ?? error;
     }
     if (failure) {
-        recordProbeFailure(label, failure);
+        const sharedWrite = describeSharedWrite(label, failure.message);
+        recordProbeFailure(label, sharedWrite ? new Error(`${failure.message}\n${sharedWrite}`) : failure);
         return null;
     }
     compareProbeRuns(label, first, second);
@@ -207,10 +283,32 @@ function discoverProbes() {
                 fixture: fields.fixture,
                 label: fields.label ?? fields.fixture,
                 args: fields.args ? fields.args.split(',') : [],
+                // A probe that writes under a shared PUBLIC_DIRECTORIES subtree
+                // declares it and gets a private build root. Declaring it is the
+                // author's job; enforcing it is not, which is why an undeclared
+                // writer hits the read-only lock and fails loudly instead.
+                sharedWrite: fields.sharedWrite === 'true',
             });
         }
     }
     return discovered;
+}
+
+// Gives one probe its own build root, so its writes under PUBLIC_DIRECTORIES
+// cannot reach any other probe. This is what removes the reader problem rather
+// than scheduling around it: a reader without sharedWrite reads the shared root
+// while the writer writes its own, so they cannot collide at all.
+//
+// `git clone --shared` reuses the pinned checkout's objects, and npm ci is the
+// only real cost. It is paid once per declared probe, not per run, and the root
+// is deleted with the harness's temporary root.
+function createPrivateBuildRoot(script) {
+    const privateRoot = path.join(tempRoot, `private-${script.replace(/\.mjs$/, '')}`);
+    run('git', ['clone', '--shared', '--no-checkout', upstreamRoot, privateRoot], repositoryRoot);
+    run('git', ['checkout', '--force', '-B', 'release', PINNED_COMMIT], privateRoot);
+    runNpm(['ci', '--no-audit', '--no-fund'], privateRoot);
+    console.log(`probe ${script} declares sharedWrite and received a private build root at ${privateRoot}`);
+    return privateRoot;
 }
 
 // Runs every probe even when some fail, so a single breakage cannot hide the
@@ -221,7 +319,9 @@ async function runProbePool(probes, limit) {
     const workers = Array.from({ length: Math.max(1, Math.min(limit, queue.length)) }, async () => {
         while (queue.length > 0) {
             const probe = queue.shift();
-            await verifyProbe(probe);
+            await verifyProbe(probe.sharedWrite
+                ? { ...probe, root: createPrivateBuildRoot(probe.script) }
+                : probe);
         }
     });
     await Promise.all(workers);
@@ -322,23 +422,36 @@ try {
     const lateRuns = discoveredProbes.filter(probe => lateSerialProbes.has(probe.script));
     const pooledRuns = discoveredProbes.filter(probe => !earlySerialProbes.has(probe.script) && !lateSerialProbes.has(probe.script));
 
+    // Every probe without sharedWrite runs against a read-only shared build root
+    // for the whole probe phase, so an undeclared write fails immediately with a
+    // permission error instead of racing a sibling. The lock is released before
+    // the harness's own webpack step, which writes dist/_webpack under the build
+    // root. Probes that declare sharedWrite get a private root and never touch
+    // the shared one.
+    const sharedLock = lockSharedPaths(buildRoot);
     const serialResults = new Map();
-    for (const probe of earlyRuns) {
-        serialResults.set(probe.fixture, verifyProbeSerial(probe));
-    }
-    // probe-config-init's fixture also supplies the vendored default config.
-    const configFixtureBytes = serialResults.get('sillytavern-1.19.0-config-init.json');
-    if (configFixtureBytes) {
-        writeFileSync(path.join(repositoryRoot, 'upstream', 'generated', 'default-config.yaml'), JSON.parse(configFixtureBytes).scenarios.fresh.outputYaml);
-    }
+    try {
+        for (const probe of earlyRuns) {
+            serialResults.set(probe.fixture, verifyProbeSerial(probe.sharedWrite
+                ? { ...probe, root: createPrivateBuildRoot(probe.script) }
+                : probe));
+        }
+        // probe-config-init's fixture also supplies the vendored default config.
+        const configFixtureBytes = serialResults.get('sillytavern-1.19.0-config-init.json');
+        if (configFixtureBytes) {
+            writeFileSync(path.join(repositoryRoot, 'upstream', 'generated', 'default-config.yaml'), JSON.parse(configFixtureBytes).scenarios.fresh.outputYaml);
+        }
 
-    // Independent probes. Each is hermetic: it picks its own free port and its
-    // own mkdtemp runtime root and writes only its own fixture, so they can run
-    // concurrently without changing any observation. Every probe is still run
-    // twice and the two fixtures are still compared byte for byte. A failing
-    // probe is recorded, not thrown, so one breakage cannot hide the rest; the
-    // step fails once at the end with the complete list.
-    await runProbePool(pooledRuns, probeConcurrency);
+        // Independent probes. Each is hermetic: it picks its own free port and
+        // its own mkdtemp runtime root and writes only its own fixture, so they
+        // can run concurrently without changing any observation. Every probe is
+        // still run twice and the two fixtures are still compared byte for byte.
+        // A failing probe is recorded, not thrown, so one breakage cannot hide
+        // the rest; the step fails once at the end with the complete list.
+        await runProbePool(pooledRuns, probeConcurrency);
+    } finally {
+        unlockSharedPaths(sharedLock);
+    }
     const compiler = `
 import { copyFileSync } from 'node:fs';
 import path from 'node:path';
@@ -372,7 +485,9 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
     // probe-node-reference must run after the webpack build because it fetches
     // the generated /lib.js and asserts it matches the vendored artifact.
     for (const probe of lateRuns) {
-        serialResults.set(probe.fixture, verifyProbeSerial(probe));
+        serialResults.set(probe.fixture, verifyProbeSerial(probe.sharedWrite
+            ? { ...probe, root: createPrivateBuildRoot(probe.script) }
+            : probe));
     }
 
     // Report every probe failure together instead of stopping at the first one.
