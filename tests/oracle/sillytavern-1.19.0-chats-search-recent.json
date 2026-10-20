@@ -1,0 +1,968 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/chats/search and /api/chats/recent",
+  "normalization": [
+    "The /search result array is recorded sorted by file_name because it comes from fs.readdirSync, whose order differs between NTFS and ext4 and is not part of the route contract.",
+    "The /recent result array is recorded in the order the route returned it: it is ordered by mtime descending with pinned entries first, and every seeded chat file has a distinct mtime, so the order is deterministic and is asserted rather than sorted away.",
+    "No generated id, timestamp or random value is involved in these two routes.",
+    "Express-derived content-length is recorded as <derived-from-uncompressed-body> for the responses pinned Node gzips, because GoTavern does not reproduce the compression middleware yet."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-chats-search-recent-cookie-secret",
+    "newestMtimeMs": 1700000800000,
+    "chatFiles": {
+      "Alice/chat-one.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-06-01T00:00:00.000Z\",\"mes\":\"hello world from alice\"}",
+        "mtime": 1700000800000
+      },
+      "Alice/chat-two.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":false,\"send_date\":\"2024-06-02T00:00:00.000Z\",\"mes\":\"a different topic\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-06-03T00:00:00.000Z\",\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+        "mtime": 1700000799000
+      },
+      "Alice/notes.txt": {
+        "body": "ignored because the extension is not .jsonl",
+        "mtime": 1700000798000
+      },
+      "Bob/chat-three.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Bob\",\"is_user\":false,\"send_date\":\"2024-06-04T00:00:00.000Z\",\"mes\":\"bob says hello\"}",
+        "mtime": 1700000797000
+      },
+      "root-one.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Root\",\"is_user\":true,\"send_date\":\"2024-06-05T00:00:00.000Z\",\"mes\":\"root chat message\"}",
+        "mtime": 1700000796000
+      }
+    },
+    "groupChatFiles": {
+      "group-chat-a.jsonl": {
+        "body": "{\"chat_metadata\":{\"integrity\":\"probe\"},\"user_name\":\"unused\",\"character_name\":\"unused\"}\n{\"name\":\"Alice\",\"is_user\":true,\"send_date\":\"2024-06-06T00:00:00.000Z\",\"mes\":\"group chat message\"}",
+        "mtime": 1700000795000
+      }
+    },
+    "groupFiles": {
+      "search-group.json": "{\n    \"id\": \"seed-group-search\",\n    \"name\": \"Search Group\",\n    \"chats\": [\n        \"group-chat-a\"\n    ],\n    \"members\": []\n}",
+      "no-chats-group.json": "{\n    \"id\": \"seed-group-no-chats\",\n    \"name\": \"No Chats\",\n    \"members\": []\n}"
+    },
+    "cardFiles": {
+      "Alice.png": "card bytes",
+      "Bob.png": "card bytes"
+    },
+    "longMessage": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "scenarioOrder": [
+    "searchByAvatar",
+    "searchNoQuery",
+    "searchMultiFragment",
+    "searchFragmentsMustAllMatch",
+    "searchMixedCase",
+    "searchNoMatch",
+    "searchFileNameOnly",
+    "searchMissingDirectory",
+    "searchGroup",
+    "searchGroupNoQuery",
+    "searchGroupMissing",
+    "searchGroupWithoutChats",
+    "searchForbiddenAvatar",
+    "recentAll",
+    "recentMetadata",
+    "recentPinnedAvatar",
+    "recentPinnedGroup",
+    "recentMaxOne",
+    "recentMaxZero",
+    "recentPinnedNotArray"
+  ],
+  "scenarios": {
+    "searchByAvatar": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"hello\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "144",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"90-mxIUsy4YK4466E0AytWh6ECG5Bk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "chat-one",
+            "file_size": "188B",
+            "message_count": 1,
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "preview_message": "hello world from alice"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"chat-one\",\"file_size\":\"188B\",\"message_count\":1,\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"preview_message\":\"hello world from alice\"}]"
+      }
+    },
+    "searchNoQuery": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "668",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"29c-j96M7olucU22U8eWc4H4WLg2SQM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "chat-one",
+            "file_size": "188B",
+            "message_count": 1,
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "preview_message": "hello world from alice"
+          },
+          {
+            "file_name": "chat-two",
+            "file_size": "696B",
+            "message_count": 2,
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "preview_message": "...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"chat-one\",\"file_size\":\"188B\",\"message_count\":1,\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"preview_message\":\"hello world from alice\"},{\"file_name\":\"chat-two\",\"file_size\":\"696B\",\"message_count\":2,\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"preview_message\":\"...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]"
+      }
+    },
+    "searchMultiFragment": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"hello world\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "144",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"90-mxIUsy4YK4466E0AytWh6ECG5Bk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "chat-one",
+            "file_size": "188B",
+            "message_count": 1,
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "preview_message": "hello world from alice"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"chat-one\",\"file_size\":\"188B\",\"message_count\":1,\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"preview_message\":\"hello world from alice\"}]"
+      }
+    },
+    "searchFragmentsMustAllMatch": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"hello topic\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "searchMixedCase": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"  HELLO   World  \"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "144",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"90-mxIUsy4YK4466E0AytWh6ECG5Bk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "chat-one",
+            "file_size": "188B",
+            "message_count": 1,
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "preview_message": "hello world from alice"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"chat-one\",\"file_size\":\"188B\",\"message_count\":1,\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"preview_message\":\"hello world from alice\"}]"
+      }
+    },
+    "searchNoMatch": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"zzzznope\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "searchFileNameOnly": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Alice.png\",\"query\":\"chat-two\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "525",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"20d-PrdhW2tNbd55mbSwqZ6rLXEpPMw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "chat-two",
+            "file_size": "696B",
+            "message_count": 2,
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "preview_message": "...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"chat-two\",\"file_size\":\"696B\",\"message_count\":2,\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"preview_message\":\"...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]"
+      }
+    },
+    "searchMissingDirectory": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"Nope.png\",\"query\":\"x\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "searchGroup": {
+      "route": "/api/chats/search",
+      "request": "{\"group_id\":\"seed-group-search\",\"query\":\"group\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "144",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"90-bbwfGkM1DL/wTjRCLAAOGAAxzss\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "group-chat-a",
+            "file_size": "184B",
+            "message_count": 1,
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "preview_message": "group chat message"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"group-chat-a\",\"file_size\":\"184B\",\"message_count\":1,\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"preview_message\":\"group chat message\"}]"
+      }
+    },
+    "searchGroupNoQuery": {
+      "route": "/api/chats/search",
+      "request": "{\"group_id\":\"seed-group-search\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "144",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"90-bbwfGkM1DL/wTjRCLAAOGAAxzss\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "file_name": "group-chat-a",
+            "file_size": "184B",
+            "message_count": 1,
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "preview_message": "group chat message"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"file_name\":\"group-chat-a\",\"file_size\":\"184B\",\"message_count\":1,\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"preview_message\":\"group chat message\"}]"
+      }
+    },
+    "searchGroupMissing": {
+      "route": "/api/chats/search",
+      "request": "{\"group_id\":\"nope\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "searchGroupWithoutChats": {
+      "route": "/api/chats/search",
+      "request": "{\"group_id\":\"seed-group-no-chats\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "searchForbiddenAvatar": {
+      "route": "/api/chats/search",
+      "request": "{\"avatar_url\":\"../x.png\",\"query\":\"x\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyIsJSON": false,
+        "bodyText": "Bad Request"
+      }
+    },
+    "recentAll": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":100}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"537-VWwsP86tLoHky2nKOokF3HFvRR8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-uncompressed-body>"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-two",
+            "file_name": "chat-two.jsonl",
+            "file_size": "696B",
+            "chat_items": 2,
+            "mes": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-three",
+            "file_name": "chat-three.jsonl",
+            "file_size": "179B",
+            "chat_items": 1,
+            "mes": "bob says hello",
+            "last_mes": "2024-06-04T00:00:00.000Z",
+            "avatar": "Bob.png"
+          },
+          {
+            "match": true,
+            "file_id": "root-one",
+            "file_name": "root-one.jsonl",
+            "file_size": "182B",
+            "chat_items": 1,
+            "mes": "root chat message",
+            "last_mes": "2024-06-05T00:00:00.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "group-chat-a",
+            "file_name": "group-chat-a.jsonl",
+            "file_size": "184B",
+            "chat_items": 1,
+            "mes": "group chat message",
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "group": "seed-group-search"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-two\",\"file_name\":\"chat-two.jsonl\",\"file_size\":\"696B\",\"chat_items\":2,\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-three\",\"file_name\":\"chat-three.jsonl\",\"file_size\":\"179B\",\"chat_items\":1,\"mes\":\"bob says hello\",\"last_mes\":\"2024-06-04T00:00:00.000Z\",\"avatar\":\"Bob.png\"},{\"match\":true,\"file_id\":\"root-one\",\"file_name\":\"root-one.jsonl\",\"file_size\":\"182B\",\"chat_items\":1,\"mes\":\"root chat message\",\"last_mes\":\"2024-06-05T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"group-chat-a\",\"file_name\":\"group-chat-a.jsonl\",\"file_size\":\"184B\",\"chat_items\":1,\"mes\":\"group chat message\",\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"group\":\"seed-group-search\"}]"
+      }
+    },
+    "recentMetadata": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":100,\"metadata\":true}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"5f5-S9hIqMznk+oHyL6+B2RvywO0bts\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-uncompressed-body>"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png",
+            "chat_metadata": {
+              "integrity": "probe"
+            }
+          },
+          {
+            "match": true,
+            "file_id": "chat-two",
+            "file_name": "chat-two.jsonl",
+            "file_size": "696B",
+            "chat_items": 2,
+            "mes": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "avatar": "Alice.png",
+            "chat_metadata": {
+              "integrity": "probe"
+            }
+          },
+          {
+            "match": true,
+            "file_id": "chat-three",
+            "file_name": "chat-three.jsonl",
+            "file_size": "179B",
+            "chat_items": 1,
+            "mes": "bob says hello",
+            "last_mes": "2024-06-04T00:00:00.000Z",
+            "avatar": "Bob.png",
+            "chat_metadata": {
+              "integrity": "probe"
+            }
+          },
+          {
+            "match": true,
+            "file_id": "root-one",
+            "file_name": "root-one.jsonl",
+            "file_size": "182B",
+            "chat_items": 1,
+            "mes": "root chat message",
+            "last_mes": "2024-06-05T00:00:00.000Z",
+            "chat_metadata": {
+              "integrity": "probe"
+            }
+          },
+          {
+            "match": true,
+            "file_id": "group-chat-a",
+            "file_name": "group-chat-a.jsonl",
+            "file_size": "184B",
+            "chat_items": 1,
+            "mes": "group chat message",
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "group": "seed-group-search",
+            "chat_metadata": {
+              "integrity": "probe"
+            }
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\",\"chat_metadata\":{\"integrity\":\"probe\"}},{\"match\":true,\"file_id\":\"chat-two\",\"file_name\":\"chat-two.jsonl\",\"file_size\":\"696B\",\"chat_items\":2,\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"avatar\":\"Alice.png\",\"chat_metadata\":{\"integrity\":\"probe\"}},{\"match\":true,\"file_id\":\"chat-three\",\"file_name\":\"chat-three.jsonl\",\"file_size\":\"179B\",\"chat_items\":1,\"mes\":\"bob says hello\",\"last_mes\":\"2024-06-04T00:00:00.000Z\",\"avatar\":\"Bob.png\",\"chat_metadata\":{\"integrity\":\"probe\"}},{\"match\":true,\"file_id\":\"root-one\",\"file_name\":\"root-one.jsonl\",\"file_size\":\"182B\",\"chat_items\":1,\"mes\":\"root chat message\",\"last_mes\":\"2024-06-05T00:00:00.000Z\",\"chat_metadata\":{\"integrity\":\"probe\"}},{\"match\":true,\"file_id\":\"group-chat-a\",\"file_name\":\"group-chat-a.jsonl\",\"file_size\":\"184B\",\"chat_items\":1,\"mes\":\"group chat message\",\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"group\":\"seed-group-search\",\"chat_metadata\":{\"integrity\":\"probe\"}}]"
+      }
+    },
+    "recentPinnedAvatar": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":100,\"pinned\":[{\"file_name\":\"chat-three.jsonl\",\"avatar\":\"Bob.png\"}]}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"537-xQd9srMTADjgIsPE6lJWEkQh7ZE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-uncompressed-body>"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat-three",
+            "file_name": "chat-three.jsonl",
+            "file_size": "179B",
+            "chat_items": 1,
+            "mes": "bob says hello",
+            "last_mes": "2024-06-04T00:00:00.000Z",
+            "avatar": "Bob.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-two",
+            "file_name": "chat-two.jsonl",
+            "file_size": "696B",
+            "chat_items": 2,
+            "mes": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "root-one",
+            "file_name": "root-one.jsonl",
+            "file_size": "182B",
+            "chat_items": 1,
+            "mes": "root chat message",
+            "last_mes": "2024-06-05T00:00:00.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "group-chat-a",
+            "file_name": "group-chat-a.jsonl",
+            "file_size": "184B",
+            "chat_items": 1,
+            "mes": "group chat message",
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "group": "seed-group-search"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"chat-three\",\"file_name\":\"chat-three.jsonl\",\"file_size\":\"179B\",\"chat_items\":1,\"mes\":\"bob says hello\",\"last_mes\":\"2024-06-04T00:00:00.000Z\",\"avatar\":\"Bob.png\"},{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-two\",\"file_name\":\"chat-two.jsonl\",\"file_size\":\"696B\",\"chat_items\":2,\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"root-one\",\"file_name\":\"root-one.jsonl\",\"file_size\":\"182B\",\"chat_items\":1,\"mes\":\"root chat message\",\"last_mes\":\"2024-06-05T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"group-chat-a\",\"file_name\":\"group-chat-a.jsonl\",\"file_size\":\"184B\",\"chat_items\":1,\"mes\":\"group chat message\",\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"group\":\"seed-group-search\"}]"
+      }
+    },
+    "recentPinnedGroup": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":100,\"pinned\":[{\"file_name\":\"group-chat-a.jsonl\",\"group\":\"seed-group-search\"}]}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"537-FYw+fTvi6tUQz3bDjer0VLg+Dys\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-uncompressed-body>"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "group-chat-a",
+            "file_name": "group-chat-a.jsonl",
+            "file_size": "184B",
+            "chat_items": 1,
+            "mes": "group chat message",
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "group": "seed-group-search"
+          },
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-two",
+            "file_name": "chat-two.jsonl",
+            "file_size": "696B",
+            "chat_items": 2,
+            "mes": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-three",
+            "file_name": "chat-three.jsonl",
+            "file_size": "179B",
+            "chat_items": 1,
+            "mes": "bob says hello",
+            "last_mes": "2024-06-04T00:00:00.000Z",
+            "avatar": "Bob.png"
+          },
+          {
+            "match": true,
+            "file_id": "root-one",
+            "file_name": "root-one.jsonl",
+            "file_size": "182B",
+            "chat_items": 1,
+            "mes": "root chat message",
+            "last_mes": "2024-06-05T00:00:00.000Z"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"group-chat-a\",\"file_name\":\"group-chat-a.jsonl\",\"file_size\":\"184B\",\"chat_items\":1,\"mes\":\"group chat message\",\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"group\":\"seed-group-search\"},{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-two\",\"file_name\":\"chat-two.jsonl\",\"file_size\":\"696B\",\"chat_items\":2,\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-three\",\"file_name\":\"chat-three.jsonl\",\"file_size\":\"179B\",\"chat_items\":1,\"mes\":\"bob says hello\",\"last_mes\":\"2024-06-04T00:00:00.000Z\",\"avatar\":\"Bob.png\"},{\"match\":true,\"file_id\":\"root-one\",\"file_name\":\"root-one.jsonl\",\"file_size\":\"182B\",\"chat_items\":1,\"mes\":\"root chat message\",\"last_mes\":\"2024-06-05T00:00:00.000Z\"}]"
+      }
+    },
+    "recentMaxOne": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":1}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "190",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"be-iogbmyXXzIAx5Q5MbcLwDb3Ecyo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\"}]"
+      }
+    },
+    "recentMaxZero": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":0}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyIsJSON": true,
+        "bodyText": "[]"
+      }
+    },
+    "recentPinnedNotArray": {
+      "route": "/api/chats/recent",
+      "request": "{\"max\":100,\"pinned\":\"not an array\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-encoding": "gzip",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"537-VWwsP86tLoHky2nKOokF3HFvRR8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "transfer-encoding": "chunked",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0",
+          "content-length": "<derived-from-uncompressed-body>"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat-one",
+            "file_name": "chat-one.jsonl",
+            "file_size": "188B",
+            "chat_items": 1,
+            "mes": "hello world from alice",
+            "last_mes": "2024-06-01T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-two",
+            "file_name": "chat-two.jsonl",
+            "file_size": "696B",
+            "chat_items": 2,
+            "mes": "tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "last_mes": "2024-06-03T00:00:00.000Z",
+            "avatar": "Alice.png"
+          },
+          {
+            "match": true,
+            "file_id": "chat-three",
+            "file_name": "chat-three.jsonl",
+            "file_size": "179B",
+            "chat_items": 1,
+            "mes": "bob says hello",
+            "last_mes": "2024-06-04T00:00:00.000Z",
+            "avatar": "Bob.png"
+          },
+          {
+            "match": true,
+            "file_id": "root-one",
+            "file_name": "root-one.jsonl",
+            "file_size": "182B",
+            "chat_items": 1,
+            "mes": "root chat message",
+            "last_mes": "2024-06-05T00:00:00.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "group-chat-a",
+            "file_name": "group-chat-a.jsonl",
+            "file_size": "184B",
+            "chat_items": 1,
+            "mes": "group chat message",
+            "last_mes": "2024-06-06T00:00:00.000Z",
+            "group": "seed-group-search"
+          }
+        ],
+        "bodyIsJSON": true,
+        "bodyText": "[{\"match\":true,\"file_id\":\"chat-one\",\"file_name\":\"chat-one.jsonl\",\"file_size\":\"188B\",\"chat_items\":1,\"mes\":\"hello world from alice\",\"last_mes\":\"2024-06-01T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-two\",\"file_name\":\"chat-two.jsonl\",\"file_size\":\"696B\",\"chat_items\":2,\"mes\":\"tail-marker xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"last_mes\":\"2024-06-03T00:00:00.000Z\",\"avatar\":\"Alice.png\"},{\"match\":true,\"file_id\":\"chat-three\",\"file_name\":\"chat-three.jsonl\",\"file_size\":\"179B\",\"chat_items\":1,\"mes\":\"bob says hello\",\"last_mes\":\"2024-06-04T00:00:00.000Z\",\"avatar\":\"Bob.png\"},{\"match\":true,\"file_id\":\"root-one\",\"file_name\":\"root-one.jsonl\",\"file_size\":\"182B\",\"chat_items\":1,\"mes\":\"root chat message\",\"last_mes\":\"2024-06-05T00:00:00.000Z\"},{\"match\":true,\"file_id\":\"group-chat-a\",\"file_name\":\"group-chat-a.jsonl\",\"file_size\":\"184B\",\"chat_items\":1,\"mes\":\"group chat message\",\"last_mes\":\"2024-06-06T00:00:00.000Z\",\"group\":\"seed-group-search\"}]"
+      }
+    }
+  }
+}

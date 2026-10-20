@@ -24,6 +24,8 @@ func registerChatAndGroupRoutes(mux *http.ServeMux, accounts *accountRuntime, no
 	post("/api/chats/rename", accounts.serveChatsRename)
 	post("/api/chats/delete", accounts.serveChatsDelete)
 	post("/api/chats/export", accounts.serveChatsExport)
+	post("/api/chats/search", accounts.serveChatsSearch)
+	post("/api/chats/recent", accounts.serveChatsRecent)
 	post("/api/chats/group/get", accounts.serveChatsGroupGet)
 	post("/api/chats/group/info", accounts.serveChatsGroupInfo)
 	post("/api/chats/group/save", accounts.serveChatsGroupSave)
