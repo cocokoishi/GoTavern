@@ -820,6 +820,18 @@ try {
         throw new Error(`files-verify oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
     }
 
+    const chatsSaveGetProbe = path.join(buildRoot, '.gotavern-probe-chats-save-get.mjs');
+    copyFileSync(path.join(repositoryRoot, 'tools', 'probe-chats-save-get.mjs'), chatsSaveGetProbe);
+    const chatsSaveGetFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-chats-save-get.json');
+    run(process.execPath, [chatsSaveGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const firstChatsSaveGetProbe = readFileSync(chatsSaveGetFixturePath);
+    run(process.execPath, [chatsSaveGetProbe, buildRoot, repositoryRoot], buildRoot);
+    const secondChatsSaveGetProbe = readFileSync(chatsSaveGetFixturePath);
+    if (!firstChatsSaveGetProbe.equals(secondChatsSaveGetProbe)) {
+        const paths = changedJSONPaths(JSON.parse(firstChatsSaveGetProbe), JSON.parse(secondChatsSaveGetProbe));
+        throw new Error(`chats-save-get oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    }
+
     const compiler = `
 import { copyFileSync } from 'node:fs';
 import path from 'node:path';
