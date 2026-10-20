@@ -90,6 +90,14 @@ domain.
    characters, and pass an explicit encoding whenever a shell writes non-ASCII content. This is
    the same failure as the CRLF vendored assets: the artefact looked correct while its bytes were
    not, and every reader that tolerated the damage hid it.
+10. **"No failure reported, but the expected outcome did not happen" is a probe-faithfulness
+   alarm, not a product finding.** A driver that reports the absence of an outcome while
+   reporting no error is usually driving the subject in a way a user cannot, and the subject is
+   short-circuiting on a guard the driver never satisfied. Before concluding the subject is
+   broken, assert the driver reached the state a real caller reaches — for a browser probe, that
+   means the same entry path, the same preconditions, and an explicit check that the subject is
+   not already mid-operation. A `false` accompanied by a named failing request is a product
+   finding; a `false` accompanied by nothing is a probe defect until proven otherwise.
 
 ## Phase order
 
