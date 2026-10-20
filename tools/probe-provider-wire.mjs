@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 // Capture the pinned backend -> provider transformation for every provider-wire
-// scenario.
+// scenario, then close the differential: run the same scenarios through
+// GoTavern and compare the two captures.
 //
 // Stage 1 drives each backend with the browser-equivalent HTTP request and
 // records what reaches the provider. It validates the BACKEND to PROVIDER
 // transformation only: browser-side prompt assembly happens in the frontend
 // before the request reaches the route and is not covered here, so a green
 // capture is not evidence of preset-level equivalence.
+//
+// The committed fixture is the pinned Node capture. The GoTavern capture is
+// produced in memory by this run and compared against it here, because the
+// comparison is the differential: if the two disagree, this probe fails and the
+// oracle job fails with it.
 //
 // @gotavern-oracle: fixture=sillytavern-1.19.0-provider-wire.json label="provider wire"
 
@@ -17,6 +23,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
@@ -29,6 +36,11 @@ if (!process.argv[2] || !process.argv[3]) {
 if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim() !== PINNED_COMMIT) {
     throw new Error(`upstream checkout is not pinned at ${PINNED_COMMIT}`);
 }
+
+// The oracle runner copies this probe into a temporary pinned clone and runs it
+// from there, so a relative import would resolve inside that clone. The
+// comparator is resolved from the GoTavern root instead.
+const { compareObservations } = await import(pathToFileURL(path.join(repositoryRoot, 'tools', 'compare-observations.mjs')).href);
 
 const scenarioDirectory = path.join(repositoryRoot, 'tests', 'provider-wire', 'scenarios');
 const scenarios = readdirSync(scenarioDirectory)
@@ -191,7 +203,10 @@ async function startMockProvider(binaryPath, scriptPath, logs) {
     return { child, address };
 }
 
-async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
+// Prepares the runtime inputs both backends must see. This is shared rather
+// than duplicated so the two backends cannot silently be driven with different
+// config, accounts or secrets, which would make the comparison meaningless.
+function prepareRuntime(scenario, runtimeRoot, dataRoot) {
     const configPath = path.join(runtimeRoot, 'config.yaml');
     writeFileSync(configPath, scenario.backendConfig.join('\n') + '\n');
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
@@ -208,6 +223,27 @@ async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
         mkdirSync(userRoot, { recursive: true });
         writeFileSync(path.join(userRoot, 'secrets.json'), JSON.stringify(scenario.secrets, null, 4));
     }
+    return configPath;
+}
+
+async function waitForBackend(child, origin, logs, label) {
+    const deadline = Date.now() + 180000;
+    let ready = false;
+    while (Date.now() < deadline && !ready) {
+        if (child.exitCode !== null) throw new Error(`${label} exited early:\n${logs.join('').slice(-4000)}`);
+        try {
+            const result = await request(`${origin}/login?noauto=1`);
+            ready = result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html');
+        } catch {
+            // Still starting.
+        }
+        if (!ready) await new Promise(resolve => setTimeout(resolve, 400));
+    }
+    if (!ready) throw new Error(`${label} did not become ready:\n${logs.join('').slice(-4000)}`);
+}
+
+async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
+    const configPath = prepareRuntime(scenario, runtimeRoot, dataRoot);
     const port = await choosePort();
     const child = spawn(process.execPath, [
         'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
@@ -220,19 +256,27 @@ async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
     child.stderr.on('data', chunk => logs.push(chunk));
 
     const origin = `http://127.0.0.1:${port}`;
-    const deadline = Date.now() + 180000;
-    let ready = false;
-    while (Date.now() < deadline && !ready) {
-        if (child.exitCode !== null) throw new Error('pinned server exited early:\n' + logs.join('').slice(-4000));
-        try {
-            const result = await request(`${origin}/login?noauto=1`);
-            ready = result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html');
-        } catch {
-            // Still starting.
-        }
-        if (!ready) await new Promise(resolve => setTimeout(resolve, 400));
-    }
-    if (!ready) throw new Error('pinned server did not become ready:\n' + logs.join('').slice(-4000));
+    await waitForBackend(child, origin, logs, 'pinned server');
+    return { child, origin };
+}
+
+async function startGoTavernServer(binaryPath, scenario, runtimeRoot, dataRoot, logs) {
+    const configPath = prepareRuntime(scenario, runtimeRoot, dataRoot);
+    const port = await choosePort();
+    // The same command-line contract the pinned server is started with, so the
+    // two backends differ only in the implementation under test.
+    const child = spawn(binaryPath, [
+        '--configPath', configPath, '--dataRoot', dataRoot,
+        '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
+        '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
+    ], { cwd: runtimeRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => logs.push(chunk));
+    child.stderr.on('data', chunk => logs.push(chunk));
+
+    const origin = `http://127.0.0.1:${port}`;
+    await waitForBackend(child, origin, logs, 'GoTavern');
     return { child, origin };
 }
 
@@ -344,17 +388,14 @@ function normalizeProvider(recording, mockAddress) {
     return provider;
 }
 
-const captures = {};
-// Build the mock provider once: spawning a binary keeps the probe's process
-// tree simple, so no grandchild can outlive the run.
-const mockBinary = path.join(mkdtempSync(path.join(os.tmpdir(), 'gotavern-mock-provider-')), process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider');
-execFileSync('go', ['build', '-o', mockBinary, './tools/mock-provider'], { cwd: repositoryRoot, stdio: 'inherit' });
-
-for (const { file, definition } of scenarios) {
+// Runs one scenario against one backend and returns its capture. Both backends
+// go through this exact code, so a difference in the capture is a difference in
+// the backend and not in how it was driven.
+async function captureScenario({ file, definition, mockBinary, startBackend, backendLabel, goCaptureDirectory }) {
     const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), `gotavern-provider-wire-${definition.name}-`));
     const dataRoot = path.join(runtimeRoot, 'data');
     const logs = [];
-    let pinnedChild;
+    let backendChild;
     let mockChild;
     try {
         mkdirSync(dataRoot, { recursive: true });
@@ -362,8 +403,8 @@ for (const { file, definition } of scenarios) {
         writeFileSync(scriptPath, JSON.stringify(definition.mock, null, 2));
         const mock = await startMockProvider(mockBinary, scriptPath, logs);
         mockChild = mock.child;
-        const server = await startPinnedServer(definition, runtimeRoot, dataRoot, logs);
-        pinnedChild = server.child;
+        const server = await startBackend(definition, runtimeRoot, dataRoot, logs);
+        backendChild = server.child;
         const { token, sessionCookie } = await authenticate(server.origin);
 
         const body = JSON.parse(JSON.stringify(definition.request.body));
@@ -415,7 +456,7 @@ for (const { file, definition } of scenarios) {
                 .find(header => header.name === 'authorization');
             const expected = `Bearer ${definition.expectedAuthorizationKey}`;
             if (!observed || observed.value !== expected) {
-                throw new Error(`scenario ${definition.name}: provider saw authorization ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
             }
             authorizationKeyVerified = true;
         }
@@ -426,7 +467,7 @@ for (const { file, definition } of scenarios) {
         // omission is itself part of the captured contract, so it is recorded
         // rather than used to decide how to parse.
         const isEventStream = definition.request.body.stream === true;
-        captures[definition.name] = {
+        const capture = {
             scenario: file,
             purpose: definition.purpose,
             stage1Boundary: definition.stage1Boundary,
@@ -471,21 +512,106 @@ for (const { file, definition } of scenarios) {
             headerCoverage,
             authorizationKeyVerified,
         };
+        if (goCaptureDirectory) {
+            mkdirSync(goCaptureDirectory, { recursive: true });
+            writeFileSync(path.join(goCaptureDirectory, `${definition.name}.json`), JSON.stringify(capture, null, 2) + '\n');
+        }
+        return capture;
     } catch (error) {
-        console.error(`scenario ${definition.name} failed:`, error);
+        console.error(`scenario ${definition.name} failed against ${backendLabel}:`, error);
         console.error(logs.join('').slice(-4000));
         process.exitCode = 1;
         throw error;
     } finally {
-        for (const child of [pinnedChild, mockChild]) {
+        for (const child of [backendChild, mockChild]) {
             if (child && child.exitCode === null) child.kill('SIGINT');
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
-        for (const child of [pinnedChild, mockChild]) {
+        for (const child of [backendChild, mockChild]) {
             if (child && child.exitCode === null) child.kill();
         }
         rmSync(runtimeRoot, { recursive: true, force: true });
     }
+}
+
+// The comparison rule this harness exists for: the assertion is anchored on the
+// bytes that reached the provider, through bodySha256 and bodyLength. bodyText
+// is a readability projection and is never the assertion, because a byte-level
+// encoding difference would round-trip away through it. A capture that is
+// missing the digest cannot be compared, and saying so is the point: an absent
+// or incomplete capture must never look like a pass.
+function assertProviderBodyDigests(name, label, capture) {
+    if (capture?.provider?.observed !== true) {
+        throw new Error(`${label} capture for ${name} does not mark the provider surface observed`);
+    }
+    const requests = capture.provider.requests ?? [];
+    if (requests.length === 0) {
+        throw new Error(`${label} capture for ${name} records no provider request at all`);
+    }
+    for (const entry of requests) {
+        if (typeof entry.bodySha256 !== 'string' || entry.bodySha256 === '' || typeof entry.bodyLength !== 'number') {
+            throw new Error(`${label} capture for ${name} request ${entry.index} has no bodySha256/bodyLength; the comparison cannot be anchored on the exact bytes`);
+        }
+    }
+}
+
+function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
+    const names = Object.keys(pinnedCaptures);
+    if (names.length === 0) {
+        throw new Error('the pinned capture has no scenarios, so nothing would be compared');
+    }
+    const missing = names.filter(name => !(name in goTavernCaptures));
+    if (missing.length > 0) {
+        throw new Error(`GoTavern produced no capture for ${missing.join(', ')}; an absent capture must never pass as equal`);
+    }
+    for (const name of names) {
+        const reference = pinnedCaptures[name];
+        const candidate = goTavernCaptures[name];
+        assertProviderBodyDigests(name, 'pinned Node', reference);
+        assertProviderBodyDigests(name, 'GoTavern', candidate);
+
+        const referenceRequests = reference.provider.requests;
+        const candidateRequests = candidate.provider.requests;
+        if (referenceRequests.length !== candidateRequests.length) {
+            throw new Error(`${name}: pinned sent ${referenceRequests.length} provider request(s), GoTavern sent ${candidateRequests.length}`);
+        }
+        for (let index = 0; index < referenceRequests.length; index++) {
+            const left = referenceRequests[index];
+            const right = candidateRequests[index];
+            if (left.bodySha256 !== right.bodySha256 || left.bodyLength !== right.bodyLength) {
+                throw new Error(`${name}: provider request ${index} differs in bytes: pinned sent length ${left.bodyLength} sha ${left.bodySha256}, GoTavern sent length ${right.bodyLength} sha ${right.bodySha256}`);
+            }
+        }
+        if (reference.authorizationKeyVerified && !candidate.authorizationKeyVerified) {
+            throw new Error(`${name}: the pinned capture verified the declared authorization key but the GoTavern capture did not`);
+        }
+
+        const result = compareObservations(reference, candidate);
+        if (!result.matches) {
+            const detail = result.differences.slice(0, 20).map(difference =>
+                `  ${difference.path}: ${difference.reason}\n    pinned Node: ${JSON.stringify(difference.reference)}\n    GoTavern:    ${JSON.stringify(difference.candidate)}`).join('\n');
+            throw new Error(`${name}: the GoTavern capture differs from the pinned capture\n${detail}`);
+        }
+        console.log(`provider-wire differential closed for ${name}: ${result.compared.join(', ')} compared, ${result.skipped.join(', ')} unobserved in both`);
+    }
+}
+
+// Build the mock provider once: spawning a binary keeps the probe's process
+// tree simple, so no grandchild can outlive the run.
+const mockBinary = path.join(mkdtempSync(path.join(os.tmpdir(), 'gotavern-mock-provider-')), process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider');
+execFileSync('go', ['build', '-o', mockBinary, './tools/mock-provider'], { cwd: repositoryRoot, stdio: 'inherit' });
+
+// The GoTavern binary under test, built from the working tree. The differential
+// must exercise the code in this checkout, not an installed release.
+const goTavernRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-gotavern-'));
+const goTavernBinary = path.join(goTavernRoot, process.platform === 'win32' ? 'gotavern.exe' : 'gotavern');
+execFileSync('go', ['build', '-o', goTavernBinary, './cmd/gotavern'], { cwd: repositoryRoot, stdio: 'inherit' });
+
+const captures = {};
+for (const { file, definition } of scenarios) {
+    captures[definition.name] = await captureScenario({
+        file, definition, mockBinary, backendLabel: 'pinned Node', startBackend: startPinnedServer,
+    });
 }
 
 const fixture = {
@@ -499,6 +625,20 @@ const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.1
 mkdirSync(path.dirname(outputFile), { recursive: true });
 writeFileSync(outputFile, JSON.stringify(fixture, null, 2) + '\n');
 console.log(`Wrote tests/oracle/sillytavern-1.19.0-provider-wire.json with ${Object.keys(captures).length} scenarios`);
+
+// Close the differential in the same run. The pinned fixture is already on disk,
+// so a GoTavern divergence fails this job without altering the committed
+// specification.
+const goTavernCaptures = {};
+for (const { file, definition } of scenarios) {
+    goTavernCaptures[definition.name] = await captureScenario({
+        file, definition, mockBinary, backendLabel: 'GoTavern',
+        startBackend: (scenario, runtimeRoot, dataRoot, logs) => startGoTavernServer(goTavernBinary, scenario, runtimeRoot, dataRoot, logs),
+        goCaptureDirectory: path.join(goTavernRoot, 'captures'),
+    });
+}
+assertGoTavernMatchesPinned(captures, goTavernCaptures);
+console.log(`Provider-wire differential closed for ${Object.keys(goTavernCaptures).length} scenarios; GoTavern captures kept in ${path.join(goTavernRoot, 'captures')}`);
 
 // Every scenario wrote its capture, so exit deliberately: a lingering child
 // handle must never hang the oracle job after the fixture is on disk. A

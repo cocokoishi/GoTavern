@@ -1,0 +1,633 @@
+package server
+
+// Pinned chat-completion generation, from
+// src/endpoints/backends/chat-completions.js:
+//
+//	POST /api/backends/chat-completions/generate   chat-completions.js:2242
+//
+// The wire form this route must produce is NOT derived from a reading of the
+// pinned source. It is the captured contract in
+// tests/oracle/sillytavern-1.19.0-provider-wire.json, produced by pointing the
+// pinned backend at a recording provider, and that capture is the
+// specification: when this code and a capture disagree, the capture is right
+// and this code is wrong. Three captured details are not guessable from the
+// source alone:
+//
+//   - an OPENAI source whose reverse_proxy has no trailing slash still reaches
+//     the provider as `//chat/completions`, because
+//     `new URL(reverse_proxy).toString()` already ends in `/` and the pinned
+//     code then appends `/chat/completions` to it;
+//   - a streamed reply is forwarded with NO content-type at all, which is also
+//     why its Vary header carries only the CORS Origin entry: Express's
+//     compression middleware never reaches its vary step without a Content-Type;
+//   - a provider error status is answered at status 200 with the pinned
+//     {error:{message}, quota_error} shape, not forwarded as a status.
+//
+// Implemented sources: openai (including reverse_proxy + proxy_password) and
+// custom (custom_url, the CUSTOM secret, and the YAML include/exclude options).
+// Every other source the pinned backend supports has a transport this route
+// does not implement yet and is answered 501 rather than faked. A source the
+// pinned backend itself does not support is answered 400 {"error":true}, which
+// is what the pinned handler's final else branch sends.
+
+import (
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
+	"strings"
+	"syscall"
+
+	"github.com/cocokoishi/gotavern/internal/outbound"
+	"github.com/cocokoishi/gotavern/internal/startup"
+)
+
+const (
+	pinnedOpenAIAPIURL         = "https://api.openai.com/v1"
+	chatCompletionSourceOpenAI = "openai"
+	chatCompletionSourceCustom = "custom"
+)
+
+// pinnedChatCompletionSources lists every value of the pinned
+// CHAT_COMPLETION_SOURCES constant (src/constants.js). A source in this set is
+// one the pinned backend routes somewhere; a source outside it falls to the
+// pinned handler's unsupported-source branch.
+var pinnedChatCompletionSources = map[string]bool{
+	"openai": true, "claude": true, "openrouter": true, "ai21": true,
+	"makersuite": true, "vertexai": true, "mistralai": true, "custom": true,
+	"cohere": true, "perplexity": true, "groq": true, "chutes": true,
+	"electronhub": true, "nanogpt": true, "deepseek": true, "aimlapi": true,
+	"xai": true, "pollinations": true, "moonshot": true, "fireworks": true,
+	"cometapi": true, "azure_openai": true, "zai": true, "siliconflow": true,
+	"minimax": true, "workers_ai": true,
+}
+
+// pinnedTextCompletionModels is TEXT_COMPLETION_MODELS (src/endpoints/
+// tokenizers.js:31). The pinned handler switches to the /completions endpoint
+// and a flattened prompt for exactly these model names.
+var pinnedTextCompletionModels = map[string]bool{
+	"gpt-3.5-turbo-instruct": true, "gpt-3.5-turbo-instruct-0914": true,
+	"text-davinci-003": true, "text-davinci-002": true, "text-davinci-001": true,
+	"text-curie-001": true, "text-babbage-001": true, "text-ada-001": true,
+	"code-davinci-002": true, "code-davinci-001": true, "code-cushman-002": true,
+	"code-cushman-001": true, "text-davinci-edit-001": true, "code-davinci-edit-001": true,
+	"text-embedding-ada-002": true, "text-similarity-davinci-001": true,
+	"text-similarity-curie-001": true, "text-similarity-babbage-001": true,
+	"text-similarity-ada-001": true, "text-search-davinci-doc-001": true,
+	"text-search-curie-doc-001": true, "text-search-babbage-doc-001": true,
+	"text-search-ada-doc-001": true, "code-search-babbage-code-001": true,
+	"code-search-ada-code-001": true,
+}
+
+func init() {
+	domainRouteRegistrars = append(domainRouteRegistrars, registerChatCompletionRoutes)
+}
+
+func registerChatCompletionRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
+	mux.HandleFunc("/api/backends/chat-completions/generate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveChatCompletionGenerate(w, r)
+	})
+}
+
+// pinnedChatCompletionFailure is a response the pinned handler produces before
+// it reaches a provider. A nil payload is a plain-text status, which is how the
+// body-parser and transport failures are answered here.
+type pinnedChatCompletionFailure struct {
+	status  int
+	payload *orderedNodeJSON
+}
+
+func pinnedChatCompletionJSONFailure(status int, payload orderedNodeJSON) *pinnedChatCompletionFailure {
+	return &pinnedChatCompletionFailure{status: status, payload: &payload}
+}
+
+// pinnedChatCompletionTransportFailure is the pinned catch branch
+// (chat-completions.js:2717-2724): status 502 with {error:{message, ...error}}.
+// Spreading a JavaScript Error contributes no enumerable members, so the body
+// is always {error:{message}}.
+func pinnedChatCompletionTransportFailure(err error) *pinnedChatCompletionFailure {
+	payload := nodeObject()
+	errorMember := nodeObject()
+	errorMember.setMember("message", nodeString(pinnedChatCompletionTransportMessage(err)))
+	payload.setMember("error", errorMember)
+	return pinnedChatCompletionJSONFailure(http.StatusBadGateway, payload)
+}
+
+func pinnedChatCompletionTransportMessage(err error) string {
+	if err == nil {
+		return "Unknown error occurred"
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return "Connection refused: " + err.Error()
+	}
+	if err.Error() != "" {
+		return err.Error()
+	}
+	return "Unknown error occurred"
+}
+
+// pinnedChatCompletionErrorFlag is the pinned `{ error: true }` body.
+func pinnedChatCompletionErrorFlag() orderedNodeJSON {
+	payload := nodeObject()
+	payload.setMember("error", nodeBool(true))
+	return payload
+}
+
+func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter, request *http.Request) {
+	w = withPinnedResponseTime(w)
+	body, ok := readPinnedJSONBody(request)
+	if !ok {
+		// Express's JSON body parser answers its own 400 page for a malformed
+		// body; GoTavern answers the same status with a plain-text body.
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	account := runtime.requestAccount(accountFromContext(request))
+	if account == nil {
+		serveStatusText(w, http.StatusForbidden)
+		return
+	}
+	if runtime.options.DataRoot == "" || account.string("handle") == "" {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+
+	plan, failure := pinnedChatCompletionPlan(body, directories)
+	if failure != nil {
+		if failure.payload == nil {
+			serveStatusText(w, failure.status)
+			return
+		}
+		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
+	}
+
+	// No client-side timeout: the pinned fetch has none, and a provider that
+	// never answers must leave the caller waiting rather than be invented away.
+	// Cancellation still tears the upstream connection down, because the
+	// outbound client watches this request's context.
+	response, err := outbound.SendStreaming(request.Context(), *plan, 0)
+	if err != nil {
+		failure := pinnedChatCompletionTransportFailure(err)
+		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
+	}
+
+	if pinnedChatCompletionStreams(body) {
+		forwardPinnedChatCompletionStream(w, request, response)
+		return
+	}
+	defer response.Stream.Close()
+	providerBody, readErr := io.ReadAll(response.Stream)
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		failure := pinnedChatCompletionTransportFailure(readErr)
+		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
+	}
+
+	if response.Status >= 200 && response.Status < 300 {
+		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
+		if parseErr != nil {
+			// fetchResponse.json() rejects on a body that is not JSON, so the
+			// pinned catch answers 502 instead of forwarding the bytes.
+			failure := pinnedChatCompletionTransportFailure(parseErr)
+			respondOrderedNodeJSON(w, failure.status, *failure.payload)
+			return
+		}
+		respondOrderedNodeJSON(w, http.StatusOK, parsed)
+		return
+	}
+
+	// chat-completions.js:2701-2710: the provider's error status is replaced by
+	// the pinned error shape at status 200. The provider's own text is not
+	// forwarded, only its reason phrase.
+	message := response.Reason
+	if message == "" {
+		message = "Unknown error occurred"
+	}
+	payload := nodeObject()
+	errorMember := nodeObject()
+	errorMember.setMember("message", nodeString(message))
+	payload.setMember("error", errorMember)
+	payload.setMember("quota_error", nodeBool(response.Status == http.StatusTooManyRequests && pinnedChatCompletionQuotaError(providerBody)))
+	respondOrderedNodeJSON(w, http.StatusOK, payload)
+}
+
+// forwardPinnedChatCompletionStream reproduces forwardFetchResponse
+// (src/util.js:732) for a streamed reply. Pinned sets the Express status
+// directly, never sets a content type, and pipes the provider body; a source
+// error is not forwarded and does not end the response, which is what leaves a
+// caller whose provider died mid-stream hanging until it disconnects.
+func forwardPinnedChatCompletionStream(w http.ResponseWriter, request *http.Request, response *outbound.Response) {
+	status := response.Status
+	if status == http.StatusUnauthorized {
+		// Pinned rewrites 401 to 400 so a streamed reply cannot reset the
+		// browser's Basic Auth prompt.
+		status = http.StatusBadRequest
+	}
+	// No Content-Type is set, so Express's compression middleware never runs its
+	// vary step and Vary keeps only the CORS Origin entry. Marking the header as
+	// present with no value stops net/http from sniffing the first write and
+	// inventing a content type the pinned response does not have.
+	w.Header().Set("Vary", "Origin")
+	w.Header()["Content-Type"] = nil
+
+	if response.Status < 200 || response.Status > 299 {
+		body, _ := io.ReadAll(response.Stream)
+		_ = response.Stream.Close()
+		w.WriteHeader(status)
+		_, _ = w.Write(body)
+		return
+	}
+
+	w.WriteHeader(status)
+	flusher, _ := w.(http.Flusher)
+	if flusher != nil {
+		flusher.Flush()
+	}
+	buffer := make([]byte, 32*1024)
+	for {
+		count, err := response.Stream.Read(buffer)
+		if count > 0 {
+			if _, writeErr := w.Write(buffer[:count]); writeErr != nil {
+				break
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+	_ = response.Stream.Close()
+
+	if response.Truncated {
+		// Pinned pipe() does not forward a source error and never ends the
+		// Express response, so the caller is left hanging. Reproduce that rather
+		// than inventing a terminal sentinel the pinned backend never sends.
+		<-request.Context().Done()
+	}
+}
+
+// pinnedChatCompletionStreams reports `if (request.body.stream)` truthiness.
+func pinnedChatCompletionStreams(body orderedNodeJSON) bool {
+	stream, exists := body.member("stream")
+	return exists && pinnedJSTruthy(stream)
+}
+
+// pinnedChatCompletionQuotaError implements
+// `fetchResponse.status === 429 && errorData?.error?.type === 'insufficient_quota'`
+// where errorData is tryParse(responseText).
+func pinnedChatCompletionQuotaError(providerBody []byte) bool {
+	parsed, err := decodeOrderedNodeJSON(providerBody)
+	if err != nil {
+		return false
+	}
+	errorType := nodeGet(parsed, "error", "type")
+	text, isString := errorType.stringValue()
+	return isString && text == "insufficient_quota"
+}
+
+// pinnedChatCompletionPlan resolves the pinned target selection and request
+// body for the sources this route implements.
+func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
+	sourceName := ""
+	if source, exists := body.member("chat_completion_source"); exists {
+		sourceName, _ = source.stringValue()
+	}
+	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
+
+	var apiURL string
+	var apiKey orderedNodeJSON = nodeUndefined()
+	reverseProxyUsed := false
+	customHeaders := nodeObject()
+	bodyParams := nodeObject()
+
+	switch sourceName {
+	case chatCompletionSourceOpenAI:
+		reverseProxy, hasReverseProxy := body.member("reverse_proxy")
+		if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
+			reverseProxyUsed = true
+			normalized, ok := pinnedJSURLString(reverseProxy)
+			if !ok {
+				// `new URL(value)` throws for anything that is not a valid
+				// absolute URL, and the pinned catch answers 502.
+				return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
+			}
+			apiURL = normalized
+			if password, exists := body.member("proxy_password"); exists {
+				apiKey = password
+			}
+		} else {
+			apiURL = pinnedOpenAIAPIURL
+			secret, err := pinnedReadSecret(directories, "api_key_openai", pinnedSecretID(body))
+			if err != nil {
+				return nil, pinnedChatCompletionTransportFailure(err)
+			}
+			apiKey = secret
+		}
+		pinnedChatCompletionApplyLogprobs(&bodyParams, body, isTextCompletion)
+	case chatCompletionSourceCustom:
+		customURL, exists := body.member("custom_url")
+		if !exists {
+			// `${undefined}/chat/completions` is not an absolute URL, so the
+			// pinned fetch throws and the catch answers 502.
+			return nil, pinnedChatCompletionTransportFailure(errors.New("Only absolute URLs are supported"))
+		}
+		text, stringErr := pinnedJSStringValue(customURL)
+		if stringErr != nil {
+			return nil, pinnedChatCompletionTransportFailure(stringErr)
+		}
+		apiURL = text
+		secret, secretErr := pinnedReadSecret(directories, "api_key_custom", pinnedSecretID(body))
+		if secretErr != nil {
+			return nil, pinnedChatCompletionTransportFailure(secretErr)
+		}
+		apiKey = secret
+		pinnedChatCompletionApplyLogprobs(&bodyParams, body, isTextCompletion)
+		if includeBody, includeExists := body.member("custom_include_body"); includeExists {
+			pinnedMergeObjectWithYAML(&bodyParams, includeBody)
+		}
+		if includeHeaders, headersExist := body.member("custom_include_headers"); headersExist {
+			pinnedMergeObjectWithYAML(&customHeaders, includeHeaders)
+		}
+		if schema, schemaExists := body.member("json_schema"); schemaExists && pinnedJSTruthy(schema) {
+			bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
+		}
+	default:
+		if pinnedChatCompletionSources[sourceName] {
+			// A pinned source whose transport this route does not implement.
+			// Answering "not implemented" is deliberate: a fabricated success
+			// would be worse than a visible gap.
+			return nil, &pinnedChatCompletionFailure{status: http.StatusNotImplemented}
+		}
+		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+	}
+
+	if !pinnedJSTruthy(apiKey) && !reverseProxyUsed && sourceName != chatCompletionSourceCustom {
+		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+	}
+
+	// chat-completions.js:2620-2623. A non-empty stop array is copied into the
+	// parameter object, so it also overwrites a stop supplied by
+	// custom_include_body.
+	if stop, exists := body.member("stop"); exists && stop.kind == 'a' && len(stop.array) > 0 {
+		bodyParams.setMember("stop", stop)
+	}
+	// chat-completions.js:2636-2639.
+	if !isTextCompletion {
+		if tools, exists := body.member("tools"); exists && tools.kind == 'a' && len(tools.array) > 0 {
+			bodyParams.setMember("tools", tools)
+			if toolChoice, choiceExists := body.member("tool_choice"); choiceExists {
+				bodyParams.setMember("tool_choice", toolChoice)
+			}
+		}
+	}
+	// chat-completions.js:2641-2650. A custom source may already have set
+	// response_format from its own branch above.
+	if _, already := bodyParams.member("response_format"); !already {
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
+		}
+	}
+
+	// chat-completions.js:2652-2669. JSON.stringify drops only `undefined`, so a
+	// member is included exactly when it is present, and `temperature: 0` or
+	// `stream: false` survive while an absent member does not appear at all.
+	requestBody := nodeObject()
+	if isTextCompletion {
+		prompt, ok := pinnedChatCompletionTextPrompt(body)
+		if !ok {
+			return nil, pinnedChatCompletionTransportFailure(errors.New("Cannot read properties of undefined (reading 'forEach')"))
+		}
+		requestBody.setMember("prompt", nodeString(prompt))
+	} else if messages, exists := body.member("messages"); exists {
+		requestBody.setMember("messages", messages)
+	}
+	for _, key := range []string{
+		"model", "temperature", "max_tokens", "max_completion_tokens", "stream",
+		"presence_penalty", "frequency_penalty", "top_p", "top_k", "stop",
+		"logit_bias", "seed", "n",
+	} {
+		if key == "stop" && isTextCompletion {
+			continue
+		}
+		if value, exists := body.member(key); exists {
+			requestBody.setMember(key, value)
+		}
+	}
+	for _, entry := range bodyParams.object {
+		requestBody.setMember(entry.key, entry.value)
+	}
+	if sourceName == chatCompletionSourceCustom {
+		if exclude, exists := body.member("custom_exclude_body"); exists {
+			pinnedExcludeKeysByYAML(&requestBody, exclude)
+		}
+	}
+	encoded, encodeErr := marshalOrderedNodeJSON(requestBody)
+	if encodeErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(encodeErr)
+	}
+
+	endpointURL := apiURL + "/chat/completions"
+	if isTextCompletion && sourceName != "openrouter" {
+		endpointURL = apiURL + "/completions"
+	}
+	parsedEndpoint, parseErr := url.Parse(endpointURL)
+	if parseErr != nil || parsedEndpoint.Host == "" || (parsedEndpoint.Scheme != "http" && parsedEndpoint.Scheme != "https") {
+		// node-fetch rejects a non-absolute URL before any connection is made.
+		return nil, pinnedChatCompletionTransportFailure(errors.New("Only absolute URLs are supported"))
+	}
+
+	headers := pinnedChatCompletionHeaders(apiKey, customHeaders, encoded)
+	requestHeaders := make([]outbound.Header, 0, len(headers)+2)
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
+	}
+	// Node's http client appends Host and Connection after the headers
+	// node-fetch supplied, in that order; the capture records exactly that.
+	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
+	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+
+	return &outbound.Request{
+		URL:     endpointURL,
+		Method:  http.MethodPost,
+		Headers: requestHeaders,
+		Body:    encoded,
+	}, nil
+}
+
+// pinnedChatCompletionHeaders reproduces the header set node-fetch actually
+// sends: the config headers it was given (Content-Type and Authorization, then
+// anything merged from custom_include_headers), its own defaults for a request
+// that has not overridden them, a computed Content-Length, and iteration in
+// name order because node-fetch's Headers is backed by a sorted URLSearchParams.
+func pinnedChatCompletionHeaders(apiKey orderedNodeJSON, customHeaders orderedNodeJSON, encodedBody []byte) map[string]string {
+	headers := map[string]string{
+		"content-type":    "application/json",
+		"accept":          "*/*",
+		"accept-encoding": "gzip, deflate, br",
+		"user-agent":      "node-fetch",
+	}
+	// `'Bearer ' + apiKey` is always present, and a non-string key is stringified
+	// the way JavaScript would: an absent proxy_password becomes "Bearer undefined".
+	keyText, keyErr := pinnedJSStringValue(apiKey)
+	if keyErr != nil {
+		keyText = "undefined"
+	}
+	headers["authorization"] = "Bearer " + keyText
+	for _, entry := range customHeaders.object {
+		value, valueErr := pinnedJSStringValue(entry.value)
+		if valueErr != nil {
+			continue
+		}
+		headers[strings.ToLower(entry.key)] = value
+	}
+	headers["content-length"] = strconv.Itoa(len(encodedBody))
+	return headers
+}
+
+// pinnedRequestHostHeader is the Host header Node's http client derives from the
+// request URL: the hostname, with the port unless it is the scheme default.
+func pinnedRequestHostHeader(endpoint *url.URL) string {
+	hostname := strings.ToLower(endpoint.Hostname())
+	if strings.Contains(hostname, ":") {
+		hostname = "[" + hostname + "]"
+	}
+	port := endpoint.Port()
+	if (endpoint.Scheme == "http" && port == "80") || (endpoint.Scheme == "https" && port == "443") {
+		port = ""
+	}
+	if port == "" {
+		return hostname
+	}
+	return net.JoinHostPort(endpoint.Hostname(), port)
+}
+
+func pinnedSecretID(body orderedNodeJSON) orderedNodeJSON {
+	if id, exists := body.member("secret_id"); exists {
+		return id
+	}
+	return nodeUndefined()
+}
+
+// pinnedChatCompletionIsTextCompletion implements chat-completions.js:2279.
+func pinnedChatCompletionIsTextCompletion(body orderedNodeJSON) bool {
+	if model, exists := body.member("model"); exists && pinnedJSTruthy(model) {
+		if name, isString := model.stringValue(); isString && pinnedTextCompletionModels[name] {
+			return true
+		}
+	}
+	if messages, exists := body.member("messages"); exists {
+		if _, isString := messages.stringValue(); isString {
+			return true
+		}
+	}
+	return false
+}
+
+// pinnedChatCompletionApplyLogprobs implements the OpenAI-compatible
+// {logprobs, top_logprobs} adjustment (chat-completions.js:2285-2294 and
+// :2398-2407).
+func pinnedChatCompletionApplyLogprobs(bodyParams *orderedNodeJSON, body orderedNodeJSON, isTextCompletion bool) {
+	logprobs, exists := body.member("logprobs")
+	if !exists {
+		return
+	}
+	bodyParams.setMember("logprobs", logprobs)
+	if !isTextCompletion && pinnedJSGreaterThanZero(logprobs) {
+		bodyParams.setMember("top_logprobs", logprobs)
+		bodyParams.setMember("logprobs", nodeBool(true))
+	}
+}
+
+// pinnedChatCompletionResponseFormat builds the pinned response_format object.
+// `strict: request.body.json_schema.strict ?? true` is nullish, so an explicit
+// false survives while null and undefined do not.
+func pinnedChatCompletionResponseFormat(jsonSchema orderedNodeJSON) orderedNodeJSON {
+	format := nodeObject()
+	format.setMember("type", nodeString("json_schema"))
+	inner := nodeObject()
+	if name, exists := jsonSchema.member("name"); exists {
+		inner.setMember("name", name)
+	}
+	strict := nodeBool(true)
+	if value, exists := jsonSchema.member("strict"); exists && !value.isUndefined() && !value.isNull() {
+		strict = value
+	}
+	inner.setMember("strict", strict)
+	if value, exists := jsonSchema.member("value"); exists {
+		inner.setMember("schema", pinnedFlattenSchema(value))
+	}
+	format.setMember("json_schema", inner)
+	return format
+}
+
+// pinnedChatCompletionTextPrompt implements convertTextCompletionPrompt
+// (src/prompt-converters.js:961) for the text-completion models.
+func pinnedChatCompletionTextPrompt(body orderedNodeJSON) (string, bool) {
+	messages, exists := body.member("messages")
+	if !exists || messages.isUndefined() {
+		return "", false
+	}
+	if text, isString := messages.stringValue(); isString {
+		return text, true
+	}
+	if messages.kind != 'a' {
+		return "", false
+	}
+	parts := make([]string, 0, len(messages.array))
+	for _, message := range messages.array {
+		role, roleErr := pinnedJSStringValue(nodeGet(message, "role"))
+		if roleErr != nil {
+			return "", false
+		}
+		content, contentErr := pinnedJSStringValue(nodeGet(message, "content"))
+		if contentErr != nil {
+			return "", false
+		}
+		// `m.name === undefined` is a strict check, so an explicit null takes
+		// the named-system branch.
+		name, hasName := message.member("name")
+		switch {
+		case role == "system" && !hasName:
+			parts = append(parts, "System: "+content)
+		case role == "system":
+			nameText, nameErr := pinnedJSStringValue(name)
+			if nameErr != nil {
+				return "", false
+			}
+			parts = append(parts, nameText+": "+content)
+		default:
+			parts = append(parts, role+": "+content)
+		}
+	}
+	return strings.Join(parts, "\n") + "\nassistant:", true
+}
+
+// pinnedJSStringValue is JavaScript's ToString for a decoded JSON member,
+// including the `undefined` a missing member produces.
+func pinnedJSStringValue(value orderedNodeJSON) (string, error) {
+	if value.isUndefined() {
+		return "undefined", nil
+	}
+	return value.javascriptString()
+}
