@@ -1,0 +1,363 @@
+#!/usr/bin/env node
+// Capture the pinned backend -> provider transformation for every provider-wire
+// scenario.
+//
+// Stage 1 drives each backend with the browser-equivalent HTTP request and
+// records what reaches the provider. It validates the BACKEND to PROVIDER
+// transformation only: browser-side prompt assembly happens in the frontend
+// before the request reaches the route and is not covered here, so a green
+// capture is not evidence of preset-level equivalence.
+//
+// @gotavern-oracle: fixture=sillytavern-1.19.0-provider-wire.json label="provider wire"
+
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+
+const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
+const PINNED_VERSION = '1.19.0';
+const sourceRoot = path.resolve(process.argv[2] ?? '');
+const repositoryRoot = path.resolve(process.argv[3] ?? '');
+if (!process.argv[2] || !process.argv[3]) {
+    console.error('usage: node tools/probe-provider-wire.mjs <pinned-source-clone> <gotavern-root>');
+    process.exit(2);
+}
+if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim() !== PINNED_COMMIT) {
+    throw new Error(`upstream checkout is not pinned at ${PINNED_COMMIT}`);
+}
+
+const scenarioDirectory = path.join(repositoryRoot, 'tests', 'provider-wire', 'scenarios');
+const scenarios = readdirSync(scenarioDirectory)
+    .filter(name => name.endsWith('.json'))
+    .sort()
+    .map(name => ({ file: name, definition: JSON.parse(readFileSync(path.join(scenarioDirectory, name), 'utf8')) }));
+if (scenarios.length === 0) throw new Error('no provider-wire scenarios found');
+
+function sha256(value) {
+    return createHash('sha256').update(value).digest('hex');
+}
+
+async function choosePort() {
+    const listener = net.createServer();
+    await new Promise((resolve, reject) => {
+        listener.once('error', reject);
+        listener.listen(0, '127.0.0.1', resolve);
+    });
+    const port = listener.address().port;
+    await new Promise(resolve => listener.close(resolve));
+    return port;
+}
+
+async function request(url, method = 'GET', headers = {}, body) {
+    const response = await fetch(url, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    const text = Buffer.from(await response.arrayBuffer()).toString('utf8');
+    let parsed = text;
+    try {
+        parsed = text ? JSON.parse(text) : null;
+    } catch {
+        // Preserve plain text and HTML bodies.
+    }
+    return { response, body: parsed, text };
+}
+
+function cookieHeader(cookies) {
+    return cookies.map(cookie => cookie.split(';', 1)[0]).join('; ');
+}
+
+function stableHeaders(headers) {
+    return Object.fromEntries([...headers.entries()]
+        .filter(([name]) => !['connection', 'date', 'keep-alive', 'set-cookie', 'transfer-encoding', 'content-length', 'x-response-time'].includes(name))
+        .sort(([left], [right]) => left.localeCompare(right)));
+}
+
+async function startMockProvider(binaryPath, scriptPath, logs) {
+    // The mock is built once and spawned as a binary rather than through
+    // `go run`: `go run` leaves a compiled grandchild behind that outlives the
+    // parent and keeps the probe's event loop alive.
+    const child = spawn(binaryPath, ['--responses', scriptPath], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    let address = '';
+    child.stdout.on('data', chunk => {
+        const match = /mock-provider (\S+)/.exec(chunk);
+        if (match) address = match[1];
+    });
+    child.stderr.on('data', chunk => logs.push(chunk));
+    const deadline = Date.now() + 180000;
+    while (!address && Date.now() < deadline) {
+        if (child.exitCode !== null) throw new Error('mock provider exited early:\n' + logs.join('').slice(-4000));
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    if (!address) throw new Error('mock provider did not report an address:\n' + logs.join('').slice(-4000));
+    return { child, address };
+}
+
+async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
+    const configPath = path.join(runtimeRoot, 'config.yaml');
+    writeFileSync(configPath, scenario.backendConfig.join('\n') + '\n');
+    mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
+    writeFileSync(path.join(dataRoot, 'cookie-secret.txt'), 'gotavern-pinned-provider-wire-cookie-secret');
+    writeFileSync(path.join(dataRoot, '_storage', sha256('user:default-user')), JSON.stringify({
+        key: 'user:default-user',
+        value: {
+            handle: 'default-user', name: 'Provider Wire Probe', created: 1700000000000,
+            password: '', admin: true, enabled: true, salt: '', probeUnknownField: { preserve: true },
+        },
+    }));
+    if (Object.keys(scenario.secrets).length > 0) {
+        const userRoot = path.join(dataRoot, 'default-user');
+        mkdirSync(userRoot, { recursive: true });
+        writeFileSync(path.join(userRoot, 'secrets.json'), JSON.stringify(scenario.secrets, null, 4));
+    }
+    const port = await choosePort();
+    const child = spawn(process.execPath, [
+        'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
+        '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
+        '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
+    ], { cwd: sourceRoot, env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => logs.push(chunk));
+    child.stderr.on('data', chunk => logs.push(chunk));
+
+    const origin = `http://127.0.0.1:${port}`;
+    const deadline = Date.now() + 180000;
+    let ready = false;
+    while (Date.now() < deadline && !ready) {
+        if (child.exitCode !== null) throw new Error('pinned server exited early:\n' + logs.join('').slice(-4000));
+        try {
+            const result = await request(`${origin}/login?noauto=1`);
+            ready = result.response.status === 200 && result.response.headers.get('content-type')?.includes('text/html');
+        } catch {
+            // Still starting.
+        }
+        if (!ready) await new Promise(resolve => setTimeout(resolve, 400));
+    }
+    if (!ready) throw new Error('pinned server did not become ready:\n' + logs.join('').slice(-4000));
+    return { child, origin };
+}
+
+async function authenticate(origin) {
+    const csrf = await request(`${origin}/csrf-token`);
+    const token = csrf.body.token;
+    const csrfCookie = cookieHeader(csrf.response.headers.getSetCookie());
+    const login = await request(`${origin}/api/users/login`, 'POST', {
+        Cookie: csrfCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+    }, JSON.stringify({ handle: 'default-user', password: '' }));
+    if (login.response.status !== 200) {
+        throw new Error(`could not log in: ${login.response.status} ${JSON.stringify(login.body)}`);
+    }
+    return { token, sessionCookie: cookieHeader(login.response.headers.getSetCookie()) };
+}
+
+// The mock listens on an ephemeral loopback port, so the authority is not a
+// property of either backend. It appears in the Host header and in the driver's
+// own request body, and both are recorded with the authority replaced rather
+// than left to vary per run. Both substitutions are declared in the fixture's
+// tier-2 list with the pinned line that shows where the value comes from.
+function replaceMockAuthority(value, mockAddress) {
+    return value.split(`http://${mockAddress}`).join('http://<mock>');
+}
+
+function normalizeProviderBody(body, mockAddress) {
+    if (typeof body === 'string') return replaceMockAuthority(body, mockAddress);
+    if (Array.isArray(body)) return body.map(item => normalizeProviderBody(item, mockAddress));
+    if (body && typeof body === 'object') {
+        const normalized = {};
+        for (const key of Object.keys(body)) normalized[key] = normalizeProviderBody(body[key], mockAddress);
+        return normalized;
+    }
+    return body;
+}
+
+// Extracts the header name from a normalization path of the form
+// provider.requests[].headers[<name>].
+function headerNameFromPath(entryPath) {
+    const match = /headers\[([^\]]+)\]$/.exec(entryPath ?? '');
+    return match ? match[1] : null;
+}
+
+// Fails closed: every normalization entry needs a source, no rule may name a
+// header that was never observed on the surface it targets, and a header may
+// not be both normalized and excluded. The three sets must partition what the
+// mock actually saw, so a header can never be observed and then silently
+// ignored.
+function assertHeaderCoverage(definition, provider, responseHeaderNames) {
+    const entries = [...(definition.normalization?.tier2 ?? []), ...(definition.normalization?.tier3 ?? [])];
+    for (const entry of entries) {
+        if (!entry.pinnedSource && !entry.harnessSource) {
+            throw new Error(`normalization entry ${entry.path} has neither pinnedSource nor harnessSource`);
+        }
+    }
+    const observed = new Set();
+    for (const request of provider.requests) {
+        for (const header of request.headers) observed.add(header.name);
+    }
+    const responseHeaders = new Set(responseHeaderNames);
+    const normalized = new Set();
+    const excluded = new Set();
+    for (const [tier, bucket] of [['tier2', normalized], ['tier3', excluded]]) {
+        for (const entry of definition.normalization?.[tier] ?? []) {
+            const name = headerNameFromPath(entry.path);
+            if (!name) continue;
+            if ((entry.path ?? '').startsWith('provider.requests[].headers[')) {
+                if (!observed.has(name)) {
+                    throw new Error(`${tier} rule names request header ${name}, which the mock never observed; the rule is stale`);
+                }
+                bucket.add(name);
+                continue;
+            }
+            if ((entry.path ?? '').startsWith('providerResponse.headers[')) {
+                if (!responseHeaders.has(name)) {
+                    throw new Error(`${tier} rule names response header ${name}, which the backend never sent; the rule is stale`);
+                }
+                bucket.add(name);
+                continue;
+            }
+            // Other paths (for example the driver body) only need a source.
+        }
+    }
+    for (const name of normalized) {
+        if (excluded.has(name)) throw new Error(`header ${name} is both normalized and excluded`);
+    }
+    const comparedExactly = [...observed].filter(name => !normalized.has(name) && !excluded.has(name)).sort();
+    return {
+        comparedExactly,
+        normalized: [...normalized].sort(),
+        excluded: [...excluded].sort(),
+    };
+}
+
+// Applies only the normalizations the scenario declares, each of which carries
+// a pinned or harness source. Anything not declared is compared exactly.
+function normalizeProvider(recording, mockAddress) {
+    const provider = JSON.parse(JSON.stringify(recording));
+    for (const request of provider.requests) {
+        request.headers = request.headers.map(header => {
+            if (header.name === 'Host') return { name: header.name, value: '<mock-authority>' };
+            if (header.name === 'authorization' && /^Bearer\s/i.test(header.value)) {
+                return { name: header.name, value: 'Bearer <redacted>' };
+            }
+            return header;
+        });
+    }
+    void mockAddress;
+    return provider;
+}
+
+const captures = {};
+// Build the mock provider once: spawning a binary keeps the probe's process
+// tree simple, so no grandchild can outlive the run.
+const mockBinary = path.join(mkdtempSync(path.join(os.tmpdir(), 'gotavern-mock-provider-')), process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider');
+execFileSync('go', ['build', '-o', mockBinary, './tools/mock-provider'], { cwd: repositoryRoot, stdio: 'inherit' });
+
+for (const { file, definition } of scenarios) {
+    const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), `gotavern-provider-wire-${definition.name}-`));
+    const dataRoot = path.join(runtimeRoot, 'data');
+    const logs = [];
+    let pinnedChild;
+    let mockChild;
+    try {
+        mkdirSync(dataRoot, { recursive: true });
+        const scriptPath = path.join(runtimeRoot, 'mock-script.json');
+        writeFileSync(scriptPath, JSON.stringify(definition.mock, null, 2));
+        const mock = await startMockProvider(mockBinary, scriptPath, logs);
+        mockChild = mock.child;
+        const server = await startPinnedServer(definition, runtimeRoot, dataRoot, logs);
+        pinnedChild = server.child;
+        const { token, sessionCookie } = await authenticate(server.origin);
+
+        const body = JSON.parse(JSON.stringify(definition.request.body));
+        for (const key of Object.keys(body)) {
+            if (typeof body[key] === 'string') body[key] = body[key].replace('<mock>', `http://${mock.address}`);
+        }
+        const rawBody = JSON.stringify(body);
+        const generated = await request(`${server.origin}${definition.request.path}`, 'POST', {
+            Cookie: sessionCookie, 'Content-Type': 'application/json', 'X-CSRF-Token': token,
+        }, rawBody);
+
+        const recorded = await request(`http://${mock.address}/__mock/recording`);
+        if (recorded.response.status !== 200) {
+            throw new Error(`mock provider recording unavailable: ${recorded.response.status}`);
+        }
+        const recordedBody = normalizeProviderBody(body, mock.address);
+        const recordedBodyJSON = JSON.stringify(recordedBody);
+        const normalizedProvider = normalizeProvider(recorded.body, mock.address);
+        const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
+
+        captures[definition.name] = {
+            scenario: file,
+            purpose: definition.purpose,
+            stage1Boundary: definition.stage1Boundary,
+            targetPath: definition.targetPath,
+            comparisonRule: 'Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.',
+            http: {
+                observed: true,
+                note: 'Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.',
+                requests: [{
+                    method: 'POST',
+                    path: definition.request.path,
+                    body: recordedBody,
+                    bodySha256: sha256(recordedBodyJSON),
+                }],
+            },
+            provider: {
+                observed: true,
+                requests: normalizedProvider.requests,
+            },
+            providerResponse: {
+                observed: true,
+                status: generated.response.status,
+                headers: stableHeaders(generated.response.headers),
+                body: generated.body,
+            },
+            browserEvents: {
+                observed: false,
+                reason: 'Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage.',
+            },
+            filesystem: {
+                observed: false,
+                reason: 'Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles.',
+            },
+            normalization: definition.normalization,
+            headerCoverage,
+        };
+    } catch (error) {
+        console.error(`scenario ${definition.name} failed:`, error);
+        console.error(logs.join('').slice(-4000));
+        process.exitCode = 1;
+        throw error;
+    } finally {
+        for (const child of [pinnedChild, mockChild]) {
+            if (child && child.exitCode === null) child.kill('SIGINT');
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        for (const child of [pinnedChild, mockChild]) {
+            if (child && child.exitCode === null) child.kill();
+        }
+        rmSync(runtimeRoot, { recursive: true, force: true });
+    }
+}
+
+const fixture = {
+    schemaVersion: 1,
+    baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
+    probe: 'pinned backend -> provider transformation captured from a recording mock provider, per scenario',
+    stage1Boundary: 'Validates the backend to provider transformation only. Browser-side prompt assembly is not covered.',
+    scenarios: captures,
+};
+const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-provider-wire.json');
+mkdirSync(path.dirname(outputFile), { recursive: true });
+writeFileSync(outputFile, JSON.stringify(fixture, null, 2) + '\n');
+console.log(`Wrote tests/oracle/sillytavern-1.19.0-provider-wire.json with ${Object.keys(captures).length} scenarios`);
+
+// Every scenario wrote its capture, so exit deliberately: a lingering child
+// handle must never hang the oracle job after the fixture is on disk. A
+// scenario failure has already set a non-zero exit code.
+process.exit(process.exitCode ?? 0);

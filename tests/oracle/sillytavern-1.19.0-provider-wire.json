@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned backend -> provider transformation captured from a recording mock provider, per scenario",
+  "stage1Boundary": "Validates the backend to provider transformation only. Browser-side prompt assembly is not covered.",
+  "scenarios": {
+    "custom-source-nonstream": {
+      "scenario": "custom-source-nonstream.json",
+      "purpose": "Custom OpenAI-compatible source using custom_url and the CUSTOM secret, non-streaming. Different URL, key and header assembly from the native source.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "custom-source",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "custom",
+              "custom_url": "http://<mock>/v1",
+              "custom_include_headers": "x-probe-custom: included-by-scenario",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "fb7da6555a8c8ac986d21f7a5d42086332212cbc189300b3d77cdb35f8b912f0"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/chat/completions",
+            "rawPath": "/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-probe-custom",
+                "value": "included-by-scenario"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"80-vhUN9QNICvXcPUb2tpowcCgTTMo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "mock-custom",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock custom reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; presence and scheme are the contract, the value is not.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "http.requests[].body.custom_url and its bodySha256",
+            "rule": "the mock authority is replaced with <mock> before hashing",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1801 apiUrl = request.body.custom_url"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent",
+          "x-probe-custom"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      }
+    },
+    "openai-reverse-proxy-nonstream": {
+      "scenario": "openai-reverse-proxy-nonstream.json",
+      "purpose": "Native OpenAI chat-completion source pointed at a custom target through reverse_proxy and proxy_password, non-streaming.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "openai-reverse-proxy",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "openai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false,
+              "reverse_proxy": "http://<mock>",
+              "proxy_password": "synthetic-proxy-key"
+            },
+            "bodySha256": "c4342d184605b5307b7254beaf5ee4f38eaeed5b63e992f26c058e2304aa0eb0"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "//chat/completions",
+            "rawPath": "//chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"7c-eHYkAsvLfahdTMfzIk0sk9CzbsM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "mock-nonstream",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header's presence and scheme are the contract, the value is not.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "http.requests[].body.reverse_proxy and its bodySha256",
+            "rule": "the mock authority is replaced with <mock> before hashing",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1788 apiUrl = new URL(request.body.reverse_proxy || API_OPENAI).toString()"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      }
+    }
+  }
+}
