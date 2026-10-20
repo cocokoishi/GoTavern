@@ -197,8 +197,55 @@ func TestPinnedNodeExpressionsSpriteListing(t *testing.T) {
 		if !exists {
 			t.Fatalf("sprite fixture has no response %q", label)
 		}
-		assertAvatarResponse(t, "sprite "+label, got, want)
+		assertSpriteListResponse(t, "sprite "+label, got, want)
 	}
+}
+
+// assertSpriteListResponse compares a pinned sprite-list response as an
+// unordered multiset. Pinned src/endpoints/sprites.js:126 builds the list from
+// fs.readdirSync(spritesPath) with no sort, so the array order is the host
+// filesystem's directory order (NTFS returns name-sorted entries, ext4/overlayfs
+// do not). The Go handler reproduces that same unsorted readdir order, so the
+// recorded oracle and the Go response are both canonicalised by sorting on
+// "path" before the differential comparison; the entry set, labels, paths and
+// query timestamps are still compared exactly.
+func assertSpriteListResponse(t *testing.T, label string, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
+	t.Helper()
+	canonical := want
+	canonical.Body = sortedSpriteListBody(want.Body)
+	gotBody := any(nil)
+	if got.Body.Len() > 0 {
+		if json.Unmarshal(got.Body.Bytes(), &gotBody) != nil {
+			gotBody = got.Body.String()
+		}
+	}
+	gotBody = sortedSpriteListBody(gotBody)
+	gotHeaders := stableAccountBackupHeaders(got.Header())
+	if got.Code != canonical.Status || !reflect.DeepEqual(gotHeaders, canonical.Headers) || !reflect.DeepEqual(gotBody, canonical.Body) {
+		t.Fatalf("sprite response %s differs from pinned Node:\n status=%d want=%d\n headers=%#v want=%#v\n body=%#v want=%#v", label, got.Code, canonical.Status, gotHeaders, canonical.Headers, gotBody, canonical.Body)
+	}
+}
+
+func sortedSpriteListBody(body any) any {
+	entries, ok := body.([]any)
+	if !ok {
+		return body
+	}
+	sorted := make([]any, len(entries))
+	copy(sorted, entries)
+	sort.SliceStable(sorted, func(left, right int) bool {
+		return spriteListEntryPath(sorted[left]) < spriteListEntryPath(sorted[right])
+	})
+	return sorted
+}
+
+func spriteListEntryPath(entry any) string {
+	item, ok := entry.(map[string]any)
+	if !ok {
+		return ""
+	}
+	value, _ := item["path"].(string)
+	return value
 }
 
 func snapshotSpriteTree(t *testing.T, root string) []spriteFileState {

@@ -80,8 +80,19 @@ function stableHeaders(response) {
         .sort(([left], [right]) => left.localeCompare(right)));
 }
 
-function capture(result) {
-    return { status: result.response.status, headers: stableHeaders(result.response), body: result.body };
+function capture(result, normalizeSpriteList = false) {
+    let body = result.body;
+    if (normalizeSpriteList && Array.isArray(body)) {
+        // Pinned src/endpoints/sprites.js:126 builds the list from
+        // fs.readdirSync(spritesPath) with no sort, so the array order is the
+        // host filesystem's directory order (NTFS returns name-sorted entries,
+        // ext4/overlayfs do not). Canonicalising the recorded entries by the
+        // UTF-8 bytes of "path" makes the observation host independent; the Go
+        // differential test compares the response as an unordered multiset for
+        // the same reason. The filtered/labelled entry set is unchanged.
+        body = [...body].sort((left, right) => Buffer.compare(Buffer.from(left.path), Buffer.from(right.path)));
+    }
+    return { status: result.response.status, headers: stableHeaders(result.response), body };
 }
 
 function cookiesFrom(response) {
@@ -209,13 +220,13 @@ try {
     const treeBefore = snapshotTree(charactersRoot);
     const get = (route, cookie = sessionCookie) => request(origin + route, 'GET', { Cookie: cookie });
     const responses = {
-        unauthorized: capture(await get('/api/sprites/get?name=Alice', csrfCookie)),
-        base: capture(await get('/api/sprites/get?name=Alice')),
-        nested: capture(await get('/api/sprites/get?name=Alice%2FExpressions')),
-        extraSubfolderSegment: capture(await get('/api/sprites/get?name=Alice%2FExpressions%2Fignored')),
-        invalidSubfolder: capture(await get('/api/sprites/get?name=Alice%2F..')),
-        missing: capture(await get('/api/sprites/get?name=Missing')),
-        absentName: capture(await get('/api/sprites/get')),
+        unauthorized: capture(await get('/api/sprites/get?name=Alice', csrfCookie), true),
+        base: capture(await get('/api/sprites/get?name=Alice'), true),
+        nested: capture(await get('/api/sprites/get?name=Alice%2FExpressions'), true),
+        extraSubfolderSegment: capture(await get('/api/sprites/get?name=Alice%2FExpressions%2Fignored'), true),
+        invalidSubfolder: capture(await get('/api/sprites/get?name=Alice%2F..'), true),
+        missing: capture(await get('/api/sprites/get?name=Missing'), true),
+        absentName: capture(await get('/api/sprites/get'), true),
     };
     const treeAfter = snapshotTree(charactersRoot);
     const accountRecordUnchanged = accountRecordBefore.equals(readFileSync(accountRecordPath));

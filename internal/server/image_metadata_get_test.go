@@ -137,7 +137,11 @@ func TestPinnedNodeImageMetadataGetCache(t *testing.T) {
 		if err := os.WriteFile(path, []byte(item.body), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		fixedTime := time.Unix(0, int64(item.mtime*1e6))
+		// Seed the exact instant Node's utimesSync() recorded. Going through
+		// int64(mtime*1e6) rounds to the nearest float64 at nanosecond
+		// magnitude (981173106123*1e6 is not representable) and would seed a
+		// different instant than the pinned oracle observed.
+		fixedTime := nodeTimeFromMilliseconds(item.mtime)
 		if err := os.Chtimes(path, fixedTime, fixedTime); err != nil {
 			t.Fatal(err)
 		}

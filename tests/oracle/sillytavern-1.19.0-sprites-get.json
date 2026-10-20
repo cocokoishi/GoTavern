@@ -118,6 +118,10 @@
           "path": "/characters/Alice/.png?t=20231114221320"
         },
         {
+          "label": "sad",
+          "path": "/characters/Alice/Sad.gif?t=20231114221320"
+        },
+        {
           "label": "emoji🙂",
           "path": "/characters/Alice/emoji🙂-tiny.avif?t=20231114221320"
         },
@@ -136,10 +140,6 @@
         {
           "label": "joy",
           "path": "/characters/Alice/joy.png?t=20231114221320"
-        },
-        {
-          "label": "sad",
-          "path": "/characters/Alice/Sad.gif?t=20231114221320"
         }
       ]
     },

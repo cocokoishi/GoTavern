@@ -268,7 +268,16 @@ try {
     const userRoot = path.join(dataRoot, 'default-user');
     const backgroundsRoot = path.join(userRoot, 'backgrounds');
     mkdirSync(backgroundsRoot, { recursive: true });
-    const fixedDate = new Date('2001-02-03T04:05:06.123Z');
+    // Pinned src/endpoints/image-metadata.js:212-216 caches a file by comparing
+    // stats.mtimeMs with the mtime stored in image-metadata.json. A sub-second
+    // timestamp is not portable: utimesSync() passes double seconds to libuv,
+    // which converts them to a timespec (Windows/NTFS stores 100 ns units,
+    // Linux stores nanoseconds), so ".123 s" is observed as exactly
+    // 981173106.123 on NTFS but as a value a few hundred nanoseconds lower on
+    // ext4/overlayfs. The recorded cache-hit observation would then differ per
+    // host. A whole-second instant converts exactly everywhere, which keeps the
+    // mtime-based cache observation host independent without weakening it.
+    const fixedDate = new Date('2001-02-03T04:05:06.000Z');
     const { Jimp, JimpMime } = await import(pathToFileURL(path.join(sourceRoot, 'src', 'jimp.js')).href);
     const requireUpstream = createRequire(path.join(sourceRoot, 'package.json'));
     const { PNG } = requireUpstream('pngjs');

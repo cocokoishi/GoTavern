@@ -294,6 +294,17 @@ func captureSettingsSnapshotResponse(response *httptest.ResponseRecorder, normal
 	headers := stableAccountBackupHeaders(response.Header())
 	if normalizeList {
 		if entries, ok := body.([]any); ok {
+			// Pinned src/endpoints/settings.js:300 lists snapshots with
+			// fs.readdirSync() and no sort, so the array order is the host
+			// filesystem's directory order (NTFS returns name-sorted entries,
+			// ext4/overlayfs do not). The Go handler reproduces that unsorted
+			// readdir order, so both sides are canonicalised by sorting on the
+			// raw snapshot name (UTF-8 byte order) and the response is compared
+			// as an unordered multiset; names, dates and sizes are still
+			// compared exactly.
+			sort.SliceStable(entries, func(left, right int) bool {
+				return settingsSnapshotEntryName(entries[left]) < settingsSnapshotEntryName(entries[right])
+			})
 			for _, entry := range entries {
 				item, ok := entry.(map[string]any)
 				if !ok {
@@ -309,6 +320,15 @@ func captureSettingsSnapshotResponse(response *httptest.ResponseRecorder, normal
 		headers["etag"] = "<dynamic>"
 	}
 	return settingsSnapshotResponse{Status: response.Code, Headers: headers, Body: body}
+}
+
+func settingsSnapshotEntryName(entry any) string {
+	item, ok := entry.(map[string]any)
+	if !ok {
+		return ""
+	}
+	value, _ := item["name"].(string)
+	return value
 }
 
 func assertSettingsSnapshotResponse(t *testing.T, label string, got settingsSnapshotResponse, want accountMutationResponseFixture) {

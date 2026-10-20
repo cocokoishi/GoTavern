@@ -96,6 +96,15 @@ function capture(result, normalizeSnapshotList = false) {
     let body = result.body;
     const headers = stableHeaders(result.response);
     if (normalizeSnapshotList && Array.isArray(body)) {
+        // Pinned src/endpoints/settings.js:300 lists snapshots with
+        // fs.readdirSync(request.user.directories.backups) and no sort, so the
+        // array order is the host filesystem's directory order (NTFS returns
+        // name-sorted entries, ext4/overlayfs do not). Canonicalising the
+        // recorded entries by the UTF-8 bytes of the raw snapshot name makes
+        // the observation host independent; the Go differential test compares
+        // the response as an unordered multiset for the same reason. The
+        // filtered entry set, dates and sizes are unchanged.
+        body = [...body].sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)));
         body = body.map(entry => ({ ...entry, date: '<ctime>', name: entry.name.replace(/\d{8}-\d{6}/g, '<timestamp>') }));
         headers['content-length'] = '<dynamic>';
         headers.etag = '<dynamic>';

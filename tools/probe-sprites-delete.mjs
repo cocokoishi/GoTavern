@@ -164,12 +164,19 @@ try {
     const spriteRoot = path.join(charactersRoot, 'Alice');
     const nestedRoot = path.join(spriteRoot, 'Expressions');
     mkdirSync(nestedRoot, { recursive: true });
+    // Pinned src/endpoints/sprites.js:174 removes entries whose
+    // path.parse(file).name equals spriteName exactly (case sensitive), so a
+    // differently-cased basename must survive a lowercase delete. The fixture
+    // must not express that with two names differing only by case: on a
+    // case-insensitive host (Windows/NTFS) they are a single file, which makes
+    // the recorded file-state observation host dependent. UPPER.png keeps the
+    // case-sensitivity semantics while existing on every host.
     const files = [
         'Alice/same.png',
         'Alice/same.jpg',
         'Alice/same.txt',
         'Alice/same-1.png',
-        'Alice/SAME.png',
+        'Alice/UPPER.png',
         'Alice/legacy.png',
         'Alice/legacy-1.png',
         'Alice/Expressions/happy.png',
