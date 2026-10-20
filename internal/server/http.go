@@ -333,6 +333,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("POST /api/avatars/delete", accounts.serveAvatarsDelete)
 	mux.HandleFunc("POST /api/files/sanitize-filename", accounts.serveFileSanitizeFilename)
+	mux.HandleFunc("POST /api/files/upload", accounts.serveFilesUpload)
 	mux.HandleFunc("/api/backgrounds/all", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			serveStatic(w, r, notFoundPage, options)

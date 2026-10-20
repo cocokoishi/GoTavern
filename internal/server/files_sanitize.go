@@ -11,7 +11,7 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-const pinnedJSONBodyLimit = 500 << 20
+const pinnedBodyParserLimit = 500 << 20
 
 var errFileSanitizeBodyUnavailable = errors.New("file sanitization request body is unavailable")
 var errFileSanitizeCoercion = errors.New("file name cannot be converted to a string")
@@ -59,11 +59,11 @@ func readFileSanitizeFilename(request *http.Request) (string, error) {
 		}
 		return "", errFileSanitizeBodyUnavailable
 	}
-	body, err := io.ReadAll(io.LimitReader(request.Body, pinnedJSONBodyLimit+1))
+	body, err := io.ReadAll(io.LimitReader(request.Body, pinnedBodyParserLimit+1))
 	if err != nil {
 		return "", fileSanitizeParseError{status: http.StatusBadRequest, err: err}
 	}
-	if int64(len(body)) > pinnedJSONBodyLimit {
+	if int64(len(body)) > pinnedBodyParserLimit {
 		return "", fileSanitizeParseError{status: http.StatusRequestEntityTooLarge, err: errors.New("request body exceeds the pinned 500 MB limit")}
 	}
 
