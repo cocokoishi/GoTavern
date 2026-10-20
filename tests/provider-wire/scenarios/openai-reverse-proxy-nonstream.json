@@ -11,6 +11,7 @@
     "  enabled: false"
   ],
   "secrets": {},
+  "expectedAuthorizationKey": "synthetic-proxy-key",
   "request": {
     "path": "/api/backends/chat-completions/generate",
     "body": {

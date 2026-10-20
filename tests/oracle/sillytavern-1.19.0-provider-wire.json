@@ -191,7 +191,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": true
     },
     "openai-reverse-proxy-abort": {
       "scenario": "openai-reverse-proxy-abort.json",
@@ -363,7 +364,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": false
     },
     "openai-reverse-proxy-error-status": {
       "scenario": "openai-reverse-proxy-error-status.json",
@@ -537,7 +539,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": false
     },
     "openai-reverse-proxy-midstream-truncation": {
       "scenario": "openai-reverse-proxy-midstream-truncation.json",
@@ -713,7 +716,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": false
     },
     "openai-reverse-proxy-nonstream": {
       "scenario": "openai-reverse-proxy-nonstream.json",
@@ -894,7 +898,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": true
     },
     "openai-reverse-proxy-stream": {
       "scenario": "openai-reverse-proxy-stream.json",
@@ -1078,7 +1083,8 @@
         "excluded": [
           "x-response-time"
         ]
-      }
+      },
+      "authorizationKeyVerified": false
     }
   }
 }

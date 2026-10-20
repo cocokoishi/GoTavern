@@ -11,8 +11,16 @@
     "  enabled: false"
   ],
   "secrets": {
-    "api_key_custom": "synthetic-custom-key"
+    "api_key_custom": [
+      {
+        "id": "probe",
+        "value": "synthetic-custom-key",
+        "label": "probe",
+        "active": true
+      }
+    ]
   },
+  "expectedAuthorizationKey": "synthetic-custom-key",
   "request": {
     "path": "/api/backends/chat-completions/generate",
     "body": {

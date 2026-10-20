@@ -404,6 +404,22 @@ for (const { file, definition } of scenarios) {
         const normalizedProvider = normalizeProvider(recorded.body, mock.address);
         const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
 
+        // A scenario that declares an expected key must actually have exercised
+        // secret or proxy-password reading. Without this an empty key would be
+        // redacted to the same placeholder and the scenario would prove nothing
+        // about the pinned settings shape.
+        let authorizationKeyVerified = false;
+        if (definition.expectedAuthorizationKey) {
+            const observed = (recorded.body.requests ?? [])
+                .flatMap(entry => entry.headers)
+                .find(header => header.name === 'authorization');
+            const expected = `Bearer ${definition.expectedAuthorizationKey}`;
+            if (!observed || observed.value !== expected) {
+                throw new Error(`scenario ${definition.name}: provider saw authorization ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+            }
+            authorizationKeyVerified = true;
+        }
+
         // The scenario declares whether the generation is streamed. Detecting it
         // from the response content type would be wrong: the pinned streaming
         // path forwards the body WITHOUT a content-type header, and that
@@ -453,6 +469,7 @@ for (const { file, definition } of scenarios) {
             },
             normalization: definition.normalization,
             headerCoverage,
+            authorizationKeyVerified,
         };
     } catch (error) {
         console.error(`scenario ${definition.name} failed:`, error);
