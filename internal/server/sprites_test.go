@@ -210,10 +210,13 @@ func TestPinnedNodeExpressionsSpriteListing(t *testing.T) {
 // "path" before the differential comparison; the entry set, labels, paths and
 // query timestamps are still compared exactly.
 //
-// The ETag digests the exact response bytes, so for a multi-entry list it
-// inherits the host directory order on both sides and is normalised; the
-// recorded oracle and the Go response are produced by different readdir orders
-// and can never agree on it. Zero- and one-entry lists keep the exact ETag.
+// The ETag digests the exact response bytes of that same unsorted
+// src/endpoints/sprites.js:126 response, so for a multi-entry list it inherits
+// the host directory order on both sides and is normalised; the recorded oracle
+// and the Go response are produced by different readdir orders and can never
+// agree on it. This is not hiding an ordering difference: the entry set, and
+// the order of the zero- and one-entry lists that do have a host-independent
+// digest, are still compared exactly.
 func assertSpriteListResponse(t *testing.T, label string, got *httptest.ResponseRecorder, want accountMutationResponseFixture) {
 	t.Helper()
 	canonical := want

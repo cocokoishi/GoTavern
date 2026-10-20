@@ -114,6 +114,14 @@ func TestPinnedNodeFileSanitizeFilename(t *testing.T) {
 	sessionCookie := cookieFrom(login.Header().Values("Set-Cookie"))
 	route := "/api/files/sanitize-filename"
 	jsonType := "application/json"
+	fileNameBody := func(name string) string {
+		t.Helper()
+		body, err := json.Marshal(map[string]string{"fileName": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
 	responses := map[string]*httptest.ResponseRecorder{
 		"unauthorized":       serve(http.MethodPost, route, csrfCookie, csrf.Token, jsonType, `{"fileName":"avatar?.png"}`),
 		"invalidCSRF":        serve(http.MethodPost, route, sessionCookie, "", jsonType, `{"fileName":"avatar?.png"}`),
@@ -122,20 +130,29 @@ func TestPinnedNodeFileSanitizeFilename(t *testing.T) {
 		"wrongMethodOptions": serve(http.MethodOptions, route, sessionCookie, "", "", ""),
 		"sanitized":          serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":"../avatar?name<>.png"}`),
 		"unicode":            serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":"森の背景.png"}`),
-		"missingField":       serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{}`),
-		"emptyValue":         serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":""}`),
-		"nullValue":          serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":null}`),
-		"booleanValue":       serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":false}`),
-		"numberValue":        serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":42}`),
-		"arrayValue":         serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":["a","b",null]}`),
-		"objectValue":        serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":{"nested":true}}`),
-		"coercionError":      serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":{"toString":1}}`),
-		"urlEncoded":         serve(http.MethodPost, route, sessionCookie, csrf.Token, "application/x-www-form-urlencoded", "fileName=avatar%2Ffile%3F.png"),
-		"repeatedUrlEncoded": serve(http.MethodPost, route, sessionCookie, csrf.Token, "application/x-www-form-urlencoded", "fileName=first.png&fileName=second.png"),
-		"emptyJSON":          serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, ""),
-		"noBody":             serve(http.MethodPost, route, sessionCookie, csrf.Token, "", ""),
-		"malformedJSON":      serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, "{"),
-		"primitiveJSON":      serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `"value"`),
+		// sanitize-filename truncates to 255 bytes (truncate-utf8-bytes). These
+		// inputs pin the boundary on both sides of the limit and the
+		// character-boundary safety of the multi-byte truncation.
+		"longUnicodeUnderLimit": serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("🙂", 62)+".json")),
+		"longUnicodeOverLimit":  serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("🙂", 63)+".json")),
+		"longUnicodeBoundary":   serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("🙂", 70)+".json")),
+		"longAsciiAtLimit":      serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("a", 255))),
+		"longAsciiOverLimit":    serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("a", 256))),
+		"longAsciiTrailingDot":  serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, fileNameBody(strings.Repeat("a", 254)+".")),
+		"missingField":          serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{}`),
+		"emptyValue":            serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":""}`),
+		"nullValue":             serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":null}`),
+		"booleanValue":          serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":false}`),
+		"numberValue":           serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":42}`),
+		"arrayValue":            serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":["a","b",null]}`),
+		"objectValue":           serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":{"nested":true}}`),
+		"coercionError":         serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `{"fileName":{"toString":1}}`),
+		"urlEncoded":            serve(http.MethodPost, route, sessionCookie, csrf.Token, "application/x-www-form-urlencoded", "fileName=avatar%2Ffile%3F.png"),
+		"repeatedUrlEncoded":    serve(http.MethodPost, route, sessionCookie, csrf.Token, "application/x-www-form-urlencoded", "fileName=first.png&fileName=second.png"),
+		"emptyJSON":             serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, ""),
+		"noBody":                serve(http.MethodPost, route, sessionCookie, csrf.Token, "", ""),
+		"malformedJSON":         serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, "{"),
+		"primitiveJSON":         serve(http.MethodPost, route, sessionCookie, csrf.Token, jsonType, `"value"`),
 	}
 	for label, response := range responses {
 		want, exists := fixture.Responses[label]

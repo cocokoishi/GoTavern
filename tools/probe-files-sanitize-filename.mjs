@@ -164,6 +164,19 @@ try {
         wrongMethodOptions: capture(await request(origin + route, 'OPTIONS', { Cookie: sessionCookie })),
         sanitized: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '../avatar?name<>.png' }))),
         unicode: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '森の背景.png' }))),
+        // Pinned src/endpoints/files.js sanitizes with sanitize-filename, whose
+        // truncate-utf8-bytes limit is 255 bytes (truncate-utf8-bytes/index.js).
+        // This endpoint never touches the filesystem, so these boundary inputs
+        // are observable on every host; they keep the 255-byte truncation
+        // semantics covered now that the preset save probes cannot, because
+        // write-file-atomic's pid-derived temp suffix exceeds Linux's NAME_MAX
+        // for a basename that sanitizes to the limit.
+        longUnicodeUnderLimit: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '🙂'.repeat(62) + '.json' }))),
+        longUnicodeOverLimit: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '🙂'.repeat(63) + '.json' }))),
+        longUnicodeBoundary: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '🙂'.repeat(70) + '.json' }))),
+        longAsciiAtLimit: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: 'a'.repeat(255) }))),
+        longAsciiOverLimit: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: 'a'.repeat(256) }))),
+        longAsciiTrailingDot: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: 'a'.repeat(254) + '.' }))),
         missingField: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({}))),
         emptyValue: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: '' }))),
         nullValue: capture(await request(origin + route, 'POST', jsonHeaders, JSON.stringify({ fileName: null }))),

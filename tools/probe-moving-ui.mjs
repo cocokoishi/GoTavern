@@ -245,7 +245,17 @@ try {
     const mainBody = '{"name":"Main","movingUIState":{"chat":{"left":10,"top":20}},"preserve":{"z":1e+20,"a":-0}}';
     const overwriteBody = '{"name":"Main","movingUIState":{"chat":{"left":100,"top":200}},"unknown":{"keep":true}}';
     const sanitizedBody = JSON.stringify({ name: 'A/../bad?:*|"<>', payload: 'sanitized name' });
-    const longBody = JSON.stringify({ name: '🙂'.repeat(70), payload: 'utf8 truncation' });
+    // Pinned src/endpoints/moving-ui.js:13-14 sanitizes `${name}.json` and
+    // writes it with write-file-atomic, whose temp name appends a pid-derived
+    // suffix. A name that sanitizes to the 255-byte limit therefore makes the
+    // temp name longer than Linux's NAME_MAX (255 bytes) and the write fails
+    // with ENAMETOOLONG, so the pinned server answers 500 with a stack trace
+    // that embeds the pid-dependent temp path. Windows counts 255 UTF-16 units
+    // and still succeeds. 59 emoji sanitize to 241 bytes, which keeps the
+    // atomic temp name inside NAME_MAX on every host, so this case observes a
+    // host-independent successful save; the sanitizer's 255-byte truncation
+    // boundary is covered deterministically by probe-files-sanitize-filename.
+    const longBody = JSON.stringify({ name: '🙂'.repeat(59), payload: 'utf8 truncation' });
     const arrayNameBody = JSON.stringify({ name: ['one', 'two'], payload: 'array coercion' });
     const objectNameBody = JSON.stringify({ name: { value: true }, payload: 'object coercion' });
     const invalidCharactersBody = JSON.stringify({ name: '/\\?<>:*|"', payload: 'invalid characters removed' });
