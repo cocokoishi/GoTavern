@@ -135,23 +135,16 @@ func filepathBase(path string) string {
 	return path
 }
 
-// Encode tokenizes text and returns the ids and the piece text of each id, which is what
-// the pinned encode route returns as ids and chunks. Text that still carries an unpaired
-// surrogate as WTF-8 is converted first, because the pinned port's own conversion is part
-// of its observable behaviour.
-func (s *SentencePiece) Encode(text string) ([]int, []string) {
-	normalized := s.normalize(ConvertWTFSurrogatesForSentencePiece(text))
-	symbols := s.split(normalized)
-	if len(symbols) == 0 {
-		return []int{}, []string{}
-	}
-
-	// Byte-pair encoding: repeatedly merge the adjacent pair whose merged piece has the
-	// highest score, with the leftmost pair winning a tie. The pair must be adjacent in the
-	// *current* symbol list, so a merged symbol has to be offered its next live neighbour —
-	// skipping that is what stops "en"+"d" from becoming "end".
-	merged := make([]string, len(symbols))
-	copy(merged, symbols)
+// mergeSymbols performs the pinned byte-pair merge over one symbol list: repeatedly merge
+// the adjacent pair whose merged piece has the highest score, with the leftmost pair winning
+// a tie. The pair must be adjacent in the *current* symbol list, so a merged symbol has to be
+// offered its next live neighbour — skipping that is what stops "en"+"d" from becoming "end".
+//
+// It is a separate function so the tie-break comparison is reachable in isolation: no pinned
+// model contains a text whose tokenization depends on it (docs/tokenizer-parity-plan.md
+// §9.1), so the corpus replay cannot exercise it and only a direct test can.
+func (s *SentencePiece) mergeSymbols(symbols []string) []string {
+	merged := append([]string{}, symbols...)
 	for len(merged) > 1 {
 		bestIndex := -1
 		var bestScore float32
@@ -172,6 +165,20 @@ func (s *SentencePiece) Encode(text string) ([]int, []string) {
 		merged[bestIndex] = merged[bestIndex] + merged[bestIndex+1]
 		merged = append(merged[:bestIndex+1], merged[bestIndex+2:]...)
 	}
+	return merged
+}
+
+// Encode tokenizes text and returns the ids and the piece text of each id, which is what
+// the pinned encode route returns as ids and chunks. Text that still carries an unpaired
+// surrogate as WTF-8 is converted first, because the pinned port's own conversion is part
+// of its observable behaviour.
+func (s *SentencePiece) Encode(text string) ([]int, []string) {
+	normalized := s.normalize(ConvertWTFSurrogatesForSentencePiece(text))
+	symbols := s.split(normalized)
+	if len(symbols) == 0 {
+		return []int{}, []string{}
+	}
+	merged := s.mergeSymbols(symbols)
 
 	ids := make([]int, 0, len(merged))
 	chunks := make([]string, 0, len(merged))

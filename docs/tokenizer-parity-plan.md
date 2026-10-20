@@ -513,16 +513,16 @@ promoting them to `AGENTS.md`.
   `tie_break_quote` and `tie_break_t` inputs, which exercise the user-defined prefix path and whitespace
   runs, but they are **not** tie-break coverage and must not be described as such.
 
-  Closing this properly would need either a synthetic model (impossible: the data is pinned) or an
-  exhaustive search over longer texts, which the two families above do not cover. Until then the rule stays
-  listed here rather than being claimed as verified.
+  The rule is now pinned directly by `TestSentencePieceMergeTieBreak`, which hands the merge step a
+  controlled vocabulary in which two adjacent candidates have identical scores and asserts that the
+  leftmost wins, plus the complementary cases (a strictly higher score wins regardless of position; a
+  three-way tie; an unmergeable pair). This is **weaker evidence than an oracle case and is labelled as
+  such**: it proves the rule as written, not that the pinned data ever exercises it. It is what makes the
+  `merge_rightmost_tie` mutation fail — the corpus replay alone still cannot, and the two construction
+  families above still return nothing.
 - **A single-token warm-up cost**: the engine merges by rescanning the symbol list, which is O(n²) in the
   number of symbols for one call. Correctness is unaffected and the recorded corpus runs in milliseconds,
   but a very long prompt has not been benchmarked against the pinned port.
-- **The five externally fetched tokenizers are recorded only through their route responses.** Their
-  pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
-  `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim
-  about those families.
 - **The five externally fetched tokenizers are recorded only through their route responses.** Their
   pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
   `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim

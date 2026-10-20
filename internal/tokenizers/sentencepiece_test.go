@@ -3,6 +3,7 @@ package tokenizers
 import (
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -227,6 +228,59 @@ func replaySentencePieceCount(t *testing.T, name string, capture oracleCase, pro
 	}
 	if got := processor.CountArrayTokens(messages); float64(got) != want.TokenCount {
 		t.Fatalf("%s: token_count = %d, pinned %v", name, got, want.TokenCount)
+	}
+}
+
+// TestSentencePieceMergeTieBreak pins the merge rule's tie-break in isolation.
+//
+// This is WEAKER evidence than an oracle case and is labelled as such: it proves the rule as
+// written, not that the pinned data ever exercises it. No pinned model contains a text whose
+// tokenization depends on the tie-break (docs/tokenizer-parity-plan.md §9.1), so the corpus
+// replay cannot discriminate it and the mutation that flips the comparison survives there.
+// The merge step is reachable in isolation, so the rule can still be pinned directly.
+func TestSentencePieceMergeTieBreak(t *testing.T) {
+	// A controlled vocabulary: "ab" and "bc" have identical scores and "abc" is absent, so
+	// the first merge decides the whole segmentation.
+	newProcessor := func(leftScore, rightScore float32) *SentencePiece {
+		return &SentencePiece{
+			pieceToID: map[string]int{"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+			pieces: []spPiece{
+				{text: "a"}, {text: "b"}, {text: "c"},
+				{text: "ab", score: leftScore}, {text: "bc", score: rightScore},
+			},
+		}
+	}
+
+	// Equal scores: the leftmost candidate must win, giving [ab, c]. A rightmost rule would
+	// give [a, bc], which is what makes this assertion discriminating.
+	tie := newProcessor(1, 1)
+	if got := tie.mergeSymbols([]string{"a", "b", "c"}); !reflect.DeepEqual(got, []string{"ab", "c"}) {
+		t.Fatalf("equal-score merge = %q, want [ab c]: the leftmost candidate must win the tie", got)
+	}
+
+	// A strictly higher score wins regardless of position, so the tie-break is not simply
+	// "always prefer the left".
+	right := newProcessor(1, 2)
+	if got := right.mergeSymbols([]string{"a", "b", "c"}); !reflect.DeepEqual(got, []string{"a", "bc"}) {
+		t.Fatalf("higher-score merge = %q, want [a bc]: the higher score must win", got)
+	}
+
+	// Three equal-score candidates: the leftmost still wins.
+	three := &SentencePiece{
+		pieceToID: map[string]int{"a": 0, "b": 1, "c": 2, "d": 3, "ab": 4, "bc": 5, "cd": 6},
+		pieces: []spPiece{
+			{text: "a"}, {text: "b"}, {text: "c"}, {text: "d"},
+			{text: "ab", score: 3}, {text: "bc", score: 3}, {text: "cd", score: 3},
+		},
+	}
+	if got := three.mergeSymbols([]string{"a", "b", "c", "d"}); !reflect.DeepEqual(got, []string{"ab", "cd"}) {
+		t.Fatalf("three-way tie merge = %q, want [ab cd]", got)
+	}
+
+	// A pair that is not a piece is never merged, and the loop terminates.
+	none := &SentencePiece{pieceToID: map[string]int{"a": 0, "b": 1}, pieces: []spPiece{{text: "a"}, {text: "b"}}}
+	if got := none.mergeSymbols([]string{"a", "b"}); !reflect.DeepEqual(got, []string{"a", "b"}) {
+		t.Fatalf("unmergeable symbols = %q, want them unchanged", got)
 	}
 }
 
