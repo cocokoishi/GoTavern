@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -279,12 +278,4 @@ func copyExtensionFile(source, destination string, mode fs.FileMode) error {
 		return err
 	}
 	return to.Close()
-}
-
-// sortedExtensionNames is used by the tests and the oracle comparison to state
-// explicitly that pinned /discover order is a host filesystem property.
-func sortedExtensionNames(names []string) []string {
-	sorted := append([]string(nil), names...)
-	sort.Strings(sorted)
-	return sorted
 }

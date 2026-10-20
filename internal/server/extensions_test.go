@@ -958,7 +958,6 @@ func normalizeDiscoveryFixture(value any) any {
 	if !isArray {
 		return value
 	}
-	groupOrder := map[string]int{"system": 0, "local": 1, "global": 2}
 	result := make([]any, 0, len(entries))
 	for _, type_ := range []string{"system", "local", "global"} {
 		group := make([]map[string]any, 0, len(entries))
@@ -976,6 +975,5 @@ func normalizeDiscoveryFixture(value any) any {
 			result = append(result, entry)
 		}
 	}
-	_ = groupOrder
 	return result
 }
