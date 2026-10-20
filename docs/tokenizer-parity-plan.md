@@ -311,6 +311,9 @@ families plus a documented "counts follow whatever `main` served at install time
 
 ## 5. Context-boundary probe plan (rule 9)
 
+The verification rules this plan depends on are in §9; read them before running a mutation or
+recording a fixture.
+
 Two tiers, because the tokenizer route is not the only place a boundary is enforced: the browser
 trims context using `/api/tokenizers/openai/count`, so the *end-to-end* boundary is at the provider
 request.
@@ -429,3 +432,43 @@ Findings:
 
 This record is deliberately conservative: it documents what was read and what could not be
 established, and it does not assert a legal conclusion beyond the licences actually found.
+
+## 9. Verification methods (rules for this domain)
+
+These were learned the hard way during the tiktoken increment (P3a) and are **not**
+tokenizer-specific. Each one describes a step that appears to have happened and did not, which is the
+failure shape this repository has already been bitten by more than once. The Lead is considering
+promoting them to `AGENTS.md`.
+
+1. **Every mutation run uses `go test -count=1`.** Go's test cache answered `ok ... (cached)` for
+   three mutations that had genuinely changed the engine, so the modified code never executed. Without
+   `-count=1` a mutation can appear to be caught — or worse, appear to pass — without running. A
+   mutation result that does not come from a fresh test binary is not evidence.
+
+2. **An untracked file is reverted by a file copy, never by git.** `git checkout -- <path>` on a path
+   git does not track exits successfully and changes nothing. During P3a that silently left a mutated
+   constant in the working tree; because the backup was taken afterwards, the poisoned copy was
+   restored over and over, and an entire mutation run reported every mutation as failing for the same
+   wrong reason. The procedure is: take the backup *before* mutating, restore by copying files, and
+   confirm the restore by hash before trusting the results.
+
+3. **A surviving mutation means the oracle and the engine are both suspects.** Do not start by
+   assuming the engine is wrong. Three survivors in P3a were each an oracle gap: the
+   abort-the-rest-of-the-message semantics were unobservable because every fixture message had the
+   unencodable value as its last property (where abort and continue are identical), and the
+   guesstimate divisor could not cross an integer boundary with the message bodies that existed. Fix
+   the oracle when the behaviour is genuinely unobservable, then re-run the mutation; do not "fix"
+   correct code to satisfy a weak test.
+
+4. **Take expectations from an oracle, not from a derivation.** The `TextDecoder` replacement rules
+   were pinned by running Node over the byte vectors, which showed that `0xF0 0x9F 0x41` decodes to
+   ONE replacement followed by `A`. The hand-derived expectation was wrong and would have made correct
+   code look broken.
+
+5. **Verify committed bytes, not working-tree bytes.** `git archive HEAD` against the committed
+   manifest (P1) and `git cat-file blob HEAD:<path>` digest comparisons are what prove the verified
+   fixture is the recorded one. A clean `git diff` does not mean the bytes are the recorded ones.
+
+6. **Check for unpushed commits before reporting.** `git log origin/main..HEAD` must be empty. An
+   unpushed commit is not durable and CI has never seen it, so any result resting on it is unverified
+   from the project's point of view.
