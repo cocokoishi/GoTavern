@@ -101,7 +101,11 @@ domain.
    third case: when the product ITSELF cannot reach the state the driver needs — because a fresh
    install is missing the data a user would have — the driver is faithful and the finding is a
    product one that merely presents as a probe defect. Distinguish the cases by asking whether a
-   real user, starting from the same state, could reach the outcome at all.
+   real user, starting from the same state, could reach the outcome at all. The inverse error also
+   occurs and produced two runs of a phantom defect: a driver whose precondition is STRICTER than
+   the product's own gate rejects a legitimate state and blames the product. Derive preconditions
+   from the subject's actual gate — the flag the subject itself checks, read from its source — not
+   from a state that merely sounds right.
 11. **A truncated or filtered listing cannot support a claim of absence.** `Select-Object -First N`,
    `head`, `--depth`, a grep limit or any other bounded output answers "what is in the first N",
    not "what exists". Before concluding that a file, directory or field is missing, query for that
