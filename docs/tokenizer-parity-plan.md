@@ -523,7 +523,52 @@ promoting them to `AGENTS.md`.
 - **A single-token warm-up cost**: the engine merges by rescanning the symbol list, which is O(n²) in the
   number of symbols for one call. Correctness is unaffected and the recorded corpus runs in milliseconds,
   but a very long prompt has not been benchmarked against the pinned port.
-- **The five externally fetched tokenizers are recorded only through their route responses.** Their
-  pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
-  `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim
-  about those families.
+
+## 10. HF tokenizer structures (enumerated from the vendored bytes)
+
+Enumerated 2026-10-20 by decompressing the vendored files themselves — `upstream/tokenizers/external/*.json.gz`
+for the five externally fetched tokenizers and `upstream/tokenizers/{claude,llama3}.json` for the two the
+pinned repository ships — rather than by reading route responses. The five come from
+`SillyTavern-Tokenizers` at the pinned commit `798bcd823dfd04227a79b487e1cf29e6de9aaece`, whose bytes and
+hashes are recorded in `upstream/manifests/tokenizers.sha256`, `upstream/tokenizers/PROVENANCE.md` and the
+fixture's `inputs.externalTokenizers`; see §4 and §7 for why that pin is a GoTavern choice rather than an
+upstream one.
+
+| file | vocab | merges | normalizer | pre-tokenizer | post-processor | decoder | added tokens |
+|---|---|---|---|---|---|---|---|
+| `claude.json` | 65,000 | 64,739 | `NFKC` | `ByteLevel(add_prefix_space=false, trim_offsets=true)` | none | `ByteLevel(add_prefix_space=true)` | 5, all special |
+| `llama3.json` | 128,000 | 280,147 | none | `Split(cl100k regex)` + `ByteLevel(use_regex=false)` | `ByteLevel` | `ByteLevel` | 256, all special |
+| `command-r` | 255,000 | 253,333 | `NFC` | `Digits(individual_digits=true)` + `ByteLevel(use_regex=true)` | `TemplateProcessing` (BOS) | `ByteLevel` | 37, all special |
+| `command-a` | 255,000 | 253,333 | `NFC` | same as `command-r` | `TemplateProcessing` (BOS) | `ByteLevel` | 41, all special |
+| `qwen2` | 151,643 | 151,387 | `NFC` | `Split(regex)` + `ByteLevel(use_regex=false)` | `ByteLevel` | `ByteLevel` | 3, all special |
+| `nemo` | 131,072 | 269,443 | none | `Split(o200k-style regex)` + `ByteLevel(use_regex=false)` | `TemplateProcessing` (BOS) | `ByteLevel` | 1,000, all special |
+| `deepseek` | 128,000 | 127,741 | `Sequence([])` (no-op) | `Split(\p{N}{1,3})` + `Split(CJK range)` + `Split(punct regex)` + `ByteLevel(use_regex=false)` | `ByteLevel` | `ByteLevel` | 818 (804 special) |
+
+All seven are `model.type = BPE` with `unk_token = null`, `fuse_unk = false` and no byte fallback.
+
+Facts the fixture settles, which the engine must follow rather than infer from the file:
+
+- **Post-processors do not insert tokens.** `command-r`, `command-a` and `nemo` carry a
+  `TemplateProcessing` post-processor that would prepend a BOS, and the pinned capture shows it is not
+  applied: `command-r/encode#ascii` is `[28339, 19, 3845, 8]` with chunks `["Hello", ",", " world", "!"]`,
+  not `[5, ...]`. The engine therefore ignores post-processors for these routes.
+- **Decode is per id**, as on the other backends, so every chunk is one id's ByteLevel decode and the join
+  is the response's `text`.
+
+Version-sensitivity, stated rather than assumed:
+
+- **The five external files are not pinned upstream.** Any structure above can change when the branch moves,
+  so the engine must *read* the normalizer, pre-tokenizer, decoder and added-token list from the file and
+  refuse an unrecognized shape instead of approximating it. The manifest hash changing is the trigger to
+  re-run this enumeration.
+- **The two 255k-vocabulary files are not the same file.** `command-r` and `command-a` share vocab size,
+  merge count, normalizer and pre-tokenizer, and differ only in their added-token lists (37 vs 41), which is
+  exactly the kind of difference a "same shape" assumption would hide.
+- **`deepseek` is the outlier**: three chained `Split` pre-tokenizers including a literal CJK range, a
+  `Sequence([])` normalizer that is a no-op rather than absent, and 818 added tokens of which only 804 are
+  special. A "no normalizer means null" reading would be wrong for it.
+- **The Split patterns are data, not code.** They carry `\s+(?!\S)` lookaheads, so the engine must compile
+  them with a backtracking engine (`dlclark/regexp2`, already a dependency) and must not hardcode any pattern.
+- **The feature set the engine must cover** is the union above: `ByteLevel`, `Digits(individual_digits)`,
+  `Split(pattern, Isolated, invert=false)`, normalizers `null` / `NFC` / `NFKC` / `Sequence([])`, added-token
+  matching, and ByteLevel decode. Anything outside that union must fail loudly at load time.
