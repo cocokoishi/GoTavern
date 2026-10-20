@@ -102,6 +102,13 @@ domain.
    install is missing the data a user would have — the driver is faithful and the finding is a
    product one that merely presents as a probe defect. Distinguish the cases by asking whether a
    real user, starting from the same state, could reach the outcome at all.
+11. **A truncated or filtered listing cannot support a claim of absence.** `Select-Object -First N`,
+   `head`, `--depth`, a grep limit or any other bounded output answers "what is in the first N",
+   not "what exists". Before concluding that a file, directory or field is missing, query for that
+   specific thing and let the query succeed or fail on its own — count it, filter for its path, or
+   test it directly. A negative finding drawn from bounded output is the most dangerous kind of
+   error this list covers, because it arrives looking like a measurement and is then quoted as
+   evidence; it has already produced one false claim that propagated into a project rule.
 
 ## Phase order
 
