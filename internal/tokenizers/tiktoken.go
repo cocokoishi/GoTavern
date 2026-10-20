@@ -189,8 +189,10 @@ func loadTiktoken(dir, name string) (*Tiktoken, error) {
 
 // Encode tokenizes text the way the pinned route does. Pinned tiktoken is called with no
 // allowed special tokens and disallowedSpecial "all", so a text that contains any special
-// token is an error rather than ordinary text.
+// token is an error rather than ordinary text. An unpaired surrogate reaches this point as
+// WTF-8 and is converted the way the pinned WASM converts it at the JS boundary.
 func (t *Tiktoken) Encode(text string) ([]int, error) {
+	text = ReplaceWTFSurrogatesForTiktoken(text)
 	if special, ok := t.disallowedSpecial(text); ok {
 		return nil, fmt.Errorf("the text contains a special token that is not allowed: %s", special)
 	}

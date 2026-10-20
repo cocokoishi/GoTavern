@@ -472,3 +472,20 @@ promoting them to `AGENTS.md`.
 6. **Check for unpushed commits before reporting.** `git log origin/main..HEAD` must be empty. An
    unpushed commit is not durable and CI has never seen it, so any result resting on it is unverified
    from the project's point of view.
+
+### 9.1 Known oracle gaps (recorded so they are not mistaken for verified behaviour)
+
+- **The BPE score tie-break direction is not discriminated.** SentencePiece merges the highest-scoring
+  adjacent pair, so a tie must be broken by position. The engine breaks ties by taking the leftmost pair,
+  which is what the reference implementation does, but no recorded case changes its segmentation when the
+  comparison is flipped to `>=`: that mutation leaves every replayed case green. The gap is in the corpus,
+  not the models — a scan of the pinned vocabularies found equal-score adjacent merge pairs in every model
+  (llama 80, nerdstash 172, nerdstash_v2 172, mistral 87, yi 216, gemma 331). Closing it needs an input
+  built to produce a genuine tie between two different adjacent pairs, added to the probe corpus.
+- **A single-token warm-up cost**: the engine merges by rescanning the symbol list, which is O(n²) in the
+  number of symbols for one call. Correctness is unaffected and the recorded corpus runs in milliseconds,
+  but a very long prompt has not been benchmarked against the pinned port.
+- **The five externally fetched tokenizers are recorded only through their route responses.** Their
+  pre-tokenizer, normalizer and added-token structures have not been enumerated the way `claude.json` and
+  `llama3.json` were; that enumeration belongs to the HF engine increment and must happen before any claim
+  about those families.

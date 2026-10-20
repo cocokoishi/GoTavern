@@ -91,15 +91,25 @@ func queryModel(t *testing.T, name string, raw json.RawMessage) string {
 	return query["model"]
 }
 
+// requestText extracts the request's text field the way the pinned pipeline does. It must
+// not rely on encoding/json's own string decoding: Go replaces an unpaired surrogate escape
+// with U+FFFD before the tokenizer sees it, while the pinned server keeps the code unit and
+// each backend converts it differently. UnescapeJSONString preserves that distinction.
 func requestText(t *testing.T, name string, raw json.RawMessage) string {
 	t.Helper()
-	var body struct {
-		Text string `json:"text"`
-	}
+	var body map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &body); err != nil {
-		t.Fatalf("%s: request body is not {text}: %v", name, err)
+		t.Fatalf("%s: request body is not an object: %v", name, err)
 	}
-	return body.Text
+	textRaw, ok := body["text"]
+	if !ok {
+		t.Fatalf("%s: request body has no text field", name)
+	}
+	text, err := UnescapeJSONString(textRaw)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	return text
 }
 
 func requestIDs(t *testing.T, name string, raw json.RawMessage) []int {
