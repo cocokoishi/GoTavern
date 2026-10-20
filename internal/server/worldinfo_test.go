@@ -386,6 +386,13 @@ func TestPinnedNodeWorldInfoRoutes(t *testing.T) {
 	recordErrorPage("deleteMissingFile", post("delete", `{"name":"missing"}`))
 	record("deleteWrongMethod", serve(http.MethodGet, "/api/worldinfo/delete", sessionCookie, "", "", nil))
 
+	// The deprecated aliases answer a method-preserving 308 without reaching the
+	// destination route.
+	record("legacyGetRedirect", serve(http.MethodPost, "/getworldinfo", sessionCookie, csrf.Token, "application/json", []byte(`{"name":"alpha"}`)))
+	record("legacyEditRedirect", serve(http.MethodPost, "/editworldinfo", sessionCookie, csrf.Token, "application/json", []byte(`{"name":"legacy","data":{"entries":{}}}`)))
+	record("legacyDeleteRedirect", serve(http.MethodPost, "/deleteworldinfo", sessionCookie, csrf.Token, "application/json", []byte(`{"name":"legacy"}`)))
+	record("legacyImportRedirect", serve(http.MethodPost, "/importworldinfo", sessionCookie, csrf.Token, "application/json", []byte(`{}`)))
+
 	worldsAfterDeletes := snapshotWorldInfoWorlds(t, worldsRoot)
 
 	for label, response := range responses {

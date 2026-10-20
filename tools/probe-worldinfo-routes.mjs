@@ -435,6 +435,14 @@ try {
     recordErrorPage('deleteMissingFile', await post('delete', json({ name: 'missing' })));
     record('deleteWrongMethod', await request(`${origin}/api/worldinfo/delete`, 'GET', { Cookie: sessionCookie }));
 
+    // ---- deprecated aliases -------------------------------------------------
+    // src/server-startup.js:110-113 redirects the old paths with 308 so the
+    // request method survives.
+    record('legacyGetRedirect', await request(`${origin}/getworldinfo`, 'POST', jsonHeaders, json({ name: 'alpha' })));
+    record('legacyEditRedirect', await request(`${origin}/editworldinfo`, 'POST', jsonHeaders, json({ name: 'legacy', data: { entries: {} } })));
+    record('legacyDeleteRedirect', await request(`${origin}/deleteworldinfo`, 'POST', jsonHeaders, json({ name: 'legacy' })));
+    record('legacyImportRedirect', await request(`${origin}/importworldinfo`, 'POST', jsonHeaders, json({})));
+
     const worldsAfterDeletes = worldsState(worldsRoot);
     const accountRecordUnchanged = accountRecordBefore.equals(readFileSync(accountRecordPath));
     const roundTrip = await verifyRoundTrip(origin, sessionCookie, token, worldsRoot);
