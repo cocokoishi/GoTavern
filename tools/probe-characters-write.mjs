@@ -323,6 +323,17 @@ const CHAT_FILES = {
     ].join('\n'),
 };
 
+// Guards the recorded order: readdirSync is not sorted on every filesystem, so
+// a snapshot that is recorded in the raw order would pass on NTFS and fail on
+// ext4. Go compares its byte-sorted os.ReadDir order, which agrees with the
+// default Array.prototype.sort code-unit order for these ASCII names.
+function assertSortedNames(names, label) {
+    const sorted = [...names].sort();
+    if (names.join('\n') !== sorted.join('\n')) {
+        throw new Error(`${label} is recorded in the probe host's directory order instead of sorted order`);
+    }
+}
+
 // Host-independence guard: bodyText is the raw response text the Go test
 // compares against, so it must stay consistent with the normalized body. A
 // normalization that only edits the parsed body (sorting, markers) would
@@ -392,6 +403,7 @@ async function charactersSnapshot(normalizeOptions) {
         // timestamps, so only the decoded card and the pixels are comparable.
         entries.push({ name, charaJSON, ...await pixelDigest(filePath) });
     }
+    assertSortedNames(entries.map(entry => entry.name), 'characters snapshot');
     return entries;
 }
 
