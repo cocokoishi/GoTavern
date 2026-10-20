@@ -1,0 +1,4 @@
+# Browser harness: dependencies and the scratch copy of the pinned specs are artifacts.
+node_modules/
+.pinned-run/
+test-results/

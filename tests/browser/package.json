@@ -1,0 +1,12 @@
+{
+  "name": "gotavern-browser-harness",
+  "private": true,
+  "type": "module",
+  "description": "Browser-level compatibility harness. Pinned to the baseline's own Playwright version: the pinned SillyTavern test suite we run against GoTavern was written for this version, and a newer driver would silently change wait semantics and make the measurement incomparable to upstream's own results.",
+  "scripts": {
+    "pinned": "node run-pinned-suite.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
