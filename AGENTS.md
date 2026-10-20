@@ -83,6 +83,13 @@ domain.
    a suspected failure by redirecting to a file and reading the command's own exit code, not by
    trusting the pipeline's. The same caution applies to any wrapper that re-derives a status from
    captured text rather than propagating the process status.
+9. **A file that is "readable" may still be corrupt.** Writing a file containing non-ASCII text
+   through a shell whose default encoding is not UTF-8 produces bytes that fail a strict UTF-8
+   decode; most decoders replace the invalid bytes silently, so nothing complains until an editor
+   refuses to open the file. Decode generated documents strictly and fail on replacement
+   characters, and pass an explicit encoding whenever a shell writes non-ASCII content. This is
+   the same failure as the CRLF vendored assets: the artefact looked correct while its bytes were
+   not, and every reader that tolerated the damage hid it.
 
 ## Phase order
 
