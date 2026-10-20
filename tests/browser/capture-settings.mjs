@@ -69,11 +69,17 @@ try {
         }
         presetSelect.value = presetOption.value;
         presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        if (!(await settle(() => oai_settings.preset_settings_openai === presetOption.value, 'the preset'))) {
-            return { error: `the preset did not take effect (preset_settings_openai = ${JSON.stringify(oai_settings.preset_settings_openai)})`, steps };
+        // The handler reads the option's TEXT, not its value (openai.js:5023:
+        // `$('#settings_preset_openai').find(':selected').text()`). The earlier failure reported
+        // `preset_settings_openai = "Default"` because the setting had ALREADY taken the text while the
+        // predicate compared the option value -- the assertion was reading the wrong thing, not the
+        // frontend behaving differently.
+        const presetText = (presetOption.textContent ?? '').trim();
+        if (!(await settle(() => oai_settings.preset_settings_openai === presetText, 'the preset'))) {
+            return { error: `the preset did not take effect (preset_settings_openai = ${JSON.stringify(oai_settings.preset_settings_openai)}, option text = ${JSON.stringify(presetText)})`, steps };
         }
         // Record the source state the preset left behind rather than assuming it is unchanged.
-        steps.push({ step: 'preset', value: presetOption.value, sourceAfterPreset: oai_settings.chat_completion_source });
+        steps.push({ step: 'preset', value: presetText, optionValue: presetOption.value, sourceAfterPreset: oai_settings.chat_completion_source });
 
         // 2. Source after the preset, and asserted.
         const sourceSelect = document.querySelector('#chat_completion_source');
