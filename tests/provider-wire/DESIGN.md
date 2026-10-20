@@ -74,9 +74,22 @@ The mock is built once and spawned as a **binary**. Do not use
 outlives its parent, holds the probe's event loop open, and stalls the oracle
 job for its full timeout on every run.
 
-## Layout
+## Testing the harness itself
 
-```text
+Two lessons worth keeping, both learned the hard way.
+
+A request body sent **without** `content-length` leaves the mock with unread
+bytes in its receive buffer, and closing the connection then sends an RST that
+discards a response the client had not read yet. The symptom looks like a client
+bug and is correct HTTP behaviour. Declare a length when sending a body.
+
+A test that both supplies the input and holds the expectation cannot fail when
+the evidence changes. `internal/outbound`'s wire-form test therefore states
+exactly what it binds (transmission fidelity) and the oracle-bound comparison
+belongs to the harness, where the request comes from a scenario and the
+expectation comes from the captured oracle.
+
+## Layout```text
 tests/mockprovider/                     recording provider library (Go, test-only)
 tools/mock-provider/                    entry point for the recording provider
 tests/provider-wire/scenarios/*.json    declarative scenarios, shared by both backends
