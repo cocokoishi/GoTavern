@@ -10,6 +10,9 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-cors-middleware.json label="CORS middleware"
 const sourceRoot = path.resolve(process.argv[2] ?? '');
 const repositoryRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {

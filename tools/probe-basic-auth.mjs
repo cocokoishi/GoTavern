@@ -11,6 +11,9 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-basic-auth.json label="Basic Auth"
 // Pinned src/util.js:149 reports /version's gitRevision with
 // `git rev-parse --short HEAD`, whose abbreviation length is derived from the
 // checkout's object database (git's core.abbrev=auto): a full clone yields 9

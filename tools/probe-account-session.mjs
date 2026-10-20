@@ -11,6 +11,9 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-account-session.json label="account session"
 const COOKIE_SECRET = 'gotavern-pinned-account-session-probe-secret';
 // Pinned src/util.js:149 reports /version's gitRevision with
 // `git rev-parse --short HEAD`, whose abbreviation length is derived from the

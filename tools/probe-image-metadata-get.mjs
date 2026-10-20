@@ -13,6 +13,9 @@ import { pathToFileURL } from 'node:url';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-image-metadata-get.json label="image-metadata get"
 const COOKIE_SECRET = 'gotavern-pinned-image-metadata-get-cookie-secret';
 const THUMBNAIL_DIMENSIONS = { bg: [80, 45], avatar: ['0x100000000000000000000', 1], persona: ['not-a-number', 2] };
 const sourceRoot = path.resolve(process.argv[2] ?? '');

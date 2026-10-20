@@ -12,6 +12,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-public-overrides-migration.json label="public-overrides migration"
 const SOURCE_PATHS = [
     'public/error/forbidden-by-whitelist.html',
     'public/error/host-not-allowed.html',

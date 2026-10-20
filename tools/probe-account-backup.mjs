@@ -12,6 +12,9 @@ import process from 'node:process';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
+// @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
+// which auto-discovers probes so that adding one needs no edit there.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-account-backup.json label="account-backup"
 const COOKIE_SECRET = 'gotavern-pinned-account-backup-probe-secret';
 const PASSWORD = 'account-backup-protected-password';
 const SALT = Buffer.from('account-backup-salt').toString('base64');
