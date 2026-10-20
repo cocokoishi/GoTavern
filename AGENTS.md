@@ -97,7 +97,11 @@ domain.
    broken, assert the driver reached the state a real caller reaches — for a browser probe, that
    means the same entry path, the same preconditions, and an explicit check that the subject is
    not already mid-operation. A `false` accompanied by a named failing request is a product
-   finding; a `false` accompanied by nothing is a probe defect until proven otherwise.
+   finding; a `false` accompanied by nothing is a probe defect until proven otherwise. There is a
+   third case: when the product ITSELF cannot reach the state the driver needs — because a fresh
+   install is missing the data a user would have — the driver is faithful and the finding is a
+   product one that merely presents as a probe defect. Distinguish the cases by asking whether a
+   real user, starting from the same state, could reach the outcome at all.
 
 ## Phase order
 
