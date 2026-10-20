@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -26,6 +29,13 @@ const tokenizerRouteOracleFile = "sillytavern-1.19.0-tokenizers.json"
 const (
 	wantTokenizerEncodeRouteCases   = 382
 	wantTokenizerEncodeSkippedCases = 46 // 45 fallback-scenario captures plus the GET-on-a-POST-route case
+	// Decode and openai route replay counts, measured from the fixture. Exclusions are counted
+	// so a shrinking fixture fails the build instead of quietly reducing coverage.
+	wantTokenizerDecodeRouteCases   = 105
+	wantTokenizerDecodeSkippedCases = 6
+	wantTokenizerOpenAIEncodeCases  = 144
+	wantTokenizerOpenAIDecodeCases  = 30
+	wantTokenizerOpenAICountCases   = 170
 	// The HF unpaired-surrogate class is partial (see plan 9.1), so its 8 cases are skipped
 	// and counted rather than replayed against an engine that does not reproduce them.
 	wantTokenizerHFSurrogateSkipped = 8
@@ -34,8 +44,9 @@ const (
 type tokenizerRouteFixture struct {
 	Responses map[string]struct {
 		Request struct {
-			Path string          `json:"path"`
-			Body json.RawMessage `json:"body"`
+			Path  string            `json:"path"`
+			Query map[string]string `json:"query"`
+			Body  json.RawMessage   `json:"body"`
 		} `json:"request"`
 		Status int             `json:"status"`
 		Body   json.RawMessage `json:"body"`
@@ -380,4 +391,160 @@ func equalStringSlicesRoute(left, right []string) bool {
 		}
 	}
 	return true
+}
+
+func isTokenizerDecodeRoute(path string) bool {
+	if path == "/api/tokenizers/gpt2/decode" {
+		return true
+	}
+	for _, model := range tokenizerSentencePieceModels {
+		if path == "/api/tokenizers/"+model+"/decode" {
+			return true
+		}
+	}
+	for _, model := range tokenizerWebModels {
+		if path == "/api/tokenizers/"+model+"/decode" {
+			return true
+		}
+	}
+	return false
+}
+
+// TestTokenizerDecodeRoutesMatchPinnedOracle replays the 15 decode routes. The three decode
+// handlers do not share a response shape: tiktoken answers {text} alone, while SentencePiece
+// and HuggingFace answer {text, chunks}.
+func TestTokenizerDecodeRoutesMatchPinnedOracle(t *testing.T) {
+	fixture := loadTokenizerRouteFixture(t)
+	handler := tokenizerRouteHandler(t)
+	replayed := 0
+	skipped := 0
+	for name, capture := range fixture.Responses {
+		if !isTokenizerDecodeRoute(capture.Request.Path) {
+			continue
+		}
+		if strings.HasPrefix(name, "downloads-disabled-") {
+			skipped++
+			continue
+		}
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, capture.Request.Path, strings.NewReader(string(capture.Request.Body)))
+		request.Header.Set("Content-Type", "application/json")
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, pinned 200", name, response.Code)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: response is not an object: %v (%s)", name, err, response.Body.String())
+		}
+		var want map[string]json.RawMessage
+		if err := json.Unmarshal(capture.Body, &want); err != nil {
+			t.Fatalf("%s: pinned body is not an object: %v", name, err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("%s: response keys = %v, pinned %v", name, tokenizerKeys(got), tokenizerKeys(want))
+		}
+		for key, wantRaw := range want {
+			gotRaw, present := got[key]
+			if !present {
+				t.Fatalf("%s: response is missing %q, pinned %v", name, key, tokenizerKeys(want))
+			}
+			if !tokenizerSameJSON(t, gotRaw, wantRaw) {
+				t.Fatalf("%s: %q = %s, pinned %s", name, key, gotRaw, wantRaw)
+			}
+		}
+		replayed++
+	}
+	if replayed != wantTokenizerDecodeRouteCases {
+		t.Fatalf("replayed %d decode route cases, want %d", replayed, wantTokenizerDecodeRouteCases)
+	}
+	if skipped != wantTokenizerDecodeSkippedCases {
+		t.Fatalf("skipped %d decode route cases, want %d", skipped, wantTokenizerDecodeSkippedCases)
+	}
+}
+
+// TestTokenizerOpenAIRoutesMatchPinnedOracle replays openai/encode, openai/decode and
+// openai/count. The count route is the important one: the arithmetic already exists in the
+// engines, so this is where a correct engine can be wired into an incorrect route.
+func TestTokenizerOpenAIRoutesMatchPinnedOracle(t *testing.T) {
+	fixture := loadTokenizerRouteFixture(t)
+	handler := tokenizerRouteHandler(t)
+	replayed := map[string]int{}
+	for name, capture := range fixture.Responses {
+		var suffix string
+		switch capture.Request.Path {
+		case "/api/tokenizers/openai/encode":
+			suffix = "encode"
+		case "/api/tokenizers/openai/decode":
+			suffix = "decode"
+		case "/api/tokenizers/openai/count":
+			suffix = "count"
+		default:
+			continue
+		}
+		if capture.Request.Body == nil {
+			continue
+		}
+		target := capture.Request.Path
+		if model := capture.Request.Query["model"]; model != "" {
+			target += "?model=" + url.QueryEscape(model)
+		}
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, target, strings.NewReader(string(capture.Request.Body)))
+		request.Header.Set("Content-Type", "application/json")
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, pinned 200", name, response.Code)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: response is not an object: %v (%s)", name, err, response.Body.String())
+		}
+		var want map[string]json.RawMessage
+		if err := json.Unmarshal(capture.Body, &want); err != nil {
+			t.Fatalf("%s: pinned body is not an object: %v", name, err)
+		}
+		for key, wantRaw := range want {
+			gotRaw, present := got[key]
+			if !present {
+				t.Fatalf("%s: response is missing %q, got %v, pinned %v", name, key, tokenizerKeys(got), tokenizerKeys(want))
+			}
+			if !tokenizerSameJSON(t, gotRaw, wantRaw) {
+				t.Fatalf("%s: %q = %s, pinned %s", name, key, gotRaw, wantRaw)
+			}
+		}
+		replayed[suffix]++
+	}
+	for suffix, want := range map[string]int{
+		"encode": wantTokenizerOpenAIEncodeCases,
+		"decode": wantTokenizerOpenAIDecodeCases,
+		"count":  wantTokenizerOpenAICountCases,
+	} {
+		if replayed[suffix] != want {
+			t.Fatalf("replayed %d openai/%s cases, want %d", replayed[suffix], suffix, want)
+		}
+	}
+}
+
+func tokenizerKeys(object map[string]json.RawMessage) []string {
+	keys := make([]string, 0, len(object))
+	for key := range object {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// tokenizerSameJSON compares two JSON values semantically, so key order inside a nested object
+// does not matter while values and array order do.
+func tokenizerSameJSON(t *testing.T, left, right json.RawMessage) bool {
+	t.Helper()
+	var leftValue, rightValue any
+	if err := json.Unmarshal(left, &leftValue); err != nil {
+		t.Fatalf("left is not JSON: %v", err)
+	}
+	if err := json.Unmarshal(right, &rightValue); err != nil {
+		t.Fatalf("right is not JSON: %v", err)
+	}
+	return reflect.DeepEqual(leftValue, rightValue)
 }

@@ -69,14 +69,24 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 		post("/api/tokenizers/"+model+"/encode", func(w http.ResponseWriter, r *http.Request) {
 			accounts.serveSentencePieceEncode(w, r, model)
 		})
+		post("/api/tokenizers/"+model+"/decode", func(w http.ResponseWriter, r *http.Request) {
+			accounts.serveSentencePieceDecode(w, r, model)
+		})
 	}
 	post("/api/tokenizers/gpt2/encode", accounts.serveTiktokenEncode)
+	post("/api/tokenizers/gpt2/decode", accounts.serveTiktokenDecode)
 	for _, model := range tokenizerWebModels {
 		model := model
 		post("/api/tokenizers/"+model+"/encode", func(w http.ResponseWriter, r *http.Request) {
 			accounts.serveWebTokenizerEncode(w, r, model)
 		})
+		post("/api/tokenizers/"+model+"/decode", func(w http.ResponseWriter, r *http.Request) {
+			accounts.serveWebTokenizerDecode(w, r, model)
+		})
 	}
+	post("/api/tokenizers/openai/encode", accounts.serveOpenAITokenizerEncode)
+	post("/api/tokenizers/openai/decode", accounts.serveOpenAITokenizerDecode)
+	post("/api/tokenizers/openai/count", accounts.serveOpenAITokenizerCount)
 }
 
 // --- asset loading ---------------------------------------------------------------------
@@ -279,7 +289,7 @@ type tokenizerEncodeResponse struct {
 }
 
 type tokenizerCountResponse struct {
-	Count int `json:"count"`
+	Count int `json:"token_count"`
 }
 
 func (runtime *accountRuntime) serveSentencePieceEncode(w http.ResponseWriter, request *http.Request, model string) {
