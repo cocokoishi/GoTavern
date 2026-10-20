@@ -675,3 +675,63 @@ Version-sensitivity, stated rather than assumed:
 - **The feature set the engine must cover** is the union above: `ByteLevel`, `Digits(individual_digits)`,
   `Split(pattern, Isolated, invert=false)`, normalizers `null` / `NFC` / `NFKC` / `Sequence([])`, added-token
   matching, and ByteLevel decode. Anything outside that union must fail loudly at load time.
+
+## 11. Outbound-route oracle convention (project-level, not tokenizer-specific)
+
+This section is deliberately general. It was written while implementing two Horde startup routes that
+happened to block a send, but every outbound route in the project will face the same problem and will copy
+whatever is established here, so it belongs in a plan section of its own rather than inside a domain note.
+
+**The problem.** An outbound route's observable depends on a third-party service. That makes its oracle
+environment-dependent: the same code answers differently depending on whether the peer is reachable, and the
+peer's CONTENT changes without our code changing. A fixture that records today's live response rots; a route
+that hardcodes the failure it happened to see diverges the moment a peer answers.
+
+**1. The upstream URL is a seam that defaults to the pinned URL.** An outbound route takes its base URL from
+configuration with the pinned value as the default, and a test can point it at a local mock server. The
+default is itself asserted, because a seam whose default drifts silently changes production while the tests
+keep passing against the override.
+
+**2. The test exercises the real fetch path against a controlled peer.** Pointing the seam at a local mock is
+preferred to simulating the absence of a network: the former tests our code with a real response, the latter
+tests our code's error handling and nothing else. The failure path is produced by pointing the seam at a
+CLOSED PORT, which is deterministic and does not depend on the CI machine's connectivity.
+
+**3. The fixture classifies every field, in the fixture.** For each route the fixture carries a machine-readable
+classification, so a reader can see what is asserted without reading the test:
+
+```json
+{
+  "fields": [
+    { "path": "response.ok", "comparison": "compared", "reason": "the pinned handler sends the fetch's success boolean" },
+    { "path": "response.models[].name", "comparison": "shape", "reason": "upstream list content, changes without our code changing" }
+  ]
+}
+```
+
+`compared` means the value is asserted against a recorded expected value; `shape` means only presence and
+type are asserted, and the reason says why the value cannot be. A route whose every field is `shape` is a
+route with no value-level oracle, and the fixture must say so rather than leave it implied.
+
+**4. The differential limit goes in the compat row, not only here.** Where the pinned server hardcodes a
+third-party URL and offers no seam, our side can be compared with pinned in SHAPE only: both cannot be
+pointed at one mock. A row that implies a byte-level differential it does not have is the failure this
+project keeps having to correct, so the limit is stated next to the claim.
+
+**5. `Client-Agent` is contract, not incidental.** The pinned Horde routes send
+`(await getVersion())?.agent || 'SillyTavern:UNKNOWN:Cohee#1207'`. Our `/version` already returns
+`SillyTavern:1.19.0:Cohee#1207`, so the header is a value we can satisfy today — and it is exactly the value
+that silently drifts if `/version` changes, so it gets its own assertion rather than being assumed.
+
+**6. A cache is part of the contract.** The pinned text-model route caches its merged list for 60 seconds
+under the key `models`, and `body.force` bypasses the cache. TTL, key and bypass are asserted against the
+mock, because a cache that never expires or never populates changes observable behaviour without touching a
+response shape.
+
+**7. Nothing about a third-party answer is recorded as a constant.** If a route's answer depends on a remote
+service, the fixture records the SHAPE and the classification, and the live value is captured only in
+evidence notes with a date, never in an assertion.
+
+**Scope note.** These routes are Horde-domain routes. Implementing them inside the tokenizer work is justified
+only by "two routes unblock a send"; the convention above is the reusable artefact, and the remaining Horde
+domain — talking to a Horde generation backend — stays untouched.
