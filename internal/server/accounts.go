@@ -17,7 +17,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -412,7 +411,13 @@ func (runtime *accountRuntime) serveLoginPage(w http.ResponseWriter, request *ht
 	serveStaticAsset(w, request, "login.html")
 }
 
-func isPublicAccountRequest(request *http.Request) bool {
+// isPublicAccountRequest reports whether a request may be answered without a
+// session. It mirrors the pinned middleware order: the login page, the CSRF
+// token, the callback and the account-recovery POSTs are public by route, and
+// every other GET or HEAD is public exactly when the frontend static middleware
+// would answer it — which is the same question the pinned express.static
+// resolves before requireLoginMiddleware runs.
+func isPublicAccountRequest(request *http.Request, options HTTPHandlerOptions) bool {
 	if request.Method == http.MethodGet {
 		if request.URL.Path == "/" || request.URL.Path == "/login" || request.URL.Path == "/csrf-token" {
 			return true
@@ -427,23 +432,7 @@ func isPublicAccountRequest(request *http.Request) bool {
 			return true
 		}
 	}
-	if request.Method != http.MethodGet && request.Method != http.MethodHead {
-		return false
-	}
-	assetPath := strings.TrimPrefix(request.URL.Path, "/")
-	if assetPath == "" {
-		return true
-	}
-	if assetPath == "lib.js" {
-		_, err := upstream.Assets.ReadFile("generated/lib.js")
-		return err == nil
-	}
-	clean := path.Clean(assetPath)
-	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "\\") {
-		return false
-	}
-	_, err := upstream.Assets.ReadFile("public/" + clean)
-	return err == nil
+	return pinnedFrontendStaticServes(options, request)
 }
 
 func clearCookieSession(w http.ResponseWriter, request *http.Request, options HTTPHandlerOptions) {

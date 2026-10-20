@@ -104,6 +104,48 @@ type frontendStaticFile struct {
 	isDirectory bool
 }
 
+// pinnedFrontendStaticServes reports whether the pinned frontend static
+// middleware would answer this request with anything other than a fall-through.
+//
+// The account gate uses it so that a path is treated as public exactly when the
+// middleware would answer it and no wider. It deliberately reuses the handler's
+// own resolution — the same clean, dotfile, disk-then-embedded and index rules —
+// rather than approximating them, because a gate wider than the handler turns a
+// fall-through into a leak, and a gate narrower than it hides a served file
+// behind a 403.
+//
+// A directory without a trailing slash counts as served: the middleware answers
+// it with a redirect, and the middleware runs before the login gate.
+func pinnedFrontendStaticServes(options HTTPHandlerOptions, r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	assetPath := strings.TrimPrefix(r.URL.Path, "/")
+	if assetPath == "" {
+		assetPath = "index.html"
+	}
+	clean := path.Clean(assetPath)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || strings.HasPrefix(clean, "/") || strings.Contains(clean, "\\") {
+		return false
+	}
+	parts := strings.Split(clean, "/")
+	if pinnedContainsDotFile(parts) && strings.HasPrefix(parts[len(parts)-1], ".") {
+		return false
+	}
+	file, ok := readPinnedFrontendStaticFile(options, clean)
+	if !ok {
+		return false
+	}
+	if !file.isDirectory {
+		return true
+	}
+	if !strings.HasSuffix(r.URL.Path, "/") {
+		return true
+	}
+	index, ok := readPinnedFrontendStaticFile(options, path.Join(clean, "index.html"))
+	return ok && !index.isDirectory
+}
+
 // servePinnedFrontendStatic is the shared entry point for every request that
 // reaches the mux without a more specific route, which is exactly the pinned
 // middleware's position in the stack.

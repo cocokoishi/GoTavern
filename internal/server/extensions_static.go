@@ -80,6 +80,16 @@ func registerExtensionStaticRoutes(mux *http.ServeMux, accounts *accountRuntime,
 }
 
 func (runtime *accountRuntime) serveExtensionStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
+	// The pinned frontend static middleware is mounted at server-main.js:242,
+	// before the private routers at :278, so it answers first for anything under
+	// public/ — including a real file in the global extensions directory. Only
+	// when it would fall through does this route run. Without this the mux would
+	// route that URL space here and answer 403 to an unauthenticated request
+	// where pinned answers 200 with the file's bytes.
+	if pinnedFrontendStaticServes(runtime.options, r) {
+		servePinnedFrontendStatic(w, r, notFoundPage, runtime.options)
+		return
+	}
 	_, directories, ok := runtime.extensionAccount(w, r)
 	if !ok {
 		return

@@ -539,7 +539,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 				return
 			}
 		}
-		if options.AccountsEnabled && !isPublicAccountRequest(r) && user == nil {
+		if options.AccountsEnabled && !isPublicAccountRequest(r, options) && user == nil {
 			serveStatusText(w, http.StatusForbidden)
 			return
 		}

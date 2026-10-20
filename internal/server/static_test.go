@@ -55,22 +55,20 @@ type frontendStaticFixture struct {
 }
 
 // frontendStaticKnownDivergences names the observations GoTavern cannot
-// reproduce yet, with the reason. The test fails if a name here is missing from
-// the fixture, so the list cannot rot into a silent skip, and it fails if a
-// compared label is absent from the fixture too.
+// reproduce, with the reason. It is currently empty.
 //
-// The four entries are one defect: the account gate treats a path as public only
-// when it exists in the embedded vendored tree (accounts.go isPublicAccountRequest),
-// so a file that exists only under <InstallRoot>/public is answered 403 to an
-// unauthenticated request where pinned answers 200 with its bytes. Closing it
-// needs the gate to consult <InstallRoot>/public as well, which is outside this
-// domain's files.
-var frontendStaticKnownDivergences = map[string]string{
-	"anonymous.scriptJs":        "disk-only public file answered 403 without a session; the account gate consults only the embedded tree",
-	"anonymous.pageHtml":        "disk-only public file answered 403 without a session; the account gate consults only the embedded tree",
-	"anonymous.pixelPng":        "disk-only public file answered 403 without a session; the account gate consults only the embedded tree",
-	"anonymous.globalExtension": "disk-only global extension file answered 403 without a session; the account gate consults only the embedded tree",
-}
+// The four unauthenticated 200 cases it used to hold were a real defect: the
+// account gate treated a path as public only when it existed in the embedded
+// vendored tree, so a file that existed only under <InstallRoot>/public was
+// answered 403 where pinned answers 200 with its bytes. The gate now asks the
+// static middleware's own resolution, so those cases are compared like any
+// other.
+//
+// The mechanism is kept because a named list that FAILS when a listed case
+// leaves the oracle cannot rot into a silent skip: adding a name here requires
+// the oracle to record that label, and fixing a divergence means deleting the
+// name rather than leaving a quietly passing assertion behind.
+var frontendStaticKnownDivergences = map[string]string{}
 
 func TestPinnedNodeFrontendStaticMiddleware(t *testing.T) {
 	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-frontend-static.json"))
