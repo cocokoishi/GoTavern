@@ -163,8 +163,8 @@ export default defineConfig({
     timeout: 30000,
     globalTimeout: 480000,
     retries: 0,
-    workers: 1,
-    fullyParallel: false,
+    workers: Number(process.env.ST_WORKERS ?? 1),
+    fullyParallel: Number(process.env.ST_WORKERS ?? 1) > 1,
     reporter: [['json', { outputFile: process.env.ST_REPORT_FILE }]],
     use: { baseURL, video: 'off', screenshot: 'off', trace: 'off' },
 });
@@ -214,6 +214,7 @@ try {
             stdio: ['ignore', 'pipe', 'pipe'],
             env: { ...process.env, ST_BASE_URL: baseURL, ST_REPORT_FILE: reportFile, ST_FILE_TIMEOUT_MS: String(perFileTimeout) },
         });
+        const fileStartedAt = Date.now();
         let finished = false;
         const killer = setTimeout(() => {
             if (!finished) {
@@ -223,6 +224,7 @@ try {
         await new Promise(resolve => run.on('exit', resolve));
         finished = true;
         clearTimeout(killer);
+        const fileSeconds = Math.round((Date.now() - fileStartedAt) / 1000);
 
         let report;
         try {
@@ -246,6 +248,7 @@ try {
                             title: spec.title,
                             status: result.status ?? testCase.status ?? 'unknown',
                             error: (result.errors ?? []).map(error => error.message ?? '').join('\n').slice(0, 600),
+                            fileSeconds,
                         });
                     }
                 }
@@ -261,7 +264,7 @@ try {
             }
         }
         if (collected.length === 0) {
-            specs.push({ file: specFile, title: '(whole file)', status: 'hung', error: 'no specs were collected before the file timed out' });
+            specs.push({ file: specFile, title: '(whole file)', status: 'hung', fileSeconds, error: 'no specs were collected before the file timed out' });
         } else {
             specs.push(...collected);
         }
@@ -277,7 +280,33 @@ try {
     lines.push('Expected failures are not defects: most routes are still unimplemented, and the value here is the');
     lines.push('failure mode per spec, which is an inventory of what the frontend needs.');
     lines.push('');
-    lines.push('| spec | status | failure mode |');
+    lines.push('## Per-file status and cost');
+    lines.push('');
+    lines.push('Statuses are `passed`, `failed`, `hung` (killed at the file timeout, so unmeasured) or `not-run`.');
+    lines.push('A hung file is not a failing file: its specs were never measured.');
+    lines.push('');
+    lines.push('| file | status | specs | passed | failed | hung | wall clock (s) |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+    const fileRows = new Map();
+    for (const spec of specs) {
+        const row = fileRows.get(spec.file) ?? { specs: 0, passed: 0, failed: 0, hung: 0, seconds: spec.fileSeconds ?? 0 };
+        row.specs += 1;
+        if (spec.status === 'passed') {
+            row.passed += 1;
+        } else if (spec.status === 'hung') {
+            row.hung += 1;
+        } else if (spec.status === 'skipped') {
+            // skipped by a failing hook: the file is measured, its specs are not evidence either way
+        } else {
+            row.failed += 1;
+        }
+        fileRows.set(spec.file, row);
+    }
+    for (const [file, row] of [...fileRows.entries()].sort()) {
+        const status = row.hung > 0 ? 'hung' : row.failed > 0 ? 'failed' : 'passed';
+        lines.push(`| ${file} | ${status} | ${row.specs} | ${row.passed} | ${row.failed} | ${row.hung} | ${row.seconds} |`);
+    }
+    lines.push('');    lines.push('| spec | status | failure mode |');
     lines.push('| --- | --- | --- |');
     const counts = new Map();
     for (const spec of specs.sort((left, right) => left.file.localeCompare(right.file) || left.title.localeCompare(right.title))) {
