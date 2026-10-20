@@ -720,7 +720,7 @@ project keeps having to correct, so the limit is stated next to the claim.
 
 **5. `Client-Agent` is contract, not incidental.** The pinned Horde routes send
 `(await getVersion())?.agent || 'SillyTavern:UNKNOWN:Cohee#1207'`. Our `/version` already returns
-`SillyTavern:1.19.0:Cohee#1207`, so the header is a value we can satisfy today — and it is exactly the value
+`SillyTavern:1.19.0:Cohee#1207`, so the header is a value we can satisfy today â€” and it is exactly the value
 that silently drifts if `/version` changes, so it gets its own assertion rather than being assumed.
 
 **6. A cache is part of the contract.** The pinned text-model route caches its merged list for 60 seconds
@@ -732,6 +732,33 @@ response shape.
 service, the fixture records the SHAPE and the classification, and the live value is captured only in
 evidence notes with a date, never in an assertion.
 
+**The assertion set for the first two outbound routes, enumerated before the code exists.**
+
+`/status` has THREE distinct observables, and conflating them leaves one unexercised:
+
+1. the peer answers 2xx -> `{ "ok": true }` (fetch RESOLVES and `fetchResult.ok` is true);
+2. the peer answers non-2xx -> `{ "ok": false }` with our status 200 (fetch RESOLVES, `ok` is false). This
+   needs a mock returning a non-ok response; **a closed port can never produce it**;
+3. the connection is refused (a closed port) -> `fetch` REJECTS, and the pinned catch answers 500.
+
+A test that only used a closed port would assert case 3 and silently never reach case 2, which is the
+vacuous-coverage shape in a new place. Both mock behaviours are required.
+
+`/text-models` has FOUR observables, because the pinned route does **not** check `response.ok` before parsing:
+
+1. a JSON body -> the parsed list is returned, so a non-2xx status with a valid JSON body is returned AS-IS
+   rather than treated as an error;
+2. a body that is not JSON -> `json()` throws -> 500;
+3. the connection is refused -> 500 from the same catch;
+4. the metadata fetch fails -> it is caught and logged, and the unmerged list is still returned.
+
+Plus the cache: the first call populates it, a second call within 60 seconds answers from it without a second
+peer request, and `body.force` bypasses it. List content is `shape` only, and a route whose every field is
+`shape` has no value-level oracle, which the fixture must say rather than leave implied.
+
+Both routes: the `Client-Agent` header value (`(await getVersion())?.agent`, which our `/version` already
+returns as `SillyTavern:1.19.0:Cohee#1207`), the API seam default, and the metadata seam default.
+
 **Scope note.** These routes are Horde-domain routes. Implementing them inside the tokenizer work is justified
 only by "two routes unblock a send"; the convention above is the reusable artefact, and the remaining Horde
-domain — talking to a Horde generation backend — stays untouched.
+domain â€” talking to a Horde generation backend â€” stays untouched.
