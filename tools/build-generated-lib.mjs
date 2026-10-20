@@ -603,6 +603,25 @@ try {
         throw new Error('sprite-delete oracle changed across identical pinned Node runs at: ' + paths.join(', '));
     }
 
+    const charactersProbes = [
+        ['probe-characters-read.mjs', 'sillytavern-1.19.0-characters-read.json', 'character read'],
+        ['probe-characters-write.mjs', 'sillytavern-1.19.0-characters-write.json', 'character write'],
+        ['probe-characters-import.mjs', 'sillytavern-1.19.0-characters-import.json', 'character import'],
+    ];
+    for (const [probeName, fixtureName, label] of charactersProbes) {
+        const probePath = path.join(buildRoot, '.gotavern-' + probeName);
+        copyFileSync(path.join(repositoryRoot, 'tools', probeName), probePath);
+        const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixtureName);
+        run(process.execPath, [probePath, buildRoot, repositoryRoot], buildRoot);
+        const firstRun = readFileSync(fixturePath);
+        run(process.execPath, [probePath, buildRoot, repositoryRoot], buildRoot);
+        const secondRun = readFileSync(fixturePath);
+        if (!firstRun.equals(secondRun)) {
+            const paths = changedJSONPaths(JSON.parse(firstRun), JSON.parse(secondRun));
+            throw new Error(`${label} oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+        }
+    }
+
     const statsInitProbe = path.join(buildRoot, '.gotavern-probe-stats-init.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'probe-stats-init.mjs'), statsInitProbe);
     const statsInitFixturePath = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-stats-init.json');
