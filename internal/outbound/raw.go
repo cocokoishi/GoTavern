@@ -48,6 +48,15 @@ type Response struct {
 	Headers []Header
 	Body    []byte
 	Stream  io.ReadCloser
+
+	// Truncated reports that the body ended before its own framing completed:
+	// a chunked body that stopped without the terminal zero-length chunk, or a
+	// Content-Length body that stopped short of its declared length. It is the
+	// difference between a provider that finished and one that died mid-reply,
+	// which a caller cannot recover from the bytes alone because both look like
+	// an end of stream. Pinned node-fetch surfaces the same distinction as an
+	// error on the response body stream.
+	Truncated bool
 }
 
 // Header returns the first value for a header name, case-insensitively.
@@ -189,16 +198,19 @@ func readResponseHead(reader *bufio.Reader) (*Response, error) {
 type bodyReader struct {
 	reader     *bufio.Reader
 	connection net.Conn
+	response   *Response
 	remaining  int64
+	hasLength  bool
 	chunked    bool
 	done       bool
 }
 
 func newBodyReader(reader *bufio.Reader, connection net.Conn, response *Response) *bodyReader {
-	body := &bodyReader{reader: reader, connection: connection}
+	body := &bodyReader{reader: reader, connection: connection, response: response}
 	if length := response.Header("Content-Length"); length != "" {
-		if parsed, err := strconv.ParseInt(strings.TrimSpace(length), 10, 64); err == nil {
+		if parsed, err := strconv.ParseInt(strings.TrimSpace(length), 10, 64); err == nil && parsed >= 0 {
 			body.remaining = parsed
+			body.hasLength = true
 		}
 	}
 	if strings.Contains(strings.ToLower(response.Header("Transfer-Encoding")), "chunked") {
@@ -214,7 +226,11 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 	if body.chunked {
 		return body.readChunked(target)
 	}
-	if body.remaining > 0 {
+	if body.hasLength {
+		if body.remaining == 0 {
+			body.done = true
+			return 0, io.EOF
+		}
 		if int64(len(target)) > body.remaining {
 			target = target[:body.remaining]
 		}
@@ -223,12 +239,22 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 		if body.remaining == 0 && err == nil {
 			body.done = true
 		}
+		if body.remaining > 0 && err != nil {
+			// The provider declared more bytes than it sent: the reply was cut
+			// off rather than finished.
+			body.response.Truncated = true
+			body.done = true
+		}
 		return count, err
 	}
 	// No declared length: the body ends when the provider closes the connection,
-	// which is how a truncated stream is observed.
+	// which is a legitimate end for a connection-close framed reply. Only an
+	// abnormal read error is a truncation.
 	count, err := body.reader.Read(target)
 	if errors.Is(err, io.EOF) {
+		body.done = true
+	} else if err != nil {
+		body.response.Truncated = true
 		body.done = true
 	}
 	return count, err
@@ -238,6 +264,10 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 	if body.remaining == 0 {
 		sizeLine, err := body.reader.ReadString('\n')
 		if err != nil {
+			// A chunk header (or the terminal zero-length chunk) was expected,
+			// so the provider stopped mid-frame.
+			body.response.Truncated = true
+			body.done = true
 			return 0, err
 		}
 		sizeLine = strings.TrimSpace(sizeLine)
@@ -246,6 +276,8 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 		}
 		size, err := strconv.ParseInt(sizeLine, 16, 64)
 		if err != nil {
+			body.response.Truncated = true
+			body.done = true
 			return 0, fmt.Errorf("malformed provider chunk size %q", sizeLine)
 		}
 		if size == 0 {
@@ -259,9 +291,19 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 	}
 	count, err := body.reader.Read(target)
 	body.remaining -= int64(count)
+	if body.remaining > 0 && err != nil {
+		body.response.Truncated = true
+		body.done = true
+		return count, err
+	}
 	if body.remaining == 0 {
 		// Consume the CRLF that terminates the chunk.
-		if _, err := body.reader.ReadString('\n'); err != nil && !errors.Is(err, io.EOF) {
+		if _, err := body.reader.ReadString('\n'); err != nil {
+			body.response.Truncated = true
+			body.done = true
+			if errors.Is(err, io.EOF) {
+				return count, nil
+			}
 			return count, err
 		}
 	}

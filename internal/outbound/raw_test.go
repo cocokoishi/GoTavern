@@ -1,10 +1,14 @@
 package outbound
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -189,6 +193,122 @@ func TestSendStreamsChunkedResponses(t *testing.T) {
 		if !strings.Contains(string(buffer), frame) {
 			t.Fatalf("streamed body %q is missing frame %q", buffer, frame)
 		}
+	}
+}
+
+// TestSendDistinguishesATruncatedBodyFromAFinishedOne pins the difference a
+// caller needs to reproduce the pinned backend's behavior on a provider that
+// dies mid-stream: both a finished chunked body and an abandoned one end in an
+// end-of-stream for the reader, so the framing outcome has to be reported
+// separately rather than inferred from the bytes.
+func TestSendDistinguishesATruncatedBodyFromAFinishedOne(t *testing.T) {
+	finished := mockprovider.New([]mockprovider.Response{{
+		Status:  200,
+		Headers: []mockprovider.Header{{Name: "Content-Type", Value: "text/event-stream"}},
+		Stream:  []string{"data: {\"delta\":\"one\"}\n\n", "data: [DONE]\n\n"},
+	}})
+	finishedAddress, err := finished.Listen(0)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = finished.Close() })
+
+	abandoned := mockprovider.New([]mockprovider.Response{{
+		Status:              200,
+		Headers:             []mockprovider.Header{{Name: "Content-Type", Value: "text/event-stream"}},
+		Stream:              []string{"data: {\"delta\":\"one\"}\n\n"},
+		TruncateAfterFrames: true,
+	}})
+	abandonedAddress, err := abandoned.Listen(0)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = abandoned.Close() })
+
+	for _, scenario := range []struct {
+		name   string
+		url    string
+		want   bool
+		expect string
+	}{
+		{name: "terminal chunk", url: "http://" + finishedAddress.String() + "/v1/chat/completions", want: false, expect: "data: [DONE]"},
+		{name: "provider died mid-stream", url: "http://" + abandonedAddress.String() + "/v1/chat/completions", want: true, expect: "data: {\"delta\":\"one\"}"},
+	} {
+		response, err := SendStreaming(context.Background(), Request{
+			URL:     scenario.url,
+			Method:  "POST",
+			Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
+			Body:    []byte("{}"),
+		}, 10*time.Second)
+		if err != nil {
+			t.Fatalf("%s: send: %v", scenario.name, err)
+		}
+		body, _ := io.ReadAll(response.Stream)
+		_ = response.Stream.Close()
+		if !strings.Contains(string(body), scenario.expect) {
+			t.Fatalf("%s: body %q is missing %q", scenario.name, body, scenario.expect)
+		}
+		if response.Truncated != scenario.want {
+			t.Errorf("%s: Truncated = %t, want %t", scenario.name, response.Truncated, scenario.want)
+		}
+	}
+}
+
+// TestSendReportsAShortDeclaredBody pins the other framing a cut-off reply can
+// use: a Content-Length the provider never delivers in full. The bytes that did
+// arrive are returned, and the shortfall is reported rather than hidden behind
+// a clean end-of-stream.
+func TestSendReportsAShortDeclaredBody(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer connection.Close()
+		reader := bufio.NewReader(connection)
+		declaredRequestLength := 0
+		for {
+			line, readErr := reader.ReadString('\n')
+			if readErr != nil || strings.TrimSpace(line) == "" {
+				break
+			}
+			if name, value, found := strings.Cut(strings.TrimSpace(line), ":"); found && strings.EqualFold(name, "content-length") {
+				declaredRequestLength, _ = strconv.Atoi(strings.TrimSpace(value))
+			}
+		}
+		// Read the request body and half-close before answering: a server that
+		// closes with unread bytes in its receive buffer sends an RST, which
+		// discards the response the client has not read yet. That is a property
+		// of the test server, not of the client under test.
+		if declaredRequestLength > 0 {
+			_, _ = io.CopyN(io.Discard, reader, int64(declaredRequestLength))
+		}
+		_, _ = io.WriteString(connection, "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nshort")
+		if tcp, ok := connection.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
+		}
+		_, _ = io.Copy(io.Discard, reader)
+	}()
+
+	response, err := Send(context.Background(), Request{
+		URL:     "http://" + listener.Addr().String() + "/v1/chat/completions",
+		Method:  "POST",
+		Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
+		Body:    []byte("{}"),
+	}, 10*time.Second)
+	if err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if string(response.Body) != "short" {
+		t.Fatalf("body = %q, want the five bytes that arrived", response.Body)
+	}
+	if !response.Truncated {
+		t.Error("a body shorter than its declared Content-Length must report Truncated")
 	}
 }
 
