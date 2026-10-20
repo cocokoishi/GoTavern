@@ -175,16 +175,25 @@ try {
         oai_settings.openai_max_context = 4096;
         oai_settings.openai_max_tokens = 64;
 
+        const diagnostics = () => ({
+            thisChid: typeof script.this_chid === 'undefined' ? 'undefined' : String(script.this_chid),
+            charactersLength: Array.isArray(script.characters) ? script.characters.length : 'not-array',
+            chatLength: Array.isArray(script.chat) ? script.chat.length : 'not-array',
+            isGenerating: Boolean(script.isGenerating),
+            hasSendButton: Boolean(document.querySelector('#send_but')),
+        });
+        const before = diagnostics();
         try {
-            await script.Generate('normal');
-            return { generated: true, error: null };
+            const returned = await script.Generate('normal');
+            return { generated: true, error: null, before, after: diagnostics(), returnedType: typeof returned };
         } catch (error) {
-            return { generated: false, error: String(error?.message ?? error) };
+            return { generated: false, error: String(error?.message ?? error), before, after: diagnostics() };
         }
     }, `http://${mockAddress}`);
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
+    report.diagnostics = outcome.before ? { before: outcome.before, after: outcome.after, returnedType: outcome.returnedType ?? null } : null;
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }
