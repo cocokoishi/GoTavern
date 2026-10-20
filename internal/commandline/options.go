@@ -68,7 +68,6 @@ type StartupSettings struct {
 	AllowKeysExposure          any  `json:"allowKeysExposure"`
 	ExtensionsEnabled          any  `json:"extensionsEnabled"`
 	ExtensionsAutoUpdate       any  `json:"extensionsAutoUpdate"`
-	EnableDownloadableTokenizers any `json:"enableDownloadableTokenizers"`
 	RequestCompressionEnabled  any  `json:"requestCompressionEnabled"`
 	RequestCompressionMin      any  `json:"requestCompressionMin"`
 	RequestCompressionMax      any  `json:"requestCompressionMax"`
@@ -107,6 +106,11 @@ type CommandLineResult struct {
 	Options         ServerOptions   `json:"options"`
 	StartupSettings StartupSettings `json:"startupSettings"`
 	Warnings        OptionWarnings  `json:"warnings"`
+	// TokenizersDownloadAllowed carries enableDownloadableTokenizers, which the pinned server
+	// reads directly from the config rather than through its startup settings map. It is
+	// excluded from the serialized result so the command-line differential still compares the
+	// same map Node produces.
+	TokenizersDownloadAllowed *bool `json:"-"`
 }
 
 type cliOptionKind uint8
@@ -238,7 +242,6 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
 		ExtensionsEnabled:          getConfigValue(config, "extensions.enabled", true, cliBoolean),
 		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", true, cliBoolean),
-		EnableDownloadableTokenizers: getConfigValue(config, "enableDownloadableTokenizers", true, cliBoolean),
 		RequestCompressionEnabled:  getConfigValue(config, "performance.requestCompression.enabled", false, cliBoolean),
 		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
 		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),
@@ -269,7 +272,19 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config)}, nil
+}
+
+// tokenizersDownloadAllowed resolves enableDownloadableTokenizers the way the pinned
+// src/endpoints/tokenizers.js reads it: a config key with a default of true, which is NOT part
+// of the serialized startup settings map. It is reported separately so it cannot leak into that
+// map, whose contents the command-line differential compares against Node.
+func tokenizersDownloadAllowed(config map[string]any) *bool {
+	allowed, ok := getConfigValue(config, "enableDownloadableTokenizers", true, cliBoolean).(bool)
+	if !ok {
+		return nil
+	}
+	return &allowed
 }
 
 func parseServerArguments(args []string) map[string]any {

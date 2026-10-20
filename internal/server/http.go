@@ -130,8 +130,8 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	if enabled, ok := optionBooleanValue(settings.ExtensionsAutoUpdate); ok {
 		options.ExtensionsAutoUpdate = &enabled
 	}
-	if enabled, ok := optionBooleanValue(settings.EnableDownloadableTokenizers); ok {
-		options.EnableDownloadableTokenizers = &enabled
+	if parsed.TokenizersDownloadAllowed != nil {
+		options.EnableDownloadableTokenizers = parsed.TokenizersDownloadAllowed
 	}
 	if enabled, ok := optionBooleanValue(settings.RequestCompressionEnabled); ok {
 		options.RequestCompressionEnabled = &enabled
