@@ -21,7 +21,6 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
@@ -577,10 +576,11 @@ try {
     writeFileSync(path.join(globalExtensionsRoot, 'manifest.json'), '{"display_name":"Third Party Container"}');
 
     // The working clone lives inside the user's extension directory, exactly
-    // where an installed extension would be. A file:// URL is used because git
-    // silently ignores --depth for a plain local path, and the shallow path is
-    // what the pinned /branches route unshallows.
-    gitIn(gitRoot, ['clone', '--depth', '1', pathToFileURL(originBare).href, path.join(userExtensionsRoot, 'probe-git')]);
+    // where an installed extension would be. --no-local is what makes git honour
+    // --depth for a local source while still recording a plain-path origin; a
+    // file:// origin would put the host's URL form into every remoteUrl, and the
+    // shallow state is what the pinned /branches route unshallows.
+    gitIn(gitRoot, ['clone', '--depth', '1', '--no-local', originBare, path.join(userExtensionsRoot, 'probe-git')]);
     const probeGitDirectory = path.join(userExtensionsRoot, 'probe-git');
     const cloneHead = gitIn(probeGitDirectory, ['rev-parse', 'HEAD']);
     if (cloneHead !== secondCommit) {

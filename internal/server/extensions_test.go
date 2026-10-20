@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/cgi"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -331,14 +330,6 @@ func buildExtensionsBareRepo(t *testing.T, gitRoot, name string, files map[strin
 	return bare, mainCommit, branchCommit
 }
 
-func extensionsFileURL(target string) string {
-	slashed := filepath.ToSlash(target)
-	if !strings.HasPrefix(slashed, "/") {
-		slashed = "/" + slashed
-	}
-	return (&url.URL{Scheme: "file", Path: slashed}).String()
-}
-
 func TestPinnedNodeExtensionRoutes(t *testing.T) {
 	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-extensions-routes.json"))
 	if err != nil {
@@ -523,10 +514,11 @@ func TestPinnedNodeExtensionRoutes(t *testing.T) {
 	seedExtensionsDirectory(t, plainExtensionsRoot, fixture.Inputs.PlainUserExtensions)
 	seedExtensionsDirectory(t, globalRoot, fixture.Inputs.GlobalExtensions)
 
-	// The working clone lives inside the user's extension directory. A file://
-	// URL is required because git ignores --depth for a plain local path.
+	// The working clone lives inside the user's extension directory. --no-local
+	// makes git honour --depth for a local source while still recording a
+	// plain-path origin, so the recorded remoteUrl has no host-specific URL form.
 	probeGitDirectory := filepath.Join(userExtensionsRoot, "probe-git")
-	runExtensionsGit(t, gitRoot, nil, "clone", "--depth", "1", extensionsFileURL(originBare), probeGitDirectory)
+	runExtensionsGit(t, gitRoot, nil, "clone", "--depth", "1", "--no-local", originBare, probeGitDirectory)
 	if head := runExtensionsGit(t, probeGitDirectory, nil, "rev-parse", "HEAD"); head != secondCommit {
 		t.Fatalf("probe clone HEAD %s != %s", head, secondCommit)
 	}

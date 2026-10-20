@@ -506,7 +506,7 @@
         "currentBranchName": "main",
         "currentCommitHash": "029cddb1aa3aaddb5fea4dba02b33b1c4fa14a09",
         "isUpToDate": true,
-        "remoteUrl": "file:///<runtime>/git/origin.git"
+        "remoteUrl": "<runtime>/git/origin.git"
       }
     },
     "versionMissing": {
@@ -996,7 +996,7 @@
         "shortCommitHash": "e1d50fd",
         "extensionPath": "<runtime>/data/default-user/extensions/probe-git",
         "isUpToDate": false,
-        "remoteUrl": "file:///<runtime>/git/origin.git"
+        "remoteUrl": "<runtime>/git/origin.git"
       }
     },
     "updateAgain": {
@@ -1022,7 +1022,7 @@
         "shortCommitHash": "e1d50fd",
         "extensionPath": "<runtime>/data/default-user/extensions/probe-git",
         "isUpToDate": true,
-        "remoteUrl": "file:///<runtime>/git/origin.git"
+        "remoteUrl": "<runtime>/git/origin.git"
       }
     },
     "versionAfterUpdate": {
@@ -1048,7 +1048,7 @@
         "currentBranchName": "main",
         "currentCommitHash": "e1d50fd43cdfe858ee1bb7f421a9524440169cfa",
         "isUpToDate": true,
-        "remoteUrl": "file:///<runtime>/git/origin.git"
+        "remoteUrl": "<runtime>/git/origin.git"
       }
     },
     "updateNonGit": {
