@@ -95,7 +95,18 @@ domain.
    refuses to open the file. Decode generated documents strictly and fail on replacement
    characters, and pass an explicit encoding whenever a shell writes non-ASCII content. This is
    the same failure as the CRLF vendored assets: the artefact looked correct while its bytes were
-   not, and every reader that tolerated the damage hid it.
+   not, and every reader that tolerated the damage hid it. THE SAME APPLIES TO A SOURCE LITERAL, AND THE
+   FIXTURE CAN HIDE IT: `probe-sd-routes.mjs` held the CP1252 decode of A-umlaut's UTF-8 bytes as a
+   scenario's filename (`C3 83 E2 80 9E` on disk instead of `C3 84`). The Windows fixture had been
+   recorded while the literal was correct, the literal was corrupted afterwards by a file write with
+   the wrong encoding, and no Windows re-record followed -- so a STALE-BUT-CORRECT fixture agreed with
+   a corrupt source and hid the defect, while only the Linux gate, which re-records everything, could
+   see it. Two consequences: a fixture that agrees with a corrupt source is "readable but corrupt"
+   rather than a passing test, so a Windows recording is NOT evidence for a scenario whose input
+   changed afterwards; and when repairing such a file, write the BYTES rather than re-encoding the
+   whole file, because a whole-file re-encode is how the corruption arrives. A non-ASCII input is what
+   exercises this class -- an ASCII-only fixture passes on both hosts -- and a sweep for the CP1252
+   signature (`C3 83`, `E2 80 9E`) across the probe sources is the check that finds others.
 10. **"No failure reported, but the expected outcome did not happen" is a probe-faithfulness
    alarm, not a product finding.** A driver that reports the absence of an outcome while
    reporting no error is usually driving the subject in a way a user cannot, and the subject is
