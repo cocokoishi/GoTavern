@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,17 +64,7 @@ type statisticsRoundTrip struct {
 }
 
 func TestInitializeStatisticsMatchesPinnedNode(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-stats-init.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var fixture statisticsInitOracle
-	if err := json.Unmarshal(body, &fixture); err != nil {
-		t.Fatal(err)
-	}
-	if fixture.SchemaVersion != 1 || fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
-		t.Fatalf("unexpected stats-init oracle baseline: %#v", fixture.Baseline)
-	}
+	fixture := loadStatisticsInitOracle(t)
 	if len(fixture.Scenarios) < 5 {
 		t.Fatalf("stats-init oracle has only %d scenarios", len(fixture.Scenarios))
 	}
@@ -94,56 +85,9 @@ func TestInitializeStatisticsMatchesPinnedNode(t *testing.T) {
 
 	for scenarioName, scenario := range fixture.Scenarios {
 		t.Run(scenarioName, func(t *testing.T) {
-			dataRoot := filepath.Join(t.TempDir(), "data")
-			userRoot := filepath.Join(dataRoot, "default-user")
-			charactersDirectory := filepath.Join(userRoot, "characters")
-			chatsDirectory := filepath.Join(userRoot, "chats")
-			if err := os.MkdirAll(chatsDirectory, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			charactersDirectoryExists := true
-			if scenario.Input.CharactersDirectoryExists != nil {
-				charactersDirectoryExists = *scenario.Input.CharactersDirectoryExists
-			}
-			if charactersDirectoryExists {
-				if err := os.MkdirAll(charactersDirectory, 0o755); err != nil {
-					t.Fatal(err)
-				}
-				for _, filename := range scenario.Input.CharacterFiles {
-					if err := os.WriteFile(filepath.Join(charactersDirectory, filename), nil, 0o600); err != nil {
-						t.Fatal(err)
-					}
-				}
-			}
-			for character, files := range scenario.Input.ChatFiles {
-				chatDirectory := filepath.Join(chatsDirectory, character)
-				if err := os.MkdirAll(chatDirectory, 0o755); err != nil {
-					t.Fatal(err)
-				}
-				for filename, chat := range files {
-					chatPath := filepath.Join(chatDirectory, filename)
-					if err := os.WriteFile(chatPath, []byte(chat.Contents), 0o600); err != nil {
-						t.Fatal(err)
-					}
-					if chat.ModTime != 0 {
-						modTime := time.UnixMilli(chat.ModTime)
-						if err := os.Chtimes(chatPath, modTime, modTime); err != nil {
-							t.Fatal(err)
-						}
-					}
-				}
-			}
-			if scenario.Input.StatsFileContent != nil {
-				if err := os.WriteFile(filepath.Join(userRoot, statisticsFilename), []byte(*scenario.Input.StatsFileContent), 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
+			userRoot, directories := materializeStatisticsScenario(t, scenario.Input)
 
-			result := InitializeStatistics([]UserDirectories{{
-				"root":       userRoot,
-				"characters": charactersDirectory,
-				"chats":      chatsDirectory,
-			}}, time.UnixMilli(statsOracleNow))
+			result := InitializeStatistics([]UserDirectories{directories}, time.UnixMilli(statsOracleNow))
 			got := observeStatistics(t, result, userRoot)
 			if !statisticsObservationsEqual(got, scenario.Observation) {
 				gotJSON, _ := json.MarshalIndent(got, "", "  ")
@@ -154,6 +98,135 @@ func TestInitializeStatisticsMatchesPinnedNode(t *testing.T) {
 				t.Fatalf("pinned stats.init() interval changed: %v", scenario.Observation.IntervalCalls)
 			}
 		})
+	}
+}
+
+// TestRecreateUserStatisticsReplacesAValidStatsFile covers the one behaviour that separates the
+// recreate route (pinned stats.js:151) from the startup hook: recreateStats never reads the stored
+// file, so a valid stats.json is overwritten. The expected replacement bytes are the pinned Node
+// recreation of the same chat tree, not a hand derivation.
+func TestRecreateUserStatisticsReplacesAValidStatsFile(t *testing.T) {
+	fixture := loadStatisticsInitOracle(t)
+	scenario, ok := fixture.Scenarios["missingStatsChatHistory"]
+	if !ok {
+		t.Fatal("the stats-init oracle lost the missingStatsChatHistory scenario")
+	}
+	want := scenario.Observation.Filesystem.StatsFileContent
+	if want == nil {
+		t.Fatal("the pinned recreation of this scenario produced no stats file")
+	}
+	userRoot, directories := materializeStatisticsScenario(t, scenario.Input)
+	statsPath := filepath.Join(userRoot, statisticsFilename)
+	const stale = `{"marker":true,"timestamp":1}`
+	if err := os.WriteFile(statsPath, []byte(stale), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := RecreateUserStatistics(directories, time.UnixMilli(statsOracleNow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != *want {
+		t.Fatalf("recreate bytes differ from the pinned Node recreation:\n got: %s\nwant: %s", body, *want)
+	}
+	onDisk, err := os.ReadFile(statsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != string(body) {
+		t.Fatalf("the recalculated stats were not persisted:\n got: %s\nwant: %s", onDisk, body)
+	}
+	if strings.Contains(string(onDisk), "marker") {
+		t.Fatalf("the valid stale stats file survived the recreate: %s", onDisk)
+	}
+}
+
+// TestRecreateUserStatisticsFailsWithoutCharacterDirectory pins the error branch: the pinned
+// recreateStats calls readdir(charactersPath) without guarding, so a missing directory rejects and
+// POST /api/stats/recreate answers 500.
+func TestRecreateUserStatisticsFailsWithoutCharacterDirectory(t *testing.T) {
+	fixture := loadStatisticsInitOracle(t)
+	scenario, ok := fixture.Scenarios["missingCharactersDirectory"]
+	if !ok {
+		t.Skip("the stats-init oracle has no missingCharactersDirectory scenario")
+	}
+	userRoot, directories := materializeStatisticsScenario(t, scenario.Input)
+	if _, err := RecreateUserStatistics(directories, time.UnixMilli(statsOracleNow)); err == nil {
+		t.Fatal("recreate succeeded with no character directory")
+	}
+	if _, err := os.Stat(filepath.Join(userRoot, statisticsFilename)); err == nil {
+		t.Fatal("a failed recreate still wrote a stats file")
+	}
+}
+
+func loadStatisticsInitOracle(t *testing.T) statisticsInitOracle {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-stats-init.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture statisticsInitOracle
+	if err := json.Unmarshal(body, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if fixture.SchemaVersion != 1 || fixture.Baseline.Version != "1.19.0" || fixture.Baseline.Commit != "06bde939fb1e9c4c8d8641d810f0a916b5bce127" {
+		t.Fatalf("unexpected stats-init oracle baseline: %#v", fixture.Baseline)
+	}
+	return fixture
+}
+
+// materializeStatisticsScenario writes one oracle scenario's input tree and returns the user root
+// plus the directory set the pinned hooks are given.
+func materializeStatisticsScenario(t *testing.T, input statisticsInput) (string, UserDirectories) {
+	t.Helper()
+	dataRoot := filepath.Join(t.TempDir(), "data")
+	userRoot := filepath.Join(dataRoot, "default-user")
+	charactersDirectory := filepath.Join(userRoot, "characters")
+	chatsDirectory := filepath.Join(userRoot, "chats")
+	if err := os.MkdirAll(chatsDirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	charactersDirectoryExists := true
+	if input.CharactersDirectoryExists != nil {
+		charactersDirectoryExists = *input.CharactersDirectoryExists
+	}
+	if charactersDirectoryExists {
+		if err := os.MkdirAll(charactersDirectory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, filename := range input.CharacterFiles {
+			if err := os.WriteFile(filepath.Join(charactersDirectory, filename), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for character, files := range input.ChatFiles {
+		chatDirectory := filepath.Join(chatsDirectory, character)
+		if err := os.MkdirAll(chatDirectory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for filename, chat := range files {
+			chatPath := filepath.Join(chatDirectory, filename)
+			if err := os.WriteFile(chatPath, []byte(chat.Contents), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if chat.ModTime != 0 {
+				modTime := time.UnixMilli(chat.ModTime)
+				if err := os.Chtimes(chatPath, modTime, modTime); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	if input.StatsFileContent != nil {
+		if err := os.WriteFile(filepath.Join(userRoot, statisticsFilename), []byte(*input.StatsFileContent), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return userRoot, UserDirectories{
+		"root":       userRoot,
+		"characters": charactersDirectory,
+		"chats":      chatsDirectory,
 	}
 }
 

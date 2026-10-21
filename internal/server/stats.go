@@ -36,6 +36,7 @@ func registerStatsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundP
 	}
 	post("/api/stats/get", accounts.serveStatsGet)
 	post("/api/stats/update", accounts.serveStatsUpdate)
+	post("/api/stats/recreate", accounts.serveStatsRecreate)
 	registerStatsAliases(mux)
 }
 
@@ -101,6 +102,22 @@ func (runtime *accountRuntime) serveStatsUpdate(w http.ResponseWriter, request *
 		return
 	}
 	if err := startup.WriteFileAtomic(filepath.Join(root, "stats.json"), encoded); err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	serveStatusText(w, http.StatusOK)
+}
+
+// serveStatsRecreate reproduces POST /api/stats/recreate (stats.js:452): the requesting user's
+// statistics are recalculated from the chat files, persisted, then the route answers 200 with
+// Express's sendStatus body. A failure answers 500 with the same body shape. It recomputes even
+// when a valid stats.json already exists, which is what separates it from the startup path.
+func (runtime *accountRuntime) serveStatsRecreate(w http.ResponseWriter, request *http.Request) {
+	_, directories, ok := runtime.extensionAccount(w, request)
+	if !ok {
+		return
+	}
+	if _, err := startup.RecreateUserStatistics(directories, time.Now()); err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}

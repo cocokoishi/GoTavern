@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 const (
@@ -46,6 +48,51 @@ func InitializeStatistics(directoriesList []UserDirectories, now time.Time) Stat
 }
 
 func initializeUserStatistics(directories UserDirectories, now time.Time) (json.RawMessage, error) {
+	target, err := openStatisticsTarget(directories)
+	if err != nil {
+		return nil, err
+	}
+	defer target.lock.Close()
+
+	statsPath := filepath.Join(target.userRoot, statisticsFilename)
+	if err := ensureResolvedContained(target.userRoot, statsPath); err != nil {
+		return nil, fmt.Errorf("statistics file escapes user root: %w", err)
+	}
+	body, readErr := os.ReadFile(statsPath)
+	if readErr == nil && json.Valid(body) {
+		return append(json.RawMessage(nil), body...), nil
+	}
+	if readErr != nil && !errors.Is(readErr, fs.ErrNotExist) {
+		return nil, fmt.Errorf("read statistics file for %s: %w", filepath.Base(target.userRoot), readErr)
+	}
+	return target.recompute(now)
+}
+
+// RecreateUserStatistics reproduces the pinned recreateStats() (src/endpoints/stats.js:151): the
+// user's statistics are recalculated from the chat files and written back UNCONDITIONALLY. The
+// pinned function never reads the existing stats.json, so a valid file is replaced as well -- that
+// is the entire behavioural difference from initializeUserStatistics, which recreates only when the
+// stored file is missing or unparseable. It returns the bytes that were written.
+func RecreateUserStatistics(directories UserDirectories, now time.Time) (json.RawMessage, error) {
+	target, err := openStatisticsTarget(directories)
+	if err != nil {
+		return nil, err
+	}
+	defer target.lock.Close()
+	return target.recompute(now)
+}
+
+// statisticsTarget is one user's statistics paths with the content lock already held.
+type statisticsTarget struct {
+	lock          *flock.Flock
+	userRoot      string
+	charactersDir string
+	chatsDir      string
+}
+
+// openStatisticsTarget resolves the directory set, takes the content lock and confirms the user
+// root sits inside it. The caller owns target.lock and must close it.
+func openStatisticsTarget(directories UserDirectories) (*statisticsTarget, error) {
 	userRoot := directories["root"]
 	charactersDirectory := directories["characters"]
 	chatsDirectory := directories["chats"]
@@ -64,37 +111,36 @@ func initializeUserStatistics(directories UserDirectories, now time.Time) (json.
 	if err != nil {
 		return nil, err
 	}
-	defer lock.Close()
 	resolvedUserRoot, err := canonicalPath(absoluteUserRoot)
 	if err != nil {
+		lock.Close()
 		return nil, fmt.Errorf("resolve statistics user root: %w", err)
 	}
 	if err := ensureContained(lockRoot, resolvedUserRoot); err != nil {
+		lock.Close()
 		return nil, fmt.Errorf("statistics user root escapes data root: %w", err)
 	}
+	return &statisticsTarget{
+		lock:          lock,
+		userRoot:      absoluteUserRoot,
+		charactersDir: charactersDirectory,
+		chatsDir:      chatsDirectory,
+	}, nil
+}
 
-	statsPath := filepath.Join(absoluteUserRoot, statisticsFilename)
-	if err := ensureResolvedContained(absoluteUserRoot, statsPath); err != nil {
-		return nil, fmt.Errorf("statistics file escapes user root: %w", err)
-	}
-	body, readErr := os.ReadFile(statsPath)
-	if readErr == nil && json.Valid(body) {
-		return append(json.RawMessage(nil), body...), nil
-	}
-	if readErr != nil && !errors.Is(readErr, fs.ErrNotExist) {
-		return nil, fmt.Errorf("read statistics file for %s: %w", filepath.Base(absoluteUserRoot), readErr)
-	}
-
-	absoluteCharactersDirectory, err := filepath.Abs(charactersDirectory)
+// recompute is the shared body of the pinned collectAndCreateStats() + saveStatsToFile() pair: read
+// the character directory, aggregate every .png character's chat files, then write stats.json.
+func (target *statisticsTarget) recompute(now time.Time) (json.RawMessage, error) {
+	absoluteCharactersDirectory, err := filepath.Abs(target.charactersDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve character directory: %w", err)
 	}
-	if err := ensureResolvedContained(absoluteUserRoot, absoluteCharactersDirectory); err != nil {
+	if err := ensureResolvedContained(target.userRoot, absoluteCharactersDirectory); err != nil {
 		return nil, fmt.Errorf("character directory escapes user root: %w", err)
 	}
 	characterEntries, err := readDirectoryInNativeOrder(absoluteCharactersDirectory)
 	if err != nil {
-		return nil, fmt.Errorf("read character directory for %s: %w", filepath.Base(absoluteUserRoot), err)
+		return nil, fmt.Errorf("read character directory for %s: %w", filepath.Base(target.userRoot), err)
 	}
 	characters := make([]characterStatisticsEntry, 0)
 	for _, entry := range characterEntries {
@@ -102,26 +148,27 @@ func initializeUserStatistics(directories UserDirectories, now time.Time) (json.
 			continue
 		}
 		characterName := strings.Replace(entry.Name(), ".png", "", 1)
-		chatPath := filepath.Join(chatsDirectory, characterName)
-		if err := ensureResolvedContained(absoluteUserRoot, chatPath); err != nil {
+		chatPath := filepath.Join(target.chatsDir, characterName)
+		if err := ensureResolvedContained(target.userRoot, chatPath); err != nil {
 			return nil, fmt.Errorf("character chat directory escapes user root: %w", err)
 		}
-		characterStatistics, err := calculateCharacterStatistics(chatsDirectory, entry.Name())
+		characterStatistics, err := calculateCharacterStatistics(target.chatsDir, entry.Name())
 		if err != nil {
 			return nil, fmt.Errorf("calculate statistics for %s: %w", entry.Name(), err)
 		}
 		characters = append(characters, characterStatisticsEntry{item: entry.Name(), stats: characterStatistics})
 	}
 
-	body, err = marshalStatistics(characters, now.UnixMilli())
+	body, err := marshalStatistics(characters, now.UnixMilli())
 	if err != nil {
-		return nil, fmt.Errorf("serialize statistics for %s: %w", filepath.Base(absoluteUserRoot), err)
+		return nil, fmt.Errorf("serialize statistics for %s: %w", filepath.Base(target.userRoot), err)
 	}
-	if err := ensureResolvedContained(absoluteUserRoot, statsPath); err != nil {
+	statsPath := filepath.Join(target.userRoot, statisticsFilename)
+	if err := ensureResolvedContained(target.userRoot, statsPath); err != nil {
 		return nil, fmt.Errorf("statistics file escapes user root: %w", err)
 	}
 	if err := atomicReplace(statsPath, body); err != nil {
-		return nil, fmt.Errorf("write statistics file for %s: %w", filepath.Base(absoluteUserRoot), err)
+		return nil, fmt.Errorf("write statistics file for %s: %w", filepath.Base(target.userRoot), err)
 	}
 	return json.RawMessage(body), nil
 }
