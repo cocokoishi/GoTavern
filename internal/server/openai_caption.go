@@ -247,6 +247,25 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	messages := nodeArray()
 	messages.array = append(messages.array, message)
 
+	// Z.AI video inlining: a data:video image is CONVERTED, not supplemented -- the part's type becomes
+	// video_url, the old image_url object MOVES to the new key, and image_url is DELETED. The fixture asserts
+	// the resulting KEYS and the ABSENCE of image_url, because adding video_url while leaving image_url in
+	// place would pass a presence-only check.
+	if api == "zai" {
+		if rawImage, present := googleRawMemberString(input, "image"); present && strings.HasPrefix(rawImage, "data:video/") {
+			for index := range content.array {
+				if partType, ok := content.array[index].member("type"); ok && partType.kind == 's' && partType.scalar.(string) == "image_url" {
+					if moved, hasImage := content.array[index].member("image_url"); hasImage {
+						replacement := nodeObject()
+						replacement.setMember("type", nodeString("video_url"))
+						replacement.setMember("video_url", moved)
+						content.array[index] = replacement
+					}
+				}
+			}
+		}
+	}
+
 	// A config-driven system prompt is UNSHIFTED at index 0.
 	if systemPrompt := googleConfigValue(options, []string{"openai", "captionSystemPrompt"}, ""); systemPrompt != "" {
 		system := nodeObject()

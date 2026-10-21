@@ -63,6 +63,8 @@ const BRANCHES = [
 ];
 
 const IMAGE = 'data:image/png;base64,' + Buffer.from('gotavern-synthetic-caption-image', 'utf8').toString('base64');
+// A VIDEO data URI: this is what triggers the zai inlining transform.
+const VIDEO_IMAGE = 'data:video/mp4;base64,' + Buffer.from('gotavern-synthetic-caption-video', 'utf8').toString('base64');
 const CAPTION = { choices: [{ message: { role: 'assistant', content: 'a synthetic caption' } }] };
 
 function secretEntry(key, value) {
@@ -108,6 +110,12 @@ SCENARIOS.push(
     { label: 'apiType-openrouter-overwrites-key', body: { api: 'openai', api_type: 'openrouter', prompt: 'x', image: IMAGE, model: 'm' },
       secrets: Object.assign(secretEntry('api_key_openai', 'synthetic-openai-key'), secretEntry('api_key_openrouter', 'synthetic-openrouter-key')),
       mocks: [{ match: 'api.openai.com', times: 1, payload: CAPTION }] },
+    // Z.AI video inlining: a data:video image is CONVERTED -- the part's TYPE changes and a KEY IS DELETED --
+    // so the assertion pins the resulting KEYS and the ABSENCE of image_url. An implementation that adds
+    // video_url and leaves image_url in place would pass a presence-only check.
+    { label: 'zai-video-inlining', body: { api: 'zai', zai_endpoint: 'common', prompt: 'x', image: VIDEO_IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_zai', 'synthetic-zai-key'),
+      mocks: [{ match: 'api.z.ai', times: 1, payload: CAPTION }] },
 );
 
 const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-openai-caption-oracle-', mocks: [] });
@@ -211,6 +219,20 @@ const overwrite = scenarios['apiType-openrouter-overwrites-key'];
 assert.equal(overwrite.outbound[0].headers.authorization, 'Bearer synthetic-openrouter-key',
     'the getter REPLACES the branch key when its own secret exists (the branch key was Bearer synthetic-openai-key)');
 assert.equal(overwrite.outbound[0].headers['http-referer'], 'https://sillytavern.app', 'and still carries its own headers');
+
+// ── zai video inlining: the part's KEYS and the ABSENCE of image_url ─────────────────────────────────
+const zaiVideo = scenarios['zai-video-inlining'];
+assert.equal(zaiVideo.response.status, 200, 'the zai video scenario answers 200');
+const zaiBody = JSON.parse(zaiVideo.outbound[0].body);
+const zaiParts = zaiBody.messages[0].content;
+const videoPart = zaiParts.find(part => part.type === 'video_url');
+assert.ok(videoPart, 'the data:video image becomes a video_url part');
+assert.deepEqual(Object.keys(videoPart).sort(), ['type', 'video_url'],
+    'and the part carries ONLY type and video_url: image_url is DELETED, not merely superseded');
+assert.equal(videoPart.image_url, undefined, 'image_url is ABSENT');
+assert.equal(videoPart.video_url.url, VIDEO_IMAGE, 'and the old image_url object MOVED to video_url');
+const textPartStill = zaiParts.find(part => part.type === 'text');
+assert.ok(textPartStill, 'while the text part is untouched');
 
 const fixture = {
     schemaVersion: 1,
