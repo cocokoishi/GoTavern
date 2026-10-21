@@ -2536,6 +2536,7 @@
     },
     "notRecorded": [
       "the mock peer authority itself (normalised to <mock>) because it is an ephemeral port",
+      "every value of a field classified shape: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)",
       "the pinned server listen port and its startup log"
     ]
   },
@@ -2883,10 +2884,10 @@
     },
     "ping.malformedJson": {
       "status": 400,
-      "contentType": "text/html; charset=utf-8",
+      "contentType": null,
       "contentLength": null,
       "etag": null,
-      "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>SyntaxError: Unexpected end of JSON input<br> &nbsp; &nbsp;at JSON.parse (&lt;anonymous&gt;)<br> &nbsp; &nbsp;at parse (C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern\\node_modules\\body-parser\\lib\\types\\json.js:92:19)<br> &nbsp; &nbsp;at C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern\\node_modules\\body-parser\\lib\\read.js:128:18<br> &nbsp; &nbsp;at AsyncResource.runInAsyncScope (node:async_hooks:227:14)<br> &nbsp; &nbsp;at invokeCallback (C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern\\node_modules\\raw-body\\index.js:238:16)<br> &nbsp; &nbsp;at done (C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern\\node_modules\\raw-body\\index.js:227:7)<br> &nbsp; &nbsp;at IncomingMessage.onEnd (C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern\\node_modules\\raw-body\\index.js:287:7)<br> &nbsp; &nbsp;at IncomingMessage.emit (node:events:509:28)<br> &nbsp; &nbsp;at endReadableNT (node:internal/streams/readable:1736:12)<br> &nbsp; &nbsp;at process.processTicksAndRejections (node:internal/process/task_queues:90:21)</pre>\n</body>\n</html>\n",
+      "body": null,
       "requests": [],
       "comparison": {
         "compared": [

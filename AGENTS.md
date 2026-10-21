@@ -175,6 +175,22 @@ domain.
    iterate them in recorded order, and let the replay refuse a fixture whose required step shapes are
    missing. The same applies to any recorded sequence where step N's observable depends on step N-1:
    users, chats, avatars, secrets migration, workflow CRUD.
+18. **A field classified `shape` must not record the observed value.** The oracle gate compares the
+   fixture's BYTES, so a host-derived value sitting in a `shape` field differs across hosts however
+   the field is classified. `sd-routes` had exactly that: a finalhandler development error page was
+   classified `shape` for the right reason and its body was STILL recorded, which no Windows-side
+   check could see -- recomputing all 83 observations' content-length and ETag from their own bodies
+   gave zero mismatches locally, and only the gate found it. Therefore: classify from a
+   host-INDEPENDENT property of the scenario ("this body is a rendered error page"), never by
+   comparing two values that happen to differ on one host; record `null` for a shape field and keep
+   the reason; null its DERIVED fields too, because content-length measures those bytes and the ETag
+   hashes them; and REFUSE outright if a scenario tries to classify `status` as shape, since every
+   scenario must compare its status. The one argued exception is a value that is CLIENT-derived and
+   byte-stable (`requestHeaders.connection`), which stays recorded with its reason -- nulling it
+   would discard information with no host-dependence justification. After any such change, sweep
+   every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`): the
+   sweep is cheap, it is the only check that finds this class, and it found exactly one location
+   across 100 fixtures.
 17. **An unimplemented branch must be distinguishable from a refused one.** `/api/content` import
    refuses an unknown host with 404 as a POLICY decision, and the branch's whole value is that a
    404 means "the operator's whitelist said no". Answering 404 for a provider branch that simply is

@@ -29,6 +29,10 @@
 // WHAT IS RECORDED. Every scenario records the full HTTP response observed at the browser, and
 // every request the mock peer received (method, raw target, header lines in wire order and
 // body). Each observation carries its own machine-readable classification: `compared` fields
+// A `shape` field is NOT COMPARED, and therefore MUST NOT RECORD this host's value: the gate compares the
+// fixture's bytes, so a recorded host-derived value (an error page's body, and its length and ETag) would
+// differ across hosts no matter how the field is classified. Such a field is recorded as null and keeps
+// its reason. The classification itself is decided by a host-INDEPENDENT property of the scenario.
 // are asserted against the recorded value by the Go replay test, `shape` fields are asserted for
 // presence/type only and the fixture says why. The single `shape` field is the `connection`
 // header, which is framing chosen by the shared outbound client rather than by the route.
@@ -469,6 +473,27 @@ function routeScenarios(origin, auth) {
             requests: recorded,
             comparison: sdComparison(options.shape),
         };
+        // A field classified `shape` must not carry THIS HOST's answer. The zero-diff gate compares the
+        // fixture's bytes, so a recorded value differs across hosts however the field is classified: the
+        // malformed-JSON scenario's body is a rendered development error page that embeds an absolute
+        // path and stack frames, and its length and ETag are derived from those bytes. The classification
+        // is decided by a host-INDEPENDENT property of the scenario ("this body is a rendered error page,
+        // not contract"), never by comparing two values that happen to differ on one host.
+        //
+        // `requestHeaders.connection` is the one exception and stays recorded: its value is chosen by the
+        // HTTP CLIENT rather than by the route, it is byte-stable across hosts, and the reason string
+        // already says it is not compared. Nulling it would discard information without a host-dependence
+        // justification.
+        for (const key of Object.keys(options.shape ?? {})) {
+            if (key === 'requestHeaders.connection') continue;
+            if (key === 'status') {
+                throw new Error('status cannot be classified shape: the replay requires every scenario to compare its status');
+            }
+            if (!['contentType', 'contentLength', 'etag', 'body'].includes(key)) {
+                throw new Error(`unknown shape-classified field: ${key}`);
+            }
+            observations[name][key] = null;
+        }
         inputs[name] = {
             route,
             body: bodyForFixture,
@@ -1155,6 +1180,7 @@ try {
             },
             notRecorded: [
                 'the mock peer authority itself (normalised to <mock>) because it is an ephemeral port',
+                'every value of a field classified shape: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)',
                 'the pinned server listen port and its startup log',
             ],
         };
