@@ -1,0 +1,3881 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned comfy workflow CRUD: responses and filesystem mutations",
+  "oracle": {
+    "file": "src/endpoints/stable-diffusion.js (comfy router, lines 485-560)",
+    "mountedAt": "/api/sd (src/server-startup.js:169)",
+    "scope": "the 34 non-generate /api/sd routes; the 19 */generate* routes are out of scope"
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-sd-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "SD Writer",
+      "admin": true,
+      "password": ""
+    },
+    "secrets": {
+      "api_key_togetherai": "probe-together-key",
+      "api_key_chutes": "probe-chutes-key",
+      "api_key_electronhub": "probe-electronhub-key",
+      "api_key_nanogpt": "probe-nanogpt-key",
+      "api_key_aimlapi": "probe-aimlapi-key",
+      "api_key_workers_ai": "probe-workers-key",
+      "api_key_comfy_runpod": "probe-runpod-key"
+    },
+    "collatorLocale": "en-US",
+    "startingDirectory": {
+      "files": [],
+      "note": "the probe removes user/workflows and recreates it empty, then adds a directory named dir.json"
+    }
+  },
+  "fixtureFields": {
+    "compared": [
+      "steps[].response.status",
+      "steps[].response.contentType",
+      "steps[].response.contentLength",
+      "steps[].response.etag",
+      "steps[].response.body",
+      "state[<step>] (sorted name/kind/content after every step)"
+    ],
+    "shape": []
+  },
+  "steps": [
+    {
+      "name": "workflows.empty",
+      "route": "comfy/workflows",
+      "body": {},
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "12",
+        "etag": "W/\"c-Kml130Xj3Of4yt9LP0DqnfYJZ2M\"",
+        "body": "[\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.first",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "Alpha.json",
+        "workflow": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "25",
+        "etag": "W/\"19-tDzsSLVlohUPyRkV5lwxU+AyhZM\"",
+        "body": "[\"Alpha.json\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.uppercaseExtension",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "beta.JSON",
+        "workflow": "{\"uppercase\":\"extension\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "37",
+        "etag": "W/\"25-HDXMJyoTYpsKzStSn054smzZpz4\"",
+        "body": "[\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.nonJsonExtension",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "zeta.txt",
+        "workflow": "written but never listed"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "37",
+        "etag": "W/\"25-HDXMJyoTYpsKzStSn054smzZpz4\"",
+        "body": "[\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.hiddenName",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": ".hidden.json",
+        "workflow": "{\"hidden\":true}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "37",
+        "etag": "W/\"25-HDXMJyoTYpsKzStSn054smzZpz4\"",
+        "body": "[\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-numericTen",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "10.json",
+        "workflow": "{\"name\":\"10.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "47",
+        "etag": "W/\"2f-R/fPWBI2DGkXQ+kRWpPxHs8PkNA\"",
+        "body": "[\"10.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-numericTwo",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "2.json",
+        "workflow": "{\"name\":\"2.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "56",
+        "etag": "W/\"38-otx9JmyHC4NSP+nZJl3xr4E91dg\"",
+        "body": "[\"10.json\",\"2.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-leadingUnderscore",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "_under.json",
+        "workflow": "{\"name\":\"_under.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "70",
+        "etag": "W/\"46-DAKAKiXJgPYct2G9xGafrgH8zlc\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-space",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "a b.json",
+        "workflow": "{\"name\":\"a b.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "81",
+        "etag": "W/\"51-HJubBsszP93HhCq8c/kN3uKPPwQ\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-upperA",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "A.json",
+        "workflow": "{\"name\":\"A.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "90",
+        "etag": "W/\"5a-ZR+qdPAG6NbqHHxu941HIZBtK00\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-lowerA2",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "aa.json",
+        "workflow": "{\"name\":\"aa.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "100",
+        "etag": "W/\"64-TqxXrcfXmVUCX5Wf40A7I5WTDeI\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"aa.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-upperA2",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "AA.json",
+        "workflow": "{\"name\":\"AA.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "100",
+        "etag": "W/\"64-bOlPktQxMdCBJwwoPrXlppLjkJ8\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.sort-unicodeA",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "Ä.json",
+        "workflow": "{\"name\":\"Ä.json\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "110",
+        "etag": "W/\"6e-QpIZNpWPCDs1QdhKECBG/Cvdw7s\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.missingFileName",
+      "route": "comfy/save-workflow",
+      "body": {
+        "workflow": "{\"noFileName\":true}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "110",
+        "etag": "W/\"6e-QpIZNpWPCDs1QdhKECBG/Cvdw7s\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.emptySanitizedName",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "/",
+        "workflow": "{\"emptyName\":true}"
+      },
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "saveWorkflow.objectWorkflow",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "object-workflow.json",
+        "workflow": {
+          "not": "a string"
+        }
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "133",
+        "etag": "W/\"85-QFtX+WQY8f6lNXid16Pvd/y1UOQ\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.numberWorkflow",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "number-workflow.json",
+        "workflow": 42
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "156",
+        "etag": "W/\"9c-PO7hiI+511b1GSvdDG4m6lXdkyc\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.numberFileName",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": 7,
+        "workflow": "{\"numberName\":true}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "156",
+        "etag": "W/\"9c-PO7hiI+511b1GSvdDG4m6lXdkyc\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.missingWorkflow",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "no-workflow.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "175",
+        "etag": "W/\"af-ygVBw4lRojur9mHF+OZwprchc74\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\",\"no-workflow.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.nullWorkflow",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "null-workflow.json",
+        "workflow": null
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "196",
+        "etag": "W/\"c4-gNRn5rIMqAOwmEfBM7G5bnN6cpg\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"beta.JSON\",\"dir.json\",\"no-workflow.json\",\"null-workflow.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.arrayWorkflow",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "array-workflow.json",
+        "workflow": [
+          1,
+          2,
+          3
+        ]
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "218",
+        "etag": "W/\"da-1vhexOdccebBHibrKbS0FMYLGog\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"array-workflow.json\",\"beta.JSON\",\"dir.json\",\"no-workflow.json\",\"null-workflow.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "saveWorkflow.reservedName",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "CON.json",
+        "workflow": "{\"reserved\":true}"
+      },
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "saveWorkflow.pathCharacters",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "../../escape/evil.json",
+        "workflow": "{\"traversal\":\"sanitized\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "218",
+        "etag": "W/\"da-1vhexOdccebBHibrKbS0FMYLGog\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"array-workflow.json\",\"beta.JSON\",\"dir.json\",\"no-workflow.json\",\"null-workflow.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "workflow.existing",
+      "route": "comfy/workflow",
+      "body": {
+        "file_name": "Alpha.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "63",
+        "etag": "W/\"3f-IS4L0kdGxCCYQqn9AgieNX3IX/4\"",
+        "body": "\"{\\\"1\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":1}}}\""
+      }
+    },
+    {
+      "name": "workflow.missingFallsBackToDefaultAbsent",
+      "route": "comfy/workflow",
+      "body": {
+        "file_name": "not-there.json"
+      },
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "saveWorkflow.default",
+      "route": "comfy/save-workflow",
+      "body": {
+        "file_name": "Default_Comfy_Workflow.json",
+        "workflow": "{\"default\":\"workflow\"}"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "248",
+        "etag": "W/\"f8-l51FbM4PezZUfcsOhM39apCgKIg\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"A.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"array-workflow.json\",\"beta.JSON\",\"Default_Comfy_Workflow.json\",\"dir.json\",\"no-workflow.json\",\"null-workflow.json\",\"number-workflow.json\",\"object-workflow.json\"]"
+      }
+    },
+    {
+      "name": "workflow.missingFallsBackToDefault",
+      "route": "comfy/workflow",
+      "body": {
+        "file_name": "not-there.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "28",
+        "etag": "W/\"1c-aVs0OSyv2RgRfmEdtGyum1OPaiM\"",
+        "body": "\"{\\\"default\\\":\\\"workflow\\\"}\""
+      }
+    },
+    {
+      "name": "workflow.missingFileNameUsesUndefined",
+      "route": "comfy/workflow",
+      "body": {},
+      "response": {
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "23",
+        "etag": "W/\"17-8taF6yascJDyEApt8r3opq0vCm8\"",
+        "body": "\"{\\\"noFileName\\\":true}\""
+      }
+    },
+    {
+      "name": "workflow.pathCharactersSanitized",
+      "route": "comfy/workflow",
+      "body": {
+        "file_name": "../../Alpha.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "28",
+        "etag": "W/\"1c-aVs0OSyv2RgRfmEdtGyum1OPaiM\"",
+        "body": "\"{\\\"default\\\":\\\"workflow\\\"}\""
+      }
+    },
+    {
+      "name": "deleteWorkflow.existing",
+      "route": "comfy/delete-workflow",
+      "body": {
+        "file_name": "A.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "body": "OK"
+      }
+    },
+    {
+      "name": "deleteWorkflow.missing",
+      "route": "comfy/delete-workflow",
+      "body": {
+        "file_name": "A.json"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "body": "OK"
+      }
+    },
+    {
+      "name": "deleteWorkflow.noName",
+      "route": "comfy/delete-workflow",
+      "body": {},
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "body": "OK"
+      }
+    },
+    {
+      "name": "renameWorkflow.ok",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "beta.JSON",
+        "new_name": "renamed.json"
+      },
+      "response": {
+        "status": 204,
+        "contentType": null,
+        "contentLength": null,
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "body": ""
+      }
+    },
+    {
+      "name": "renameWorkflow.missingOld",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "absent.json",
+        "new_name": "renamed2.json"
+      },
+      "response": {
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "18",
+        "etag": "W/\"12-x+DD9hYLcvltgoCXGjD2EKb9mPg\"",
+        "body": "Workflow not found"
+      }
+    },
+    {
+      "name": "renameWorkflow.newNotJson",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "renamed.json",
+        "new_name": "renamed.txt"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "36",
+        "etag": "W/\"24-xrKMWwS4Z+qCSA6VQsQ7sVWU6ZA\"",
+        "body": "Only JSON workflow files are allowed"
+      }
+    },
+    {
+      "name": "renameWorkflow.oldNotJson",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "zeta.txt",
+        "new_name": "zeta.json"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "36",
+        "etag": "W/\"24-xrKMWwS4Z+qCSA6VQsQ7sVWU6ZA\"",
+        "body": "Only JSON workflow files are allowed"
+      }
+    },
+    {
+      "name": "renameWorkflow.existingNew",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "renamed.json",
+        "new_name": "aa.json"
+      },
+      "response": {
+        "status": 409,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "40",
+        "etag": "W/\"28-UWVQEvGqqLemTY3nCHF9dhivWSE\"",
+        "body": "A workflow with that name already exists"
+      }
+    },
+    {
+      "name": "renameWorkflow.slashInOld",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "a/../renamed.json",
+        "new_name": "slash.json"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "renameWorkflow.nulInNew",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "renamed.json",
+        "new_name": "nul\u0000name.json"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "renameWorkflow.sanitizedNoExtension",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "renamed.json",
+        "new_name": ":*?\"<>|"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "36",
+        "etag": "W/\"24-xrKMWwS4Z+qCSA6VQsQ7sVWU6ZA\"",
+        "body": "Only JSON workflow files are allowed"
+      }
+    },
+    {
+      "name": "renameWorkflow.directory",
+      "route": "comfy/rename-workflow",
+      "body": {
+        "old_name": "dir.json",
+        "new_name": "moved.json"
+      },
+      "response": {
+        "status": 204,
+        "contentType": null,
+        "contentLength": null,
+        "etag": "W/\"a-bAsFyilMr4Ra1hIU5PyoyFRunpI\"",
+        "body": ""
+      }
+    },
+    {
+      "name": "workflows.final",
+      "route": "comfy/workflows",
+      "body": {},
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "244",
+        "etag": "W/\"f4-L0NTj1ScOxV/IsixCMkQeytUjXE\"",
+        "body": "[\"_under.json\",\"10.json\",\"2.json\",\"a b.json\",\"Ä.json\",\"AA.json\",\"Alpha.json\",\"array-workflow.json\",\"Default_Comfy_Workflow.json\",\"moved.json\",\"no-workflow.json\",\"null-workflow.json\",\"number-workflow.json\",\"object-workflow.json\",\"renamed.json\"]"
+      }
+    }
+  ],
+  "state": {
+    "workflows.empty": [
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      }
+    ],
+    "saveWorkflow.first": [
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      }
+    ],
+    "saveWorkflow.uppercaseExtension": [
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      }
+    ],
+    "saveWorkflow.nonJsonExtension": [
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.hiddenName": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-numericTen": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-numericTwo": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-leadingUnderscore": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-space": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-upperA": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-lowerA2": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "aa.json",
+        "kind": "file",
+        "content": "{\"name\":\"aa.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-upperA2": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      }
+    ],
+    "saveWorkflow.sort-unicodeA": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.missingFileName": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.emptySanitizedName": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.objectWorkflow": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.numberWorkflow": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.numberFileName": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.missingWorkflow": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.nullWorkflow": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.arrayWorkflow": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.reservedName": [
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.pathCharacters": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflow.existing": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflow.missingFallsBackToDefaultAbsent": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "saveWorkflow.default": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflow.missingFallsBackToDefault": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflow.missingFileNameUsesUndefined": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflow.pathCharactersSanitized": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "A.json",
+        "kind": "file",
+        "content": "{\"name\":\"A.json\"}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "deleteWorkflow.existing": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "deleteWorkflow.missing": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "undefined",
+        "kind": "file",
+        "content": "{\"noFileName\":true}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "deleteWorkflow.noName": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "beta.JSON",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.ok": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.missingOld": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.newNotJson": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.oldNotJson": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.existingNew": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.slashInOld": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.nulInNew": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.sanitizedNoExtension": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "dir.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "renameWorkflow.directory": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "moved.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ],
+    "workflows.final": [
+      {
+        "name": "....escapeevil.json",
+        "kind": "file",
+        "content": "{\"traversal\":\"sanitized\"}"
+      },
+      {
+        "name": ".hidden.json",
+        "kind": "file",
+        "content": "{\"hidden\":true}"
+      },
+      {
+        "name": "10.json",
+        "kind": "file",
+        "content": "{\"name\":\"10.json\"}"
+      },
+      {
+        "name": "2.json",
+        "kind": "file",
+        "content": "{\"name\":\"2.json\"}"
+      },
+      {
+        "name": "7",
+        "kind": "file",
+        "content": "{\"numberName\":true}"
+      },
+      {
+        "name": "AA.json",
+        "kind": "file",
+        "content": "{\"name\":\"AA.json\"}"
+      },
+      {
+        "name": "Alpha.json",
+        "kind": "file",
+        "content": "{\"1\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":1}}}"
+      },
+      {
+        "name": "Default_Comfy_Workflow.json",
+        "kind": "file",
+        "content": "{\"default\":\"workflow\"}"
+      },
+      {
+        "name": "_under.json",
+        "kind": "file",
+        "content": "{\"name\":\"_under.json\"}"
+      },
+      {
+        "name": "a b.json",
+        "kind": "file",
+        "content": "{\"name\":\"a b.json\"}"
+      },
+      {
+        "name": "array-workflow.json",
+        "kind": "file",
+        "content": "1,2,3"
+      },
+      {
+        "name": "moved.json",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "name": "no-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "null-workflow.json",
+        "kind": "file",
+        "content": ""
+      },
+      {
+        "name": "number-workflow.json",
+        "kind": "file",
+        "content": "42"
+      },
+      {
+        "name": "object-workflow.json",
+        "kind": "file",
+        "content": "[object Object]"
+      },
+      {
+        "name": "renamed.json",
+        "kind": "file",
+        "content": "{\"uppercase\":\"extension\"}"
+      },
+      {
+        "name": "zeta.txt",
+        "kind": "file",
+        "content": "written but never listed"
+      },
+      {
+        "name": "Ä.json",
+        "kind": "file",
+        "content": "{\"name\":\"Ä.json\"}"
+      }
+    ]
+  }
+}

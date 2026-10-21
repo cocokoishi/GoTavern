@@ -209,6 +209,17 @@ func (recorder *Recorder) serveProvider(connection net.Conn, reader *bufio.Reade
 	recorder.requests = append(recorder.requests, recorded)
 	recorder.mu.Unlock()
 
+	keepAlive, disconnected := writeScriptedResponse(connection, reader, request, script)
+	if disconnected {
+		recorder.markDisconnected(position)
+	}
+	return keepAlive
+}
+
+// writeScriptedResponse writes one scripted reply and reports whether the connection may be
+// reused and whether the caller went away before the reply finished. It is shared by the
+// sequential Recorder and the KeyedRecorder so the two cannot frame responses differently.
+func writeScriptedResponse(connection net.Conn, reader *bufio.Reader, request *rawRequest, script Response) (bool, bool) {
 	if script.NeverEnds {
 		// Hold the response open until the caller goes away. No clock is
 		// involved: the handler waits for the peer to close. The body is
@@ -216,35 +227,32 @@ func (recorder *Recorder) serveProvider(connection net.Conn, reader *bufio.Reade
 		writeResponseHead(connection, script, -1)
 		writeChunk(connection, "data: {\"held\":true}\n\n")
 		_, _ = io.Copy(io.Discard, reader)
-		recorder.markDisconnected(position)
-		return false
+		return false, true
 	}
 
 	if len(script.Stream) > 0 {
 		writeResponseHead(connection, script, -1)
 		for _, frame := range script.Stream {
 			if !writeChunk(connection, frame) {
-				recorder.markDisconnected(position)
-				return false
+				return false, true
 			}
 		}
 		if script.TruncateAfterFrames {
 			// Drop the connection without the terminating zero-length chunk or
 			// any terminal sentinel, so the caller sees a truncated stream.
-			return false
+			return false, false
 		}
 		_, _ = io.WriteString(connection, "0\r\n\r\n")
-		return requestKeepAlive(request)
+		return requestKeepAlive(request), false
 	}
 
 	writeResponseHead(connection, script, len(script.Body))
 	if script.Body != "" {
 		if _, err := io.WriteString(connection, script.Body); err != nil {
-			recorder.markDisconnected(position)
-			return false
+			return false, true
 		}
 	}
-	return requestKeepAlive(request)
+	return requestKeepAlive(request), false
 }
 
 func (recorder *Recorder) markDisconnected(position int) {
