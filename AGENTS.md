@@ -157,6 +157,13 @@ domain.
    or it passes for the wrong reason. The test for this class is always the same question — "what
    input would make this assertion fail?" — and if no such input exists in the fixture, the
    assertion is decoration.
+16. **A fixture whose steps share state is ORDERED DATA, not a keyed map.** The sprite-upload
+   fixture first keyed its steps by name and the replay iterated them sorted; because every step
+   mutates one shared user tree, sorting desynchronised every subsequent tree snapshot and made the
+   whole-tree assertions meaningless while still passing. Store dependent steps as an ARRAY and
+   iterate them in recorded order, and let the replay refuse a fixture whose required step shapes are
+   missing. The same applies to any recorded sequence where step N's observable depends on step N-1:
+   users, chats, avatars, secrets migration, workflow CRUD.
 
 ## Architecture boundaries that are decided, not pending
 

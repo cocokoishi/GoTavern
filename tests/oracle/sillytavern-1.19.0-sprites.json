@@ -1,0 +1,1732 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/sprites upload and upload-zip routes (multipart + zip entries)",
+  "oracle": {
+    "file": "src/endpoints/sprites.js",
+    "helpers": [
+      "src/util.js getImageBuffers",
+      "src/server-main.js:269 multer single(avatar)"
+    ]
+  },
+  "conventions": {
+    "multipart": "every part is recorded in order with its name, filename, content type and bytes; the replay rebuilds the same parts",
+    "zip": "the archive is built deterministically (store method, fixed DOS timestamp) and its bytes are recorded",
+    "tree": "tree snapshots use / paths, are sorted, and exclude mtimes"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.tree"
+    ],
+    "shape": []
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-sprites-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Sprites Probe",
+      "admin": true,
+      "password": ""
+    },
+    "steps": [
+      {
+        "name": "upload.ok.newCharacter",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "UE5HLUpPWQ==",
+            "filename": "joy.png",
+            "contentType": "image/png"
+          },
+          {
+            "name": "label",
+            "value": "joy",
+            "bytesBase64": "am95"
+          },
+          {
+            "name": "name",
+            "value": "FreshChar",
+            "bytesBase64": "RnJlc2hDaGFy"
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.replaceSameLabel",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "SlBFRy1ORVc=",
+            "filename": "new.jpeg",
+            "contentType": "image/jpeg"
+          },
+          {
+            "name": "label",
+            "value": "joy",
+            "bytesBase64": "am95"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.spriteNameOverride",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "V0VCUC1Y",
+            "filename": "x.webp",
+            "contentType": "image/webp"
+          },
+          {
+            "name": "label",
+            "value": "base",
+            "bytesBase64": "YmFzZQ=="
+          },
+          {
+            "name": "spriteName",
+            "value": "custom",
+            "bytesBase64": "Y3VzdG9t"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.subfolder",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "SlBFRy1CRw==",
+            "filename": "bg.jpg",
+            "contentType": "image/jpeg"
+          },
+          {
+            "name": "label",
+            "value": "bg",
+            "bytesBase64": "Ymc="
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar/sub",
+            "bytesBase64": "U3ByaXRlQ2hhci9zdWI="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.missingFile",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "label",
+            "value": "joy",
+            "bytesBase64": "am95"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.missingLabel",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "QQ==",
+            "filename": "a.png",
+            "contentType": "image/png"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.missingName",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "QQ==",
+            "filename": "a.png",
+            "contentType": "image/png"
+          },
+          {
+            "name": "label",
+            "value": "joy",
+            "bytesBase64": "am95"
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.invalidName",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "QQ==",
+            "filename": "a.png",
+            "contentType": "image/png"
+          },
+          {
+            "name": "label",
+            "value": "joy",
+            "bytesBase64": "am95"
+          },
+          {
+            "name": "name",
+            "value": "../evil",
+            "bytesBase64": "Li4vZXZpbA=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "upload.illegalCharsSanitized",
+        "route": "upload",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "QQ==",
+            "filename": "a.png",
+            "contentType": "image/png"
+          },
+          {
+            "name": "label",
+            "value": "la:bel",
+            "bytesBase64": "bGE6YmVs"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "uploadZip.ok",
+        "route": "upload-zip",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "UEsDBBQAAAgAAAAAIQCHOI5ABwAAAAcAAAAMAAAAcGFjay9qb3kucG5nWklQLUpPWVBLAwQUAAAIAAAAACEAL+H8rgcAAAAHAAAADQAAAHBhY2svc2FkLndlYnBaSVAtU0FEUEsDBBQAAAgAAAAAIQAv3bLHDAAAAAwAAAAOAAAAcGFjay9ub3Rlcy50eHRub3QgYW4gaW1hZ2VQSwMEFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAABfX01BQ09TWC9wYWNrLy5fam95LnBuZ3Jlc291cmNlIGZvcmtQSwMEFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAABhL2IucG5nTkVTVEVELUJQSwMEFAAACAAAAAAhABGyqggHAAAABwAAAAcAAABkdXAucG5nRFVQLU9ORVBLAwQUAAAIAAAAACEAhr4MYwcAAAAHAAAABwAAAGR1cC5wbmdEVVAtVFdPUEsBAhQAFAAACAAAAAAhAIc4jkAHAAAABwAAAAwAAAAAAAAAAAAAAAAAAAAAAHBhY2svam95LnBuZ1BLAQIUABQAAAgAAAAAIQAv4fyuBwAAAAcAAAANAAAAAAAAAAAAAAAAADEAAABwYWNrL3NhZC53ZWJwUEsBAhQAFAAACAAAAAAhAC/dsscMAAAADAAAAA4AAAAAAAAAAAAAAAAAYwAAAHBhY2svbm90ZXMudHh0UEsBAhQAFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAAAAAAAAAAAAAAAAmwAAAF9fTUFDT1NYL3BhY2svLl9qb3kucG5nUEsBAhQAFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAAAAAAAAAAAAAAAA3QAAAGEvYi5wbmdQSwECFAAUAAAIAAAAACEAEbKqCAcAAAAHAAAABwAAAAAAAAAAAAAAAAAKAQAAZHVwLnBuZ1BLAQIUABQAAAgAAAAAIQCGvgxjBwAAAAcAAAAHAAAAAAAAAAAAAAAAADYBAABkdXAucG5nUEsFBgAAAAAHAAcAlQEAAGIBAAAAAA==",
+            "filename": "pack.zip",
+            "contentType": "application/zip"
+          },
+          {
+            "name": "name",
+            "value": "ZipChar",
+            "bytesBase64": "WmlwQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "uploadZip.replaceAndSanitize",
+        "route": "upload-zip",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "UEsDBBQAAAgAAAAAIQCHOI5ABwAAAAcAAAAMAAAAcGFjay9qb3kucG5nWklQLUpPWVBLAwQUAAAIAAAAACEAL+H8rgcAAAAHAAAADQAAAHBhY2svc2FkLndlYnBaSVAtU0FEUEsDBBQAAAgAAAAAIQAv3bLHDAAAAAwAAAAOAAAAcGFjay9ub3Rlcy50eHRub3QgYW4gaW1hZ2VQSwMEFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAABfX01BQ09TWC9wYWNrLy5fam95LnBuZ3Jlc291cmNlIGZvcmtQSwMEFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAABhL2IucG5nTkVTVEVELUJQSwMEFAAACAAAAAAhABGyqggHAAAABwAAAAcAAABkdXAucG5nRFVQLU9ORVBLAwQUAAAIAAAAACEAhr4MYwcAAAAHAAAABwAAAGR1cC5wbmdEVVAtVFdPUEsBAhQAFAAACAAAAAAhAIc4jkAHAAAABwAAAAwAAAAAAAAAAAAAAAAAAAAAAHBhY2svam95LnBuZ1BLAQIUABQAAAgAAAAAIQAv4fyuBwAAAAcAAAANAAAAAAAAAAAAAAAAADEAAABwYWNrL3NhZC53ZWJwUEsBAhQAFAAACAAAAAAhAC/dsscMAAAADAAAAA4AAAAAAAAAAAAAAAAAYwAAAHBhY2svbm90ZXMudHh0UEsBAhQAFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAAAAAAAAAAAAAAAAmwAAAF9fTUFDT1NYL3BhY2svLl9qb3kucG5nUEsBAhQAFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAAAAAAAAAAAAAAAA3QAAAGEvYi5wbmdQSwECFAAUAAAIAAAAACEAEbKqCAcAAAAHAAAABwAAAAAAAAAAAAAAAAAKAQAAZHVwLnBuZ1BLAQIUABQAAAgAAAAAIQCGvgxjBwAAAAcAAAAHAAAAAAAAAAAAAAAAADYBAABkdXAucG5nUEsFBgAAAAAHAAcAlQEAAGIBAAAAAA==",
+            "filename": "pack.zip",
+            "contentType": "application/zip"
+          },
+          {
+            "name": "name",
+            "value": "SpriteChar",
+            "bytesBase64": "U3ByaXRlQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "uploadZip.missingFile",
+        "route": "upload-zip",
+        "parts": [
+          {
+            "name": "name",
+            "value": "ZipChar",
+            "bytesBase64": "WmlwQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "uploadZip.missingName",
+        "route": "upload-zip",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "UEsDBBQAAAgAAAAAIQCHOI5ABwAAAAcAAAAMAAAAcGFjay9qb3kucG5nWklQLUpPWVBLAwQUAAAIAAAAACEAL+H8rgcAAAAHAAAADQAAAHBhY2svc2FkLndlYnBaSVAtU0FEUEsDBBQAAAgAAAAAIQAv3bLHDAAAAAwAAAAOAAAAcGFjay9ub3Rlcy50eHRub3QgYW4gaW1hZ2VQSwMEFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAABfX01BQ09TWC9wYWNrLy5fam95LnBuZ3Jlc291cmNlIGZvcmtQSwMEFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAABhL2IucG5nTkVTVEVELUJQSwMEFAAACAAAAAAhABGyqggHAAAABwAAAAcAAABkdXAucG5nRFVQLU9ORVBLAwQUAAAIAAAAACEAhr4MYwcAAAAHAAAABwAAAGR1cC5wbmdEVVAtVFdPUEsBAhQAFAAACAAAAAAhAIc4jkAHAAAABwAAAAwAAAAAAAAAAAAAAAAAAAAAAHBhY2svam95LnBuZ1BLAQIUABQAAAgAAAAAIQAv4fyuBwAAAAcAAAANAAAAAAAAAAAAAAAAADEAAABwYWNrL3NhZC53ZWJwUEsBAhQAFAAACAAAAAAhAC/dsscMAAAADAAAAA4AAAAAAAAAAAAAAAAAYwAAAHBhY2svbm90ZXMudHh0UEsBAhQAFAAACAAAAAAhAN6PSc8NAAAADQAAABcAAAAAAAAAAAAAAAAAmwAAAF9fTUFDT1NYL3BhY2svLl9qb3kucG5nUEsBAhQAFAAACAAAAAAhAHqxLmsIAAAACAAAAAcAAAAAAAAAAAAAAAAA3QAAAGEvYi5wbmdQSwECFAAUAAAIAAAAACEAEbKqCAcAAAAHAAAABwAAAAAAAAAAAAAAAAAKAQAAZHVwLnBuZ1BLAQIUABQAAAgAAAAAIQCGvgxjBwAAAAcAAAAHAAAAAAAAAAAAAAAAADYBAABkdXAucG5nUEsFBgAAAAAHAAcAlQEAAGIBAAAAAA==",
+            "filename": "pack.zip",
+            "contentType": "application/zip"
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      },
+      {
+        "name": "uploadZip.invalidZip",
+        "route": "upload-zip",
+        "parts": [
+          {
+            "name": "avatar",
+            "bytesBase64": "bm90IGEgemlwIGF0IGFsbA==",
+            "filename": "bad.zip",
+            "contentType": "application/zip"
+          },
+          {
+            "name": "name",
+            "value": "ZipChar",
+            "bytesBase64": "WmlwQ2hhcg=="
+          }
+        ],
+        "boundary": "----gotavern-sprites-boundary"
+      }
+    ]
+  },
+  "observations": {
+    "upload.ok.newCharacter": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 10,
+            "sha256": "e4f306cacf38c31fbdd381621091f08db8db04e6b4531065dcc8a107ac5c72f1"
+          },
+          {
+            "path": "SpriteChar/joy.png",
+            "kind": "file",
+            "size": 11,
+            "sha256": "6a7968c19b81399caf5e8d960b2de868cec629a1b86ad71c7cac40f62a1a15ea"
+          },
+          {
+            "path": "SpriteChar/joy.webp",
+            "kind": "file",
+            "size": 12,
+            "sha256": "8598429d9c795a2fbc6e0ce042a43bd8a9d20327952845991d3e6e75d262f82b"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          }
+        ]
+      }
+    },
+    "upload.replaceSameLabel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 10,
+            "sha256": "e4f306cacf38c31fbdd381621091f08db8db04e6b4531065dcc8a107ac5c72f1"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          }
+        ]
+      }
+    },
+    "upload.spriteNameOverride": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          }
+        ]
+      }
+    },
+    "upload.subfolder": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          }
+        ]
+      }
+    },
+    "upload.missingFile": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          }
+        ]
+      }
+    },
+    "upload.missingLabel": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          }
+        ]
+      }
+    },
+    "upload.missingName": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "upload.invalidName": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "upload.illegalCharsSanitized": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "bodyBase64": "eyJvayI6dHJ1ZX0=",
+      "bodySha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "uploadZip.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-vqDXiiLuq7weIpc8b2Zj5lv/nUE\"",
+      "bodyBase64": "eyJvayI6dHJ1ZSwiY291bnQiOjV9",
+      "bodySha256": "90276a2483265f618fc379c1cd0b42487e2bfb85febcea90cb4758590590c5a2",
+      "bodyLength": 21,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/joy.jpeg",
+            "kind": "file",
+            "size": 8,
+            "sha256": "108f2b2e08d2d595d55b9e288e48af948c0db878b44fa65032cef32b91bc1573"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "ZipChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "ZipChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "ZipChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "ZipChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "ZipChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "uploadZip.replaceAndSanitize": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-vqDXiiLuq7weIpc8b2Zj5lv/nUE\"",
+      "bodyBase64": "eyJvayI6dHJ1ZSwiY291bnQiOjV9",
+      "bodySha256": "90276a2483265f618fc379c1cd0b42487e2bfb85febcea90cb4758590590c5a2",
+      "bodyLength": 21,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "SpriteChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "ZipChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "ZipChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "ZipChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "ZipChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "ZipChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "uploadZip.missingFile": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "SpriteChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "ZipChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "ZipChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "ZipChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "ZipChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "ZipChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          }
+        ]
+      }
+    },
+    "uploadZip.missingName": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-vqDXiiLuq7weIpc8b2Zj5lv/nUE\"",
+      "bodyBase64": "eyJvayI6dHJ1ZSwiY291bnQiOjV9",
+      "bodySha256": "90276a2483265f618fc379c1cd0b42487e2bfb85febcea90cb4758590590c5a2",
+      "bodyLength": 21,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "SpriteChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "ZipChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "ZipChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "ZipChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "ZipChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "ZipChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "undefined/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "undefined/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          }
+        ]
+      }
+    },
+    "uploadZip.invalidZip": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      },
+      "tree": {
+        "characters": [
+          {
+            "path": "FreshChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "FreshChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "8118bd284e6781403b9133d33d5846d80a8164c85f67ba309ba9bf47b518b3d8"
+          },
+          {
+            "path": "SpriteChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "SpriteChar/custom.webp",
+            "kind": "file",
+            "size": 6,
+            "sha256": "31b754c35edc250caa7bf808d61108a85560fe1e5e241b67c0176a7850a34c92"
+          },
+          {
+            "path": "SpriteChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "SpriteChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "SpriteChar/keep.png",
+            "kind": "file",
+            "size": 4,
+            "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+          },
+          {
+            "path": "SpriteChar/label.png",
+            "kind": "file",
+            "size": 1,
+            "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+          },
+          {
+            "path": "SpriteChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "SpriteChar/sub",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "SpriteChar/sub/bg.jpg",
+            "kind": "file",
+            "size": 7,
+            "sha256": "c2073093c202eec775f5d541f2f4b5fd98d94d1b30489ede16e367e622c35948"
+          },
+          {
+            "path": "ZipChar",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "ZipChar/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "ZipChar/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "ZipChar/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "ZipChar/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          },
+          {
+            "path": "undefined",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "undefined/b.png",
+            "kind": "file",
+            "size": 8,
+            "sha256": "1f4eb01e3a2b24b666fd0a535ce76d80af3b8539e9062327e5c16149ae3b09b1"
+          },
+          {
+            "path": "undefined/dup.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "6c124374c35acbcd879500337b4e80f06ce98122272a221be5868580f0e4c0a9"
+          },
+          {
+            "path": "undefined/joy.png",
+            "kind": "file",
+            "size": 7,
+            "sha256": "ad396d48395ac76b93c9a099237bacf3a1b7e4022ab44b930b97b84726c32662"
+          },
+          {
+            "path": "undefined/sad.webp",
+            "kind": "file",
+            "size": 7,
+            "sha256": "a1e99d60bf45acd48a6b20da008248a22d3334e4bc84d0a7d51f1b25b643e329"
+          }
+        ]
+      }
+    }
+  },
+  "knownDifferences": []
+}
