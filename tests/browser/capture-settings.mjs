@@ -189,7 +189,10 @@ try {
         const fixture = {
             schemaVersion: 1,
             provenance: {
-                capturedAt: new Date().toISOString(),
+                // A plain re-run updates this and nothing else, which would dirty the tree on every
+                // verification. CAPTURE_TIMESTAMP pins it so a determinism check can be a byte-for-byte
+                // diff rather than a normalized one.
+                capturedAt: process.env.CAPTURE_TIMESTAMP ?? new Date().toISOString(),
                 // The port is replaced because it is chosen per run: recording it would make every
                 // re-capture differ for a reason that says nothing about the frontend.
                 server: baseURL.replace(/:\d+$/, ':<port>'),

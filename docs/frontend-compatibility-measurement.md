@@ -525,7 +525,9 @@ The fixture it writes, `tests/browser/fixtures/custom-source-settings.json`, now
 `chat_completion_source = "custom"`, `custom_model = "probe-model"`, `custom_url = "http://127.0.0.1:1"`
 and 106 `oai_settings` keys. Two consecutive runs are byte-identical apart from the `capturedAt`
 provenance field, and the server's per-run port is normalized to `:<port>` so a re-capture does not
-differ for a reason that says nothing about the frontend.
+differ for a reason that says nothing about the frontend. With `CAPTURE_TIMESTAMP` set, a re-capture is
+byte-identical to the committed fixture (verified by digest), which is what makes "did the frontend
+change?" answerable from a diff rather than from a normalized comparison.
 
 THE TRAP, MEASURED RATHER THAN REASONED ABOUT. Setting the source to `custom` appeared to work and then
 silently stopped working: a capture that checked the value once recorded `custom`, and the very next
