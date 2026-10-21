@@ -128,5 +128,14 @@ Status meanings follow `ARCHITECTURE.md`: `compatible` means no known material d
 No item in this matrix currently establishes a drop-in-compatible server RELEASE, and one area
 does not change that: chat-completions generation for the custom/OpenAI-compatible source is the
 first area with all five observer surfaces proven, but that is a ROUTE-level claim on a server that
-still has 51 unimplemented routes and five decided exclusions. A compatible release needs the
+still has 44 unimplemented routes, of which TEN are decided exclusions rather than work. A compatible release needs the
 product surfaces, not just the best-proven route.
+
+The ten excluded routes, so the remaining work is not overstated: five are local in-process ML
+(`/api/extra/{caption,classify,classify/labels}`, `/api/speech/{recognize,synthesize}` -- boundary 2),
+two are Jimp image re-encoding (`/api/avatars/upload`, `/thumbnail/<computed>` -- boundary 3), and
+three run a protocol owned by an imported package (`/api/translate/{google,bing}`,
+`/api/google/generate-voice` -- boundary 4). That leaves 34 routes that are real work, of which 11
+are `/api/sd/*`, 7 are `/api/openai/*` media, 4 are `/api/data-maid/*`, 3 are `/api/backends/*`, 2 are
+`/api/novelai/*` and 7 are scattered. The reachable ceiling is therefore 339 - 10 = 329 routes, and
+it is reported this way so that "339 routes" is never read as an attainable target.
