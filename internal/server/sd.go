@@ -142,6 +142,8 @@ func registerSDRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage
 	post("/api/sd/nanogpt/models", accounts.serveSDNanoGPTModels)
 	post("/api/sd/aimlapi/models", accounts.serveSDAimlapiModels)
 	post("/api/sd/workersai/models", accounts.serveSDWorkersAIModels)
+	post("/api/sd/workersai/generate", accounts.serveSDWorkersAIGenerate)
+	post("/api/sd/stability/generate", accounts.serveSDStabilityGenerate)
 	post("/api/sd/pollinations/models", accounts.serveSDPollinationsModels)
 	post("/api/sd/falai/models", accounts.serveSDFalaiModels)
 }

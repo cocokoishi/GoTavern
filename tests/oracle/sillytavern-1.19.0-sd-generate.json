@@ -22,6 +22,10 @@
       "/api/sd/sdcpp/generate",
       "/api/sd/drawthings/generate",
       "/api/sd/generate"
+    ],
+    "4": [
+      "/api/sd/stability/generate",
+      "/api/sd/workersai/generate"
     ]
   },
   "implementedRoutes": [
@@ -35,7 +39,9 @@
     "/api/sd/aimlapi/generate-image",
     "/api/sd/sdcpp/generate",
     "/api/sd/drawthings/generate",
-    "/api/sd/generate"
+    "/api/sd/generate",
+    "/api/sd/stability/generate",
+    "/api/sd/workersai/generate"
   ],
   "notImplementedRoutes": [
     "/api/sd/bfl/generate",
@@ -43,14 +49,14 @@
     "/api/sd/comfyrunpod/generate",
     "/api/sd/falai/generate",
     "/api/sd/zai/generate",
-    "/api/sd/zai/generate-video",
-    "/api/sd/stability/generate",
-    "/api/sd/workersai/generate"
+    "/api/sd/zai/generate-video"
   ],
+  "staleReasonsRemoved": {
+    "/api/sd/stability/generate": "claimed native FormData parts were unobservable; recordBody now captures them",
+    "/api/sd/workersai/generate": "claimed its flux-2 multipart branch was unobservable; recordBody now captures it"
+  },
   "notImplementedReasons": {
-    "/api/sd/zai/generate": "The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour.",
-    "/api/sd/stability/generate": "The pinned route builds NATIVE FormData (stable-diffusion.js imports no form-data package, so it uses the global implementation), whose parts are not observable through the probe peer today. Pinning it needs a coordinated tools/lib capability that captures native FormData entries.",
-    "/api/sd/workersai/generate": "Its flux-2 branch also sends NATIVE FormData, so the same tools/lib capability is required before the whole route can be pinned; the JSON branch alone would leave half the route unverified."
+    "/api/sd/zai/generate": "The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour."
   },
   "pinnedSource": {
     "src/endpoints/stable-diffusion.js:1038": "pollinations: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query",
@@ -3116,6 +3122,1157 @@
             "authorization": "Basic dW5kZWZpbmVk"
           },
           "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "stabilityNoKey": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "stabilityUltraMultipart": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\",\"payload\":{\"prompt\":\"a tree\",\"output_format\":\"png\",\"aspect_ratio\":\"1:1\",\"negative_prompt\":\"ugly\",\"seed\":0}}",
+      "mocks": [
+        {
+          "run": "stabilityUltraMultipart",
+          "match": "/v2beta/stable-image/generate/ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-VG1ecVvz15oatZGoATzxU9PrNCU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+        "bodyText": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            },
+            {
+              "name": "output_format",
+              "value": "png"
+            },
+            {
+              "name": "aspect_ratio",
+              "value": "1:1"
+            },
+            {
+              "name": "negative_prompt",
+              "value": "ugly"
+            },
+            {
+              "name": "seed",
+              "value": "0"
+            }
+          ]
+        }
+      ]
+    },
+    "stabilityCoreEndpoint": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-core\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [
+        {
+          "run": "stabilityCoreEndpoint",
+          "match": "/v2beta/stable-image/generate/core",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-VG1ecVvz15oatZGoATzxU9PrNCU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+        "bodyText": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/core",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            }
+          ]
+        }
+      ]
+    },
+    "stabilitySd3Endpoint": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-diffusion-3\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [
+        {
+          "run": "stabilitySd3Endpoint",
+          "match": "/v2beta/stable-image/generate/sd3",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-VG1ecVvz15oatZGoATzxU9PrNCU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+        "bodyText": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/sd3",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            }
+          ]
+        }
+      ]
+    },
+    "stabilityStringCoercion": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\",\"payload\":{\"prompt\":\"a tree\",\"seed\":null,\"flag\":true,\"count\":2,\"nested\":{\"a\":1},\"list\":[1,2]}}",
+      "mocks": [
+        {
+          "run": "stabilityStringCoercion",
+          "match": "/v2beta/stable-image/generate/ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-VG1ecVvz15oatZGoATzxU9PrNCU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+        "bodyText": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            },
+            {
+              "name": "seed",
+              "value": "null"
+            },
+            {
+              "name": "flag",
+              "value": "true"
+            },
+            {
+              "name": "count",
+              "value": "2"
+            },
+            {
+              "name": "nested",
+              "value": "[object Object]"
+            },
+            {
+              "name": "list",
+              "value": "1,2"
+            }
+          ]
+        }
+      ]
+    },
+    "stabilityInvalidModel": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"nope\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": []
+    },
+    "stabilityPayloadMissing": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": []
+    },
+    "stabilityNonOk": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [
+        {
+          "run": "stabilityNonOk",
+          "match": "/v2beta/stable-image/generate/ultra",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "stability says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            }
+          ]
+        }
+      ]
+    },
+    "stabilityThrows": {
+      "route": "/api/sd/stability/generate",
+      "requestBody": "{\"model\":\"stable-image-ultra\",\"payload\":{\"prompt\":\"a tree\"}}",
+      "mocks": [
+        {
+          "run": "stabilityThrows",
+          "match": "/v2beta/stable-image/generate/ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_stability": [
+          {
+            "id": "sid-api_key_stability",
+            "value": "synthetic-stability-key",
+            "label": "api_key_stability",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-stability-key",
+            "accept": "image/*"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            }
+          ]
+        }
+      ]
+    },
+    "workersaiNoKey": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersaiNoAccount": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"   \",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersaiNoModel": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"\",\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersaiJsonProjection": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct id/with?chars\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"width\":\"512\",\"height\":768,\"steps\":\"20\",\"scale\":\"7.5\",\"seed\":0}",
+      "mocks": [
+        {
+          "run": "workersaiJsonProjection",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{\"image\":\"QUJD\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct%20id%2Fwith%3Fchars/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"width\":512,\"height\":768,\"num_steps\":20,\"guidance\":7.5,\"seed\":\"<seed>\"}"
+        }
+      ]
+    },
+    "workersaiJsonTopLevelImage": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "workersaiJsonTopLevelImage",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"image\":\"QUJD\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "workersaiJsonNoImage": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "workersaiJsonNoImage",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "workersaiFlux2Multipart": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-2-dev\",\"prompt\":\"a tree\",\"width\":512,\"height\":512,\"steps\":4}",
+      "mocks": [
+        {
+          "run": "workersaiFlux2Multipart",
+          "match": "/ai/run/flux-2-dev",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{\"image\":\"QUJD\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-2-dev",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key"
+          },
+          "parts": [
+            {
+              "name": "prompt",
+              "value": "a tree"
+            },
+            {
+              "name": "width",
+              "value": "512"
+            },
+            {
+              "name": "height",
+              "value": "512"
+            },
+            {
+              "name": "num_steps",
+              "value": "4"
+            }
+          ]
+        }
+      ]
+    },
+    "workersaiBinaryAnswer": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "workersaiBinaryAnswer",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "79",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4f-vicLFZSAy7vvYcR9hfYd7N7gfac\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "workersaiNonOkForwardsText": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "workersaiNonOkForwardsText",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "workers ai says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "18",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"12-xQHVuIj/3F/lp4klAzzOdf6FDVI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "workers ai says no",
+        "bodyText": "workers ai says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "workersaiReservedModelRaw": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"a b\",\"model\":\"org/model v1?x=1\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "workersaiReservedModelRaw",
+          "match": "/ai/run/org/model v1?x=1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{\"image\":\"QUJD\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/a%20b/ai/run/org/model v1?x=1",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "workersaiFalsyMembersOmitted": {
+      "route": "/api/sd/workersai/generate",
+      "requestBody": "{\"account_id\":\"acct\",\"model\":\"flux-1-schnell\",\"prompt\":\"a tree\",\"negative_prompt\":\"\",\"width\":0,\"seed\":-1}",
+      "mocks": [
+        {
+          "run": "workersaiFalsyMembersOmitted",
+          "match": "/ai/run/flux-1-schnell",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{\"image\":\"QUJD\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acct/ai/run/flux-1-schnell",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-workers-ai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
         }
       ]
     }

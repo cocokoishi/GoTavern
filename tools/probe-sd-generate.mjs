@@ -255,6 +255,85 @@ const SCENARIOS = [
           { match: '/sdapi/v1/options', payload: {} },
           { match: '/sdapi/v1/txt2img', throws: true },
       ] },
+
+    // ── WAVE 4: stability (native FormData) ─────────────────────────────────────────────────────
+    // The previous notImplementedReason claimed native FormData parts were unobservable. That reason
+    // was STALE: the hook's recordBody captures [object FormData] entries, so the parts are fixture
+    // data now. Every multipart scenario asserts a NON-EMPTY part list.
+    { label: 'stabilityNoKey', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra', payload: { prompt: 'a tree' } }), secrets: {}, mocks: [] },
+    { label: 'stabilityUltraMultipart', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra', payload: { prompt: 'a tree', output_format: 'png', aspect_ratio: '1:1', negative_prompt: 'ugly', seed: 0 } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/ultra', headers: { 'content-type': 'image/png' }, binary: PNG_BYTES }] },
+    { label: 'stabilityCoreEndpoint', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-core', payload: { prompt: 'a tree' } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/core', headers: { 'content-type': 'image/png' }, binary: PNG_BYTES }] },
+    { label: 'stabilitySd3Endpoint', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-diffusion-3', payload: { prompt: 'a tree' } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/sd3', headers: { 'content-type': 'image/png' }, binary: PNG_BYTES }] },
+    { label: 'stabilityStringCoercion', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra', payload: { prompt: 'a tree', seed: null, flag: true, count: 2, nested: { a: 1 }, list: [1, 2], skip: undefined } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/ultra', headers: { 'content-type': 'image/png' }, binary: PNG_BYTES }] },
+    { label: 'stabilityInvalidModel', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'nope', payload: { prompt: 'a tree' } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability), mocks: [] },
+    { label: 'stabilityPayloadMissing', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra' }),
+      secrets: secretEntry('api_key_stability', KEYS.stability), mocks: [] },
+    { label: 'stabilityNonOk', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra', payload: { prompt: 'a tree' } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/ultra', status: 500, text: 'stability says no' }] },
+    { label: 'stabilityThrows', route: '/api/sd/stability/generate',
+      body: JSON.stringify({ model: 'stable-image-ultra', payload: { prompt: 'a tree' } }),
+      secrets: secretEntry('api_key_stability', KEYS.stability),
+      mocks: [{ match: '/v2beta/stable-image/generate/ultra', throws: true }] },
+
+    // ── WAVE 4: workersai (JSON and flux-2 multipart) ───────────────────────────────────────────
+    { label: 'workersaiNoKey', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree' }), secrets: {}, mocks: [] },
+    { label: 'workersaiNoAccount', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: '   ', model: 'flux-1-schnell', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai), mocks: [] },
+    { label: 'workersaiNoModel', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: '', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai), mocks: [] },
+    { label: 'workersaiJsonProjection', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct id/with?chars', model: 'flux-1-schnell', prompt: 'a tree', negative_prompt: 'ugly', width: '512', height: 768, steps: '20', scale: '7.5', seed: 0 }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', payload: { result: { image: 'QUJD' } } }] },
+    { label: 'workersaiJsonTopLevelImage', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', payload: { image: 'QUJD' } }] },
+    { label: 'workersaiJsonNoImage', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', payload: { result: {} } }] },
+    { label: 'workersaiFlux2Multipart', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-2-dev', prompt: 'a tree', width: 512, height: 512, steps: 4 }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-2-dev', payload: { result: { image: 'QUJD' } } }] },
+    { label: 'workersaiBinaryAnswer', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', headers: { 'content-type': 'image/png' }, binary: PNG_BYTES }] },
+    { label: 'workersaiNonOkForwardsText', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', status: 500, text: 'workers ai says no' }] },
+    { label: 'workersaiReservedModelRaw', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'a b', model: 'org/model v1?x=1', prompt: 'a tree' }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/org/model v1?x=1', payload: { result: { image: 'QUJD' } } }] },
+    { label: 'workersaiFalsyMembersOmitted', route: '/api/sd/workersai/generate',
+      body: JSON.stringify({ account_id: 'acct', model: 'flux-1-schnell', prompt: 'a tree', negative_prompt: '', width: 0, seed: -1 }),
+      secrets: secretEntry('api_key_workers_ai', KEYS.workersai),
+      mocks: [{ match: '/ai/run/flux-1-schnell', payload: { result: { image: 'QUJD' } } }] },
 ];
 
 function normalizeSeed(value) {
@@ -297,7 +376,15 @@ try {
                     method: request.method,
                     headers: request.headers,
                 };
-                if (request.bodyBase64 !== undefined) {
+                if (request.parts !== undefined) {
+                    // A native FormData body: the hook records the parsed parts directly, because the
+                    // boundary is random per request. The part LIST must be non-empty; a consumed
+                    // stream would record zero parts, which looks exactly like "never sent".
+                    if (!Array.isArray(request.parts) || request.parts.length === 0) {
+                        throw new Error(`${scenario.label}: the peer recorded an EMPTY part list for a multipart request`);
+                    }
+                    record.parts = request.parts;
+                } else if (request.bodyBase64 !== undefined) {
                     record.parts = parseMultipart(request.headers['content-type'] ?? '', request.bodyBase64);
                 } else {
                     record.body = request.body === null || request.body === undefined
@@ -434,6 +521,68 @@ assert.equal(requireOutbound('generateForgeKeepsModules', 0).headers.authorizati
 assert.equal(scenarios.generateNonOk.response.status, 500, 'A1111 non-ok is 500');
 assert.equal(scenarios.generateThrows.response.status, 500, 'a rejected A1111 generation fetch is 500');
 
+// ── WAVE 4 assertions ───────────────────────────────────────────────────────────────────────────
+assert.equal(scenarios.stabilityNoKey.response.status, 400, 'stability without a key is 400');
+assert.equal(scenarios.stabilityNoKey.outbound.length, 0, 'a missing stability key sends nothing');
+assert.equal(scenarios.stabilityUltraMultipart.response.bodyText, PNG_BYTES.toString('base64'),
+    'stability answers plain base64 of the provider bytes');
+assert.equal(requireOutbound('stabilityUltraMultipart', 0).url, `${STABILITY}/v2beta/stable-image/generate/ultra`, 'stability ultra endpoint');
+assert.deepEqual(requireOutbound('stabilityUltraMultipart', 0).parts, [
+    { name: 'prompt', value: 'a tree' },
+    { name: 'output_format', value: 'png' },
+    { name: 'aspect_ratio', value: '1:1' },
+    { name: 'negative_prompt', value: 'ugly' },
+    { name: 'seed', value: '0' },
+], 'stability multipart parts in payload insertion order, String()-coerced');
+assert.equal(requireOutbound('stabilityUltraMultipart', 0).headers.authorization, `Bearer ${KEYS.stability}`, 'stability bearer key');
+assert.equal(requireOutbound('stabilityUltraMultipart', 0).headers.accept, 'image/*', 'stability accept header');
+assert.equal(requireOutbound('stabilityCoreEndpoint', 0).url, `${STABILITY}/v2beta/stable-image/generate/core`, 'stability core endpoint');
+assert.equal(requireOutbound('stabilitySd3Endpoint', 0).url, `${STABILITY}/v2beta/stable-image/generate/sd3`, 'stability sd3 endpoint');
+assert.deepEqual(requireOutbound('stabilityStringCoercion', 0).parts, [
+    { name: 'prompt', value: 'a tree' },
+    { name: 'seed', value: 'null' },
+    { name: 'flag', value: 'true' },
+    { name: 'count', value: '2' },
+    { name: 'nested', value: '[object Object]' },
+    { name: 'list', value: '1,2' },
+], 'String() coercion: null/true/number/object/array (the undefined-skip branch is unreachable from an HTTP JSON body, since JSON has no undefined)');
+assert.equal(scenarios.stabilityInvalidModel.response.status, 500, 'an unknown stability model is 500');
+assert.equal(scenarios.stabilityInvalidModel.outbound.length, 0, 'an unknown model sends nothing');
+assert.equal(scenarios.stabilityPayloadMissing.response.status, 500, 'a missing payload is 500');
+assert.equal(scenarios.stabilityPayloadMissing.outbound.length, 0, 'a missing payload sends nothing');
+assert.equal(scenarios.stabilityNonOk.response.status, 500, 'stability non-ok is 500');
+assert.equal(scenarios.stabilityThrows.response.status, 500, 'a rejected stability fetch is 500');
+
+assert.equal(scenarios.workersaiNoKey.response.status, 400, 'workersai without a key is 400');
+assert.equal(scenarios.workersaiNoAccount.response.status, 400, 'a blank account id is 400');
+assert.equal(scenarios.workersaiNoModel.response.status, 400, 'a blank model is 400');
+assert.deepEqual(scenarios.workersaiJsonProjection.response.body, { format: 'png', image: 'QUJD' }, 'workersai projects the JSON image');
+assert.equal(requireOutbound('workersaiJsonProjection', 0).url,
+    `${CLOUDFLARE}/client/v4/accounts/acct%20id%2Fwith%3Fchars/ai/run/flux-1-schnell`,
+    'the account id is encodeURIComponent-ed while the model is RAW');
+assert.equal(requireOutbound('workersaiJsonProjection', 0).body,
+    '{"prompt":"a tree","negative_prompt":"ugly","width":512,"height":768,"num_steps":20,"guidance":7.5,"seed":"<seed>"}',
+    'workersai coercion: truthiness gates, Number() conversion, seed >= 0');
+assert.equal(requireOutbound('workersaiJsonProjection', 0).headers.authorization, `Bearer ${KEYS.workersai}`, 'workersai bearer key');
+assert.deepEqual(scenarios.workersaiJsonTopLevelImage.response.body, { format: 'png', image: 'QUJD' }, 'a top-level image field is accepted');
+assert.equal(scenarios.workersaiJsonNoImage.response.status, 500, 'a JSON answer without an image is 500');
+assert.deepEqual(requireOutbound('workersaiFlux2Multipart', 0).parts, [
+    { name: 'prompt', value: 'a tree' },
+    { name: 'width', value: '512' },
+    { name: 'height', value: '512' },
+    { name: 'num_steps', value: '4' },
+], 'the flux-2 branch sends native FormData parts');
+assert.deepEqual(scenarios.workersaiFlux2Multipart.response.body, { format: 'png', image: 'QUJD' }, 'the flux-2 branch projects the JSON answer');
+assert.equal(scenarios.workersaiBinaryAnswer.response.body.image, PNG_BYTES.toString('base64'), 'a non-JSON answer becomes base64 bytes');
+assert.equal(scenarios.workersaiNonOkForwardsText.response.status, 500, 'workersai non-ok is 500');
+assert.equal(scenarios.workersaiNonOkForwardsText.response.bodyText, 'workersai says no'.replace('workersai', 'workers ai'),
+    'workersai forwards the provider TEXT on failure');
+assert.equal(requireOutbound('workersaiReservedModelRaw', 0).url,
+    `${CLOUDFLARE}/client/v4/accounts/a%20b/ai/run/org/model v1?x=1`,
+    'a reserved-character model stays RAW in the path (rule 15)');
+assert.equal(requireOutbound('workersaiFalsyMembersOmitted', 0).body, '{"prompt":"a tree"}',
+    'falsy negative_prompt/width and a negative seed are omitted');
+
 const fixture = {
     schemaVersion: 1,
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -445,22 +594,31 @@ const fixture = {
             '/api/sd/nanogpt/generate', '/api/sd/xai/generate', '/api/sd/aimlapi/generate-image',
         ],
         3: ['/api/sd/sdcpp/generate', '/api/sd/drawthings/generate', '/api/sd/generate'],
+        4: ['/api/sd/stability/generate', '/api/sd/workersai/generate'],
     },
     implementedRoutes: [
         '/api/sd/pollinations/generate', '/api/sd/together/generate',
         '/api/sd/huggingface/generate', '/api/sd/electronhub/generate', '/api/sd/chutes/generate',
         '/api/sd/nanogpt/generate', '/api/sd/xai/generate', '/api/sd/aimlapi/generate-image',
         '/api/sd/sdcpp/generate', '/api/sd/drawthings/generate', '/api/sd/generate',
+        '/api/sd/stability/generate', '/api/sd/workersai/generate',
     ],
     notImplementedRoutes: [
         '/api/sd/bfl/generate', '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
         '/api/sd/falai/generate', '/api/sd/zai/generate',
-        '/api/sd/zai/generate-video', '/api/sd/stability/generate', '/api/sd/workersai/generate',
+        '/api/sd/zai/generate-video',
     ],
+    // STALE REASONS DELETED. `stability/generate` and `workersai/generate` were listed here with the
+    // reason that native FormData parts were unobservable. That reason was WRONG: the hook's
+    // `recordBody` gained `[object FormData]` entry capture, so the parts are recorded (and asserted
+    // non-empty) today. The correction is recorded in the inventory row as well, because a stale
+    // reason is worse than a missing row - the next reader trusts it and stops.
+    staleReasonsRemoved: {
+        '/api/sd/stability/generate': 'claimed native FormData parts were unobservable; recordBody now captures them',
+        '/api/sd/workersai/generate': 'claimed its flux-2 multipart branch was unobservable; recordBody now captures it',
+    },
     notImplementedReasons: {
         '/api/sd/zai/generate': 'The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour.',
-        '/api/sd/stability/generate': 'The pinned route builds NATIVE FormData (stable-diffusion.js imports no form-data package, so it uses the global implementation), whose parts are not observable through the probe peer today. Pinning it needs a coordinated tools/lib capability that captures native FormData entries.',
-        '/api/sd/workersai/generate': 'Its flux-2 branch also sends NATIVE FormData, so the same tools/lib capability is required before the whole route can be pinned; the JSON branch alone would leave half the route unverified.',
     },
     pinnedSource: {
         'src/endpoints/stable-diffusion.js:1038': 'pollinations: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query',
