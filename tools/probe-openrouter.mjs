@@ -90,7 +90,12 @@ async function record(label, route, body, mocks) {
         secrets: server.readSecrets(),
         response: captureHttp(result),
         // Provenance: a recorded answer must come from a request the pinned route actually made.
-        outbound: requests.map(request => ({ url: request.url, method: request.method, headers: request.headers })),
+        // `body` is recorded because a route's request BODY is an observable: the image-generation
+        // route's `messages[0].content` is the raw prompt STRING rather than a content-part array,
+        // its `image_config.aspect_ratio` defaults to 1:1 when absent, and `modalities` is ['image'].
+        // Without it those three cannot be asserted at all, and a fixture that cannot assert them
+        // would pass an implementation that got every one of them wrong.
+        outbound: requests.map(request => ({ url: request.url, method: request.method, headers: request.headers, body: request.body })),
     };
     return result;
 }

@@ -298,7 +298,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -349,7 +350,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -396,7 +398,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -443,7 +446,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -486,7 +490,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -528,7 +533,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -579,7 +585,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -626,7 +633,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -673,7 +681,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -715,7 +724,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -771,7 +781,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -818,7 +829,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -860,7 +872,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -920,7 +933,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -967,7 +981,8 @@
           "method": "GET",
           "headers": {
             "accept": "application/json"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -1067,7 +1082,8 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -1128,7 +1144,8 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -1189,7 +1206,8 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -1246,7 +1264,8 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
-          }
+          },
+          "body": null
         }
       ]
     },
@@ -1298,7 +1317,8 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
-          }
+          },
+          "body": null
         }
       ]
     }
