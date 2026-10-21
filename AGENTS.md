@@ -185,7 +185,17 @@ domain.
    reproduce those bytes without a Jimp-compatible codec, so the route cannot be claimed `partial`
    through HTTP comparison alone. Do not fake byte equality by copying the recorded bytes, and do not
    add a production seam purely to make it testable. Decide the codec question explicitly first.
-4. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
+4. **Inherited security weaknesses are reproduced AND recorded, never silently fixed or silently
+   copied.** Content import (`/api/content/importURL` and `/importUUID`) classifies a provider with
+   substring matching on the parsed hostname — `host.includes('chub.ai')`, `host.includes('janitorai')`
+   and so on — so a hostname such as `chub.ai.attacker.example` passes `isChub` and is treated as
+   chub. Only the generic branch is an exact `whitelistImportDomains` membership check; the provider
+   branches are not. A drop-in replacement must reproduce this, because "safer but different" breaks
+   parity claims just as badly as "different and worse". It must therefore be stated in the compat
+   row as a known inherited property, so an operator can see what they are inheriting rather than
+   discovering it. Any deliberate hardening is a separate, visible product decision that changes the
+   compatibility claim.
+5. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
    Report the exclusion count alongside the coverage numbers rather than implying 339/339 is
    attainable.
 
