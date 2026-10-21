@@ -1842,6 +1842,194 @@
         }
       ],
       "seedObservation": null
+    },
+    "failure-providerText": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"openai\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [
+        {
+          "run": "failure-providerText",
+          "match": "api.openai.com",
+          "status": 429,
+          "statusText": "Too Many Requests",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "provider said no",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-r+Qv322ubcl+1NvCxOIbw8DaraU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "provider said no",
+        "bodyText": "provider said no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "failure-noCaption": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"openai\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [
+        {
+          "run": "failure-noCaption",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "answer-secondShape": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"openai\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [
+        {
+          "run": "answer-secondShape",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":{\"content\":[{\"text\":\"a second-shape caption\"}]}}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "36",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"24-RFSxhKpOVePcffV6ZjQ9OwKftW0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a second-shape caption"
+        },
+        "bodyText": "{\"caption\":\"a second-shape caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
     }
   }
 }

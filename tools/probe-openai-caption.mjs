@@ -122,9 +122,21 @@ SCENARIOS.push(
       mocks: [{ match: 'api.z.ai', times: 1, payload: CAPTION }] },
     // The MALFORMED video URI: the pinned regex does not match it, so the part must stay an image_url part
     // with NO conversion at all. This is the input that makes the tightened trigger discriminating.
-    { label: 'zai-video-malformed', body: { api: 'zai', zai_endpoint: 'common', prompt: 'x', image: MALFORMED_VIDEO_IMAGE, model: 'm' },
-      secrets: secretEntry('api_key_zai', 'synthetic-zai-key'),
+    { label: 'zai-video-malformed', body: { api: 'zai', zai_endpoint: 'common', prompt: 'x', image: MALFORMED_VIDEO_IMAGE, model: 'm' },      secrets: secretEntry('api_key_zai', 'synthetic-zai-key'),
       mocks: [{ match: 'api.z.ai', times: 1, payload: CAPTION }] },
+    // The non-2xx path: `!result.ok` forwards the PROVIDER TEXT with status 500 -- not a generic message.
+    // The four previous routes each answered differently, which is why this is read rather than inferred.
+    { label: 'failure-providerText', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
+      mocks: [{ match: 'api.openai.com', times: 1, status: 429, statusText: 'Too Many Requests', headers: { 'content-type': 'text/plain' }, text: 'provider said no' }] },
+    // A 200 answer carrying NO caption: the route answers 500 with the LITERAL 'No caption found'.
+    { label: 'failure-noCaption', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
+      mocks: [{ match: 'api.openai.com', times: 1, payload: { choices: [{ message: { role: 'assistant' } }] } }] },
+    // The extraction has a SECOND shape: data.message.content[0].text, a Google-shaped answer.
+    { label: 'answer-secondShape', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
+      mocks: [{ match: 'api.openai.com', times: 1, payload: { message: { content: [{ text: 'a second-shape caption' }] } } }] },
 );
 
 const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-openai-caption-oracle-', mocks: [] });
@@ -249,6 +261,19 @@ assert.equal(malformedPart.type, 'image_url',
     'a MALFORMED data:video URI does NOT match the pinned regex, so the part stays an image_url part');
 assert.deepEqual(Object.keys(malformedPart).sort(), ['image_url', 'type'], 'with NO conversion at all');
 assert.equal(malformedPart.video_url, undefined, 'and no video_url key appears');
+
+// ── the three failure/second-shape answers, each read from the pinned source ─────────────────────────
+const providerText = scenarios['failure-providerText'];
+assert.equal(providerText.response.status, 500, 'a non-2xx provider answer becomes 500');
+assert.equal(providerText.response.bodyText, 'provider said no',
+    'and the PROVIDER TEXT is forwarded verbatim, not a generic message');
+const noCaption = scenarios['failure-noCaption'];
+assert.equal(noCaption.response.status, 500, 'a 200 answer with no caption becomes 500');
+assert.equal(noCaption.response.bodyText, 'No caption found', 'with the pinned literal message');
+const secondShape = scenarios['answer-secondShape'];
+assert.equal(secondShape.response.status, 200, 'the second extraction shape answers 200');
+assert.deepEqual(secondShape.response.body, { caption: 'a second-shape caption' },
+    'reading data.message.content[0].text, which a choices-only implementation would miss');
 
 const fixture = {
     schemaVersion: 1,

@@ -315,7 +315,9 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		// The pinned `!result.ok` branch FORWARDS the provider's text with status 500. It does not answer a
+		// generic message, which is what the other routes in this domain each did differently.
+		respondText(w, http.StatusInternalServerError, "text/plain", string(response.Body))
 		return
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
@@ -331,8 +333,19 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 			}
 		}
 	}
+	// The SECOND shape: data.message.content[0].text. A choices-only implementation misses it.
 	if caption == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		if message, present := decoded.member("message"); present {
+			if content, hasContent := message.member("content"); hasContent && content.kind == 'a' && len(content.array) > 0 {
+				if value, hasText := content.array[0].member("text"); hasText && value.kind == 's' {
+					caption = value.scalar.(string)
+				}
+			}
+		}
+	}
+	if caption == "" {
+		// The pinned literal, not a generic message.
+		respondText(w, http.StatusInternalServerError, "text/plain", "No caption found")
 		return
 	}
 	answer := nodeObject()
