@@ -172,7 +172,13 @@ domain.
    it is a product decision that must be made explicitly and recorded here — never absorbed silently
    into a `partial` row. FAKE FIXTURES FOR THESE ARE FORBIDDEN: a recorded "response" would be
    evidence for a behaviour that was never executed.
-3. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
+3. **Image re-encoding is a codec decision, not a test gap.** `/api/avatars/upload` decodes, crops,
+   covers and re-encodes with Jimp, so the response bytes are the output of a specific image codec.
+   An oracle for it CAN exist (the pinned output is recordable), but a Go implementation cannot
+   reproduce those bytes without a Jimp-compatible codec, so the route cannot be claimed `partial`
+   through HTTP comparison alone. Do not fake byte equality by copying the recorded bytes, and do not
+   add a production seam purely to make it testable. Decide the codec question explicitly first.
+4. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
    Report the exclusion count alongside the coverage numbers rather than implying 339/339 is
    attainable.
 
