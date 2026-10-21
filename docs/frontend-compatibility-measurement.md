@@ -613,3 +613,62 @@ Reproduce with:
 `node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <path>` (pinned) and
 `node tests/browser/generation-probe.mjs --report <path>` (GoTavern).
 
+
+## 2026-10-21 — the send is drivable end to end, and the first differential names the blocker
+
+The previous entry ended at `generate_after_data` with no request, on both servers. That is now
+resolved: the same drive reaches `CHAT_COMPLETION_SETTINGS_READY` and `GENERATION_ENDED` and the mock
+provider records `POST /chat/completions` on BOTH legs. The earlier stop was a DRIVER defect, and it
+was three defects, each measured before it was fixed (no production code changed):
+
+1. FIRST-RUN ONBOARDING WAS NEVER COMPLETED. A fresh data root has `settings.firstRun = true`, and
+   `getSettings()` AWAITS `doOnboarding()` (script.js:8041), a user-input popup. Until it is completed
+   `settingsReady` stays false, `saveSettings` only logs "Settings not ready, scheduling another save",
+   and PromptManager's `saveServiceSettings` waits for a `SETTINGS_UPDATED` a gated save never emits.
+   Measured: `settingsReady` never became true in 60 s; the welcome popup was present. The drive now
+   fills the name and presses OK, exactly as a first-run user does.
+2. THE CONNECT STEP WAS MISSING. `Generate()` returns silently when `online_status` is
+   `'no_connection'` (script.js:4391), before the composer is touched. `online_status` is only set by
+   the frontend's own connection check, triggered by the Connect control the user presses after
+   entering the endpoint and key. Measured without it: real `GENERATION_STARTED` and
+   `GENERATION_AFTER_COMMANDS` only, composer still full, no user message appended, no request. With
+   a press on `#api_button_openai` and a wait for a non-`no_connection` status: the whole path runs.
+3. THE PROBE READ RESPONSE BODIES IT SHOULD NOT. The fetch wrapper read `clone().text()` for every
+   response; `POST /api/ping` (204) was traced and the wrapper was a suspect, so a no-`204` guard was
+   added. Keeping the trace is what proved the ping itself returns 204 and is not the blocker.
+
+The same drive therefore now produces two comparable legs. They are deterministic individually
+(GoTavern POST body SHA-256 `f27ce88c…f2896c` on two runs; pinned `d644f007…e259c23` on two runs), but
+THEY ARE NOT EQUAL, and the difference is a GoTavern finding, not fixture noise:
+
+- The provider request bodies differ only in `messages[1]` (the example-dialogue entry): GoTavern
+  6678 bytes, pinned 7400 bytes; all five other messages are byte-identical.
+- The cause is the tokenizer endpoint. The frontend asks both servers to count the same strings
+  (jQuery XHR, captured by patching XMLHttpRequest), and the answers differ: `"probe user marker"`
+  -> 15/10 on GoTavern vs 10/9 on pinned; `*You wake with a start…` -> 242 vs 190;
+  `Probe User: "What is Eldoria?"` -> 477 vs 380. That changes how much example dialogue fits and
+  therefore which example is sent.
+- The same route's RESPONSE SHAPE differs: for `"Seraphina"` GoTavern answers
+  `{"ids":[],"count":3}`, pinned answers `{"ids":[1816,12451,1099],"count":3}`. The ids array is
+  empty in GoTavern and populated in pinned.
+- A second, independent parity gap: during Connect, pinned's `/api/backends/chat-completions/status`
+  forwards a `GET {custom_url}/models` to the provider; GoTavern's leg sends no such request, yet the
+  browser still reports a connected state.
+- Observed but unexplained: the pinned leg shows one extra prompt-manager dry generation, and the
+  post-send chat length was 3 on GoTavern vs 2 on pinned in the same capture.
+
+Next concrete step (do not touch the probe further to chase it): fix `/api/tokenizers/openai/count`
+parity — the populated `ids` array and the counts themselves — then rerun
+`compare-generation-legs.mjs`; `providerRequestEqual` is the acceptance signal. Independently, add
+the custom-source `/models` forward to the chat-completions status route and assert it as a request,
+not as a status code.
+
+Reproduce both legs (deterministic, ~3 min each on this machine):
+
+    node tests/browser/generation-probe.mjs --report tests/browser/gen-a.json
+    node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <absolute-path>/gen-p1.json
+    node tests/browser/compare-generation-legs.mjs tests/browser/gen-a.json tests/browser/gen-p1.json
+
+`generation-comparison.json` is the machine-readable comparison of those two captures
+(`requestArrived` both true, `providerRequestEqual` false, `milestoneEqual` false, one body
+difference).

@@ -2,4 +2,5 @@
 node_modules/
 .pinned-run/
 test-results/
-generation-probe-report.json
+generation-probe-report.jsongen-a.json
+gen-p1.json

@@ -162,14 +162,14 @@ try {
     // run for a send that the frontend itself refused to make.
     report.console = [];
     page.on('console', message => {
-        report.console.push({ type: message.type(), text: String(message.text()).slice(0, 500) });
+        report.console.push({ t: Math.round(message.timestamp ? message.timestamp() * 1000 : 0), type: message.type(), text: String(message.text()).slice(0, 500) });
     });
     // Every request and its status, unfiltered: a negative finding about a call needs a log that
     // would have shown it, so the log is complete rather than pre-filtered.
     report.requests = [];
     const pendingRequests = new Map();
     page.on('request', request => {
-        const entry = { method: request.method(), url: new URL(request.url()).pathname + new URL(request.url()).search, status: null };
+        const entry = { t: Date.now(), method: request.method(), url: new URL(request.url()).pathname + new URL(request.url()).search, status: null };
         report.requests.push(entry);
         pendingRequests.set(request, entry);
     });
@@ -193,17 +193,84 @@ try {
     // Attribute "HTML parsed as JSON" to the request that produced it, rather than inferring it
     // from the 404 list: wrap fetch inside the page and record status plus whether the body looks
     // like markup, so the finding names a URL.
-    await page.addInitScript(() => {
+    const instrumentFetch = process.env.PROBE_NO_FETCH_WRAPPER !== '1';
+    if (instrumentFetch) await page.addInitScript(() => {
         window.__probeFetchLog = [];
+        // Token counts are issued by jQuery.ajax (XMLHttpRequest), not fetch. Capture the XHR pair so
+        // the two legs can be compared on the EXACT inputs the frontend asked both servers to count:
+        // a different token count changes how much of the prompt fits and therefore the provider
+        // request body.
+        window.__probeXhrLog = [];
+        const originalXhrOpen = XMLHttpRequest.prototype.open;
+        const originalXhrSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+            this.__probeUrl = String(url);
+            return originalXhrOpen.call(this, method, url, ...rest);
+        };
+        XMLHttpRequest.prototype.send = function (body) {
+            if (String(this.__probeUrl).includes('/api/tokenizers/')) {
+                const xhr = this;
+                xhr.addEventListener('load', () => {
+                    window.__probeXhrLog.push({
+                        url: xhr.__probeUrl,
+                        requestBody: typeof body === 'string' ? body : null,
+                        status: xhr.status,
+                        responseText: xhr.responseText,
+                    });
+                });
+            }
+            return originalXhrSend.call(this, body);
+        };
         const originalFetch = window.fetch;
         window.fetch = async (...parameters) => {
-            const response = await originalFetch(...parameters);
             const request = parameters[0];
-            const url = typeof request === 'string' ? request : (request?.url ?? '');
-            let looksLikeMarkup = false;
+            const probeRequestUrl = typeof request === 'string' ? request : (request?.url ?? '');
+            if (probeRequestUrl.includes('api/ping')) {
+                (window.__probePingLog = window.__probePingLog ?? []).push({
+                    phase: 'call', t: Math.round(performance.now()),
+                    stack: String(new Error().stack).slice(0, 800),
+                    hasSignal: Boolean(parameters[1]?.signal),
+                });
+            }
+            let response;
             try {
-                const text = await response.clone().text();
-                looksLikeMarkup = text.trimStart().startsWith('<');
+                response = await originalFetch(...parameters);
+            } catch (error) {
+                if (probeRequestUrl.includes('api/ping')) {
+                    (window.__probePingLog = window.__probePingLog ?? []).push({ phase: 'reject', t: Math.round(performance.now()), name: error?.name, message: String(error?.message) });
+                }
+                throw error;
+            }
+            if (probeRequestUrl.includes('api/ping')) {
+                (window.__probePingLog = window.__probePingLog ?? []).push({ phase: 'response', t: Math.round(performance.now()), status: response.status });
+            }
+            if (probeRequestUrl.includes('/api/tokenizers/')) {
+                let responseText = null;
+                try {
+                    responseText = await response.clone().text();
+                } catch {
+                    responseText = null;
+                }
+                (window.__probeTokenizerLog = window.__probeTokenizerLog ?? []).push({
+                    url: probeRequestUrl,
+                    requestBody: typeof parameters[1]?.body === 'string' ? parameters[1].body : null,
+                    status: response.status,
+                    responseText,
+                });
+            }
+            const url = typeof request === 'string' ? request : (request?.url ?? '');
+            // Do NOT read the body of a 204/304 or a bodiless response. The wrapper originally read
+            // every clone, and `await clone().text()` on the 204 from POST /api/ping never settled in
+            // this page, so pingServer() hung and the real generation stopped after
+            // GENERATION_AFTER_COMMANDS with the composer still full. That was a probe artefact, not
+            // a frontend behaviour: the same wrapper also runs on the pinned leg.
+            let looksLikeMarkup = false;
+            const bodiless = response.status === 204 || response.status === 205 || response.status === 304 || request?.method === 'HEAD';
+            try {
+                if (!bodiless) {
+                    const text = await response.clone().text();
+                    looksLikeMarkup = text.trimStart().startsWith('<');
+                }
             } catch {
                 looksLikeMarkup = false;
             }
@@ -272,6 +339,49 @@ try {
         // and no chat-completions call was ever made -- identically on pinned Node and GoTavern. The
         // fix is to drive the control a user drives, `#main_api`, whose change handler assigns it
         // (script.js:7861).
+        // A real user cannot act before the page has finished loading settings: `settingsReady`
+        // (script.js:421, set at the end of getSettings) gates saveSettings, and a send started
+        // while it is false leaves PromptManager's saveServiceSettings awaiting an event that a
+        // gated save never emits. Measured: both servers emitted "Settings not ready" continuously
+        // and the real (dryRun=false) generation stopped right after GENERATION_AFTER_COMMANDS while
+        // a prompt-manager dry run proceeded. Wait for the same readiness a user waits for.
+        // FIRST-RUN ONBOARDING. A fresh data root has settings.firstRun=true, and getSettings
+        // AWAITS doOnboarding() (script.js:8041), which is a user-input popup; settingsReady stays
+        // false until the user completes it. A real first-run user fills the name and clicks OK, so
+        // the drive does exactly that instead of acting on a page no user could act on.
+        const onboarding = document.querySelector('.popup .onboarding');
+        const onboardingCompleted = Boolean(onboarding);
+        if (onboarding) {
+            const nameInput = onboarding.closest('.popup')?.querySelector('.popup-input');
+            if (nameInput) {
+                nameInput.value = 'Probe User';
+                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            const okButton = onboarding.closest('.popup')?.querySelector('.popup-button-ok');
+            if (okButton) {
+                okButton.click();
+            }
+        }
+        const readinessDeadline = performance.now() + 60000;
+        let settingsReady = false;
+        let readinessDiagnostics = null;
+        while (performance.now() < readinessDeadline) {
+            const scriptModule = await import('./script.js');
+            settingsReady = Boolean(scriptModule.settingsReady);
+            if (settingsReady) break;
+            readinessDiagnostics = {
+                onboardingCompleted,
+                firstRun: scriptModule.settings?.firstRun ?? null,
+                hasSettings: Boolean(scriptModule.settings),
+                settingsKeys: scriptModule.settings ? Object.keys(scriptModule.settings).length : 0,
+                onboardingPresent: Boolean(document.querySelector('#onboarding_template')),
+                popupText: (document.querySelector('.popup')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
+            };
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        if (!settingsReady) {
+            return { preconditions: { charactersLoaded: true, settingsReady: false, readiness: readinessDiagnostics }, error: 'settingsReady never became true within 60s' };
+        }
         const mainApiSelect = document.querySelector('#main_api');
         if (!mainApiSelect) {
             return { preconditions: { charactersLoaded: true }, error: '#main_api is not present, so the API cannot be selected the way a user selects it' };
@@ -296,6 +406,30 @@ try {
             // probe that only watched pageErrors and /api calls saw "nothing happened".
             toastr: (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300),
         });
+        // CONNECT. A chat-completion send is silently ignored when online_status is 'no_connection'
+        // (script.js:4391 returns before the composer is touched), and online_status is only set by
+        // the frontend's own connection check. A user presses Connect after entering the endpoint and
+        // key, so the drive presses the same control and waits for the status to change. Measured
+        // first: without this, the real generation stopped right after GENERATION_AFTER_COMMANDS with
+        // the composer untouched and no user message appended.
+        const connectButton = document.querySelector('#api_button_openai');
+        if (connectButton) {
+            connectButton.click();
+        } else {
+            const fallbackConnect = document.querySelector('#api_button_openai, .api_button[data-server-connect="openai"]');
+            fallbackConnect?.click();
+        }
+        const connectionDeadline = performance.now() + 30000;
+        let onlineStatus = 'unknown';
+        while (performance.now() < connectionDeadline) {
+            const scriptModule = await import('./script.js');
+            onlineStatus = String(scriptModule.online_status);
+            if (onlineStatus !== 'no_connection' && onlineStatus !== 'unknown') break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (onlineStatus === 'no_connection') {
+            return { preconditions: { charactersLoaded: true, settingsReady: true, onlineStatus, connectButtonPresent: Boolean(connectButton) }, error: 'the frontend never reached a connected online_status; a send is silently ignored in that state' };
+        }
         const before = diagnostics();
         // Preconditions a real user action implies. Asserted, not assumed: an unfaithful drive must
         // fail loudly instead of reporting a false negative.
@@ -320,26 +454,83 @@ try {
         // that never assembled a prompt at all; the event trail names the last stage that completed,
         // and CHAT_COMPLETION_SETTINGS_READY is emitted immediately before the fetch.
         const { eventSource, event_types } = await import('./scripts/events.js');
+        // Measurement only: wrap emit to record EVERY event name and whether its promise settles.
+        // An emitted-but-never-settled event is the await the real generation is stuck on, which the
+        // request log cannot show because the deadlock is purely in frontend promises.
+        const namesByValue = new Map(Object.entries(event_types).map(([eventName, eventValue]) => [eventValue, eventName]));
+        globalThis.__probeEmitLog = [];
+        const originalEmit = eventSource.emit.bind(eventSource);
+        eventSource.emit = (eventValue, ...args) => {
+            const eventName = namesByValue.get(eventValue) ?? String(eventValue);
+            const entry = { name: eventName, t: Math.round(performance.now()), settled: false };
+            globalThis.__probeEmitLog.push(entry);
+            const result = originalEmit(eventValue, ...args);
+            if (result && typeof result.then === 'function') {
+                result.then(() => { entry.settled = true; }, () => { entry.settled = 'rejected'; });
+            } else {
+                entry.settled = true;
+            }
+            return result;
+        };
         globalThis.__probeEvents = [];
         for (const [name, value] of Object.entries(event_types)) {
-            if (!['GENERATION_STARTED', 'GENERATE_AFTER_DATA', 'CHAT_COMPLETION_SETTINGS_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED'].includes(name)) {
+            if (!['GENERATION_STARTED', 'GENERATION_AFTER_COMMANDS', 'GENERATE_BEFORE_COMBINE_PROMPTS', 'GENERATE_AFTER_COMBINE_PROMPTS', 'CHAT_COMPLETION_PROMPT_READY', 'GENERATE_AFTER_DATA', 'CHAT_COMPLETION_SETTINGS_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED'].includes(name)) {
                 continue;
             }
-            eventSource.on(value, () => globalThis.__probeEvents.push(`${name}@${Math.round(performance.now())}`));
+            eventSource.on(value, (...args) => globalThis.__probeEvents.push({
+                name,
+                t: Math.round(performance.now()),
+                // GENERATION_STARTED(-ish) emits dryRun as the third argument; GENERATE_AFTER_DATA
+                // as the second. Recording it separates a prompt-assembly dry run from the real
+                // send, which is invisible if only the event name is kept.
+                dryRun: JSON.stringify(args.map(argument => (typeof argument === 'boolean' ? argument : (argument && typeof argument === 'object' ? Object.keys(argument).slice(0, 6) : typeof argument)))),
+            }));
         }
+        globalThis.__probeClickT = Date.now();
+        globalThis.__probeClickPerf = Math.round(performance.now());
         sendButton.click();
 
         // A short settle is enough to let the click register; the WAIT for the request happens below,
         // against the recorded request log, because prompt assembly (world-info dry run plus a token
         // count per candidate) legitimately takes longer than any fixed sleep would guess.
         await new Promise(resolve => setTimeout(resolve, 3000));
-        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics() };
+        // Post-send measurement: whether the user message was appended (sendMessageAsUser got past
+        // saveChatConditional) and whether a token count issued from the page can still complete.
+        // This distinguishes "stuck inside sendMessageAsUser" from "never reached it".
+        const tokenizersModule = await import('./scripts/tokenizers.js');
+        const tokenCountProbe = await Promise.race([
+            tokenizersModule.getTokenCountAsync('probe user marker', 0).then(value => `resolved:${value}`, error => `rejected:${String(error?.message ?? error)}`),
+            new Promise(resolve => setTimeout(() => resolve('timeout'), 4000)),
+        ]);
+        const scriptModule = await import('./script.js');
+        const manualPing = await Promise.race([
+            fetch('api/ping', { method: 'POST', headers: scriptModule.getRequestHeaders?.({ omitContentType: true }) ?? {} })
+                .then(async response => `status:${response.status}:${(await response.text()).slice(0, 60)}`, error => `error:${error.name}:${error.message}`),
+            new Promise(resolve => setTimeout(() => resolve('timeout'), 5000)),
+        ]);
+        const postSend = {
+            manualPing,
+            toastrAfter: (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300),
+            chatLength: Array.isArray(scriptModule.chat) ? scriptModule.chat.length : 'not-array',
+            chatDomMessages: document.querySelectorAll('#chat .mes').length,
+            textareaValue: String(document.querySelector('#send_textarea')?.value ?? ''),
+            tokenCountProbe,
+            emitPending: (globalThis.__probeEmitLog ?? []).filter(entry => entry.settled === false).map(entry => entry.name),
+        };
+        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend };
     }, `http://${mockAddress}`);
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
     report.events = await page.evaluate(() => globalThis.__probeEvents ?? []);
+    report.clickT = await page.evaluate(() => globalThis.__probeClickT ?? null);
+    report.emitLog = await page.evaluate(() => (globalThis.__probeEmitLog ?? []).filter(entry => entry.t >= (globalThis.__probeClickPerf ?? 0) - 50));
+    report.requestsAfterClick = report.requests.filter(entry => report.clickT !== null && entry.t >= report.clickT - 50);
+    report.pingLog = await page.evaluate(() => globalThis.__probePingLog ?? []);
+    report.tokenizerLog = await page.evaluate(() => globalThis.__probeTokenizerLog ?? []);
+    report.xhrLog = await page.evaluate(() => globalThis.__probeXhrLog ?? []);
     report.diagnostics = outcome.preconditions ?? null;
+    report.postSend = outcome.postSend ?? null;
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }
@@ -351,29 +542,24 @@ try {
         const recording = await (await fetch(`http://${mockAddress}/__mock/recording`)).json();
         if ((recording.requests ?? []).length > 0) {
             report.requestArrived = true;
-            report.recording = recording.requests.map(request => ({
-                method: request.method,
-                path: request.rawTarget,
-                bodyLength: request.bodyLength,
-                bodyKeys: Object.keys(JSON.parse(request.body ?? '{}')).slice(0, 12),
-                bodySha256: request.bodySha256,
-                model: (() => {
-                    try {
-                        return JSON.parse(request.body ?? '{}').model ?? null;
-                    } catch {
-                        return null;
-                    }
-                })(),
-                messageCount: (() => {
-                    try {
-                        const parsed = JSON.parse(request.body ?? '{}');
-                        return Array.isArray(parsed.messages) ? parsed.messages.length : null;
-                    } catch {
-                        return null;
-                    }
-                })(),
-            }));
-            break;
+            report.recording = recording.requests.map(request => {
+                const rawBody = request.bodyText ?? (request.bodyBase64 ? Buffer.from(request.bodyBase64, 'base64').toString('utf8') : null);
+                let parsedBody = null;
+                try {
+                    parsedBody = rawBody ? JSON.parse(rawBody) : null;
+                } catch {
+                    parsedBody = null;
+                }
+                return {
+                    method: request.method,
+                    path: request.rawTarget,
+                    bodyLength: request.bodyLength,
+                    body: rawBody,
+                    bodySha256: request.bodySha256,
+                    model: parsedBody?.model ?? null,
+                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
+                };
+            });            break;
         }
         await new Promise(resolve => setTimeout(resolve, 200));
     }
