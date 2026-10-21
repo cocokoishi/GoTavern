@@ -210,7 +210,20 @@ domain.
    `/thumbnail` 404s, and they are THIS BOUNDARY rather than missing work. Without that stated, a
    future increment would set out to implement thumbnails and discover the codec problem only after
    building a harness.
-4. **Inherited security weaknesses are reproduced AND recorded, never silently fixed or silently
+4. **A behaviour implemented inside a dependency is not ported unless a user requirement forces it.**
+   `/api/google/generate-voice` runs a private Google `batchexecute` protocol that lives in the
+   `google-translate-api-x` package; `/api/translate/{google,bing}` are the same class. This is NOT
+   a pinnability problem -- the package calls the global `fetch`, so a controlled peer captures the
+   URL, form body and response and an oracle is entirely possible. The objection is OWNERSHIP: we
+   would own a copy of an undocumented private protocol and track that package's changes forever,
+   to buy one route, while the project's promise is parity with the SillyTavern SERVER rather than
+   with its dependencies. Contrast the Horde SDK, which IS ported: there the pinned endpoint code
+   owns the request shaping and only the sockets belong to the SDK. The distinction to apply is
+   "is the wire format written in the pinned server's source, or in a package it imports".
+   These routes stay `not implemented` with that reason, in their own rows, and the decision is
+   REVERSIBLE: a user requirement turns it into an explicit product decision with a stated cost,
+   rather than a rediscovery.
+5. **Inherited security weaknesses are reproduced AND recorded, never silently fixed or silently
    copied.** Content import (`/api/content/importURL` and `/importUUID`) classifies a provider with
    substring matching on the parsed hostname — `host.includes('chub.ai')`, `host.includes('janitorai')`
    and so on — so a hostname such as `chub.ai.attacker.example` passes `isChub` and is treated as
@@ -220,7 +233,7 @@ domain.
    row as a known inherited property, so an operator can see what they are inheriting rather than
    discovering it. Any deliberate hardening is a separate, visible product decision that changes the
    compatibility claim.
-5. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
+6. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
    Report the exclusion count alongside the coverage numbers rather than implying 339/339 is
    attainable.
 
