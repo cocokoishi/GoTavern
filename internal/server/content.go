@@ -42,13 +42,19 @@ func init() {
 }
 
 func registerContentRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
-	mux.HandleFunc("/api/content/importURL", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			serveStatic(w, r, notFoundPage, options)
-			return
-		}
-		accounts.serveContentImportURL(w, r)
-	})
+	routes := map[string]func(http.ResponseWriter, *http.Request){
+		"/api/content/importURL":  accounts.serveContentImportURL,
+		"/api/content/importUUID": accounts.serveContentImportUUID,
+	}
+	for route, handler := range routes {
+		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				serveStatic(w, r, notFoundPage, options)
+				return
+			}
+			handler(w, r)
+		})
+	}
 }
 
 // contentHostFromURL is getHostFromUrl: the parsed hostname, or ” when the URL does not parse.

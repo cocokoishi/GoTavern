@@ -65,7 +65,13 @@ domain.
    to changing correct code.
 4. **Take expectations from an oracle, not from a derivation.** A hand-derived expectation
    records your understanding of the upstream behaviour, not the behaviour. Where a reference
-   implementation or a recorded capture exists, it wins.
+   implementation or a recorded capture exists, it wins. WHERE NO ORACLE CAN EXIST, say so and label
+   the test as a derivation rather than dressing it up: the `/api/content/importUUID` UUID-shape
+   classifier cannot be probed, because every non-AICC shape performs a fetch on the pinned server,
+   so a recorded "501" would be an oracle for behaviour that never ran. It is a source-derived table
+   test against the pinned predicates, labelled as such in its row, and the route's OBSERVABLE
+   behaviour (501 plus zero outbound requests) is pinned separately. That split — derivation for the
+   internal decision, oracle for the observable — is the honest shape when only half is reachable.
 5. **Verify committed bytes, not working-tree bytes.** `git archive HEAD` plus blob digests. A
    clean `git diff` does not mean the committed bytes are the recorded ones, and it does not
    mean the working tree matches them. This project has already shipped 626 of 792 vendored

@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/content/importUUID AICC branch",
+  "oracle": {
+    "file": "src/endpoints/content-manager.js",
+    "lines": {
+      "importUUID": 1071
+    }
+  },
+  "conventions": {
+    "steps": "ordered ARRAY; the replay iterates in recorded order",
+    "seam": "the AICC base URL is hardcoded in pinned and is replaced by GOTAVERN_CONTENT_AICC_URL in the replay"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.contentDisposition",
+      "observations.*.customContentType",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound",
+      "observations.*.tree"
+    ],
+    "shape": [
+      "observations.*.outbound[].transportConnection"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-content-uuid-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Content UUID Probe",
+      "admin": true,
+      "password": ""
+    },
+    "steps": [
+      {
+        "name": "uuid.aicc.ok",
+        "body": {
+          "url": "AICC/author/card"
+        },
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/author/card",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-UUID-BYTES"
+          }
+        ],
+        "seam": null
+      },
+      {
+        "name": "uuid.aicc.lorebook",
+        "body": {
+          "url": "AICC/author/card-lorebook"
+        },
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/author/card-lorebook",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-UUID-BYTES"
+          }
+        ],
+        "seam": null
+      },
+      {
+        "name": "uuid.aicc.twoSegments",
+        "body": {
+          "url": "AICC/only"
+        },
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/only/undefined",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-UUID-BYTES"
+          }
+        ],
+        "seam": null
+      },
+      {
+        "name": "uuid.aicc.nonOk",
+        "body": {
+          "url": "AICC/author/broken"
+        },
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/author/broken",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "broken"
+          }
+        ],
+        "seam": null
+      },
+      {
+        "name": "uuid.missingUrl",
+        "body": {},
+        "upstream": [],
+        "seam": null
+      },
+      {
+        "name": "uuid.emptyUrl",
+        "body": {
+          "url": ""
+        },
+        "upstream": [],
+        "seam": null
+      }
+    ]
+  },
+  "observations": {
+    "uuid.aicc.ok": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-/bNGVMPYZta2B0mfLj3Z2NapYis\"",
+      "contentDisposition": "attachment; filename=\"authorcard.png\"",
+      "customContentType": "character",
+      "bodyBase64": "UE5HLVVVSUQtQllURVM=",
+      "bodySha256": "ff458cfaedc6dcd090b33b17cd4493f69f77a82f8bdf0c1bbd25411adb3c5ce3",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/author/card",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "uuid.aicc.lorebook": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-/bNGVMPYZta2B0mfLj3Z2NapYis\"",
+      "contentDisposition": "attachment; filename=\"authorcard-lorebook.png\"",
+      "customContentType": "lorebook",
+      "bodyBase64": "UE5HLVVVSUQtQllURVM=",
+      "bodySha256": "ff458cfaedc6dcd090b33b17cd4493f69f77a82f8bdf0c1bbd25411adb3c5ce3",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/author/card-lorebook",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "uuid.aicc.twoSegments": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-/bNGVMPYZta2B0mfLj3Z2NapYis\"",
+      "contentDisposition": "attachment; filename=\"onlyundefined.png\"",
+      "customContentType": "character",
+      "bodyBase64": "UE5HLVVVSUQtQllURVM=",
+      "bodySha256": "ff458cfaedc6dcd090b33b17cd4493f69f77a82f8bdf0c1bbd25411adb3c5ce3",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/only/undefined",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "uuid.aicc.nonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/author/broken",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "uuid.missingUrl": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "uuid.emptyUrl": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/content/importUUID"
+      ],
+      "branches": [
+        "pygmalion (length 36)",
+        "janitorai (*_character)",
+        "perchance (name~32hex.gz)",
+        "chub character",
+        "chub lorebook"
+      ],
+      "status": "not implemented",
+      "reason": "every other branch calls a provider downloader that is still unimplemented (chub/janny/pygmalion/perchance); those UUID shapes answer 501 so they stay distinguishable from a policy refusal. The UUID-shape classifier is covered by source-derived unit tests because the pinned server would fetch for those shapes and cannot produce a 501 oracle."
+    }
+  ]
+}
