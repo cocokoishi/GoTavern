@@ -65,6 +65,10 @@ const BRANCHES = [
 const IMAGE = 'data:image/png;base64,' + Buffer.from('gotavern-synthetic-caption-image', 'utf8').toString('base64');
 // A VIDEO data URI: this is what triggers the zai inlining transform.
 const VIDEO_IMAGE = 'data:video/mp4;base64,' + Buffer.from('gotavern-synthetic-caption-video', 'utf8').toString('base64');
+// MALFORMED on purpose: the pinned trigger is /data:video\/\w+;base64,/, which this does NOT match. Without
+// this input the tightened check would pass either way (rule 15: an assertion needs the input that exercises
+// the difference).
+const MALFORMED_VIDEO_IMAGE = 'data:video/;base64,QUFB';
 const CAPTION = { choices: [{ message: { role: 'assistant', content: 'a synthetic caption' } }] };
 
 function secretEntry(key, value) {
@@ -114,6 +118,11 @@ SCENARIOS.push(
     // so the assertion pins the resulting KEYS and the ABSENCE of image_url. An implementation that adds
     // video_url and leaves image_url in place would pass a presence-only check.
     { label: 'zai-video-inlining', body: { api: 'zai', zai_endpoint: 'common', prompt: 'x', image: VIDEO_IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_zai', 'synthetic-zai-key'),
+      mocks: [{ match: 'api.z.ai', times: 1, payload: CAPTION }] },
+    // The MALFORMED video URI: the pinned regex does not match it, so the part must stay an image_url part
+    // with NO conversion at all. This is the input that makes the tightened trigger discriminating.
+    { label: 'zai-video-malformed', body: { api: 'zai', zai_endpoint: 'common', prompt: 'x', image: MALFORMED_VIDEO_IMAGE, model: 'm' },
       secrets: secretEntry('api_key_zai', 'synthetic-zai-key'),
       mocks: [{ match: 'api.z.ai', times: 1, payload: CAPTION }] },
 );
@@ -233,6 +242,13 @@ assert.equal(videoPart.image_url, undefined, 'image_url is ABSENT');
 assert.equal(videoPart.video_url.url, VIDEO_IMAGE, 'and the old image_url object MOVED to video_url');
 const textPartStill = zaiParts.find(part => part.type === 'text');
 assert.ok(textPartStill, 'while the text part is untouched');
+const malformed = scenarios['zai-video-malformed'];
+const malformedBody = JSON.parse(malformed.outbound[0].body);
+const malformedPart = malformedBody.messages[0].content.find(part => part.type !== 'text');
+assert.equal(malformedPart.type, 'image_url',
+    'a MALFORMED data:video URI does NOT match the pinned regex, so the part stays an image_url part');
+assert.deepEqual(Object.keys(malformedPart).sort(), ['image_url', 'type'], 'with NO conversion at all');
+assert.equal(malformedPart.video_url, undefined, 'and no video_url key appears');
 
 const fixture = {
     schemaVersion: 1,

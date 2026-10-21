@@ -37,6 +37,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -250,9 +251,10 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	// Z.AI video inlining: a data:video image is CONVERTED, not supplemented -- the part's type becomes
 	// video_url, the old image_url object MOVES to the new key, and image_url is DELETED. The fixture asserts
 	// the resulting KEYS and the ABSENCE of image_url, because adding video_url while leaving image_url in
-	// place would pass a presence-only check.
+	// place would pass a presence-only check. The trigger is the PINNED REGEX, not a looser prefix test: a
+	// malformed data:video/;base64, URI must NOT be converted, and the fixture records that case.
 	if api == "zai" {
-		if rawImage, present := googleRawMemberString(input, "image"); present && strings.HasPrefix(rawImage, "data:video/") {
+		if rawImage, present := googleRawMemberString(input, "image"); present && openAICaptionVideoDataURI.MatchString(rawImage) {
 			for index := range content.array {
 				if partType, ok := content.array[index].member("type"); ok && partType.kind == 's' && partType.scalar.(string) == "image_url" {
 					if moved, hasImage := content.array[index].member("image_url"); hasImage {
@@ -342,6 +344,11 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	}
 	respondJSONBytes(w, http.StatusOK, result)
 }
+
+// openAICaptionVideoDataURI is the PINNED trigger for the zai video-inlining transform, transcribed from
+// `/data:video\/\w+;base64,/`. It is a regex rather than a prefix test on purpose: a malformed
+// `data:video/;base64,` URI does NOT match, and the fixture records that case so the difference is asserted.
+var openAICaptionVideoDataURI = regexp.MustCompile(`data:video/\w+;base64,`)
 
 // openAICaptionAPITypes is the pinned headerGetters table's fourteen keys, written down so an omitted type
 // fails as a count rather than passing as an absence.
