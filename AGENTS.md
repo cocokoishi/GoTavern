@@ -148,6 +148,24 @@ domain.
    rather than as plausible data. Prefer a probe that would error without the peer over one
    that would silently succeed without it.
 
+## Architecture boundaries that are decided, not pending
+
+1. **Arbitrary Node server plugins are the sole explicit ecosystem exclusion** — see hard rule 16.
+   Do not emulate or fake their endpoints.
+2. **Local in-process ML inference is the second explicit exclusion, and it is not a probe gap.**
+   `/api/extra/{caption,classify,classify/labels}`, `/api/speech/{recognize,synthesize}` and the
+   local embedding sources inside `/api/vector/*` call `getPipeline()` in `src/transformers.js`,
+   which loads an ONNX model through `sillytavern-transformers` and runs it **inside the server**
+   (`env.backends.onnx.wasm`). There is no outbound HTTP to replace with a controlled peer, so no
+   differential can exist for them at all. They stay `not implemented` with that reason. Serving them
+   would mean adopting an ONNX runtime, which contradicts the `CGO_ENABLED=0` distribution rule, so
+   it is a product decision that must be made explicitly and recorded here — never absorbed silently
+   into a `partial` row. FAKE FIXTURES FOR THESE ARE FORBIDDEN: a recorded "response" would be
+   evidence for a behaviour that was never executed.
+3. Consequence for the coverage claim: the reachable ceiling is the route count MINUS these routes.
+   Report the exclusion count alongside the coverage numbers rather than implying 339/339 is
+   attainable.
+
 ## Where verification runs
 
 The development machine is weak. Spend its cycles on the work only it can do, and let GitHub
