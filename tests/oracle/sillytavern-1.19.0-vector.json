@@ -1,0 +1,2293 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/vector/* routes: vectra LocalIndex format, scoring, grouping, purge and corruption regeneration",
+  "oracle": {
+    "file": "src/endpoints/vectors.js",
+    "mountedAt": "/api/vector (src/server-startup.js:171)"
+  },
+  "conventions": {
+    "snapshot": "a recursive snapshot of the user vectors directory after every step; file contents are UTF-8 with UUIDs normalised to <uuid>",
+    "sources": [
+      "transformers",
+      "mistral",
+      "openai",
+      "extras",
+      "palm",
+      "togetherai",
+      "nomicai",
+      "cohere",
+      "ollama",
+      "llamacpp",
+      "vllm",
+      "webllm",
+      "koboldcpp",
+      "vertexai",
+      "electronhub",
+      "openrouter",
+      "chutes",
+      "nanogpt",
+      "siliconflow",
+      "workers_ai"
+    ]
+  },
+  "fixtureFields": {
+    "compared": [
+      "steps[].response.status",
+      "steps[].response.contentType",
+      "steps[].response.contentLength",
+      "steps[].response.etag",
+      "steps[].response.location",
+      "steps[].response.body",
+      "state[<step>] (path/kind/content of every vectors entry, UUID-normalised)"
+    ],
+    "shape": [],
+    "notRecorded": [
+      "the random item UUID values (normalised)",
+      "the pinned server listen port",
+      "the pinned runtime path"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-vector-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Vector Probe",
+      "admin": true,
+      "password": ""
+    },
+    "sources": [
+      "transformers",
+      "mistral",
+      "openai",
+      "extras",
+      "palm",
+      "togetherai",
+      "nomicai",
+      "cohere",
+      "ollama",
+      "llamacpp",
+      "vllm",
+      "webllm",
+      "koboldcpp",
+      "vertexai",
+      "electronhub",
+      "openrouter",
+      "chutes",
+      "nanogpt",
+      "siliconflow",
+      "workers_ai"
+    ]
+  },
+  "steps": [
+    {
+      "name": "list.missingParams",
+      "route": "list",
+      "query": "",
+      "body": {},
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "list.noSourceCreatesUndefinedIndex",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "list.empty",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "insert.ok",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "items": [
+          {
+            "hash": 1,
+            "text": "alpha",
+            "index": 0
+          },
+          {
+            "hash": 2,
+            "text": "beta",
+            "index": 1
+          }
+        ],
+        "embeddings": {
+          "alpha1": [
+            0.6,
+            0.8,
+            0
+          ],
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "list.afterInsert",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "5",
+        "etag": "W/\"5-uHSpyyNvyIpjb61lakAeI7ZDANo\"",
+        "location": null,
+        "body": "[1,2]"
+      }
+    },
+    {
+      "name": "insert.missingEmbedding",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "items": [
+          {
+            "hash": 3,
+            "text": "gamma",
+            "index": 2
+          }
+        ],
+        "embeddings": {}
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "location": null,
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "insert.moreThanOneBatch",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "items": [
+          {
+            "hash": 10,
+            "text": "batch0",
+            "index": 0
+          },
+          {
+            "hash": 11,
+            "text": "batch1",
+            "index": 1
+          },
+          {
+            "hash": 12,
+            "text": "batch2",
+            "index": 2
+          },
+          {
+            "hash": 13,
+            "text": "batch3",
+            "index": 3
+          },
+          {
+            "hash": 14,
+            "text": "batch4",
+            "index": 4
+          },
+          {
+            "hash": 15,
+            "text": "batch5",
+            "index": 5
+          },
+          {
+            "hash": 16,
+            "text": "batch6",
+            "index": 6
+          },
+          {
+            "hash": 17,
+            "text": "batch7",
+            "index": 7
+          },
+          {
+            "hash": 18,
+            "text": "batch8",
+            "index": 8
+          },
+          {
+            "hash": 19,
+            "text": "batch9",
+            "index": 9
+          },
+          {
+            "hash": 20,
+            "text": "batch10",
+            "index": 10
+          }
+        ],
+        "embeddings": {
+          "batch0": [
+            1,
+            0,
+            0
+          ],
+          "batch1": [
+            0.6,
+            0.8,
+            0
+          ],
+          "batch2": [
+            0.6,
+            0,
+            0.8
+          ],
+          "batch3": [
+            0.28,
+            0.96,
+            0
+          ],
+          "batch4": [
+            0.5,
+            0.5,
+            0.7071
+          ],
+          "batch5": [
+            0,
+            1,
+            0
+          ],
+          "batch6": [
+            0,
+            0,
+            1
+          ],
+          "batch7": [
+            0.8,
+            0.2,
+            0.56
+          ],
+          "batch8": [
+            0.2,
+            0.8,
+            0.56
+          ],
+          "batch9": [
+            0.9,
+            0.1,
+            0.42
+          ],
+          "batch10": [
+            0.1,
+            0.9,
+            0.42
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "list.afterBatchInsert",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "38",
+        "etag": "W/\"26-a83GzJvFM2fvWKIMJ6mOiN809hg\"",
+        "location": null,
+        "body": "[1,2,10,11,12,13,14,15,16,17,18,19,20]"
+      }
+    },
+    {
+      "name": "insert.nullItem",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "items": [
+          null
+        ],
+        "embeddings": {}
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "location": null,
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "insert.missingParams",
+      "route": "insert",
+      "query": "",
+      "body": {},
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "insert.itemsNotArray",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "items": "nope"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "query.basic",
+      "route": "query",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "searchText": "alpha",
+        "topK": 3,
+        "threshold": 0.5,
+        "embeddings": {
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "145",
+        "etag": "W/\"91-Vt/8z1iJjS9tANUYQd9qhnhWNjg\"",
+        "location": null,
+        "body": "{\"metadata\":[{\"hash\":1,\"text\":\"alpha\",\"index\":0},{\"hash\":10,\"text\":\"batch0\",\"index\":0},{\"hash\":19,\"text\":\"batch9\",\"index\":9}],\"hashes\":[1,10,19]}"
+      }
+    },
+    {
+      "name": "query.highThresholdHashesUnfiltered",
+      "route": "query",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "searchText": "alpha",
+        "topK": 2,
+        "threshold": 2,
+        "embeddings": {
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "31",
+        "etag": "W/\"1f-8yB/v7ejM6+BBQS3bWe3KAWnZ54\"",
+        "location": null,
+        "body": "{\"metadata\":[],\"hashes\":[1,10]}"
+      }
+    },
+    {
+      "name": "query.topKOnly",
+      "route": "query",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "searchText": "beta",
+        "topK": 1,
+        "embeddings": {
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "62",
+        "etag": "W/\"3e-dHSes8yoC4lMDi/yVXfPbUTH2Fo\"",
+        "location": null,
+        "body": "{\"metadata\":[{\"hash\":2,\"text\":\"beta\",\"index\":1}],\"hashes\":[2]}"
+      }
+    },
+    {
+      "name": "query.noSource",
+      "route": "query",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "model": "m",
+        "searchText": "alpha",
+        "embeddings": {
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "location": null,
+        "body": "Internal Server Error"
+      }
+    },
+    {
+      "name": "query.missingParams",
+      "route": "query",
+      "query": "",
+      "body": {
+        "collectionId": "c1"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "insert.secondCollection",
+      "route": "insert",
+      "query": "",
+      "body": {
+        "collectionId": "c2",
+        "source": "webllm",
+        "model": "m",
+        "items": [
+          {
+            "hash": 1,
+            "text": "alpha",
+            "index": 0
+          },
+          {
+            "hash": 2,
+            "text": "beta",
+            "index": 1
+          }
+        ],
+        "embeddings": {
+          "alpha1": [
+            0.6,
+            0.8,
+            0
+          ],
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "queryMulti.ok",
+      "route": "query-multi",
+      "query": "",
+      "body": {
+        "collectionIds": [
+          "c1",
+          "c2"
+        ],
+        "source": "webllm",
+        "model": "m",
+        "searchText": "alpha",
+        "topK": 4,
+        "threshold": 0.4,
+        "embeddings": {
+          "alpha": [
+            1,
+            0,
+            0
+          ],
+          "beta": [
+            0.6,
+            0.8,
+            0
+          ]
+        }
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "221",
+        "etag": "W/\"dd-UVu1CgRQai2w6xOnvNqAwaxAZtk\"",
+        "location": null,
+        "body": "{\"c1\":{\"hashes\":[1,10,19],\"metadata\":[{\"hash\":1,\"text\":\"alpha\",\"index\":0},{\"hash\":10,\"text\":\"batch0\",\"index\":0},{\"hash\":19,\"text\":\"batch9\",\"index\":9}]},\"c2\":{\"hashes\":[1],\"metadata\":[{\"hash\":1,\"text\":\"alpha\",\"index\":0}]}}"
+      }
+    },
+    {
+      "name": "queryMulti.collectionIdsNotArray",
+      "route": "query-multi",
+      "query": "",
+      "body": {
+        "collectionIds": "c1",
+        "source": "webllm",
+        "model": "m",
+        "searchText": "alpha"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "delete.ok",
+      "route": "delete",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "hashes": [
+          2,
+          12
+        ]
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "list.afterDelete",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "33",
+        "etag": "W/\"21-vhR6WNNyLnPcWRaFZeCBIenl5Wo\"",
+        "location": null,
+        "body": "[1,10,11,13,14,15,16,17,18,19,20]"
+      }
+    },
+    {
+      "name": "delete.noMatch",
+      "route": "delete",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m",
+        "hashes": [
+          999
+        ]
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "delete.missingParams",
+      "route": "delete",
+      "query": "",
+      "body": {
+        "collectionId": "c1"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "purge.oneCollection",
+      "route": "purge",
+      "query": "",
+      "body": {
+        "collectionId": "c1"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "list.afterPurge",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c1",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "purge.missingParams",
+      "route": "purge",
+      "query": "",
+      "body": {},
+      "beforeFile": null,
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "location": null,
+        "body": "Bad Request"
+      }
+    },
+    {
+      "name": "purgeAll",
+      "route": "purge-all",
+      "query": "",
+      "body": {},
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    },
+    {
+      "name": "list.afterPurgeAll",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c2",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "corrupt.setup",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c3",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "corrupt.listWithoutRegenerated",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "c3",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": {
+        "path": "webllm/c3/m/index.json",
+        "content": "{\"version\":1,\"items\":[broken"
+      },
+      "response": {
+        "status": 307,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "68",
+        "etag": null,
+        "location": "/api/vector/list?regenerated=true",
+        "body": "Temporary Redirect. Redirecting to /api/vector/list?regenerated=true"
+      }
+    },
+    {
+      "name": "corrupt.listRegenerated",
+      "route": "list",
+      "query": "?regenerated=true",
+      "body": {
+        "collectionId": "c3",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "list.sanitizesCollectionId",
+      "route": "list",
+      "query": "",
+      "body": {
+        "collectionId": "../escape/../c4",
+        "source": "webllm",
+        "model": "m"
+      },
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "location": null,
+        "body": "[]"
+      }
+    },
+    {
+      "name": "purgeAll.final",
+      "route": "purge-all",
+      "query": "",
+      "body": {},
+      "beforeFile": null,
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "location": null,
+        "body": "OK"
+      }
+    }
+  ],
+  "state": {
+    "list.missingParams": [],
+    "list.noSourceCreatesUndefinedIndex": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "list.empty": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "insert.ok": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "list.afterInsert": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "insert.missingEmbedding": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "insert.moreThanOneBatch": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "list.afterBatchInsert": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "insert.nullItem": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "insert.missingParams": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "insert.itemsNotArray": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "query.basic": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "query.highThresholdHashesUnfiltered": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "query.topKOnly": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "query.noSource": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "query.missingParams": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      }
+    ],
+    "insert.secondCollection": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "queryMulti.ok": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "queryMulti.collectionIdsNotArray": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":12,\"text\":\"batch2\",\"index\":2},\"vector\":[0.6,0,0.8],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "delete.ok": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "list.afterDelete": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "delete.noMatch": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "delete.missingParams": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":10,\"text\":\"batch0\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":11,\"text\":\"batch1\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":13,\"text\":\"batch3\",\"index\":3},\"vector\":[0.28,0.96,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":14,\"text\":\"batch4\",\"index\":4},\"vector\":[0.5,0.5,0.7071],\"norm\":0.9999952049885039},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":15,\"text\":\"batch5\",\"index\":5},\"vector\":[0,1,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":16,\"text\":\"batch6\",\"index\":6},\"vector\":[0,0,1],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":17,\"text\":\"batch7\",\"index\":7},\"vector\":[0.8,0.2,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":18,\"text\":\"batch8\",\"index\":8},\"vector\":[0.2,0.8,0.56],\"norm\":0.9967948635501691},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":19,\"text\":\"batch9\",\"index\":9},\"vector\":[0.9,0.1,0.42],\"norm\":0.9981983770774224},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":20,\"text\":\"batch10\",\"index\":10},\"vector\":[0.1,0.9,0.42],\"norm\":0.9981983770774224}]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "purge.oneCollection": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "list.afterPurge": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "purge.missingParams": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c1/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[{\"id\":\"<uuid>\",\"metadata\":{\"hash\":1,\"text\":\"alpha\",\"index\":0},\"vector\":[1,0,0],\"norm\":1},{\"id\":\"<uuid>\",\"metadata\":{\"hash\":2,\"text\":\"beta\",\"index\":1},\"vector\":[0.6,0.8,0],\"norm\":1}]}"
+      }
+    ],
+    "purgeAll": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "list.afterPurgeAll": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "corrupt.setup": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c3",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "corrupt.listWithoutRegenerated": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c3",
+        "kind": "directory",
+        "content": null
+      }
+    ],
+    "corrupt.listRegenerated": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c3",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "list.sanitizesCollectionId": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/..escape..c4",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/..escape..c4/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/..escape..c4/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c2",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c2/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      },
+      {
+        "path": "webllm/c3",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "webllm/c3/m/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ],
+    "purgeAll.final": [
+      {
+        "path": "undefined",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1",
+        "kind": "directory",
+        "content": null
+      },
+      {
+        "path": "undefined/c1/index.json",
+        "kind": "file",
+        "content": "{\"version\":1,\"metadata_config\":{},\"items\":[]}"
+      }
+    ]
+  },
+  "knownDifferences": [
+    {
+      "area": "provider-backed vector sources",
+      "status": "not implemented",
+      "reason": "the pinned domain can embed text through 20 sources; this round implements the two sources whose vectors are supplied in the request body (webllm, koboldcpp) plus the unknown-source error path. Every provider-backed source (transformers, openai, togetherai, mistral, electronhub, openrouter, chutes, nanogpt, siliconflow, workers_ai, cohere, nomicai, extras, palm, vertexai, ollama, llamacpp, vllm) needs its own provider-wire oracle and adapter; until then those sources answer 500 like any other failed vector lookup instead of silently succeeding."
+    },
+    {
+      "area": "request-body source default",
+      "status": "preserved",
+      "reason": "pinned `String(req.body.source) || \"transformers\"` makes an ABSENT source the literal string \"undefined\", which is preserved here and covered by the noSource scenarios"
+    }
+  ]
+}

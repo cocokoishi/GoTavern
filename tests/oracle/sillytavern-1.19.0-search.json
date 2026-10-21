@@ -1,0 +1,3142 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/search/* routes driven against a controlled peer through the pinned-outbound node-fetch replacement",
+  "oracle": {
+    "file": "src/endpoints/search.js",
+    "mountedAt": "/api/search (src/server-startup.js:175)"
+  },
+  "conventions": {
+    "mock": "body-URL and page-URL peers are recorded as the <mock> marker; the Go replay substitutes its own local mock origin",
+    "outboundHeaderModel": "explicitHeaders are the header object the route passed, lowercased and sorted as node-fetch sends them; nodeFetchWireDefaults are the defaults node-fetch adds and are asserted separately"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire against a real local peer (tools/probe-sd-routes.mjs)"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.body",
+      "observations.*.outbound[] (url, method, explicitHeaders, body)",
+      "nodeFetchWireDefaults.headers"
+    ],
+    "shape": [
+      "observations.*.outbound[].connection"
+    ],
+    "notRecorded": [
+      "the ephemeral peer authority",
+      "the pinned server listen port",
+      "startup log"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-search-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Search Probe",
+      "admin": true,
+      "password": ""
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "seamDefaults": {
+      "GOTAVERN_SEARCH_SERPAPI_URL": "https://serpapi.com",
+      "GOTAVERN_SEARCH_YOUTUBE_URL": "https://www.youtube.com",
+      "GOTAVERN_SEARCH_TAVILY_URL": "https://api.tavily.com",
+      "GOTAVERN_SEARCH_SERPER_URL": "https://google.serper.dev",
+      "GOTAVERN_SEARCH_ZAI_URL": "https://api.z.ai"
+    },
+    "scenarios": {
+      "serpapi.ok": {
+        "route": "serpapi",
+        "body": {
+          "query": "cats & dogs"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPAPI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/search.json",
+            "status": 200,
+            "body": "{\"search_metadata\":{\"status\":\"Success\"},\"organic_results\":[{\"title\":\"Cats\",\"link\":\"https://example.com/cats\"}]}"
+          }
+        ]
+      },
+      "serpapi.noKey": {
+        "route": "serpapi",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPAPI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "serpapi.nonOk": {
+        "route": "serpapi",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPAPI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/search.json",
+            "status": 500,
+            "body": "serpapi exploded"
+          }
+        ]
+      },
+      "serpapi.notJson": {
+        "route": "serpapi",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPAPI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/search.json",
+            "status": 200,
+            "body": "this is not json"
+          }
+        ]
+      },
+      "serpapi.coercedQuery": {
+        "route": "serpapi",
+        "body": {
+          "query": [
+            "a",
+            "b"
+          ]
+        },
+        "seam": "GOTAVERN_SEARCH_SERPAPI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/search.json",
+            "status": 200,
+            "body": "{}"
+          }
+        ]
+      },
+      "transcript.ok": {
+        "route": "transcript",
+        "body": {
+          "id": "abc"
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"},\"captions\":{\"playerCaptionsTracklistRenderer\":{\"captionTracks\":[{\"languageCode\":\"en\",\"baseUrl\":\"<mock>/track?lang=en\"},{\"languageCode\":\"de\",\"baseUrl\":\"<mock>/track?lang=de\"}]}},\"videoDetails\":{\"videoId\":\"abc\"}};</script></body></html>"
+          },
+          {
+            "method": "GET",
+            "path": "/track",
+            "status": 200,
+            "body": "<transcript><text start=\"0.5\" dur=\"1.25\">Hello &amp;amp; welcome</text><text start=\"2\" dur=\"0.75\">&#39;second&#39; line</text></transcript>"
+          }
+        ]
+      },
+      "transcript.jsonOk": {
+        "route": "transcript",
+        "body": {
+          "id": "abc",
+          "json": true
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"},\"captions\":{\"playerCaptionsTracklistRenderer\":{\"captionTracks\":[{\"languageCode\":\"en\",\"baseUrl\":\"<mock>/track?lang=en\"},{\"languageCode\":\"de\",\"baseUrl\":\"<mock>/track?lang=de\"}]}},\"videoDetails\":{\"videoId\":\"abc\"}};</script></body></html>"
+          },
+          {
+            "method": "GET",
+            "path": "/track",
+            "status": 200,
+            "body": "<transcript><text start=\"0.5\" dur=\"1.25\">Hello &amp;amp; welcome</text><text start=\"2\" dur=\"0.75\">&#39;second&#39; line</text></transcript>"
+          }
+        ]
+      },
+      "transcript.lang": {
+        "route": "transcript",
+        "body": {
+          "id": "abc",
+          "lang": "de",
+          "json": true
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"},\"captions\":{\"playerCaptionsTracklistRenderer\":{\"captionTracks\":[{\"languageCode\":\"en\",\"baseUrl\":\"<mock>/track?lang=en\"},{\"languageCode\":\"de\",\"baseUrl\":\"<mock>/track?lang=de\"}]}},\"videoDetails\":{\"videoId\":\"abc\"}};</script></body></html>"
+          },
+          {
+            "method": "GET",
+            "path": "/track",
+            "status": 200,
+            "body": "<transcript><text start=\"0.5\" dur=\"1.25\">Hello &amp;amp; welcome</text><text start=\"2\" dur=\"0.75\">&#39;second&#39; line</text></transcript>"
+          }
+        ]
+      },
+      "transcript.langMissing": {
+        "route": "transcript",
+        "body": {
+          "id": "abc",
+          "lang": "fr",
+          "json": true
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"},\"captions\":{\"playerCaptionsTracklistRenderer\":{\"captionTracks\":[{\"languageCode\":\"en\",\"baseUrl\":\"<mock>/track?lang=en\"},{\"languageCode\":\"de\",\"baseUrl\":\"<mock>/track?lang=de\"}]}},\"videoDetails\":{\"videoId\":\"abc\"}};</script></body></html>"
+          }
+        ]
+      },
+      "transcript.noCaptionsJson": {
+        "route": "transcript",
+        "body": {
+          "id": "abc",
+          "json": true
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"}};</script></body></html>"
+          }
+        ]
+      },
+      "transcript.noCaptionsThrows": {
+        "route": "transcript",
+        "body": {
+          "id": "abc"
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"}};</script></body></html>"
+          }
+        ]
+      },
+      "transcript.recaptcha": {
+        "route": "transcript",
+        "body": {
+          "id": "abc"
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><div class=\"g-recaptcha\"></div><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"}};</script></body></html>"
+          }
+        ]
+      },
+      "transcript.captionNonOk": {
+        "route": "transcript",
+        "body": {
+          "id": "abc"
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/watch",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head></head><body><script>var ytInitialPlayerResponse = {\"playabilityStatus\":{\"status\":\"OK\"},\"captions\":{\"playerCaptionsTracklistRenderer\":{\"captionTracks\":[{\"languageCode\":\"en\",\"baseUrl\":\"<mock>/track?lang=en\"},{\"languageCode\":\"de\",\"baseUrl\":\"<mock>/track?lang=de\"}]}},\"videoDetails\":{\"videoId\":\"abc\"}};</script></body></html>"
+          },
+          {
+            "method": "GET",
+            "path": "/track",
+            "status": 500,
+            "body": "nope"
+          }
+        ]
+      },
+      "transcript.missingId": {
+        "route": "transcript",
+        "body": {
+          "id": "",
+          "json": true
+        },
+        "seam": "GOTAVERN_SEARCH_YOUTUBE_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "searxng.ok": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "<mock>",
+          "query": "cats & dogs",
+          "preferences": "p q",
+          "categories": "general"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "match": "/client.1234.css",
+            "path": "/client.1234.css",
+            "status": 200,
+            "headers": {
+              "content-type": "text/css"
+            },
+            "body": "body{}"
+          },
+          {
+            "method": "GET",
+            "match": "/search?",
+            "path": "/search",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html>results</html>"
+          },
+          {
+            "method": "GET",
+            "match": "http://search-peer.example/",
+            "path": "/",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head><link href=\"/client.1234.css\" rel=\"stylesheet\"></head><body>searxng</body></html>"
+          }
+        ]
+      },
+      "searxng.noClientHref": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "<mock>",
+          "query": "cats"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "match": "/search?",
+            "path": "/search",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "results"
+          },
+          {
+            "method": "GET",
+            "match": "http://search-peer.example/",
+            "path": "/",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html>plain</html>"
+          }
+        ]
+      },
+      "searxng.missingParams": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "<mock>"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "searxng.invalidBaseUrl": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "not a url",
+          "query": "cats"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "searxng.mainNonOk": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "<mock>",
+          "query": "cats"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/",
+            "status": 500,
+            "body": "nope"
+          }
+        ]
+      },
+      "searxng.searchNonOk": {
+        "route": "searxng",
+        "body": {
+          "baseUrl": "<mock>",
+          "query": "cats"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "match": "/client.1234.css",
+            "path": "/client.1234.css",
+            "status": 200,
+            "headers": {
+              "content-type": "text/css"
+            },
+            "body": "body{}"
+          },
+          {
+            "method": "GET",
+            "match": "/search?",
+            "path": "/search",
+            "status": 500,
+            "body": "nope"
+          },
+          {
+            "method": "GET",
+            "match": "http://search-peer.example/",
+            "path": "/",
+            "status": 200,
+            "headers": {
+              "content-type": "text/html"
+            },
+            "body": "<html><head><link href=\"/client.1234.css\" rel=\"stylesheet\"></head><body>searxng</body></html>"
+          }
+        ]
+      },
+      "tavily.ok": {
+        "route": "tavily",
+        "body": {
+          "query": "cats",
+          "include_images": true
+        },
+        "seam": "GOTAVERN_SEARCH_TAVILY_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/search",
+            "status": 200,
+            "body": "{\"answer\":\"cats\",\"results\":[]}"
+          }
+        ]
+      },
+      "tavily.noKey": {
+        "route": "tavily",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_TAVILY_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "tavily.nonOk": {
+        "route": "tavily",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_TAVILY_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/search",
+            "status": 500,
+            "body": "tavily exploded"
+          }
+        ]
+      },
+      "tavily.includeImagesTruthiness": {
+        "route": "tavily",
+        "body": {
+          "query": "cats",
+          "include_images": "yes"
+        },
+        "seam": "GOTAVERN_SEARCH_TAVILY_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/search",
+            "status": 200,
+            "body": "{}"
+          }
+        ]
+      },
+      "koboldcpp.ok": {
+        "route": "koboldcpp",
+        "body": {
+          "query": "cats",
+          "url": "<mock>/v1",
+          "api_type": "koboldcpp"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/extra/websearch",
+            "status": 200,
+            "body": "{\"results\":[{\"title\":\"Cats\"}]}"
+          }
+        ]
+      },
+      "koboldcpp.genericType": {
+        "route": "koboldcpp",
+        "body": {
+          "query": "cats",
+          "url": "<mock>/",
+          "api_type": "generic"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/extra/websearch",
+            "status": 200,
+            "body": "{}"
+          }
+        ]
+      },
+      "koboldcpp.mancerType": {
+        "route": "koboldcpp",
+        "body": {
+          "query": "cats",
+          "url": "<mock>",
+          "api_type": "mancer"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/extra/websearch",
+            "status": 200,
+            "body": "{}"
+          }
+        ]
+      },
+      "koboldcpp.noUrl": {
+        "route": "koboldcpp",
+        "body": {
+          "query": "cats"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "koboldcpp.nonOk": {
+        "route": "koboldcpp",
+        "body": {
+          "query": "cats",
+          "url": "<mock>"
+        },
+        "seam": null,
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/extra/websearch",
+            "status": 500,
+            "body": "kobold exploded"
+          }
+        ]
+      },
+      "serper.ok": {
+        "route": "serper",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPER_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/search",
+            "status": 200,
+            "body": "{\"organic\":[]}"
+          }
+        ]
+      },
+      "serper.images": {
+        "route": "serper",
+        "body": {
+          "query": "cats",
+          "images": true
+        },
+        "seam": "GOTAVERN_SEARCH_SERPER_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/images",
+            "status": 200,
+            "body": "{\"images\":[]}"
+          }
+        ]
+      },
+      "serper.noKey": {
+        "route": "serper",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPER_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "serper.nonOk": {
+        "route": "serper",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_SERPER_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/search",
+            "status": 500,
+            "body": "serper exploded"
+          }
+        ]
+      },
+      "zai.ok": {
+        "route": "zai",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_ZAI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/paas/v4/web_search",
+            "status": 200,
+            "body": "{\"search_result\":[]}"
+          }
+        ]
+      },
+      "zai.noKey": {
+        "route": "zai",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_ZAI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "zai.noQuery": {
+        "route": "zai",
+        "body": {},
+        "seam": "GOTAVERN_SEARCH_ZAI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": []
+      },
+      "zai.nonOk": {
+        "route": "zai",
+        "body": {
+          "query": "cats"
+        },
+        "seam": "GOTAVERN_SEARCH_ZAI_URL",
+        "secretKeys": [
+          "api_key_generic",
+          "api_key_koboldcpp",
+          "api_key_mancer",
+          "api_key_serpapi",
+          "api_key_serper",
+          "api_key_tavily",
+          "api_key_zai"
+        ],
+        "secrets": {
+          "api_key_serpapi": "probe-serpapi-key",
+          "api_key_tavily": "probe-tavily-key",
+          "api_key_serper": "probe-serper-key",
+          "api_key_zai": "probe-zai-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_mancer": "probe-mancer-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/api/paas/v4/web_search",
+            "status": 500,
+            "body": "zai exploded"
+          }
+        ]
+      }
+    }
+  },
+  "observations": {
+    "serpapi.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "111",
+      "etag": "W/\"6f-+8YzyFo9W1AjKJoBQrLDyWpLKJU\"",
+      "body": "{\"search_metadata\":{\"status\":\"Success\"},\"organic_results\":[{\"title\":\"Cats\",\"link\":\"https://example.com/cats\"}]}",
+      "outbound": [
+        {
+          "url": "https://serpapi.com/search.json?q=cats%20%26%20dogs&api_key=probe-serpapi-key",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serpapi.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serpapi.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "16",
+      "etag": "W/\"10-4TpsutUdgsYqmb8An/AQUcSlwl4\"",
+      "body": "serpapi exploded",
+      "outbound": [
+        {
+          "url": "https://serpapi.com/search.json?q=cats&api_key=probe-serpapi-key",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serpapi.notJson": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://serpapi.com/search.json?q=cats&api_key=probe-serpapi-key",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serpapi.coercedQuery": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-vyGp6PvFo4RvsFtPoIWeCReyIC8\"",
+      "body": "{}",
+      "outbound": [
+        {
+          "url": "https://serpapi.com/search.json?q=a%2Cb&api_key=probe-serpapi-key",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.ok": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "29",
+      "etag": "W/\"1d-WgS/MTlfcRLnIm9XO+l5RNd8Vpc\"",
+      "body": "Hello & welcome 'second' line",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/track?lang=en",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.jsonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "424",
+      "etag": "W/\"1a8-Phd7+5e58MrzcrI2BoefgTQXALA\"",
+      "body": "{\"transcript\":\"Hello & welcome 'second' line\",\"html\":\"<html><head></head><body><script>var ytInitialPlayerResponse = {\\\"playabilityStatus\\\":{\\\"status\\\":\\\"OK\\\"},\\\"captions\\\":{\\\"playerCaptionsTracklistRenderer\\\":{\\\"captionTracks\\\":[{\\\"languageCode\\\":\\\"en\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=en\\\"},{\\\"languageCode\\\":\\\"de\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=de\\\"}]}},\\\"videoDetails\\\":{\\\"videoId\\\":\\\"abc\\\"}};</script></body></html>\"}",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/track?lang=en",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection",
+          "contentLength",
+          "etag"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there",
+          "contentLength": "the response body embeds the <mock> peer origin, whose byte length differs from the replay mock authority",
+          "etag": "the ETag is derived from the same origin-bearing body"
+        }
+      }
+    },
+    "transcript.lang": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "424",
+      "etag": "W/\"1a8-Phd7+5e58MrzcrI2BoefgTQXALA\"",
+      "body": "{\"transcript\":\"Hello & welcome 'second' line\",\"html\":\"<html><head></head><body><script>var ytInitialPlayerResponse = {\\\"playabilityStatus\\\":{\\\"status\\\":\\\"OK\\\"},\\\"captions\\\":{\\\"playerCaptionsTracklistRenderer\\\":{\\\"captionTracks\\\":[{\\\"languageCode\\\":\\\"en\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=en\\\"},{\\\"languageCode\\\":\\\"de\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=de\\\"}]}},\\\"videoDetails\\\":{\\\"videoId\\\":\\\"abc\\\"}};</script></body></html>\"}",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept-language",
+              "de"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/track?lang=de",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept-language",
+              "de"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection",
+          "contentLength",
+          "etag"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there",
+          "contentLength": "the response body embeds the <mock> peer origin, whose byte length differs from the replay mock authority",
+          "etag": "the ETag is derived from the same origin-bearing body"
+        }
+      }
+    },
+    "transcript.langMissing": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "395",
+      "etag": "W/\"18b-ckgxXKe9jhV01mqERgSTOdT4z+k\"",
+      "body": "{\"html\":\"<html><head></head><body><script>var ytInitialPlayerResponse = {\\\"playabilityStatus\\\":{\\\"status\\\":\\\"OK\\\"},\\\"captions\\\":{\\\"playerCaptionsTracklistRenderer\\\":{\\\"captionTracks\\\":[{\\\"languageCode\\\":\\\"en\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=en\\\"},{\\\"languageCode\\\":\\\"de\\\",\\\"baseUrl\\\":\\\"<mock>/track?lang=de\\\"}]}},\\\"videoDetails\\\":{\\\"videoId\\\":\\\"abc\\\"}};</script></body></html>\",\"transcript\":\"\"}",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept-language",
+              "fr"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection",
+          "contentLength",
+          "etag"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there",
+          "contentLength": "the response body embeds the <mock> peer origin, whose byte length differs from the replay mock authority",
+          "etag": "the ETag is derived from the same origin-bearing body"
+        }
+      }
+    },
+    "transcript.noCaptionsJson": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "157",
+      "etag": "W/\"9d-YR/fsBPHku2B7GSJalSiiUyCv6Y\"",
+      "body": "{\"html\":\"<html><head></head><body><script>var ytInitialPlayerResponse = {\\\"playabilityStatus\\\":{\\\"status\\\":\\\"OK\\\"}};</script></body></html>\",\"transcript\":\"\"}",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.noCaptionsThrows": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.recaptcha": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.captionNonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://www.youtube.com/watch?v=abc",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/track?lang=en",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "transcript.missingId": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.ok": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "20",
+      "etag": "W/\"14-KqwHDg3oSgY8mTr+uUg9Vpqa0Zs\"",
+      "body": "<html>results</html>",
+      "outbound": [
+        {
+          "url": "<mock>/",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/client.1234.css",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/search?q=cats+%26+dogs&preferences=p+q&categories=general",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.noClientHref": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "7",
+      "etag": "W/\"7-zffpJfV0Z0HDFvX7zzmtDfypB3U\"",
+      "body": "results",
+      "outbound": [
+        {
+          "url": "<mock>/",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/search?q=cats",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.missingParams": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.invalidBaseUrl": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.mainNonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "<mock>/",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "searxng.searchNonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "<mock>/",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/client.1234.css",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/search?q=cats",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "text/html"
+            ],
+            [
+              "accept-encoding",
+              "gzip, deflate, br"
+            ],
+            [
+              "accept-language",
+              "en-US,en;q=0.5"
+            ],
+            [
+              "cache-control",
+              "no-cache"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "dnt",
+              "1"
+            ],
+            [
+              "pragma",
+              "no-cache"
+            ],
+            [
+              "sec-fetch-dest",
+              "document"
+            ],
+            [
+              "sec-fetch-mode",
+              "navigate"
+            ],
+            [
+              "sec-fetch-site",
+              "none"
+            ],
+            [
+              "sec-fetch-user",
+              "?1"
+            ],
+            [
+              "te",
+              "trailers"
+            ],
+            [
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "tavily.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "30",
+      "etag": "W/\"1e-oG5g3KYvfHqqg98hnPuX3vEAggk\"",
+      "body": "{\"answer\":\"cats\",\"results\":[]}",
+      "outbound": [
+        {
+          "url": "https://api.tavily.com/search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"query\":\"cats\",\"api_key\":\"probe-tavily-key\",\"search_depth\":\"basic\",\"topic\":\"general\",\"include_answer\":true,\"include_raw_content\":false,\"include_images\":true,\"include_image_descriptions\":false,\"include_domains\":[],\"max_results\":10}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "tavily.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "tavily.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "15",
+      "etag": "W/\"f-5MrwBUP6sTOZ2CdIAPy1p7OZNh8\"",
+      "body": "tavily exploded",
+      "outbound": [
+        {
+          "url": "https://api.tavily.com/search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"query\":\"cats\",\"api_key\":\"probe-tavily-key\",\"search_depth\":\"basic\",\"topic\":\"general\",\"include_answer\":true,\"include_raw_content\":false,\"include_images\":false,\"include_image_descriptions\":false,\"include_domains\":[],\"max_results\":10}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "tavily.includeImagesTruthiness": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-vyGp6PvFo4RvsFtPoIWeCReyIC8\"",
+      "body": "{}",
+      "outbound": [
+        {
+          "url": "https://api.tavily.com/search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"query\":\"cats\",\"api_key\":\"probe-tavily-key\",\"search_depth\":\"basic\",\"topic\":\"general\",\"include_answer\":true,\"include_raw_content\":false,\"include_images\":true,\"include_image_descriptions\":false,\"include_domains\":[],\"max_results\":10}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "koboldcpp.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "30",
+      "etag": "W/\"1e-kX9tDTjg11/dEOGGVAmj2vtcXKc\"",
+      "body": "{\"results\":[{\"title\":\"Cats\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/websearch",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "koboldcpp.genericType": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-vyGp6PvFo4RvsFtPoIWeCReyIC8\"",
+      "body": "{}",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/websearch",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "koboldcpp.mancerType": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-vyGp6PvFo4RvsFtPoIWeCReyIC8\"",
+      "body": "{}",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/websearch",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-mancer-key"
+            ],
+            [
+              "x-api-key",
+              "probe-mancer-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "koboldcpp.noUrl": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "koboldcpp.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "15",
+      "etag": "W/\"f-+QruS0Ql+MQTm77XgmOxy8ioLoE\"",
+      "body": "kobold exploded",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/websearch",
+          "method": "POST",
+          "explicitHeaders": [],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serper.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-h/VNC9ouAU4WipMih0/WLkr4j8U\"",
+      "body": "{\"organic\":[]}",
+      "outbound": [
+        {
+          "url": "https://google.serper.dev/search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-serper-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serper.images": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "13",
+      "etag": "W/\"d-sqLejG7KJeG3XKkGxEO1vqKmQLo\"",
+      "body": "{\"images\":[]}",
+      "outbound": [
+        {
+          "url": "https://google.serper.dev/images",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-serper-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serper.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "serper.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "15",
+      "etag": "W/\"f-2Pd3RGBBGNsHHBgp60RWYRCYhrU\"",
+      "body": "serper exploded",
+      "outbound": [
+        {
+          "url": "https://google.serper.dev/search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-serper-key"
+            ]
+          ],
+          "body": "{\"q\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "zai.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "20",
+      "etag": "W/\"14-lPon/VwQv4Tl3cIzJbCEoiOAW+8\"",
+      "body": "{\"search_result\":[]}",
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/web_search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-zai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"search_engine\":\"search-prime\",\"search_query\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "zai.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "zai.noQuery": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    },
+    "zai.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "12",
+      "etag": "W/\"c-KqoWM96P7mOp61IeeXXau7E6qp4\"",
+      "body": "zai exploded",
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/web_search",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-zai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"search_engine\":\"search-prime\",\"search_query\":\"cats\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only. Routes that DO set Connection explicitly (visitHeaders) have it in explicitHeaders and it is compared there"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "route": "/api/search/visit",
+      "status": "not implemented",
+      "reason": "the pinned route fetches an arbitrary caller-supplied URL through getUntrustedRequestAgent(), the private-request-filter SSRF agent (DNS-resolved private-address blocking, per-hop redirect validation, rebinding pinning); GoTavern has no shared private-address transport policy yet, so implementing the route now would be strictly less safe than pinned, and a route-local dial policy would violate the single-outbound-policy rule. The route is therefore absent rather than faked."
+    }
+  ]
+}
