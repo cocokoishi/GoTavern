@@ -24,6 +24,14 @@ jobs:
   # hour later than it needed to. This gate decides whether the commit can possibly have changed a
   # fixture, and the oracle job is skipped when it cannot.
   #
+  # WHY Go CHANGES ARE NOT IN THE LIST: the oracle job re-records fixtures from the PINNED server
+  # and regenerates inventories from the PINNED source, and the diff it checks is
+  # docs/api-inventory.md, docs/config-inventory.md, upstream/generated, the generated manifest and
+  # tests/oracle. A change to internal/ or cmd/ cannot affect any of those, and it is already covered
+  # by the verify job, which replays every fixture through the Go implementation. Including them
+  # made every product commit wait ~35-40 minutes -- the oracle runs 104 probe runs twice at
+  # concurrency 3 -- for an answer that could not change.
+  #
   # The failure mode this fixes is real: for a stretch of this project's history no run completed
   # at all, because every push queued behind an oracle job and the verdict never arrived. A gate
   # that keeps failing to report is worse than a slower gate that reports.
@@ -53,7 +61,7 @@ jobs:
           fi
           changed="$(git diff --name-only "${base}" HEAD)"
           echo "${changed}"
-          if printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|upstream/|internal/|cmd/|go[.]mod$|go[.]sum$)'; then
+          if printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|upstream/)'; then
             echo "oracle=true" >> "$GITHUB_OUTPUT"
           else
             echo "oracle=false" >> "$GITHUB_OUTPUT"
