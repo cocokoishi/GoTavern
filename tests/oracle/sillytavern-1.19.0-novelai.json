@@ -1,0 +1,768 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/novelai status and generate-voice routes",
+  "oracle": {
+    "file": "src/endpoints/novelai.js"
+  },
+  "conventions": {
+    "binary": "voice audio is recorded as base64 + SHA-256 + byte length and compared that way",
+    "mock": "the request body travels in the status/voice handlers, not as a host, so there is no <mock> marker in this fixture",
+    "peer": "the stub replaces node-fetch, the only egress these handlers use; the probe records every outbound hit so an escaped request is visible as a missing request"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound[] (url, method, explicitHeaders, body)"
+    ],
+    "shape": [
+      "observations.*.outbound[].transportConnection"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-novelai-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "NovelAI Probe",
+      "admin": true,
+      "password": ""
+    },
+    "seamDefaults": {
+      "GOTAVERN_NOVELAI_IMAGE_URL": "https://image.novelai.net",
+      "GOTAVERN_NOVELAI_API_URL": "https://api.novelai.net"
+    },
+    "scenarios": {
+      "status.ok": {
+        "route": "status",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/user/subscription",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"tier\":3,\"active\":true}"
+          }
+        ]
+      },
+      "status.unauthorized": {
+        "route": "status",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/user/subscription",
+            "status": 401,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"message\":\"bad token\"}"
+          }
+        ]
+      },
+      "status.serverError": {
+        "route": "status",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/user/subscription",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "boom"
+          }
+        ]
+      },
+      "status.noKey": {
+        "route": "status",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": ""
+        },
+        "upstream": []
+      },
+      "status.closedPort": {
+        "route": "status",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "closed",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": []
+      },
+      "voice.ok": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello world & more",
+          "voice": "Aini"
+        },
+        "bodyText": "{\"text\":\"hello world & more\",\"voice\":\"Aini\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/ai/generate-voice",
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "body": "VOICE-BYTES-1234"
+          }
+        ]
+      },
+      "voice.encoding": {
+        "route": "generate-voice",
+        "body": {
+          "text": "spaces & symbols/?=#",
+          "voice": "v 1"
+        },
+        "bodyText": "{\"text\":\"spaces & symbols/?=#\",\"voice\":\"v 1\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/ai/generate-voice",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "X"
+          }
+        ]
+      },
+      "voice.noKey": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello",
+          "voice": "Aini"
+        },
+        "bodyText": "{\"text\":\"hello\",\"voice\":\"Aini\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": ""
+        },
+        "upstream": []
+      },
+      "voice.missingText": {
+        "route": "generate-voice",
+        "body": {
+          "voice": "Aini"
+        },
+        "bodyText": "{\"voice\":\"Aini\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": []
+      },
+      "voice.missingVoice": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello"
+        },
+        "bodyText": "{\"text\":\"hello\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": []
+      },
+      "voice.nonOk": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello",
+          "voice": "Aini"
+        },
+        "bodyText": "{\"text\":\"hello\",\"voice\":\"Aini\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": [
+          {
+            "method": "GET",
+            "path": "/ai/generate-voice",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "voice failed"
+          }
+        ]
+      },
+      "voice.closedPort": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello",
+          "voice": "Aini"
+        },
+        "bodyText": "{\"text\":\"hello\",\"voice\":\"Aini\"}",
+        "peer": "closed",
+        "secrets": {
+          "api_key_novel": "probe-novel-key"
+        },
+        "upstream": []
+      }
+    }
+  },
+  "observations": {
+    "status.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "24",
+      "etag": "W/\"18-hEBUfAhrM+OtmYNq7LrIinAzHTQ\"",
+      "bodyBase64": "eyJ0aWVyIjozLCJhY3RpdmUiOnRydWV9",
+      "bodySha256": "996dbddeabd201a408b1d7245d07ffdfb974defaef86c55db1aa1193eede4a40",
+      "bodyLength": 24,
+      "bodyJson": {
+        "tier": 3,
+        "active": true
+      },
+      "outbound": [
+        {
+          "url": "https://image.novelai.net/user/subscription",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "status.unauthorized": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "bodyBase64": "eyJlcnJvciI6dHJ1ZX0=",
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "bodyLength": 14,
+      "bodyJson": {
+        "error": true
+      },
+      "outbound": [
+        {
+          "url": "https://image.novelai.net/user/subscription",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "status.serverError": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "bodyBase64": "eyJlcnJvciI6dHJ1ZX0=",
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "bodyLength": 14,
+      "bodyJson": {
+        "error": true
+      },
+      "outbound": [
+        {
+          "url": "https://image.novelai.net/user/subscription",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "status.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "bodyJson": null,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "status.closedPort": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "bodyBase64": "eyJlcnJvciI6dHJ1ZX0=",
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "bodyLength": 14,
+      "bodyJson": {
+        "error": true
+      },
+      "outbound": [
+        {
+          "url": "https://image.novelai.net/user/subscription",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.ok": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "16",
+      "etag": "W/\"10-lXRl78ygkoWVd7HcyAEZtzi7GCE\"",
+      "bodyBase64": "Vk9JQ0UtQllURVMtMTIzNA==",
+      "bodySha256": "b9683c28a03ae8d89ed9ba8f7f13004304b45e74cde3d417e9490e7625a9b707",
+      "bodyLength": 16,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://api.novelai.net/ai/generate-voice?text=hello%20world%20%26%20more&voice=-1&seed=Aini&opus=false&version=v2",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "audio/mpeg"
+            ],
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.encoding": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "1",
+      "etag": "W/\"1-wDKtwf9inJtm8idJrWZ+a+rfFEs\"",
+      "bodyBase64": "WA==",
+      "bodySha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015",
+      "bodyLength": 1,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://api.novelai.net/ai/generate-voice?text=spaces%20%26%20symbols%2F%3F%3D%23&voice=-1&seed=v%201&opus=false&version=v2",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "audio/mpeg"
+            ],
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "bodyJson": null,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.missingText": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "bodyJson": null,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.missingVoice": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "bodyJson": null,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.nonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://api.novelai.net/ai/generate-voice?text=hello&voice=-1&seed=Aini&opus=false&version=v2",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "audio/mpeg"
+            ],
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "voice.closedPort": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://api.novelai.net/ai/generate-voice?text=hello&voice=-1&seed=Aini&opus=false&version=v2",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "audio/mpeg"
+            ],
+            [
+              "authorization",
+              "Bearer probe-novel-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/novelai/generate",
+        "/api/novelai/generate-image"
+      ],
+      "status": "not implemented",
+      "reason": "generate builds a model-dependent parameter body (Clio/Kayra/Erato bad-word, logit-bias and repetition-penalty tables) plus an SSE streaming forward; generate-image unzips the upstream PNG archive and conditionally performs a second upscale request with a fallback to the original base64. Both need their own oracle before a Go port can be claimed."
+    },
+    {
+      "routes": [
+        "/api/extra/caption",
+        "/api/extra/classify",
+        "/api/extra/classify/labels"
+      ],
+      "status": "not implemented",
+      "reason": "these are NOT provider routes: caption.js and classify.js call getPipeline() from transformers.js, running a local Transformers.js image-to-text / text-classification model inside the server with no outbound HTTP to record. Implementing them needs an in-process ML runtime decision, not a provider transform."
+    }
+  ]
+}
