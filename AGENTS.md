@@ -203,18 +203,16 @@ domain.
    which is why only the CI double-run could see it. When a pinned route starts more than one outbound
    request before awaiting them, the fixture must record a sorted SET or NOTHING AT ALL -- never an
    arrival-ordered array and never an observed count -- with the race named in the shape reason, and
-   the assertion must live in a labelled source-derived test (rule 4) instead. NULLING THE FIELD IS NOT ENOUGH WHEN THE UNSTABLE VALUE ALSO APPEARS INSIDE A FIELD THAT IS
+   the assertion must live in a labelled source-derived test (rule 4) instead.
+   Do NOT widen the drain window to catch the loser: that makes the count stable by luck rather than
+   by contract, and the same race reappears under different timing. NULLING THE FIELD IS NOT ENOUGH WHEN THE UNSTABLE VALUE ALSO APPEARS INSIDE A FIELD THAT IS
    COMPARED. The caption-image probe classified the pollinations `seed` as shape with a null value
    and was still unstable, because the seed also appears inside the recorded REQUEST BODY: the run was
    green and `stable=False` at the same time. The body now carries a `<seed>` marker, the same
    treatment the SD and video seeds receive, and the normalisation is recorded. So: after classifying
    an unstable value shape, SEARCH THE FIXTURE FOR THE VALUE ITSELF -- if it also sits inside a
    compared body, header or target, the marker has to be applied there too, and the double-run check
-   is what catches the omission.
-
-   Do NOT widen the drain
-   window to catch the loser: that makes the count stable by luck rather than by contract, and the same
-   race reappears under different timing. The one argued exception is a value that is CLIENT-derived and
+   is what catches the omission. The one argued exception is a value that is CLIENT-derived and
    byte-stable (`requestHeaders.connection`), which stays recorded with its reason -- nulling it
    would discard information with no host-dependence justification. After any such change, sweep
    every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`,`/Users/`): the
