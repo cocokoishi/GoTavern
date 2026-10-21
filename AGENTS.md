@@ -147,6 +147,16 @@ domain.
    the requests the fixture claims, so a request that escapes is visible as a missing request
    rather than as plausible data. Prefer a probe that would error without the peer over one
    that would silently succeed without it.
+15. **An encoding assertion is vacuous unless the input carries the characters that would be
+   mis-encoded.** A mutation that replaced `encodeURIComponent(prompt)` with the raw prompt survived,
+   because the transport re-encodes a SPACE in the request target: the peer received `a%20tree`
+   either way, so the fixture could not tell the two implementations apart. Adding a prompt with
+   reserved characters (`a/b?c&d=e#f%20g` -> `a%2Fb%3Fc%26d%3De%23f%2520g`) made the difference
+   visible at the peer and the mutation died. This generalises: any assertion about escaping,
+   normalisation, truncation or quoting needs an input that actually exercises the transformation,
+   or it passes for the wrong reason. The test for this class is always the same question — "what
+   input would make this assertion fail?" — and if no such input exists in the fixture, the
+   assertion is decoration.
 
 ## Architecture boundaries that are decided, not pending
 

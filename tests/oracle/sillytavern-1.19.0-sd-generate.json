@@ -1,0 +1,844 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-sd-generate.mjs",
+  "wave": 1,
+  "implementedRoutes": [
+    "/api/sd/pollinations/generate",
+    "/api/sd/together/generate"
+  ],
+  "notImplementedRoutes": [
+    "/api/sd/generate",
+    "/api/sd/aimlapi/generate-image",
+    "/api/sd/bfl/generate",
+    "/api/sd/chutes/generate",
+    "/api/sd/comfy/generate",
+    "/api/sd/comfyrunpod/generate",
+    "/api/sd/drawthings/generate",
+    "/api/sd/electronhub/generate",
+    "/api/sd/falai/generate",
+    "/api/sd/huggingface/generate",
+    "/api/sd/nanogpt/generate",
+    "/api/sd/sdcpp/generate",
+    "/api/sd/stability/generate",
+    "/api/sd/workersai/generate",
+    "/api/sd/xai/generate",
+    "/api/sd/zai/generate",
+    "/api/sd/zai/generate-video"
+  ],
+  "pinnedSource": {
+    "src/endpoints/stable-diffusion.js:1038": "pollinations generate: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query in fixed order and a content-type-derived format",
+    "src/endpoints/stable-diffusion.js:778": "together generate: POST /v1/images/generations with the pinned body order, then a URL fallback fetch when b64_json is absent"
+  },
+  "mechanism": "Both upstreams are hardcoded literals, so the probe replaces only the pinned server node-fetch module (and the global fetch) with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side uses the existing sd seams (sdPollinationsURL / sdTogetherURL) and replays the same peer through a real local listener.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/500 themselves"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them"
+    },
+    {
+      "path": "scenarios.*.response.body",
+      "comparison": "compared",
+      "reason": "the projection, including the base64 image and the content-type-derived format"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "path encoding and the query order/values are endpoint behaviour; the random seed is normalized"
+    },
+    {
+      "path": "scenarios.*.outbound[].method",
+      "comparison": "compared",
+      "reason": "pollinations GET versus together POST"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the together body member order and omitted undefined members"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "shape",
+      "reason": "only the declared content-type and authorization headers are asserted"
+    },
+    {
+      "path": "image bytes",
+      "comparison": "compared",
+      "reason": "the pinned image bytes are synthetic and known; a real provider answer would be `shape` only"
+    }
+  ],
+  "normalizations": [
+    "The Pollinations and Together seeds are `Math.floor(Math.random() * 10_000_000)` when the request seed is negative or absent, so they are replaced by <seed> in the recorded URL/body. They are the only nondeterministic values.",
+    "Synthetic credentials and synthetic image bytes only."
+  ],
+  "inputs": {
+    "pollinations": "https://gen.pollinations.ai",
+    "together": "https://api.together.xyz",
+    "pollinationsKey": "synthetic-pollinations-key",
+    "togetherKey": "synthetic-together-key",
+    "imageSha256": "8c4d0a59e755358ce2e5c8a92d5f1274e53143337a52a60b56ee608eca99837c"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "pollinationsNoKey": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "pollinationsPng": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"negative_prompt\":\"ugly\",\"seed\":42,\"width\":512,\"height\":768}",
+      "mocks": [
+        {
+          "run": "pollinationsPng",
+          "match": "/image/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "79",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4f-Y3cWZCRJilFuE3QFJsMaOoPLnYw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "format": "png"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\",\"format\":\"png\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%20tree?model=flux&negative_prompt=ugly&seed=<seed>&width=512&height=768",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "pollinationsJpeg": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"negative_prompt\":\"\",\"seed\":7,\"width\":512,\"height\":512,\"enhance\":true}",
+      "mocks": [
+        {
+          "run": "pollinationsJpeg",
+          "match": "/image/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "71",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"47-KkInTfOw4vZt8XkqT3mwmBS4VbA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "format": "jpg"
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\",\"format\":\"jpg\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%20tree?model=flux&negative_prompt=&seed=<seed>&width=512&height=512&enhance=true",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "pollinationsDefaults": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "pollinationsDefaults",
+          "match": "/image/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/webp"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "80",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"50-ExuAlqauzs/sscSH3DcHvV1meF8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "format": "webp"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\",\"format\":\"webp\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%20tree?model=flux&negative_prompt=undefined&seed=<seed>&width=1024&height=1024",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "pollinationsReservedChars": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a/b?c&d=e#f%20g\",\"model\":\"flux\",\"seed\":1}",
+      "mocks": [
+        {
+          "run": "pollinationsReservedChars",
+          "match": "/image/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "79",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4f-Y3cWZCRJilFuE3QFJsMaOoPLnYw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "format": "png"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\",\"format\":\"png\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%2Fb%3Fc%26d%3De%23f%2520g?model=flux&negative_prompt=undefined&seed=<seed>&width=1024&height=1024",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "pollinationsNonOk": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "pollinationsNonOk",
+          "match": "/image/",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "pollinations says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%20tree?model=flux&negative_prompt=undefined&seed=<seed>&width=1024&height=1024",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "pollinationsThrows": {
+      "route": "/api/sd/pollinations/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "pollinationsThrows",
+          "match": "/image/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/image/a%20tree?model=flux&negative_prompt=undefined&seed=<seed>&width=1024&height=1024",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "togetherNoKey": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "togetherBase64": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"model\":\"flux\",\"steps\":20,\"width\":512,\"height\":768,\"seed\":42}",
+      "mocks": [
+        {
+          "run": "togetherBase64",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_togetherai": [
+          {
+            "id": "sid-api_key_togetherai",
+            "value": "synthetic-together-key",
+            "label": "api_key_togetherai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-jPO7lGii1KJ8ut0/KWO2yjWD4KM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "jpg",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"jpg\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.together.xyz/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-together-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"height\":768,\"width\":512,\"model\":\"flux\",\"steps\":20,\"n\":1,\"seed\":\"<seed>\"}"
+        }
+      ]
+    },
+    "togetherUrlFallback": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "togetherUrlFallback",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://img.example.test/one.png\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "togetherUrlFallback",
+          "match": "img.example.test/one.png",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_togetherai": [
+          {
+            "id": "sid-api_key_togetherai",
+            "value": "synthetic-together-key",
+            "label": "api_key_togetherai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "70",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"46-FCF4LSEZDg569VmznQcfC+KpePA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "jpg",
+          "data": "ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ=="
+        },
+        "bodyText": "{\"format\":\"jpg\",\"data\":\"ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.together.xyz/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-together-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"n\":1,\"seed\":\"<seed>\"}"
+        },
+        {
+          "url": "https://img.example.test/one.png",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "togetherDefaults": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "togetherDefaults",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_togetherai": [
+          {
+            "id": "sid-api_key_togetherai",
+            "value": "synthetic-together-key",
+            "label": "api_key_togetherai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-jPO7lGii1KJ8ut0/KWO2yjWD4KM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "jpg",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"jpg\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.together.xyz/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-together-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"n\":1,\"seed\":\"<seed>\"}"
+        }
+      ]
+    },
+    "togetherNonOk": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "togetherNonOk",
+          "match": "/v1/images/generations",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "together says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_togetherai": [
+          {
+            "id": "sid-api_key_togetherai",
+            "value": "synthetic-together-key",
+            "label": "api_key_togetherai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.together.xyz/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-together-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"n\":1,\"seed\":\"<seed>\"}"
+        }
+      ]
+    },
+    "togetherNoData": {
+      "route": "/api/sd/together/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "togetherNoData",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_togetherai": [
+          {
+            "id": "sid-api_key_togetherai",
+            "value": "synthetic-together-key",
+            "label": "api_key_togetherai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.together.xyz/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-together-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"n\":1,\"seed\":\"<seed>\"}"
+        }
+      ]
+    }
+  }
+}
