@@ -105,6 +105,7 @@ func registerSDRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage
 	}
 
 	post("/api/sd/ping", accounts.serveSDPing)
+	post("/api/sd/generate", accounts.serveSDA1111Generate)
 	post("/api/sd/upscalers", accounts.serveSDUpscalers)
 	post("/api/sd/vaes", accounts.serveSDVaes)
 	post("/api/sd/samplers", accounts.serveSDSamplers)
@@ -128,9 +129,11 @@ func registerSDRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage
 	post("/api/sd/comfyrunpod/ping", accounts.serveSDComfyRunPodPing)
 	post("/api/sd/sdcpp/ping", accounts.serveSDSDCppPing)
 	post("/api/sd/sdcpp/models", accounts.serveSDSDCppModels)
+	post("/api/sd/sdcpp/generate", accounts.serveSDSdcppGenerate)
 	post("/api/sd/drawthings/ping", accounts.serveSDDrawThingsPing)
 	post("/api/sd/drawthings/get-model", accounts.serveSDDrawThingsGetModel)
 	post("/api/sd/drawthings/get-upscaler", accounts.serveSDDrawThingsGetUpscaler)
+	post("/api/sd/drawthings/generate", accounts.serveSDDrawThingsGenerate)
 
 	post("/api/sd/together/models", accounts.serveSDTogetherModels)
 	post("/api/sd/chutes/models", accounts.serveSDChutesModels)

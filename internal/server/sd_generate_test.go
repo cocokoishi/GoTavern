@@ -9,8 +9,10 @@ package server
 // headers so an implementation cannot add an Authorization the pinned call does not send.
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,7 +22,55 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
+
+// TestSDA1111InterruptOnClientClose is a LABELLED IMPLEMENTATION TEST, not a pinned observation.
+//
+// The pinned `/api/sd/generate` registers a socket-close handler that POSTs `{url}/sdapi/v1/interrupt`
+// and aborts the generation. The probe peer cannot observe that: its scripted rules answer
+// immediately, so there is never an in-flight generation whose caller can go away. The pinned
+// scenario was therefore NOT recordable, and this test asserts the Go behaviour only — a cancelled
+// caller context produces the interrupt POST — without claiming pinned parity.
+func TestSDA1111InterruptOnClientClose(t *testing.T) {
+	var mu sync.Mutex
+	var seen []string
+	interrupted := make(chan struct{}, 1)
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		if r.URL.Path == "/sdapi/v1/interrupt" {
+			select {
+			case interrupted <- struct{}{}:
+			default:
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"images":[]}`))
+	}))
+	defer peer.Close()
+
+	dataRoot := t.TempDir()
+	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	body := fmt.Sprintf(`{"url":%q,"prompt":"a tree"}`, peer.URL)
+	request := httptest.NewRequest(http.MethodPost, "/api/sd/generate", strings.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	select {
+	case <-interrupted:
+	case <-time.After(5 * time.Second):
+		mu.Lock()
+		defer mu.Unlock()
+		t.Fatalf("a cancelled caller did not produce POST {url}/sdapi/v1/interrupt; the peer saw %v", seen)
+	}
+}
 
 type sdGenerateRule struct {
 	Run        string            `json:"run"`
@@ -280,7 +330,10 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 			t.Setenv("GOTAVERN_SD_ELECTRONHUB_URL", peer.server.URL)
 			t.Setenv("GOTAVERN_SD_AIMLAPI_URL", peer.server.URL)
 			handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
-			response := postSecretsRoute(t, handler, scenario.Route, scenario.RequestBody)
+			// A body-supplied URL is recorded as `<mock>` so the fixture is host- and port-independent;
+			// the replay points it at this test's own peer listener.
+			requestBody := strings.ReplaceAll(scenario.RequestBody, "<mock>", peer.server.URL)
+			response := postSecretsRoute(t, handler, scenario.Route, requestBody)
 			statuses[response.Code]++
 			if response.Code != scenario.Response.Status {
 				t.Fatalf("%s: status = %d, want %d (body %q; peer saw %v)", label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.seen))
@@ -303,7 +356,23 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}
-				if want := normalizeSdSeed(sdSeamPath(recorded.URL)); normalizeSdSeed(seen.Path) != want {
+				// A body-supplied URL (`request.body.url`) is recorded as `<mock>`: the caller names
+				// the server, so there is no provider seam and the comparison is the path the Go
+				// handler requested on this test's own listener.
+				want := ""
+				if strings.HasPrefix(recorded.URL, "<mock>") {
+					if parsed, err := url.Parse(strings.TrimPrefix(recorded.URL, "<mock>")); err == nil {
+						want = parsed.EscapedPath()
+						if parsed.RawQuery != "" {
+							want += "?" + parsed.RawQuery
+						}
+					} else {
+						want = strings.TrimPrefix(recorded.URL, "<mock>")
+					}
+				} else {
+					want = sdSeamPath(strings.ReplaceAll(recorded.URL, "<mock>", peer.server.URL))
+				}
+				if normalizeSdSeed(want) != normalizeSdSeed(seen.Path) {
 					t.Fatalf("%s: request %d target = %q, pinned %q", label, index, seen.Path, want)
 				}
 				for name, value := range recorded.Headers {
@@ -321,7 +390,7 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 				}
 				wantBody := ""
 				if recorded.Body != nil {
-					wantBody = normalizeSdSeed(*recorded.Body)
+					wantBody = strings.ReplaceAll(normalizeSdSeed(*recorded.Body), "<mock>", peer.server.URL)
 				}
 				if got := normalizeSdSeed(seen.Body); got != wantBody {
 					t.Fatalf("%s: request %d body = %q, pinned %q", label, index, got, wantBody)

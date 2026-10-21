@@ -182,7 +182,79 @@ const SCENARIOS = [
     { label: 'aimlapiNonOk', route: '/api/sd/aimlapi/generate-image', body: '{"prompt":"a tree"}',
       secrets: secretEntry('api_key_aimlapi', KEYS.aimlapi), mocks: [{ match: '/v1/images/generations', status: 500, text: 'aimlapi says no' }] },
 
-    // ── WAVE 2: stability ──────────────────────────────────────────────────────────────────────
+    // ── WAVE 3: body-supplied URL, single shot ─────────────────────────────────────────────────
+    // These two routes read `request.body.url`, so the caller names the server: there is no provider
+    // seam and none is needed. The recorded body carries the placeholder `<mock>`, which the probe
+    // substitutes with the pinned peer's origin when sending and the replay substitutes with its own
+    // listener, so the fixture contains no port or host.
+    { label: 'sdcppGenerateProjection', route: '/api/sd/sdcpp/generate',
+      body: JSON.stringify({
+          url: '<mock>', model: 'm1', prompt: 'a tree', negative_prompt: '', width: 512, height: 768,
+          steps: 20, cfg_scale: 7, seed: 42, batch_size: 1, sampler_name: 'euler', scheduler: 'karras',
+          clip_skip: 1, ignored: 'x',
+      }),
+      mocks: [{ match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'], info: { seed: 42 } } }] },
+    { label: 'sdcppClipSkipIncluded', route: '/api/sd/sdcpp/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree', clip_skip: 2, negative_prompt: 'ugly' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } }] },
+    { label: 'sdcppNonOk', route: '/api/sd/sdcpp/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', status: 500, text: 'sdcpp says no' }] },
+    { label: 'sdcppThrows', route: '/api/sd/sdcpp/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', throws: true }] },
+    { label: 'drawthingsEcho', route: '/api/sd/drawthings/generate',
+      body: JSON.stringify({ url: '<mock>', auth: 'user:pass', prompt: 'a tree', model: 'm1', width: 1, steps: 3 }),
+      mocks: [{ match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } }] },
+    { label: 'drawthingsNoAuth', route: '/api/sd/drawthings/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree', model: 'm1' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } }] },
+    { label: 'drawthingsNonOk', route: '/api/sd/drawthings/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', status: 500, text: 'drawthings says no' }] },
+    { label: 'drawthingsThrows', route: '/api/sd/drawthings/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [{ match: '/sdapi/v1/txt2img', throws: true }] },
+
+    // ── WAVE 3: A1111 /generate — TWO requests, and the count is fixture data ───────────────────
+    // The options GET is Forge detection; its failure is swallowed. A missing options request would
+    // be invisible without the recorded count, which is why every scenario here has two rules.
+    { label: 'generateForgeKeepsModules', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', auth: 'user:pass', prompt: 'a tree', override_settings: { forge_additional_modules: ['mod'] } }),
+      mocks: [
+          { match: '/sdapi/v1/options', payload: { forge_preset: 'forge', sd_model_checkpoint: 'm1' } },
+          { match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'], info: {} } },
+      ] },
+    { label: 'generateNonForgeUnsetsModules', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree', override_settings: { forge_additional_modules: ['mod'], other: 1 } }),
+      mocks: [
+          { match: '/sdapi/v1/options', payload: { sd_model_checkpoint: 'm1' } },
+          { match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } },
+      ] },
+    { label: 'generateOptionsNonOkKeepsModules', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree', override_settings: { forge_additional_modules: ['mod'] } }),
+      mocks: [
+          { match: '/sdapi/v1/options', status: 500, text: 'options exploded' },
+          { match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } },
+      ] },
+    { label: 'generateOptionsThrowsKeepsModules', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree', override_settings: { forge_additional_modules: ['mod'] } }),
+      mocks: [
+          { match: '/sdapi/v1/options', throws: true },
+          { match: '/sdapi/v1/txt2img', payload: { images: ['QUJD'] } },
+      ] },
+    { label: 'generateNonOk', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [
+          { match: '/sdapi/v1/options', payload: {} },
+          { match: '/sdapi/v1/txt2img', status: 500, text: 'txt2img exploded' },
+      ] },
+    { label: 'generateThrows', route: '/api/sd/generate',
+      body: JSON.stringify({ url: '<mock>', prompt: 'a tree' }),
+      mocks: [
+          { match: '/sdapi/v1/options', payload: {} },
+          { match: '/sdapi/v1/txt2img', throws: true },
+      ] },
 ];
 
 function normalizeSeed(value) {
@@ -208,7 +280,10 @@ try {
         }));
         server.writeSecrets(scenario.secrets ?? {});
         server.setMocks(rules);
-        const result = await server.post(scenario.route, scenario.body);
+        // A body-supplied URL is recorded as `<mock>` so the fixture is host- and port-independent;
+        // the pinned peer's real origin is only used for this run.
+        const requestBody = String(scenario.body).split('<mock>').join(server.origin);
+        const result = await server.post(scenario.route, requestBody);
         const requests = server.outbound();
         scenarios[scenario.label] = {
             route: scenario.route,
@@ -218,14 +293,16 @@ try {
             response: captureHttp(result),
             outbound: requests.map(request => {
                 const record = {
-                    url: normalizeSeed(request.url),
+                    url: normalizeSeed(request.url).split(server.origin).join('<mock>'),
                     method: request.method,
                     headers: request.headers,
                 };
                 if (request.bodyBase64 !== undefined) {
                     record.parts = parseMultipart(request.headers['content-type'] ?? '', request.bodyBase64);
                 } else {
-                    record.body = normalizeSeed(request.body);
+                    record.body = request.body === null || request.body === undefined
+                        ? request.body
+                        : normalizeSeed(request.body).split(server.origin).join('<mock>');
                 }
                 return record;
             }),
@@ -310,6 +387,53 @@ assert.equal(scenarios.aimlapiUrlFallback.outbound.length, 2, 'the aimlapi url f
 assert.equal(scenarios.aimlapiNoImage.response.status, 500, 'aimlapi without an image is 500');
 assert.equal(scenarios.aimlapiNonOk.response.status, 500, 'aimlapi non-ok is 500');
 assert.equal(scenarios.aimlapiNonOk.response.bodyText, 'aimlapi says no', 'aimlapi forwards the provider TEXT on failure');
+
+// ── WAVE 3 assertions ───────────────────────────────────────────────────────────────────────────
+assert.deepEqual(scenarios.sdcppGenerateProjection.response.body, { images: ['QUJD'], info: { seed: 42 } },
+    'sdcpp re-serializes the provider JSON');
+assert.equal(requireOutbound('sdcppGenerateProjection', 0).url, '<mock>/sdapi/v1/txt2img', 'sdcpp path is the body URL plus the fixed pathname');
+assert.equal(requireOutbound('sdcppGenerateProjection', 0).body,
+    '{"model":"m1","prompt":"a tree","width":512,"height":768,"steps":20,"cfg_scale":7,"seed":"<seed>","batch_size":1,"sampler_name":"euler","scheduler":"karras"}',
+    'sdcpp drops empty/undefined/null members and clip_skip <= 1, keeping the pinned member order');
+assert.equal(requireOutbound('sdcppGenerateProjection', 0).headers.authorization, undefined, 'sdcpp sends no authorization header');
+assert.equal(requireOutbound('sdcppClipSkipIncluded', 0).body, '{"prompt":"a tree","negative_prompt":"ugly","clip_skip":2}',
+    'clip_skip is carried only when it is greater than 1');
+assert.equal(scenarios.sdcppNonOk.response.status, 500, 'sdcpp non-ok is 500');
+assert.equal(scenarios.sdcppThrows.response.status, 500, 'a rejected sdcpp fetch is 500');
+
+assert.deepEqual(scenarios.drawthingsEcho.response.body, { images: ['QUJD'] }, 'drawthings passes the provider JSON through');
+assert.equal(requireOutbound('drawthingsEcho', 0).url, '<mock>/sdapi/v1/txt2img', 'drawthings path is the body URL plus the fixed pathname');
+assert.equal(requireOutbound('drawthingsEcho', 0).body, '{"prompt":"a tree","model":"m1","width":1,"steps":3}',
+    'drawthings forwards the body minus url and auth in the original member order');
+assert.equal(requireOutbound('drawthingsEcho', 0).headers.authorization, `Basic ${Buffer.from('user:pass').toString('base64')}`, 'drawthings Basic auth');
+assert.equal(requireOutbound('drawthingsNoAuth', 0).headers.authorization, `Basic ${Buffer.from('undefined').toString('base64')}`,
+    'an absent auth is stringified to "undefined", which is what the pinned helper does');
+assert.equal(scenarios.drawthingsNonOk.response.status, 500, 'drawthings non-ok is 500');
+assert.equal(scenarios.drawthingsThrows.response.status, 500, 'a rejected drawthings fetch is 500');
+
+// ── WAVE 3: A1111 /generate ─────────────────────────────────────────────────────────────────────
+assert.deepEqual(scenarios.generateForgeKeepsModules.response.body, { images: ['QUJD'], info: {} },
+    'A1111 re-serializes the provider JSON');
+assert.equal(scenarios.generateForgeKeepsModules.outbound.length, 2, 'A1111 makes the options request and then the generation');
+assert.equal(requireOutbound('generateForgeKeepsModules', 0).url, '<mock>/sdapi/v1/options', 'the options probe is the FIRST request');
+assert.equal(requireOutbound('generateForgeKeepsModules', 0).method, 'GET', 'the options probe is a GET');
+assert.equal(requireOutbound('generateForgeKeepsModules', 1).body,
+    '{"url":"<mock>","auth":"user:pass","prompt":"a tree","override_settings":{"forge_additional_modules":["mod"]}}',
+    'a Forge server keeps forge_additional_modules and the body is forwarded as given');
+assert.equal(requireOutbound('generateNonForgeUnsetsModules', 1).body,
+    '{"url":"<mock>","prompt":"a tree","override_settings":{"other":1}}',
+    'a non-Forge server loses only forge_additional_modules, preserving the member order');
+assert.equal(requireOutbound('generateOptionsNonOkKeepsModules', 1).body,
+    '{"url":"<mock>","prompt":"a tree","override_settings":{"forge_additional_modules":["mod"]}}',
+    'a non-ok options response skips the unset');
+assert.equal(requireOutbound('generateOptionsThrowsKeepsModules', 1).body,
+    '{"url":"<mock>","prompt":"a tree","override_settings":{"forge_additional_modules":["mod"]}}',
+    'a rejected options fetch is swallowed and skips the unset');
+assert.equal(requireOutbound('generateForgeKeepsModules', 0).headers.authorization, `Basic ${Buffer.from('user:pass').toString('base64')}`,
+    'the options probe carries the Basic auth header');
+assert.equal(scenarios.generateNonOk.response.status, 500, 'A1111 non-ok is 500');
+assert.equal(scenarios.generateThrows.response.status, 500, 'a rejected A1111 generation fetch is 500');
+
 const fixture = {
     schemaVersion: 1,
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -320,15 +444,17 @@ const fixture = {
             '/api/sd/huggingface/generate', '/api/sd/electronhub/generate', '/api/sd/chutes/generate',
             '/api/sd/nanogpt/generate', '/api/sd/xai/generate', '/api/sd/aimlapi/generate-image',
         ],
+        3: ['/api/sd/sdcpp/generate', '/api/sd/drawthings/generate', '/api/sd/generate'],
     },
     implementedRoutes: [
         '/api/sd/pollinations/generate', '/api/sd/together/generate',
         '/api/sd/huggingface/generate', '/api/sd/electronhub/generate', '/api/sd/chutes/generate',
         '/api/sd/nanogpt/generate', '/api/sd/xai/generate', '/api/sd/aimlapi/generate-image',
+        '/api/sd/sdcpp/generate', '/api/sd/drawthings/generate', '/api/sd/generate',
     ],
     notImplementedRoutes: [
-        '/api/sd/generate', '/api/sd/bfl/generate', '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
-        '/api/sd/drawthings/generate', '/api/sd/falai/generate', '/api/sd/sdcpp/generate', '/api/sd/zai/generate',
+        '/api/sd/bfl/generate', '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
+        '/api/sd/falai/generate', '/api/sd/zai/generate',
         '/api/sd/zai/generate-video', '/api/sd/stability/generate', '/api/sd/workersai/generate',
     ],
     notImplementedReasons: {
@@ -347,6 +473,9 @@ const fixture = {
         'src/endpoints/stable-diffusion.js:1837': 'aimlapi: whole body forwarded, AIMLAPI_HEADERS, images[0] or data[0], url fallback',
         'src/endpoints/stable-diffusion.js:1085': 'stability: multipart from payload entries in object order, endpoint by model, raw base64 answer',
         'src/endpoints/stable-diffusion.js:2108': 'workersai: account id encodeURIComponent into the path, flux-2 multipart branch, JSON or binary answer',
+        'src/endpoints/stable-diffusion.js:867': 'sdcpp: fixed payload projection in a fixed member order, drops undefined/null/empty, clip_skip only when > 1, no auth',
+        'src/endpoints/stable-diffusion.js:297': 'A1111 /generate: options GET for Forge detection (failure swallowed), then txt2img POST with the whole body; a non-Forge server loses override_settings.forge_additional_modules; socket close POSTs /interrupt',
+        'src/endpoints/stable-diffusion.js:977': 'drawthings: forwards the whole body minus url/auth in order, always sends Basic auth (absent auth stringifies to "undefined")',
     },
     mechanism: 'Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side reuses the sd seams and replays the same peer through a real local listener.',
     fields: [

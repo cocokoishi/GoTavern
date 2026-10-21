@@ -17,6 +17,11 @@
       "/api/sd/nanogpt/generate",
       "/api/sd/xai/generate",
       "/api/sd/aimlapi/generate-image"
+    ],
+    "3": [
+      "/api/sd/sdcpp/generate",
+      "/api/sd/drawthings/generate",
+      "/api/sd/generate"
     ]
   },
   "implementedRoutes": [
@@ -27,16 +32,16 @@
     "/api/sd/chutes/generate",
     "/api/sd/nanogpt/generate",
     "/api/sd/xai/generate",
-    "/api/sd/aimlapi/generate-image"
+    "/api/sd/aimlapi/generate-image",
+    "/api/sd/sdcpp/generate",
+    "/api/sd/drawthings/generate",
+    "/api/sd/generate"
   ],
   "notImplementedRoutes": [
-    "/api/sd/generate",
     "/api/sd/bfl/generate",
     "/api/sd/comfy/generate",
     "/api/sd/comfyrunpod/generate",
-    "/api/sd/drawthings/generate",
     "/api/sd/falai/generate",
-    "/api/sd/sdcpp/generate",
     "/api/sd/zai/generate",
     "/api/sd/zai/generate-video",
     "/api/sd/stability/generate",
@@ -57,7 +62,10 @@
     "src/endpoints/stable-diffusion.js:1738": "xai: b64_json or a data URL, format from the mime type",
     "src/endpoints/stable-diffusion.js:1837": "aimlapi: whole body forwarded, AIMLAPI_HEADERS, images[0] or data[0], url fallback",
     "src/endpoints/stable-diffusion.js:1085": "stability: multipart from payload entries in object order, endpoint by model, raw base64 answer",
-    "src/endpoints/stable-diffusion.js:2108": "workersai: account id encodeURIComponent into the path, flux-2 multipart branch, JSON or binary answer"
+    "src/endpoints/stable-diffusion.js:2108": "workersai: account id encodeURIComponent into the path, flux-2 multipart branch, JSON or binary answer",
+    "src/endpoints/stable-diffusion.js:867": "sdcpp: fixed payload projection in a fixed member order, drops undefined/null/empty, clip_skip only when > 1, no auth",
+    "src/endpoints/stable-diffusion.js:297": "A1111 /generate: options GET for Forge detection (failure swallowed), then txt2img POST with the whole body; a non-Forge server loses override_settings.forge_additional_modules; socket close POSTs /interrupt",
+    "src/endpoints/stable-diffusion.js:977": "drawthings: forwards the whole body minus url/auth in order, always sends Basic auth (absent auth stringifies to \"undefined\")"
   },
   "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side reuses the sd seams and replays the same peer through a real local listener.",
   "fields": [
@@ -2244,6 +2252,870 @@
             "x-title": "SillyTavern"
           },
           "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "sdcppGenerateProjection": {
+      "route": "/api/sd/sdcpp/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"model\":\"m1\",\"prompt\":\"a tree\",\"negative_prompt\":\"\",\"width\":512,\"height\":768,\"steps\":20,\"cfg_scale\":7,\"seed\":42,\"batch_size\":1,\"sampler_name\":\"euler\",\"scheduler\":\"karras\",\"clip_skip\":1,\"ignored\":\"x\"}",
+      "mocks": [
+        {
+          "run": "sdcppGenerateProjection",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"],\"info\":{\"seed\":42}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "38",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"26-+T9eZdmjh5tfjun/VMD8lGM3G3Q\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ],
+          "info": {
+            "seed": 42
+          }
+        },
+        "bodyText": "{\"images\":[\"QUJD\"],\"info\":{\"seed\":42}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"m1\",\"prompt\":\"a tree\",\"width\":512,\"height\":768,\"steps\":20,\"cfg_scale\":7,\"seed\":\"<seed>\",\"batch_size\":1,\"sampler_name\":\"euler\",\"scheduler\":\"karras\"}"
+        }
+      ]
+    },
+    "sdcppClipSkipIncluded": {
+      "route": "/api/sd/sdcpp/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"clip_skip\":2,\"negative_prompt\":\"ugly\"}",
+      "mocks": [
+        {
+          "run": "sdcppClipSkipIncluded",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"clip_skip\":2}"
+        }
+      ]
+    },
+    "sdcppNonOk": {
+      "route": "/api/sd/sdcpp/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "sdcppNonOk",
+          "match": "/sdapi/v1/txt2img",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "sdcpp says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "sdcppThrows": {
+      "route": "/api/sd/sdcpp/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "sdcppThrows",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "drawthingsEcho": {
+      "route": "/api/sd/drawthings/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"auth\":\"user:pass\",\"prompt\":\"a tree\",\"model\":\"m1\",\"width\":1,\"steps\":3}",
+      "mocks": [
+        {
+          "run": "drawthingsEcho",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dXNlcjpwYXNz"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"m1\",\"width\":1,\"steps\":3}"
+        }
+      ]
+    },
+    "drawthingsNoAuth": {
+      "route": "/api/sd/drawthings/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"model\":\"m1\"}",
+      "mocks": [
+        {
+          "run": "drawthingsNoAuth",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"m1\"}"
+        }
+      ]
+    },
+    "drawthingsNonOk": {
+      "route": "/api/sd/drawthings/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "drawthingsNonOk",
+          "match": "/sdapi/v1/txt2img",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "drawthings says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "drawthingsThrows": {
+      "route": "/api/sd/drawthings/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "drawthingsThrows",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "generateForgeKeepsModules": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"auth\":\"user:pass\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}",
+      "mocks": [
+        {
+          "run": "generateForgeKeepsModules",
+          "match": "/sdapi/v1/options",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"forge_preset\":\"forge\",\"sd_model_checkpoint\":\"m1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "generateForgeKeepsModules",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"],\"info\":{}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "29",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1d-lktozE2V6/2XApLQ7v4JRk0G8Gk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ],
+          "info": {}
+        },
+        "bodyText": "{\"images\":[\"QUJD\"],\"info\":{}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dXNlcjpwYXNz"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dXNlcjpwYXNz"
+          },
+          "body": "{\"url\":\"<mock>\",\"auth\":\"user:pass\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}"
+        }
+      ]
+    },
+    "generateNonForgeUnsetsModules": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"],\"other\":1}}",
+      "mocks": [
+        {
+          "run": "generateNonForgeUnsetsModules",
+          "match": "/sdapi/v1/options",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"sd_model_checkpoint\":\"m1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "generateNonForgeUnsetsModules",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"other\":1}}"
+        }
+      ]
+    },
+    "generateOptionsNonOkKeepsModules": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}",
+      "mocks": [
+        {
+          "run": "generateOptionsNonOkKeepsModules",
+          "match": "/sdapi/v1/options",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "options exploded",
+          "binaryBody": false
+        },
+        {
+          "run": "generateOptionsNonOkKeepsModules",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}"
+        }
+      ]
+    },
+    "generateOptionsThrowsKeepsModules": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}",
+      "mocks": [
+        {
+          "run": "generateOptionsThrowsKeepsModules",
+          "match": "/sdapi/v1/options",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        },
+        {
+          "run": "generateOptionsThrowsKeepsModules",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[\"QUJD\"]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-IrtwAvrxSbV5LSpKNMcVkJd25Vc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "images": [
+            "QUJD"
+          ]
+        },
+        "bodyText": "{\"images\":[\"QUJD\"]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\",\"override_settings\":{\"forge_additional_modules\":[\"mod\"]}}"
+        }
+      ]
+    },
+    "generateNonOk": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "generateNonOk",
+          "match": "/sdapi/v1/options",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        },
+        {
+          "run": "generateNonOk",
+          "match": "/sdapi/v1/txt2img",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "txt2img exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "generateThrows": {
+      "route": "/api/sd/generate",
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "generateThrows",
+          "match": "/sdapi/v1/options",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        },
+        {
+          "run": "generateThrows",
+          "match": "/sdapi/v1/txt2img",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/sdapi/v1/options",
+          "method": "GET",
+          "headers": {
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/sdapi/v1/txt2img",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Basic dW5kZWZpbmVk"
+          },
+          "body": "{\"url\":\"<mock>\",\"prompt\":\"a tree\"}"
         }
       ]
     }
