@@ -197,9 +197,11 @@ domain.
    scenario must compare its status. The one argued exception is a value that is CLIENT-derived and
    byte-stable (`requestHeaders.connection`), which stays recorded with its reason -- nulling it
    would discard information with no host-dependence justification. After any such change, sweep
-   every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`): the
+   every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`,`/Users/`): the
    sweep is cheap, it is the only check that finds this class, and it found exactly one location
-   across 100 fixtures.
+   across 100 fixtures. RUN THE SWEEP CASE-SENSITIVELY: a case-insensitive `/Users/` matches the
+   legitimate `GET /api/users/me` path and reports a host path that is not there, which is how a
+   sweep turns into a phantom defect and someone sets out to fix a fixture that is already correct.
 
 19. **A `go test -run` filter that matches nothing reports `ok`, which reads as success.** The real
    name of the sd-routes guard is `TestPinnedNodeSDRoutes`; `-run TestSD` does not match it, and Go

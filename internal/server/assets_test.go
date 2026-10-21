@@ -217,6 +217,11 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 				t.Fatalf("%s %s: %q is neither compared nor shape-classified", fixtureName, step.Name, key)
 			}
 		}
+		// AGENTS.md rule 18: every scenario must COMPARE its status. A shape-classified status would
+		// make the response outcome unasserted, which no host-dependence argument can justify.
+		if !comparedSpecifically["status"] {
+			t.Fatalf("%s %s: status is not classified compared; every scenario must compare its status", fixtureName, step.Name)
+		}
 		if (step.Response.Body == nil || string(step.Response.Body) == "null") && step.Response.BodyText == nil {
 			t.Fatalf("%s %s: response has neither a JSON body nor a text body", fixtureName, step.Name)
 		}
