@@ -94,10 +94,14 @@ const dataRoot = await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotaver
 const scriptPath = path.join(dataRoot, 'mock-script.json');
 await fs.writeFile(scriptPath, JSON.stringify(mockScript));
 
+// PROBE_BASE_URL means the drive is aimed at ANOTHER server (the pinned differential), so there is
+// nothing to build and nothing to boot: building anyway costs a build and, when the disk was full,
+// failed the differential with an error that had nothing to do with what it was measuring.
+const external = Boolean(process.env.PROBE_BASE_URL);
 const binarySetting = process.env.GOTAVERN_BINARY ?? '';
 const binary = binarySetting ? path.resolve(binarySetting) : path.join(dataRoot, process.platform === 'win32' ? 'gotavern.exe' : 'gotavern');
 const buildSteps = [];
-if (!binarySetting) {
+if (!binarySetting && !external) {
     buildSteps.push(['go', ['build', '-trimpath', '-o', binary, './cmd/gotavern']]);
 }
 buildSteps.push(['go', ['build', '-trimpath', '-o', path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), './tools/mock-provider']]);
@@ -125,10 +129,12 @@ if (!mockAddress) {
     throw new Error('mock provider did not report its address');
 }
 
-const server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 const serverLog = [];
-server.stdout.on('data', chunk => serverLog.push(chunk.toString()));
-server.stderr.on('data', chunk => serverLog.push(chunk.toString()));
+if (server) {
+    server.stdout.on('data', chunk => serverLog.push(chunk.toString()));
+    server.stderr.on('data', chunk => serverLog.push(chunk.toString()));
+}
 
 const report = {
     question: 'does a send driven from the pinned frontend produce a provider request?',
@@ -380,8 +386,21 @@ try {
     if (browser) {
         await browser.close();
     }
-    server.kill();
+    server?.kill();
     mock.kill();
+    // The scratch directory holds a built binary and a mock binary -- about 78 MB per run, and
+    // twenty-nine abandoned copies of it filled the disk to 0.09 GB free, which then failed an
+    // unrelated `go build` inside a differential with "not enough space on the disk". Clean up by
+    // default; GOTAVERN_KEEP_TEMP=1 keeps it when a failed run needs its artifacts.
+    if (process.env.GOTAVERN_KEEP_TEMP !== '1') {
+        // Retries, because Windows keeps the just-killed binaries' handles open for a moment: the
+        // first attempt after SIGKILL fails with EBUSY and an unconditional catch would hide it,
+        // which is how twenty-nine copies accumulated without anything reporting a problem.
+        await new Promise(resolve => setTimeout(resolve, 300));
+        await fs.rm(dataRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 }).catch(error => {
+            console.error(`probe: could not remove ${dataRoot}: ${error.message}`);
+        });
+    }
 }
 
 const reportPath = path.resolve(process.argv.includes('--report') ? process.argv[process.argv.indexOf('--report') + 1] : path.join(repoRoot, 'tests', 'browser', 'generation-probe-report.json'));
