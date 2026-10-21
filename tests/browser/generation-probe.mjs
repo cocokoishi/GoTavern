@@ -34,6 +34,8 @@
 // Usage: node generation-probe.mjs [--report <path>]
 
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import http from 'node:http';
 import { createServer } from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -79,14 +81,25 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // The mock's response script: one non-streaming chat completion, enough for the frontend to
 // finish a turn.
 const mockScript = {
-    responses: [{
-        status: 200,
-        headers: [{ name: 'Content-Type', value: 'application/json' }],
-        body: JSON.stringify({
-            id: 'probe-completion',
-            choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }],
-        }),
-    }],
+    // The Connect step asks the chat-completions status route for GET {custom_url}/models, which the
+    // server proxies to this peer. The scripted responses are SEQUENTIAL, so the models answer must
+    // come first: with a single completion answer the models request consumed it and the completion
+    // request got the mock's default 500 on BOTH legs (a probe-shape defect, not a product gap).
+    responses: [
+        {
+            status: 200,
+            headers: [{ name: 'Content-Type', value: 'application/json' }],
+            body: JSON.stringify({ data: [{ id: 'probe-model' }] }),
+        },
+        {
+            status: 200,
+            headers: [{ name: 'Content-Type', value: 'application/json' }],
+            body: JSON.stringify({
+                id: 'probe-completion',
+                choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }],
+            }),
+        },
+    ],
 };
 
 const port = await freePort();
@@ -128,20 +141,129 @@ if (!external) {
         throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
     }
 }
-const mock = spawn(path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
-let mockAddress = '';
-mock.stdout.on('data', chunk => {
-    const text = chunk.toString();
-    const match = /mock-provider (\S+)/.exec(text);
-    if (match) {
-        mockAddress = match[1];
-    }
-});
-for (let attempt = 0; attempt < 100 && !mockAddress; attempt++) {
-    await new Promise(resolve => setTimeout(resolve, 100));
+// STREAMING / CANCELLATION MODE.
+//
+// The Go mock provider writes its scripted frames in one burst and closes immediately, which cannot
+// model "cancel while the stream is still open". For PROBE_MODE=stream|cancel this probe starts an
+// in-process Node peer instead: it paces SSE frames (so incremental rendering is genuinely
+// observed), and in cancel mode it keeps the response open until the caller goes away, recording
+// whether the connection was closed before the stream finished. The peer is the only custom_url the
+// browser is given, so it is unbypassable for this drive (rule 14).
+const probeMode = process.env.PROBE_MODE ?? 'nonstream';
+const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
+
+function startStreamingPeer(mode) {
+    const state = { requests: [], heldClosed: false };
+    const server = http.createServer((request, response) => {
+        if (request.method === 'GET' && request.url.startsWith('/models')) {
+            response.writeHead(200, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ data: [{ id: 'probe-model' }] }));
+            return;
+        }
+        if (request.method !== 'POST' || !request.url.startsWith('/chat/completions')) {
+            response.writeHead(404, { 'Content-Type': 'text/plain' });
+            response.end('not found');
+            return;
+        }
+        const chunks = [];
+        request.on('data', chunk => chunks.push(chunk));
+        request.on('end', () => {
+            const body = Buffer.concat(chunks);
+            const entry = {
+                method: request.method,
+                path: request.url,
+                bodyLength: body.length,
+                bodySha256: createHash('sha256').update(body).digest('hex'),
+                body: body.toString('utf8'),
+                clientDisconnected: false,
+                framesWritten: 0,
+            };
+            state.requests.push(entry);
+            response.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+            });
+            const wordCount = Number(process.env.PROBE_FRAME_COUNT ?? (mode === 'cancel' ? 12 : 5));
+            const words = ['Hello', ' from', ' the', ' stream', '?', ' incremental', ' rendering', ' is', ' genuinely', ' observed', ' and', ' paced', ' by', ' the', ' peer', '.'];// placeholder
+            const frames = [];
+            for (let wordIndex = 0; wordIndex < wordCount; wordIndex += 1) {
+                frames.push(words[wordIndex % words.length] + (wordIndex >= words.length ? '#' + wordIndex : ''));
+            }
+            const frameDelay = Number(process.env.PROBE_FRAME_MS ?? (mode === 'cancel' ? 120 : 40));
+            let finished = false;
+            response.on('close', () => {
+                if (!finished) {
+                    entry.clientDisconnected = true;
+                }
+                state.heldClosed = true;
+            });
+            const writeFrame = (content, isLast) => {
+                const payload = {
+                    id: 'chatcmpl-probe',
+                    object: 'chat.completion.chunk',
+                    created: 1,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: isLast ? {} : { content }, finish_reason: isLast ? 'stop' : null }],
+                };
+                response.write(`data: ${JSON.stringify(payload)}\n\n`);
+                entry.framesWritten += 1;
+            };
+            let index = 0;
+            const timer = setInterval(() => {
+                if (index < frames.length) {
+                    writeFrame(frames[index], false);
+                    index += 1;
+                    return;
+                }
+                clearInterval(timer);
+                if (mode === 'cancel') {
+                    // Hold the stream open: the browser must abort while text is partially rendered.
+                    // The peer only ends when the caller closes (the close handler above records it).
+                    return;
+                }
+                writeFrame('', true);
+                finished = true;
+                response.write('data: [DONE]\n\n');
+                response.end();
+            }, frameDelay);
+        });
+    });
+    return new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            const { port } = server.address();
+            resolve({
+                address: `127.0.0.1:${port}`,
+                state,
+                close: () => new Promise(done => server.close(() => done())),
+            });
+        });
+    });
 }
-if (!mockAddress) {
-    throw new Error('mock provider did not report its address');
+
+
+let mock = null;
+let streamingPeer = null;
+let mockAddress = '';
+if (streamingMode) {
+    streamingPeer = await startStreamingPeer(probeMode);
+    mockAddress = streamingPeer.address;
+} else {
+    mock = spawn(path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    mock.stdout.on('data', chunk => {
+        const text = chunk.toString();
+        const match = /mock-provider (\S+)/.exec(text);
+        if (match) {
+            mockAddress = match[1];
+        }
+    });
+    for (let attempt = 0; attempt < 100 && !mockAddress; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!mockAddress) {
+        throw new Error('mock provider did not report its address');
+    }
 }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -281,8 +403,15 @@ try {
             // a frontend behaviour: the same wrapper also runs on the pinned leg.
             let looksLikeMarkup = false;
             const bodiless = response.status === 204 || response.status === 205 || response.status === 304 || request?.method === 'HEAD';
+            // A STREAMED response must NOT be read through a clone before returning it: `await
+            // clone().text()` waits for the whole stream, so the frontend's fetch promise would not
+            // resolve until the last chunk and incremental rendering would be impossible to observe
+            // (it also makes a mid-stream abort observe an empty message). This was a probe defect,
+            // identical on both legs, not a server behaviour.
+            const responseType = (response.headers.get('content-type') ?? '').toLowerCase();
+            const isStreamingResponse = responseType.includes('text/event-stream') || /\/api\/backends\/chat-completions\/generate$/.test(probeRequestUrl);
             try {
-                if (!bodiless) {
+                if (!bodiless && !isStreamingResponse) {
                     const text = await response.clone().text();
                     looksLikeMarkup = text.trimStart().startsWith('<');
                 }
@@ -310,7 +439,8 @@ try {
             globalThis.__capturedSettings = settings;
         }, capturedSettings);
     }
-    const outcome = await page.evaluate(async mockUrl => {
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode }) => {
+    const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
         // Generate() with the frontend already mid-operation and no character bound, which a user
@@ -345,6 +475,9 @@ try {
         if (captured) {
             oai_settings.custom_url = mockUrl;
         }
+        // Streaming is a property of THIS drive, not of the captured user settings: the fixture stores
+        // booleans as the strings the panel writes, and a streamed send must be requested explicitly.
+        oai_settings.stream_openai = streaming;
 
         // The API dispatch flag is NOT part of oai_settings, and `main_api` is an exported `let` that
         // cannot be reassigned from outside its module, so the settings shortcut above leaves it at
@@ -501,14 +634,73 @@ try {
                 dryRun: JSON.stringify(args.map(argument => (typeof argument === 'boolean' ? argument : (argument && typeof argument === 'object' ? Object.keys(argument).slice(0, 6) : typeof argument)))),
             }));
         }
+        // Incremental rendering is observed with a MutationObserver on the chat: each distinct text
+        // state of the last message is a render event. A single-chunk (non-incremental) response and
+        // a genuinely streamed response are distinguishable here, and cancellation can be proven by
+        // the text no longer changing after the stop click.
+        globalThis.__probeRenderSnapshots = [];
+        const chatRoot = document.querySelector('#chat');
+        const recordRender = () => {
+            const messages = chatRoot.querySelectorAll('.mes');
+            const last = messages[messages.length - 1];
+            const text = last ? (last.querySelector('.mes_text')?.innerText ?? '') : '';
+            const previous = globalThis.__probeRenderSnapshots[globalThis.__probeRenderSnapshots.length - 1];
+            if (!previous || previous.text !== text) {
+                globalThis.__probeRenderSnapshots.push({ t: Math.round(performance.now()), text });
+            }
+        };
+        const renderObserver = new MutationObserver(recordRender);
+        if (chatRoot) {
+            renderObserver.observe(chatRoot, { subtree: true, childList: true, characterData: true });
+        }
         globalThis.__probeClickT = Date.now();
         globalThis.__probeClickPerf = Math.round(performance.now());
         sendButton.click();
 
-        // A short settle is enough to let the click register; the WAIT for the request happens below,
-        // against the recorded request log, because prompt assembly (world-info dry run plus a token
-        // count per candidate) legitimately takes longer than any fixed sleep would guess.
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Mode-aware settle. Non-streaming keeps the original fixed settle; streaming WAITS for the
+        // observable (at least two distinct rendered text states) instead of guessing, and the cancel
+        // mode then presses the frontend's own Abort control and checks that the text stops changing.
+        const renderSnapshots = () => globalThis.__probeRenderSnapshots ?? [];
+        const waitUntil = async (predicate, timeout) => {
+            const deadline = performance.now() + timeout;
+            while (performance.now() < deadline) {
+                if (predicate()) {
+                    return true;
+                }
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            return false;
+        };
+        let streamState = null;
+        if (streaming) {
+            // Cancellation must happen AFTER streamed content has been rendered, otherwise the abort
+            // proves only that a placeholder was cleared. Wait for an EXACT rendered prefix ('Hello
+            // from'), not a snapshot count: a count is a race between provider writing and browser
+            // rendering, while the exact prefix is a state both legs can reach. Streaming mode uses
+            // the same predicate so both legs only proceed once incremental content is visible.
+            const contentSnapshots = () => renderSnapshots().filter(snapshot => String(snapshot.text ?? '').startsWith('Hello from'));
+            const sawIncremental = await waitUntil(() => contentSnapshots().length >= 1, 20000);
+            streamState = { sawIncremental, contentSnapshotsBeforeEnd: contentSnapshots().length, snapshotsBeforeEnd: renderSnapshots().length };
+            if (probeMode === 'cancel') {
+                const stopButton = document.querySelector('#mes_stop');
+                streamState.stopPresent = Boolean(stopButton);
+                streamState.stopClickedAt = Math.round(performance.now());
+                if (stopButton) {
+                    stopButton.click();
+                }
+                await new Promise(resolve => setTimeout(resolve, 1200));
+                streamState.snapshotsAtStopPlus1200 = renderSnapshots().length;
+                streamState.textAfterStop = renderSnapshots().at(-1)?.text ?? null;
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                streamState.snapshotsLater = renderSnapshots().length;
+                streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
+            } else {
+                await waitUntil(() => !script.isGenerating, 30000);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
         // Post-send measurement: whether the user message was appended (sendMessageAsUser got past
         // saveChatConditional) and whether a token count issued from the page can still complete.
         // This distinguishes "stuck inside sendMessageAsUser" from "never reached it".
@@ -531,9 +723,20 @@ try {
             textareaValue: String(document.querySelector('#send_textarea')?.value ?? ''),
             tokenCountProbe,
             emitPending: (globalThis.__probeEmitLog ?? []).filter(entry => entry.settled === false).map(entry => entry.name),
+            renderSnapshots: renderSnapshots(),
+            finalAssistantText: (() => {
+                const messages = document.querySelectorAll('#chat .mes');
+                for (let index = messages.length - 1; index >= 0; index--) {
+                    if (messages[index].getAttribute('is_user') !== 'true') {
+                        return messages[index].querySelector('.mes_text')?.innerText ?? null;
+                    }
+                }
+                return null;
+            })(),
+            streamState,
         };
         return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend };
-    }, `http://${mockAddress}`);
+    }, { mockUrl: `http://${mockAddress}`, probeMode });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
@@ -550,36 +753,55 @@ try {
         report.failure = `Generate threw: ${outcome.error}`;
     }
 
-    // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at 200ms
-    // is a 60s window, which prompt assembly has repeatedly needed: the world-info dry run counts
-    // every candidate, and the earlier 20s window gave up while token counts were still in flight.
-    for (let attempt = 0; attempt < 300; attempt++) {
-        const recording = await (await fetch(`http://${mockAddress}/__mock/recording`)).json();
-        if ((recording.requests ?? []).length > 0) {
-            report.requestArrived = true;
-            report.recording = recording.requests.map(request => {
-                const rawBody = request.bodyText ?? (request.bodyBase64 ? Buffer.from(request.bodyBase64, 'base64').toString('utf8') : null);
-                let parsedBody = null;
-                try {
-                    parsedBody = rawBody ? JSON.parse(rawBody) : null;
-                } catch {
-                    parsedBody = null;
-                }
-                return {
-                    method: request.method,
-                    path: request.rawTarget,
-                    bodyLength: request.bodyLength,
-                    body: rawBody,
-                    bodySha256: request.bodySha256,
-                    model: parsedBody?.model ?? null,
-                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
-                };
-            });            break;
+    report.streamState = outcome.postSend?.streamState ?? null;
+    if (streamingMode) {
+        // The in-process peer recorded the request, its body digest, whether the caller closed the
+        // stream before it finished (cancellation), and how many frames it wrote.
+        report.recording = streamingPeer.state.requests.map(request => ({
+            method: request.method,
+            path: request.path,
+            bodyLength: request.bodyLength,
+            body: request.body,
+            bodySha256: request.bodySha256,
+            clientDisconnected: request.clientDisconnected,
+            framesWritten: request.framesWritten,
+        }));
+        report.requestArrived = report.recording.some(request => request.method === 'POST');
+        if (!report.requestArrived) {
+            report.failure = report.failure ?? 'streaming peer received no POST /chat/completions';
         }
-        await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    if (!report.requestArrived) {
-        report.failure = report.failure ?? 'no provider request arrived within 20s';
+    } else {
+        // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
+        // 200ms is a 60s window, which prompt assembly has repeatedly needed.
+        for (let attempt = 0; attempt < 300; attempt++) {
+            const recording = await (await fetch(`http://${mockAddress}/__mock/recording`)).json();
+            if ((recording.requests ?? []).length > 0) {
+                report.requestArrived = true;
+                report.recording = recording.requests.map(request => {
+                    const rawBody = request.bodyText ?? (request.bodyBase64 ? Buffer.from(request.bodyBase64, 'base64').toString('utf8') : null);
+                    let parsedBody = null;
+                    try {
+                        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+                    } catch {
+                        parsedBody = null;
+                    }
+                    return {
+                        method: request.method,
+                        path: request.rawTarget,
+                        bodyLength: request.bodyLength,
+                        body: rawBody,
+                        bodySha256: request.bodySha256,
+                        model: parsedBody?.model ?? null,
+                        messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
+                    };
+                });
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        if (!report.requestArrived) {
+            report.failure = report.failure ?? 'no provider request arrived within 20s';
+        }
     }
 } catch (error) {
     report.failure = String(error.message ?? error);
@@ -588,7 +810,8 @@ try {
         await browser.close();
     }
     server?.kill();
-    mock.kill();
+    mock?.kill();
+    await streamingPeer?.close();
     // The scratch directory holds a built binary and a mock binary -- about 78 MB per run, and
     // twenty-nine abandoned copies of it filled the disk to 0.09 GB free, which then failed an
     // unrelated `go build` inside a differential with "not enough space on the disk". Clean up by

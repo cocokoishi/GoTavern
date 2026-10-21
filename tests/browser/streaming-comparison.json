@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
+  "captures": {
+    "streamGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\stream-gotavern.json",
+    "streamPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\stream-pinned.json",
+    "cancelGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\cancel-gotavern.json",
+    "cancelPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\cancel-pinned.json",
+    "nonstreamGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\nonstream-gotavern.json",
+    "nonstreamPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\nonstream-pinned.json"
+  },
+  "streaming": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7400,
+          "bodySha256": "d644f0071b829b894832e47b7f0bfa08710ae1f0e2842593b23eeb0f8e259c23",
+          "clientDisconnected": false,
+          "framesWritten": 9
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from",
+        "Hello from the",
+        "Hello from the stream",
+        "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is"
+      ],
+      "finalAssistantText": "Hello from the stream? incremental rendering is",
+      "streamState": {
+        "sawIncremental": true,
+        "snapshotsBeforeEnd": 2
+      }
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7400,
+          "bodySha256": "d644f0071b829b894832e47b7f0bfa08710ae1f0e2842593b23eeb0f8e259c23",
+          "clientDisconnected": false,
+          "framesWritten": 9
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from",
+        "Hello from the",
+        "Hello from the stream",
+        "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is"
+      ],
+      "finalAssistantText": "Hello from the stream? incremental rendering is",
+      "streamState": {
+        "sawIncremental": true,
+        "snapshotsBeforeEnd": 2
+      }
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextEqual": true,
+      "renderSequenceEqual": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "clientDisconnectedMatches": true,
+      "incrementalRenderingObserved": true,
+      "framesWrittenEqual": true
+    },
+    "proven": true
+  },
+  "cancellation": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7400,
+          "bodySha256": "d644f0071b829b894832e47b7f0bfa08710ae1f0e2842593b23eeb0f8e259c23",
+          "clientDisconnected": true,
+          "framesWritten": 12
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from"
+      ],
+      "finalAssistantText": "Hello from",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3,
+        "stopPresent": true,
+        "stopClickedAt": 10359,
+        "snapshotsAtStopPlus1200": 3,
+        "textAfterStop": "Hello from",
+        "snapshotsLater": 3,
+        "textLater": "Hello from"
+      }
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7400,
+          "bodySha256": "d644f0071b829b894832e47b7f0bfa08710ae1f0e2842593b23eeb0f8e259c23",
+          "clientDisconnected": true,
+          "framesWritten": 12
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from"
+      ],
+      "finalAssistantText": "Hello from",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3,
+        "stopPresent": true,
+        "stopClickedAt": 17704,
+        "snapshotsAtStopPlus1200": 3,
+        "textAfterStop": "Hello from",
+        "snapshotsLater": 3,
+        "textLater": "Hello from"
+      }
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextEqual": true,
+      "renderSequenceEqual": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "clientDisconnectedMatches": true,
+      "contentRenderedBeforeAbort": true,
+      "noFurtherChunksAppliedAfterAbort": true,
+      "abortControlUsed": true,
+      "finalTextEqualsAfterAbortState": true
+    },
+    "proven": true
+  },
+  "nonstream": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "GET",
+          "path": "/models",
+          "bodyLength": 0,
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "clientDisconnected": false,
+          "framesWritten": null
+        },
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7401,
+          "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61",
+          "clientDisconnected": false,
+          "framesWritten": null
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "probe reply"
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "GET",
+          "path": "/models",
+          "bodyLength": 0,
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "clientDisconnected": false,
+          "framesWritten": null
+        },
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "bodyLength": 7401,
+          "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61",
+          "clientDisconnected": false,
+          "framesWritten": null
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "probe reply"
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextEqual": true,
+      "renderSequenceEqual": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "singleContentStateOnly": true
+    },
+    "proven": true
+  },
+  "compatibleReady": true,
+  "notes": [
+    "The probe previously awaited response.clone().text() for EVERY response before returning it to the frontend, so a streamed generate response was fully buffered before the fetch promise resolved: incremental rendering was impossible to observe and an aborted stream observed an empty message. That was a probe defect on both legs (rule 10), fixed by skipping the clone read for text/event-stream and for the generate route. Earlier captures in this directory were taken with that defect; these captures are not.",
+    "The peer records clientDisconnected only when the caller closes before the scripted stream finishes; it is the provider-side proof of cancellation.",
+    "framesWritten in cancellation mode depends on how many paced frames were written before the abort arrived, so it is recorded for information, not asserted.",
+    "Pinned emits extra prompt-manager dry generations (visible as duplicate GENERATE_AFTER_DATA dryRun=true entries); they never issue a provider request and are not part of the comparison."
+  ]
+}

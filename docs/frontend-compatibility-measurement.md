@@ -672,3 +672,66 @@ Reproduce both legs (deterministic, ~3 min each on this machine):
 `generation-comparison.json` is the machine-readable comparison of those two captures
 (`requestArrived` both true, `providerRequestEqual` false, `milestoneEqual` false, one body
 difference).
+
+## 2026-10-21 — streaming and cancellation proven on both legs; five surfaces now have artifacts
+
+The missing fifth observer surface is closed. `tests/browser/streaming-comparison.json` records three
+paired drives (stream answered, cancelled mid-stream, genuine non-stream control) and its own verdict:
+`compatibleReady: true` — all checks hold on BOTH GoTavern and pinned.
+
+MEASURED (canonical captures under `tests/browser/`):
+- STREAMED: both legs send `POST /chat/completions` 7400 bytes SHA-256 `d644f007…e259c23`
+  (`stream: true`), the peer writes 9 chunked SSE frames, the browser renders 9 distinct incremental
+  text states with an IDENTICAL ordered sequence (`Hello from` -> `Hello from the` -> … -> final),
+  final text equal, no page errors.
+- CANCELLED: both legs send the same 7400-byte streamed request, the browser presses the frontend's
+  own Abort control (#mes_stop) after `Hello from` has rendered, the peer records
+  `clientDisconnected: true` on BOTH legs, both retain the partial text `Hello from` as the final
+  message, and the text is unchanged 1.2 s and 2.7 s after the abort (no further chunks applied).
+  The peer wrote 12 paced frames before noticing the close; frame count is timing, not behaviour.
+- NON-STREAM CONTROL: both legs send `stream: false` (7401 bytes SHA-256 `f6aba6d6…`) and settle on
+  one assistant content state (`probe reply`), proving the streaming above is not the only path.
+
+THREE PROBE DEFECTS were found and fixed while getting here (all rule-10 classes, none a product
+difference — each was proven to affect both legs identically before being fixed):
+1. The probe's fetch wrapper awaited `response.clone().text()` for EVERY response before returning it
+   to the frontend. A streamed generate response was therefore fully buffered before its fetch
+   promise resolved: incremental rendering was impossible to observe, and an aborted stream observed
+   an empty message. Every earlier capture in this directory had that defect — the "non-streaming"
+   captures actually sent `stream: true` (their body SHA is the streamed one) and only appeared
+   incremental-free. Fixed by skipping the clone read for `text/event-stream` and for the generate
+   route.
+2. The sequential Go mock script answered the FIRST request. Once the Connect step was added, the
+   chat-completions status route's `GET /models` consumed the only scripted response and the
+   completion POST got the mock's default 500 on BOTH legs. Fixed with two scripted responses
+   (models, then completion); the non-stream control validates the corrected script.
+3. Aborting "after N render snapshots" is a race between provider writes and browser rendering: an
+   early abort made GoTavern retain "Hello" while pinned cleared the placeholder to "". The abort
+   point is now an EXACT rendered prefix (`Hello from`), a state both legs reach; after that both
+   legs agree (partial text retained). The earlier divergence is recorded here as probe timing, not
+   as a compatibility gap.
+
+ARTIFACTS FOR THE FIVE SURFACES (chat-completions generation path, custom/OpenAI-compatible source):
+1. browser -> server HTTP: the route replays against pinned fixtures (`sillytavern-1.19.0-backends.json`,
+   `…-provider-wire.json`), plus the browser request log in the captures above.
+2. server -> provider wire: `tests/browser/generation-comparison.json` `providerRequestEqual: true`
+   (7400 bytes, SHA-256 `d644f007…`); this entry adds the streamed request with the same bytes.
+3. filesystem / startup: startup and data-domain fixtures; the drive adds no writes.
+4. browser events / final state: `generation-comparison.json` event trail; `streaming-comparison.json`
+   records final text and the abort end state.
+5. streaming and cancellation: `tests/browser/streaming-comparison.json` (streaming, cancellation and
+   non-stream sections; `compatibleReady: true`).
+
+SCOPE, stated plainly: the differential covers the custom/OpenAI-compatible source end to end. Other
+sources have their own provider-wire fixtures but were not driven through the browser in this
+increment, so any `compatible` row should name the custom-source generation path rather than imply
+every source was browser-proven.
+
+Reproduce (each capture is ~1–2 min; pinned legs need the harness):
+    PROBE_MODE=stream PROBE_FRAME_COUNT=8 PROBE_FRAME_MS=300 node tests/browser/generation-probe.mjs --report tests/browser/stream-gotavern.json
+    PROBE_MODE=stream PROBE_FRAME_COUNT=8 PROBE_FRAME_MS=300 node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <absolute path>/stream-pinned.json
+    PROBE_MODE=cancel PROBE_FRAME_MS=300 node tests/browser/generation-probe.mjs --report tests/browser/cancel-gotavern.json
+    PROBE_MODE=cancel PROBE_FRAME_MS=300 node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <absolute path>/cancel-pinned.json
+    node tests/browser/generation-probe.mjs --report tests/browser/nonstream-gotavern.json
+    node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <absolute path>/nonstream-pinned.json
+    node tests/browser/compare-streaming-legs.mjs stream-gotavern.json stream-pinned.json cancel-gotavern.json cancel-pinned.json nonstream-gotavern.json nonstream-pinned.json
