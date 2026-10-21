@@ -122,6 +122,7 @@ func registerBackendsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFou
 
 	post("/api/backends/chat-completions/bias", accounts.serveBackendsBias)
 	post("/api/backends/chat-completions/process", accounts.serveBackendsProcess)
+	post("/api/backends/chat-completions/status", accounts.serveBackendsChatCompletionStatus)
 
 	post("/api/backends/chat-completions/multimodal-models/pollinations", accounts.serveBackendsMultimodalPollinations)
 	post("/api/backends/chat-completions/multimodal-models/aimlapi", accounts.serveBackendsMultimodalAimlapi)

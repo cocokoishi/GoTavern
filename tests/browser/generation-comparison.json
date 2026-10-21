@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
   "bases": {
-    "gotavern": "http://127.0.0.1:58743",
-    "pinned": "http://127.0.0.1:52256"
+    "gotavern": "http://127.0.0.1:65271",
+    "pinned": "http://127.0.0.1:56487"
   },
   "requestArrived": {
     "gotavern": true,
@@ -12,10 +12,16 @@
   "providerRequests": {
     "gotavern": [
       {
+        "method": "GET",
+        "path": "/models",
+        "bodyLength": 0,
+        "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
         "method": "POST",
         "path": "/chat/completions",
-        "bodyLength": 6678,
-        "bodySha256": "f27ce88c88b8113dc04f577a8437c7e04df5b2e365a44ce2a01c3b1bd9f2896c"
+        "bodyLength": 7400,
+        "bodySha256": "d644f0071b829b894832e47b7f0bfa08710ae1f0e2842593b23eeb0f8e259c23"
       }
     ],
     "pinned": [
@@ -56,10 +62,10 @@
     "gotavern": {
       "manualPing": "status:204:",
       "toastrAfter": "",
-      "chatLength": 3,
-      "chatDomMessages": 3,
+      "chatLength": 2,
+      "chatDomMessages": 2,
       "textareaValue": "",
-      "tokenCountProbe": "resolved:10",
+      "tokenCountProbe": "resolved:9",
       "emitPending": []
     },
     "pinned": {
@@ -72,8 +78,6 @@
       "emitPending": []
     }
   },
-  "bodyDifferences": [
-    "messages[1] differs (6 messages): GoTavern {\"role\":\"system\",\"content\":\"Probe User: \\\"What are Shadowfangs?\\\"\\nSeraphina: *Seraphina's eyes darken, brow furrowing w... pinned {\"role\":\"system\",\"content\":\"Probe User: \\\"What are your powers?\\\"\\nSeraphina: *Seraphina smiles softly, turning back tow..."
-  ],
-  "providerRequestEqual": false
+  "bodyDifferences": [],
+  "providerRequestEqual": true
 }

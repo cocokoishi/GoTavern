@@ -84,7 +84,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -113,7 +114,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -139,7 +141,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -168,7 +171,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -193,7 +197,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -222,7 +227,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -251,7 +257,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -280,7 +287,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -309,7 +317,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -338,7 +347,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -367,7 +377,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -387,7 +398,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -416,7 +428,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -445,7 +458,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -474,7 +488,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -505,7 +520,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -534,7 +550,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -587,7 +604,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -640,7 +658,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -693,7 +712,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -746,7 +766,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -799,7 +820,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -827,7 +849,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -850,7 +873,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -873,7 +897,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -896,7 +921,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -946,7 +972,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -984,7 +1011,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1007,7 +1035,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1054,7 +1083,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1098,7 +1128,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1145,7 +1176,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1183,7 +1215,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1210,7 +1243,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1244,7 +1278,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1279,7 +1314,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1312,7 +1348,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1337,7 +1374,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1367,7 +1405,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1399,7 +1438,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1439,7 +1479,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1479,7 +1520,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1516,7 +1558,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1548,7 +1591,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1580,7 +1624,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1612,7 +1657,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1641,7 +1687,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1673,7 +1720,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1696,7 +1744,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1728,7 +1777,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1761,7 +1811,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1793,7 +1844,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1822,7 +1874,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1844,7 +1897,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1872,7 +1926,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1903,7 +1958,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1932,7 +1988,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -1954,7 +2011,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -1983,7 +2041,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2017,7 +2076,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2050,7 +2110,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2082,7 +2143,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2107,7 +2169,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2131,7 +2194,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2154,7 +2218,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2185,7 +2250,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2208,7 +2274,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2239,7 +2306,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2273,7 +2341,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2305,7 +2374,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2330,7 +2400,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2360,7 +2431,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2401,7 +2473,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2434,7 +2507,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2465,7 +2539,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [
           {
@@ -2502,7 +2577,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2527,7 +2603,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2564,7 +2641,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2593,7 +2671,8 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -2618,7 +2697,193 @@
           "api_key_workers_ai": "probe-workers-key",
           "api_key_koboldcpp": "probe-koboldcpp-key",
           "api_key_generic": "probe-generic-key",
-          "api_key_tabby": "probe-tabby-key"
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.custom.ok": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom",
+          "custom_url": "<mock>/v1"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\",\"custom_url\":\"<mock>/v1\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"model-b\"},{\"id\":\"model-a\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.custom.noPath": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom",
+          "custom_url": "<mock>"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\",\"custom_url\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models",
+            "body": "{\"data\":[{\"id\":\"only-model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.custom.nonOk": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom",
+          "custom_url": "<mock>/v1"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\",\"custom_url\":\"<mock>/v1\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/models",
+            "status": 401,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"error\":\"bad key\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.custom.throws": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom",
+          "custom_url": "<mock>/v1"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\",\"custom_url\":\"<mock>/v1\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/models",
+            "throws": true
+          }
+        ],
+        "replayed": true,
+        "peer": "closed"
+      },
+      "status.custom.includeHeaders": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom",
+          "custom_url": "<mock>/v1",
+          "custom_include_headers": "X-Probe-Header: probe-value"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\",\"custom_url\":\"<mock>/v1\",\"custom_include_headers\":\"X-Probe-Header: probe-value\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.custom.missingUrl": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "custom"
+        },
+        "bodyText": "{\"chat_completion_source\":\"custom\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
         },
         "upstream": [],
         "replayed": true,
@@ -5446,6 +5711,226 @@
       "etag": "W/\"b-fX2jWsdgVnxWEaIStcDQWvTmpQM\"",
       "specialHeader": null,
       "body": "{\"15339\":5}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "44",
+      "etag": "W/\"2c-HcJL2WwFjYHnWBIZc1yZZUQnZ1Y\"",
+      "specialHeader": null,
+      "body": "{\"data\":[{\"id\":\"model-b\"},{\"id\":\"model-a\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.noPath": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "30",
+      "etag": "W/\"1e-o9jDn2EYgKE7RpYe2om0ISHrF2A\"",
+      "specialHeader": null,
+      "body": "{\"data\":[{\"id\":\"only-model\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "33",
+      "etag": "W/\"21-NQbeJ0P/RhIm5gdOvUHKlVFySCo\"",
+      "specialHeader": null,
+      "body": "{\"error\":true,\"data\":{\"data\":[]}}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.throws": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.includeHeaders": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFAlOux7Kcr/ZEgGkn2r+oFAbu4\"",
+      "specialHeader": null,
+      "body": "{\"data\":[]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-key"
+            ],
+            [
+              "x-probe-header",
+              "probe-value"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.custom.missingUrl": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
       "outbound": [],
       "comparison": {
         "compared": [

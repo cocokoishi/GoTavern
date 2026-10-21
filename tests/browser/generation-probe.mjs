@@ -113,6 +113,21 @@ for (const [command, args] of buildSteps) {
     }
 }
 
+// RELEASE LAYOUT: `gotavern start` resolves InstallRoot as the directory of the executable
+// (cmd/gotavern/main.go), and tokenizer routes look for <InstallRoot>/tokenizers. This probe builds
+// the binary into a scratch directory, so without this the server silently takes the pinned
+// fallback path (guesstimate counts, empty ids) and the two legs cannot be compared on token counts
+// at all. A release puts `tokenizers/` beside the binary; stage the same layout instead of changing
+// production code to make a probe work.
+if (!external) {
+    const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
+    const tokenizerTarget = path.join(dataRoot, 'tokenizers');
+    if (await fs.stat(tokenizerSource).then(() => true, () => false)) {
+        await fs.cp(tokenizerSource, tokenizerTarget, { recursive: true });
+    } else {
+        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
+    }
+}
 const mock = spawn(path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 let mockAddress = '';
 mock.stdout.on('data', chunk => {

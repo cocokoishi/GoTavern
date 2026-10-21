@@ -174,7 +174,13 @@ func TestPinnedNodeBackendsRoutes(t *testing.T) {
 			t.Setenv(*scenario.Seam, targetOrigin)
 		}
 		writeSDSecrets(t, dataRoot, fixture.Inputs.Account.Handle, scenario.Secrets)
-		body := backendsRequestBody(scenario.BodyText, mockOrigin, mockAuthority)
+		bodyOrigin := mockOrigin
+		if scenario.Peer == "closed" {
+			// A body-provided upstream URL (custom_url) must point at the closed port for a
+			// rejected-fetch scenario; seam-driven routes use the seam override instead.
+			bodyOrigin = closedOrigin
+		}
+		body := backendsRequestBody(scenario.BodyText, bodyOrigin, mockAuthority)
 		request := httptest.NewRequest(http.MethodPost, "/api/backends/"+scenario.Route+scenario.Query, strings.NewReader(body))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("Cookie", sessionCookie)

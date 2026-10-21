@@ -58,6 +58,7 @@ const SECRETS = {
     api_key_koboldcpp: 'probe-koboldcpp-key',
     api_key_generic: 'probe-generic-key',
     api_key_tabby: 'probe-tabby-key',
+    api_key_custom: 'probe-custom-key',
 };
 
 const SEAMS = {
@@ -660,6 +661,47 @@ addScenario({
     body: [{ text: 'hello', value: 5 }],
 });
 
+// ---- chat-completions/status (custom source) ------------------------------------------------
+// The pinned route joins urlJoin(custom_url, "/models"), GETs it with the custom key, passes an
+// OK body through unchanged, and answers `{ error: true, data: { data: [] } }` for a non-OK
+// response and `{ error: true }` when the fetch throws. Only the CUSTOM branch is implemented;
+// every other source answers 501 in Go (rule 17) and is therefore not recorded here.
+addScenario({
+    name: 'status.custom.ok',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom', custom_url: `${MOCK}/v1` },
+    upstream: [{ ...OK, path: '/v1/models', body: JSON.stringify({ data: [{ id: 'model-b' }, { id: 'model-a' }] }) }],
+});
+addScenario({
+    name: 'status.custom.noPath',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom', custom_url: MOCK },
+    upstream: [{ ...OK, path: '/models', body: JSON.stringify({ data: [{ id: 'only-model' }] }) }],
+});
+addScenario({
+    name: 'status.custom.nonOk',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom', custom_url: `${MOCK}/v1` },
+    upstream: [{ path: '/v1/models', status: 401, headers: { 'Content-Type': 'application/json' }, body: '{"error":"bad key"}' }],
+});
+addScenario({
+    name: 'status.custom.throws',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom', custom_url: `${MOCK}/v1` },
+    upstream: [{ path: '/v1/models', throws: true }],
+    peer: 'closed',
+});
+addScenario({
+    name: 'status.custom.includeHeaders',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom', custom_url: `${MOCK}/v1`, custom_include_headers: 'X-Probe-Header: probe-value' },
+    upstream: [{ ...OK, path: '/v1/models', body: '{"data":[]}' }],
+});
+addScenario({
+    name: 'status.custom.missingUrl',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'custom' },
+});
 // ---- fixture assembly ----------------------------------------------------------------------
 function stubRule(upstream) {
     return {
