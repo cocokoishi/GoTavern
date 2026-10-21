@@ -156,6 +156,17 @@ SCENARIOS.push(
       body: { api: 'custom', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'm',
         custom_include_headers: '{"Authorization":"Bearer caller-token","X-Caller":"yes"}' },
       secrets: {}, mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
+    // custom_exclude_body DELETES, and its helper accepts THREE YAML shapes. Each form gets its own scenario
+    // because a Go side handling only one would answer success while deleting nothing -- and each scenario
+    // deletes a DIFFERENT key, so one form cannot stand in for another.
+    { label: 'merge-exclude-body-array-form',
+      body: { api: 'custom', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'm',
+        custom_exclude_body: '["model"]' },
+      secrets: {}, mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
+    { label: 'merge-exclude-body-object-form',
+      body: { api: 'custom', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'm',
+        custom_exclude_body: 'messages: 1' },
+      secrets: {}, mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
 );
 
 const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-openai-caption-oracle-', mocks: [] });
@@ -275,6 +286,16 @@ const mergedHeaders = scenarios['merge-include-headers-overrides-auth'];
 assert.equal(mergedHeaders.outbound[0].headers.authorization, 'Bearer caller-token',
     'custom_include_headers REPLACES the credential: the branch sent its own key and the caller sent Bearer caller-token');
 assert.equal(mergedHeaders.outbound[0].headers['x-caller'], 'yes', 'and adds a header the branch does not set');
+// custom_exclude_body: the ARRAY form deletes the key it names, the OBJECT form deletes ITS KEYS -- different
+// keys in each scenario, so an implementation handling only one form fails one of the two.
+const excludeArray = scenarios['merge-exclude-body-array-form'];
+const excludeArrayBody = JSON.parse(excludeArray.outbound[0].body);
+assert.equal(excludeArrayBody.model, undefined, 'the ARRAY form deletes the key it names: model is ABSENT');
+assert.equal(Array.isArray(excludeArrayBody.messages), true, 'while an unnamed member survives');
+const excludeObject = scenarios['merge-exclude-body-object-form'];
+const excludeObjectBody = JSON.parse(excludeObject.outbound[0].body);
+assert.equal(excludeObjectBody.messages, undefined, 'the OBJECT form deletes ITS KEYS: messages is ABSENT');
+assert.equal(excludeObjectBody.model, 'm', 'while a key that is not in the object survives');
 
 // THE COUNT IS OVER THE 19 BRANCH VALUES, written down as data.
 assert.equal(BRANCHES.length, 19, 'the branch table must carry nineteen values');

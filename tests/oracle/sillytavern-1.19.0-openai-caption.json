@@ -2200,6 +2200,116 @@
       ],
       "seedObservation": null
     },
+    "merge-exclude-body-array-form": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"custom\",\"server_url\":\"https://local.example.test\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\",\"custom_exclude_body\":\"[\\\"model\\\"]\"}",
+      "mocks": [
+        {
+          "run": "merge-exclude-body-array-form",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer "
+          },
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "merge-exclude-body-object-form": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"custom\",\"server_url\":\"https://local.example.test\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\",\"custom_exclude_body\":\"messages: 1\"}",
+      "mocks": [
+        {
+          "run": "merge-exclude-body-object-form",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer "
+          },
+          "body": "{\"model\":\"m\"}"
+        }
+      ],
+      "seedObservation": null
+    },
     "config-captionSystemPrompt-groq": {
       "route": "/api/openai/caption-image",
       "branch": "groq",

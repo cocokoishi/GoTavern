@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -312,6 +313,14 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 				setRawMember(&body, name, value)
 			}
 		}
+		// `custom_exclude_body` DELETES rather than adds, under the same `custom` guard, and its helper accepts
+		// THREE YAML shapes -- an array of names, an object whose KEYS are deleted, or a single string naming one
+		// key. A Go side handling only one form would answer success while deleting nothing, so each form has its
+		// own scenario. deleteMember preserves the order of the members that remain, which the byte comparison
+		// depends on.
+		for _, key := range openAICaptionYamlStringExclusions(input, "custom_exclude_body") {
+			body.deleteMember(key)
+		}
 	}
 
 	encoded, err := marshalCharacterJSON(body)
@@ -493,6 +502,46 @@ func openAICaptionYamlStringPatch(input map[string]json.RawMessage, name string)
 		merge(parsed)
 	}
 	return patch, len(patch) > 0
+}
+
+// openAICaptionYamlStringExclusions reproduces `excludeKeysByYaml(obj, yamlString)`'s contract, which is WIDER
+// than the merge's: a YAML array deletes each of its elements as a key, an object deletes each of ITS KEYS, and
+// a bare string deletes that one key. A falsy or unparsable member is a no-op, matching the helper's
+// `catch { }`. Handling only one of the three would answer success while deleting nothing.
+func openAICaptionYamlStringExclusions(input map[string]json.RawMessage, name string) []string {
+	raw, present := input[name]
+	if !present || len(raw) == 0 {
+		return nil
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil || text == "" {
+		return nil
+	}
+	var parsed any
+	if err := yaml.Unmarshal([]byte(text), &parsed); err != nil {
+		return nil
+	}
+	switch typed := parsed.(type) {
+	case []any:
+		keys := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if key, ok := item.(string); ok {
+				keys = append(keys, key)
+			}
+		}
+		return keys
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		return keys
+	case string:
+		return []string{typed}
+	default:
+		return nil
+	}
 }
 
 // openAICaptionSetHeader replaces a header in place or appends it, matching `Object.assign` semantics: an
