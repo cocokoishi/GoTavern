@@ -1,0 +1,1816 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openai-models.mjs",
+  "pinnedSource": {
+    "src/endpoints/openai.js:387-416": "POST /electronhub/models: data.data array, non-ok forwards the peer text",
+    "src/endpoints/openai.js:461-495": "POST /chutes/models/embedding: data.items array, invalid shape is sendStatus(500)",
+    "src/endpoints/openai.js:497-532": "POST /nanogpt/models/embedding: data.data array, Accept-Encoding: identity",
+    "src/endpoints/openai.js:534-573": "POST /siliconflow/models/embedding: SILICONFLOW_ENDPOINT selects .cn or .com",
+    "src/endpoints/openai.js:575-617": "POST /workers-ai/models/embedding: account id encodeURIComponent, result.map(m => ({...m, id: m.name}))"
+  },
+  "mechanism": "The pinned server runs unmodified; only its node-fetch module is replaced by a controlled peer (tools/lib/pinned-outbound.mjs), because every upstream here is a hardcoded literal with no seam. Each recorded answer required a recorded outbound request.",
+  "upstream": {
+    "electronhub": "https://api.electronhub.ai",
+    "chutes": "https://api.chutes.ai",
+    "nanogpt": "https://nano-gpt.com",
+    "siliconflowCN": "https://api.siliconflow.cn",
+    "siliconflowCOM": "https://api.siliconflow.com",
+    "cloudflare": "https://api.cloudflare.com"
+  },
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler chooses 200/400/500 itself"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them"
+    },
+    {
+      "path": "scenarios.*.response.body",
+      "comparison": "compared",
+      "reason": "the pinned unwrapping/projection over a controlled payload, including member order and omitted fields"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the constructed upstream URL (endpoint selection, trims, encodeURIComponent) is endpoint behaviour"
+    },
+    {
+      "path": "scenarios.*.outbound[].method",
+      "comparison": "compared",
+      "reason": "pinned always uses GET"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "shape",
+      "reason": "only the declared Authorization/Accept headers are asserted"
+    },
+    {
+      "path": "model list content",
+      "comparison": "shape",
+      "reason": "third-party data: the fixture supplies the payload and asserts the transformation, never a live list"
+    }
+  ],
+  "normalizations": [
+    "No third-party content is recorded as a constant: each payload is supplied by the controlled peer.",
+    "Synthetic credentials only; the recorded outbound Authorization values are synthetic."
+  ],
+  "inputs": {
+    "keys": {
+      "electronhub": "sk-synthetic-electronhub",
+      "chutes": "sk-synthetic-chutes",
+      "nanogpt": "sk-synthetic-nanogpt",
+      "siliconflow": "sk-synthetic-siliconflow",
+      "workersai": "sk-synthetic-workers-ai"
+    },
+    "payloads": {
+      "models": {
+        "data": [
+          {
+            "id": "model-b",
+            "name": "Model B",
+            "object": "model"
+          },
+          {
+            "id": "model-a"
+          }
+        ]
+      },
+      "chutes": {
+        "items": [
+          {
+            "chute_id": "chute-2",
+            "name": "Chute Two"
+          },
+          {
+            "chute_id": "chute-1",
+            "name": "Chute One"
+          }
+        ]
+      },
+      "workers": {
+        "result": [
+          {
+            "name": "worker-b",
+            "task": {
+              "name": "Text Embeddings"
+            }
+          },
+          {
+            "name": "worker-a",
+            "task": {
+              "name": "Text Embeddings"
+            },
+            "properties": {
+              "dim": 768
+            }
+          }
+        ]
+      }
+    }
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "electronhubNoKey": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "electronhubOk": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "sk-synthetic-electronhub",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "69",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"45-dG168/z0LgH3mEQI1hlDzgeYX44\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "model-b",
+            "name": "Model B",
+            "object": "model"
+          },
+          {
+            "id": "model-a"
+          }
+        ],
+        "bodyText": "[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-electronhub"
+          }
+        }
+      ]
+    },
+    "electronhubNotArray": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":\"nope\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "sk-synthetic-electronhub",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-electronhub"
+          }
+        }
+      ]
+    },
+    "electronhubNonOk": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 503,
+          "statusText": "Service Unavailable",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "upstream exploded",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "sk-synthetic-electronhub",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "17",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"11-mdFZVSiXOvdF/stc+xbewNwK33s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "upstream exploded",
+        "bodyText": "upstream exploded"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-electronhub"
+          }
+        }
+      ]
+    },
+    "electronhubInvalidJSON": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "not json",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "sk-synthetic-electronhub",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-electronhub"
+          }
+        }
+      ]
+    },
+    "electronhubThrows": {
+      "route": "/api/openai/electronhub/models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "sk-synthetic-electronhub",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-electronhub"
+          }
+        }
+      ]
+    },
+    "chutesNoKey": {
+      "route": "/api/openai/chutes/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.chutes.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "chutesOk": {
+      "route": "/api/openai/chutes/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.chutes.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"items\":[{\"chute_id\":\"chute-2\",\"name\":\"Chute Two\"},{\"chute_id\":\"chute-1\",\"name\":\"Chute One\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "sk-synthetic-chutes",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "85",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"55-hu+AG2BTEx8C3VdT5e7r+u2sVDk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "chute_id": "chute-2",
+            "name": "Chute Two"
+          },
+          {
+            "chute_id": "chute-1",
+            "name": "Chute One"
+          }
+        ],
+        "bodyText": "[{\"chute_id\":\"chute-2\",\"name\":\"Chute Two\"},{\"chute_id\":\"chute-1\",\"name\":\"Chute One\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.chutes.ai/chutes/?template=embedding&include_public=true&limit=999",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-chutes"
+          }
+        }
+      ]
+    },
+    "chutesNotArray": {
+      "route": "/api/openai/chutes/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.chutes.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"items\":null}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "sk-synthetic-chutes",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.chutes.ai/chutes/?template=embedding&include_public=true&limit=999",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-chutes"
+          }
+        }
+      ]
+    },
+    "chutesNonOk": {
+      "route": "/api/openai/chutes/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.chutes.ai",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "chutes says no",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "sk-synthetic-chutes",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "14",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-TItgK++hwwRfDCVStah1oPKUJ+s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "chutes says no",
+        "bodyText": "chutes says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.chutes.ai/chutes/?template=embedding&include_public=true&limit=999",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-chutes"
+          }
+        }
+      ]
+    },
+    "chutesThrows": {
+      "route": "/api/openai/chutes/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.chutes.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "sk-synthetic-chutes",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.chutes.ai/chutes/?template=embedding&include_public=true&limit=999",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-chutes"
+          }
+        }
+      ]
+    },
+    "nanogptNoKey": {
+      "route": "/api/openai/nanogpt/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "nano-gpt.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "nanogptOk": {
+      "route": "/api/openai/nanogpt/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "nano-gpt.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "sk-synthetic-nanogpt",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "69",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"45-dG168/z0LgH3mEQI1hlDzgeYX44\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "model-b",
+            "name": "Model B",
+            "object": "model"
+          },
+          {
+            "id": "model-a"
+          }
+        ],
+        "bodyText": "[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/embedding-models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-nanogpt",
+            "accept-encoding": "identity"
+          }
+        }
+      ]
+    },
+    "nanogptNotArray": {
+      "route": "/api/openai/nanogpt/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "nano-gpt.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{}}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "sk-synthetic-nanogpt",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/embedding-models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-nanogpt",
+            "accept-encoding": "identity"
+          }
+        }
+      ]
+    },
+    "nanogptNonOk": {
+      "route": "/api/openai/nanogpt/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "nano-gpt.com",
+          "status": 429,
+          "statusText": "Too Many Requests",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "slow down",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "sk-synthetic-nanogpt",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "9",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"9-IYXEi3BnkCfs96zFxwZI6MpjTI4\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "slow down",
+        "bodyText": "slow down"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/embedding-models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-nanogpt",
+            "accept-encoding": "identity"
+          }
+        }
+      ]
+    },
+    "nanogptThrows": {
+      "route": "/api/openai/nanogpt/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "nano-gpt.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "sk-synthetic-nanogpt",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/embedding-models",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-nanogpt",
+            "accept-encoding": "identity"
+          }
+        }
+      ]
+    },
+    "siliconflowNoKey": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "siliconflowGlobal": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{\"siliconflow_endpoint\":\"global\"}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_siliconflow": [
+          {
+            "id": "sid-api_key_siliconflow",
+            "value": "sk-synthetic-siliconflow",
+            "label": "api_key_siliconflow",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "69",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"45-dG168/z0LgH3mEQI1hlDzgeYX44\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "model-b",
+            "name": "Model B",
+            "object": "model"
+          },
+          {
+            "id": "model-a"
+          }
+        ],
+        "bodyText": "[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.siliconflow.com/v1/models?type=text&sub_type=embedding",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-siliconflow"
+          }
+        }
+      ]
+    },
+    "siliconflowCN": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{\"siliconflow_endpoint\":\"cn\"}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_siliconflow": [
+          {
+            "id": "sid-api_key_siliconflow",
+            "value": "sk-synthetic-siliconflow",
+            "label": "api_key_siliconflow",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "69",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"45-dG168/z0LgH3mEQI1hlDzgeYX44\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "model-b",
+            "name": "Model B",
+            "object": "model"
+          },
+          {
+            "id": "model-a"
+          }
+        ],
+        "bodyText": "[{\"id\":\"model-b\",\"name\":\"Model B\",\"object\":\"model\"},{\"id\":\"model-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.siliconflow.cn/v1/models?type=text&sub_type=embedding",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-siliconflow"
+          }
+        }
+      ]
+    },
+    "siliconflowNotArray": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":5}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_siliconflow": [
+          {
+            "id": "sid-api_key_siliconflow",
+            "value": "sk-synthetic-siliconflow",
+            "label": "api_key_siliconflow",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.siliconflow.com/v1/models?type=text&sub_type=embedding",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-siliconflow"
+          }
+        }
+      ]
+    },
+    "siliconflowNonOk": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "siliconflow says no",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_siliconflow": [
+          {
+            "id": "sid-api_key_siliconflow",
+            "value": "sk-synthetic-siliconflow",
+            "label": "api_key_siliconflow",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "19",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-ZSUO5tSTfCHWp75ccyFO+S5ZDX8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "siliconflow says no",
+        "bodyText": "siliconflow says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.siliconflow.com/v1/models?type=text&sub_type=embedding",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-siliconflow"
+          }
+        }
+      ]
+    },
+    "siliconflowThrows": {
+      "route": "/api/openai/siliconflow/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.siliconflow.",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_siliconflow": [
+          {
+            "id": "sid-api_key_siliconflow",
+            "value": "sk-synthetic-siliconflow",
+            "label": "api_key_siliconflow",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.siliconflow.com/v1/models?type=text&sub_type=embedding",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-siliconflow"
+          }
+        }
+      ]
+    },
+    "workersNoKey": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":\"account-id\"}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersNoAccount": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersZeroAccount": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":0}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "workersAccountTrimmed": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":\"  probe account/id  \"}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":[{\"name\":\"worker-b\",\"task\":{\"name\":\"Text Embeddings\"}},{\"name\":\"worker-a\",\"task\":{\"name\":\"Text Embeddings\"},\"properties\":{\"dim\":768}}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "166",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a6-azBCnXi5ENa4sON3/IPZq/KoaME\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "name": "worker-b",
+            "task": {
+              "name": "Text Embeddings"
+            },
+            "id": "worker-b"
+          },
+          {
+            "name": "worker-a",
+            "task": {
+              "name": "Text Embeddings"
+            },
+            "properties": {
+              "dim": 768
+            },
+            "id": "worker-a"
+          }
+        ],
+        "bodyText": "[{\"name\":\"worker-b\",\"task\":{\"name\":\"Text Embeddings\"},\"id\":\"worker-b\"},{\"name\":\"worker-a\",\"task\":{\"name\":\"Text Embeddings\"},\"properties\":{\"dim\":768},\"id\":\"worker-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/probe%20account%2Fid/ai/models/search?task=Text+Embeddings&per_page=100",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-workers-ai"
+          }
+        }
+      ]
+    },
+    "workersNumericAccount": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":12345}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":[{\"name\":\"worker-b\",\"task\":{\"name\":\"Text Embeddings\"}},{\"name\":\"worker-a\",\"task\":{\"name\":\"Text Embeddings\"},\"properties\":{\"dim\":768}}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "166",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a6-azBCnXi5ENa4sON3/IPZq/KoaME\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "name": "worker-b",
+            "task": {
+              "name": "Text Embeddings"
+            },
+            "id": "worker-b"
+          },
+          {
+            "name": "worker-a",
+            "task": {
+              "name": "Text Embeddings"
+            },
+            "properties": {
+              "dim": 768
+            },
+            "id": "worker-a"
+          }
+        ],
+        "bodyText": "[{\"name\":\"worker-b\",\"task\":{\"name\":\"Text Embeddings\"},\"id\":\"worker-b\"},{\"name\":\"worker-a\",\"task\":{\"name\":\"Text Embeddings\"},\"properties\":{\"dim\":768},\"id\":\"worker-a\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/12345/ai/models/search?task=Text+Embeddings&per_page=100",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-workers-ai"
+          }
+        }
+      ]
+    },
+    "workersNotArray": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":\"a\"}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":{}}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/a/ai/models/search?task=Text+Embeddings&per_page=100",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-workers-ai"
+          }
+        }
+      ]
+    },
+    "workersNonOk": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":\"a\"}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 403,
+          "statusText": "Forbidden",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "no workers for you",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "18",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"12-IB1qc8SlTYnilWnq82+KmryytEc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "no workers for you",
+        "bodyText": "no workers for you"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/a/ai/models/search?task=Text+Embeddings&per_page=100",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-workers-ai"
+          }
+        }
+      ]
+    },
+    "workersThrows": {
+      "route": "/api/openai/workers-ai/models/embedding",
+      "requestBody": "{\"workers_ai_account_id\":\"a\"}",
+      "mocks": [
+        {
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "sk-synthetic-workers-ai",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/a/ai/models/search?task=Text+Embeddings&per_page=100",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-workers-ai"
+          }
+        }
+      ]
+    }
+  }
+}

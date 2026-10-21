@@ -24,6 +24,7 @@ type secretsOracleFixture struct {
 		State             map[string]json.RawMessage `json:"state"`
 		SeededFile        map[string]json.RawMessage `json:"seededFile"`
 	} `json:"runs"`
+	HTTPRuns []secretsOracleRun `json:"httpRuns"`
 }
 
 func loadSecretsOracle(t *testing.T) secretsOracleFixture {
@@ -43,15 +44,18 @@ func loadSecretsOracle(t *testing.T) secretsOracleFixture {
 }
 
 // secretsRouteHandler builds a handler whose data root holds the given secrets.json content, or no
-// secrets.json at all when seed is nil.
+// secrets.json at all when seed is nil. The user root always exists: a real runtime has the per-user
+// directory because startup creates it, and a route that creates secrets.json (the pinned
+// _ensureSecretsFile does) needs the parent directory, so a fixture without one would make the
+// handler fail for a reason the pinned server never faces.
 func secretsRouteHandler(t *testing.T, seed []byte, allowKeysExposure bool) http.Handler {
 	t.Helper()
 	dataRoot := t.TempDir()
+	userRoot := filepath.Join(dataRoot, "default-user")
+	if err := os.MkdirAll(filepath.Join(userRoot, "backups"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if seed != nil {
-		userRoot := filepath.Join(dataRoot, "default-user")
-		if err := os.MkdirAll(filepath.Join(userRoot, "backups"), 0o755); err != nil {
-			t.Fatal(err)
-		}
 		if err := os.WriteFile(filepath.Join(userRoot, "secrets.json"), seed, 0o644); err != nil {
 			t.Fatal(err)
 		}

@@ -1,0 +1,2607 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-translate.mjs",
+  "pinnedSource": {
+    "src/endpoints/translate.js:10-12": "DEEPLX_URL_DEFAULT / ONERING_URL_DEFAULT / LINGVA_DEFAULT defaults",
+    "src/endpoints/translate.js:16-74": "POST /libre: URL from libre_url secret, lang remapping, ordered JSON body",
+    "src/endpoints/translate.js:103-157": "POST /yandex: URLSearchParams with one text per chunk, ucid uuidv4",
+    "src/endpoints/translate.js:159-201": "POST /lingva: url-join(base, auto, lang, encodeURIComponent(text)); a non-ok answer is only logged",
+    "src/endpoints/translate.js:203-263": "POST /deepl: endpoint selection, formality only for supported languages",
+    "src/endpoints/translate.js:265-320": "POST /onering: query built from text/from_lang/to_lang",
+    "src/endpoints/translate.js:322-376": "POST /deeplx: ordered JSON body with source_lang auto"
+  },
+  "mechanism": "DeepL and Yandex hardcode their endpoint, so the pinned server runs with only its node-fetch module replaced by a controlled peer (tools/lib/pinned-outbound.mjs). Libre/DeepLX/OneRing/Lingva take the URL from a secret, so the probe points that secret at a test host and the Go side points it at a local listener.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler chooses 200/400/500 itself"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them"
+    },
+    {
+      "path": "scenarios.*.response.bodyText",
+      "comparison": "compared",
+      "reason": "the translated text and the empty-body case are endpoint behaviour"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "constructed upstream URL, including defaults, url-join and the yandex ucid shape"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "exact JSON body or application/x-www-form-urlencoded string, including parameter ORDER"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "shape",
+      "reason": "only the declared content-type/authorization headers are asserted"
+    },
+    {
+      "path": "translated text",
+      "comparison": "shape",
+      "reason": "third-party content: the fixture supplies the peer payload and asserts the extraction"
+    }
+  ],
+  "normalizations": [
+    "The Yandex ucid is a fresh uuidv4 per request, so it is replaced by <uuid> in the recorded outbound URL; it is the only nondeterministic value in this domain.",
+    "The DeepL formality value comes from config (`deepl.formality`), which the probe does not configure, so the pinned default \"default\" is what is recorded. A configured formality is NOT pinned.",
+    "Synthetic credentials only."
+  ],
+  "inputs": {
+    "testUrls": {
+      "libre": "https://libre.example.test/translate",
+      "deeplx": "https://deeplx.example.test/translate",
+      "onering": "https://onering.example.test/translate",
+      "lingva": "https://lingva.example.test/api/v1"
+    },
+    "defaults": {
+      "lingva": "https://lingva.ml/api/v1",
+      "onering": "http://127.0.0.1:4990/translate",
+      "deeplx": "http://127.0.0.1:1188/translate",
+      "deeplFree": "https://api-free.deepl.com/v2/translate",
+      "deeplPro": "https://api.deepl.com/v2/translate",
+      "yandex": "https://translate.yandex.net/api/v1/tr.json/translate"
+    },
+    "payloads": {
+      "libre": {
+        "translatedText": "Hallo Welt"
+      },
+      "deepl": {
+        "translations": [
+          {
+            "detected_source_language": "EN",
+            "text": "Hallo Welt"
+          }
+        ]
+      },
+      "yandex": {
+        "code": 200,
+        "lang": "en-de",
+        "text": [
+          "Hallo",
+          "Welt"
+        ]
+      },
+      "lingva": {
+        "translation": "Hallo Welt"
+      },
+      "onering": {
+        "result": "Hallo Welt"
+      },
+      "deeplx": {
+        "code": 200,
+        "data": "Hallo Welt"
+      }
+    }
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "libreNoUrl": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "libreNoText": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "libreOk": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translatedText\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreWithKey": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translatedText\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ],
+        "libre": [
+          {
+            "id": "sid-libre",
+            "value": "synthetic-libre-key",
+            "label": "libre",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"synthetic-libre-key\"}"
+        }
+      ]
+    },
+    "libreZhCN": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"zh-CN\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translatedText\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"zh\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreZhTW": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"zh-TW\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translatedText\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"zt\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "librePtBR": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"pt-BR\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translatedText\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"pt\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreEmptyPayload": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": ""
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreNonOk": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "libre says no",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreInvalidJSON": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "not json",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "libreThrows": {
+      "route": "/api/translate/libre",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "libre.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "libre_url": [
+          {
+            "id": "sid-libre_url",
+            "value": "https://libre.example.test/translate",
+            "label": "libre_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://libre.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"q\":\"hello\",\"source\":\"auto\",\"target\":\"de\",\"format\":\"text\",\"api_key\":\"\"}"
+        }
+      ]
+    },
+    "deeplxDefaultUrl": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "127.0.0.1:1188",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"data\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "http://127.0.0.1:1188/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"source_lang\":\"auto\",\"target_lang\":\"de\"}"
+        }
+      ]
+    },
+    "deeplxSecretUrl": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "deeplx.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"data\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deeplx_url": [
+          {
+            "id": "sid-deeplx_url",
+            "value": "https://deeplx.example.test/translate",
+            "label": "deeplx_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://deeplx.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"source_lang\":\"auto\",\"target_lang\":\"de\"}"
+        }
+      ]
+    },
+    "deeplxZhCN": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"zh-CN\"}",
+      "mocks": [
+        {
+          "match": "deeplx.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"data\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deeplx_url": [
+          {
+            "id": "sid-deeplx_url",
+            "value": "https://deeplx.example.test/translate",
+            "label": "deeplx_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://deeplx.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"source_lang\":\"auto\",\"target_lang\":\"ZH\"}"
+        }
+      ]
+    },
+    "deeplxNoText": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "deeplx.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deeplx_url": [
+          {
+            "id": "sid-deeplx_url",
+            "value": "https://deeplx.example.test/translate",
+            "label": "deeplx_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "deeplxNonOk": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "deeplx.example.test",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "deeplx says no",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deeplx_url": [
+          {
+            "id": "sid-deeplx_url",
+            "value": "https://deeplx.example.test/translate",
+            "label": "deeplx_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://deeplx.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"source_lang\":\"auto\",\"target_lang\":\"de\"}"
+        }
+      ]
+    },
+    "deeplxThrows": {
+      "route": "/api/translate/deeplx",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "deeplx.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "deeplx_url": [
+          {
+            "id": "sid-deeplx_url",
+            "value": "https://deeplx.example.test/translate",
+            "label": "deeplx_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://deeplx.example.test/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"source_lang\":\"auto\",\"target_lang\":\"de\"}"
+        }
+      ]
+    },
+    "oneringDefaultUrl": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"from_lang\":\"en\",\"to_lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "127.0.0.1:4990",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "http://127.0.0.1:4990/translate?text=hello&from_lang=en&to_lang=de",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "oneringSecretUrl": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"from_lang\":\"en\",\"to_lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "onering.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "oneringtranslator_url": [
+          {
+            "id": "sid-oneringtranslator_url",
+            "value": "https://onering.example.test/translate",
+            "label": "oneringtranslator_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://onering.example.test/translate?text=hello&from_lang=en&to_lang=de",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "oneringNoFromLang": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"to_lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "onering.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "oneringtranslator_url": [
+          {
+            "id": "sid-oneringtranslator_url",
+            "value": "https://onering.example.test/translate",
+            "label": "oneringtranslator_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "oneringPtBR": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"pt-BR\",\"from_lang\":\"en\",\"to_lang\":\"pt-BR\"}",
+      "mocks": [
+        {
+          "match": "onering.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"result\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "oneringtranslator_url": [
+          {
+            "id": "sid-oneringtranslator_url",
+            "value": "https://onering.example.test/translate",
+            "label": "oneringtranslator_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://onering.example.test/translate?text=hello&from_lang=en&to_lang=pt-BR",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "oneringNonOk": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"from_lang\":\"en\",\"to_lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "onering.example.test",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "onering says no",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "oneringtranslator_url": [
+          {
+            "id": "sid-oneringtranslator_url",
+            "value": "https://onering.example.test/translate",
+            "label": "oneringtranslator_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://onering.example.test/translate?text=hello&from_lang=en&to_lang=de",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "oneringThrows": {
+      "route": "/api/translate/onering",
+      "requestBody": "{\"text\":\"hello\",\"from_lang\":\"en\",\"to_lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "onering.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "oneringtranslator_url": [
+          {
+            "id": "sid-oneringtranslator_url",
+            "value": "https://onering.example.test/translate",
+            "label": "oneringtranslator_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://onering.example.test/translate?text=hello&from_lang=en&to_lang=de",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaDefaultUrl": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.ml",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translation\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.ml/api/v1/auto/de/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaSecretUrl": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translation\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/de/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaTrailingSlash": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello world\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translation\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1/",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/de/hello%20world",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaZhCN": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"zh-CN\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translation\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/zh/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaNonOkValidJSON": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translation\":\"Hallo Welt\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/de/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaNonOkInvalidJSON": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "nope",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/de/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "lingvaThrows": {
+      "route": "/api/translate/lingva",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "lingva.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "lingva_url": [
+          {
+            "id": "sid-lingva_url",
+            "value": "https://lingva.example.test/api/v1",
+            "label": "lingva_url",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://lingva.example.test/api/v1/auto/de/hello",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "deeplNoKey": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "deeplFree": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"en\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translations\":[{\"detected_source_language\":\"EN\",\"text\":\"Hallo Welt\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=en"
+        }
+      ]
+    },
+    "deeplPro": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"en\",\"endpoint\":\"pro\"}",
+      "mocks": [
+        {
+          "match": "api.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translations\":[{\"detected_source_language\":\"EN\",\"text\":\"Hallo Welt\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://api.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=en"
+        }
+      ]
+    },
+    "deeplFormality": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translations\":[{\"detected_source_language\":\"EN\",\"text\":\"Hallo Welt\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=de&formality=default"
+        }
+      ]
+    },
+    "deeplNoFormalityForEnglish": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"en-US\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translations\":[{\"detected_source_language\":\"EN\",\"text\":\"Hallo Welt\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=en-US"
+        }
+      ]
+    },
+    "deeplZhCN": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"zh-CN\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"translations\":[{\"detected_source_language\":\"EN\",\"text\":\"Hallo Welt\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-KMu8ctalJhenq7//Z1bQS7rQEGo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo Welt",
+        "bodyText": "Hallo Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=ZH"
+        }
+      ]
+    },
+    "deeplNoText": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "deeplNonOk": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 403,
+          "statusText": "Forbidden",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "quota",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=de&formality=default"
+        }
+      ]
+    },
+    "deeplThrows": {
+      "route": "/api/translate/deepl",
+      "requestBody": "{\"text\":\"hello\",\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "api-free.deepl.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "deepl": [
+          {
+            "id": "sid-deepl",
+            "value": "synthetic-deepl-key",
+            "label": "deepl",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api-free.deepl.com/v2/translate",
+          "method": "POST",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "DeepL-Auth-Key synthetic-deepl-key",
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&target_lang=de&formality=default"
+        }
+      ]
+    },
+    "yandexNoChunks": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "yandexChunks": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[\"hello \",\"world\"],\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"lang\":\"en-de\",\"text\":[\"Hallo\",\"Welt\"]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-lWXbWv4GhHGMRkgeYme4MYk1akM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo,Welt",
+        "bodyText": "Hallo,Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello+&text=world&lang=de"
+        }
+      ]
+    },
+    "yandexEmptyChunks": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[],\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"lang\":\"en-de\",\"text\":[\"Hallo\",\"Welt\"]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-lWXbWv4GhHGMRkgeYme4MYk1akM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo,Welt",
+        "bodyText": "Hallo,Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "lang=de"
+        }
+      ]
+    },
+    "yandexZhCN": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[\"hello\"],\"lang\":\"zh-CN\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"lang\":\"en-de\",\"text\":[\"Hallo\",\"Welt\"]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-lWXbWv4GhHGMRkgeYme4MYk1akM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo,Welt",
+        "bodyText": "Hallo,Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&lang=zh"
+        }
+      ]
+    },
+    "yandexPtPT": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[\"hello\"],\"lang\":\"pt-PT\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"code\":200,\"lang\":\"en-de\",\"text\":[\"Hallo\",\"Welt\"]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-lWXbWv4GhHGMRkgeYme4MYk1akM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Hallo,Welt",
+        "bodyText": "Hallo,Welt"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&lang=pt"
+        }
+      ]
+    },
+    "yandexNonOk": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[\"hello\"],\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "yandex says no",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&lang=de"
+        }
+      ]
+    },
+    "yandexEmptyPayload": {
+      "route": "/api/translate/yandex",
+      "requestBody": "{\"chunks\":[\"hello\"],\"lang\":\"de\"}",
+      "mocks": [
+        {
+          "match": "translate.yandex.net",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://translate.yandex.net/api/v1/tr.json/translate?ucid=<uuid>&srv=android&format=text",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "text=hello&lang=de"
+        }
+      ]
+    }
+  }
+}

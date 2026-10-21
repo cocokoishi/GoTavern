@@ -1,0 +1,1306 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openrouter.mjs",
+  "pinnedSource": {
+    "src/endpoints/openrouter.js:8": "const API_OPENROUTER = 'https://openrouter.ai/api/v1';",
+    "src/endpoints/openrouter.js:45": "fetch(`${API_OPENROUTER}${endpoint}?output_modalities=${encodeURIComponent(outputModality)}`)",
+    "src/endpoints/openrouter.js:68": "sort((a, b) => a?.id && b?.id ? a.id.localeCompare(b.id) : 0)",
+    "src/endpoints/openrouter.js:127-131": "remaining = totalCredits - totalUsage; res.json({ remaining, total_credits: totalCredits, total_usage: totalUsage })"
+  },
+  "mechanism": "The pinned server runs unmodified; only its node-fetch module is replaced by a controlled peer (tools/lib/pinned-outbound.mjs), because API_OPENROUTER is a hardcoded module constant with no seam. Every recorded answer required a recorded outbound request to the controlled peer.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler chooses 200/400/500 itself"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them"
+    },
+    {
+      "path": "scenarios.multimodalFiltered.response.body",
+      "comparison": "compared",
+      "reason": "the pinned filter, mapping and sort over a controlled payload"
+    },
+    {
+      "path": "scenarios.embeddingMapped.response.body",
+      "comparison": "compared",
+      "reason": "the pinned mapping and sort over a controlled payload"
+    },
+    {
+      "path": "scenarios.imageMapped.response.body",
+      "comparison": "compared",
+      "reason": "the pinned mapping and name fallback over a controlled payload"
+    },
+    {
+      "path": "scenarios.providersMapped.response.body",
+      "comparison": "compared",
+      "reason": "the pinned provider_name projection"
+    },
+    {
+      "path": "scenarios.credits.response*.body",
+      "comparison": "compared",
+      "reason": "the pinned remaining/total arithmetic"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the constructed upstream URL is endpoint behaviour"
+    },
+    {
+      "path": "scenarios.*.outbound[].method",
+      "comparison": "compared",
+      "reason": "pinned always uses GET"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "shape",
+      "reason": "only Accept/Authorization are asserted; node-fetch adds transport headers the Go seam does not have to reproduce"
+    },
+    {
+      "path": "model list content",
+      "comparison": "shape",
+      "reason": "third-party data: the fixture feeds a controlled payload and asserts the transformation, never the live list"
+    }
+  ],
+  "normalizations": [
+    "Model identifiers are plain lowercase ASCII so the pinned localeCompare sort is host-independent; a locale-sensitive ordering is therefore NOT pinned.",
+    "No third-party content is recorded as a constant: each payload is supplied by the controlled peer and the assertion covers the transformation."
+  ],
+  "inputs": {
+    "openRouterApi": "https://openrouter.ai/api/v1",
+    "openRouterKey": "sk-or-synthetic-openrouter-key",
+    "payloads": {
+      "multimodal": {
+        "data": [
+          {
+            "id": "zeta",
+            "name": "Zeta",
+            "architecture": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          },
+          {
+            "id": "only-text",
+            "name": "No Image",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          },
+          {
+            "id": "alpha",
+            "name": "Alpha",
+            "architecture": {
+              "input_modalities": [
+                "image"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          },
+          {
+            "id": "beta",
+            "name": "Beta",
+            "architecture": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            }
+          },
+          {
+            "id": "no-architecture"
+          },
+          {
+            "id": "bad-modalities",
+            "architecture": {
+              "input_modalities": "image",
+              "output_modalities": [
+                "text"
+              ]
+            }
+          },
+          {
+            "id": "gamma",
+            "architecture": {
+              "input_modalities": [
+                "image"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        ]
+      },
+      "embedding": {
+        "data": [
+          {
+            "id": "zeta-embed",
+            "name": "Zeta Embed",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "embeddings"
+              ]
+            }
+          },
+          {
+            "id": "alpha-embed",
+            "name": "Alpha Embed",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "embeddings"
+              ]
+            }
+          },
+          {
+            "id": "not-embedding",
+            "name": "Image Out",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            }
+          }
+        ]
+      },
+      "image": {
+        "data": [
+          {
+            "id": "zeta-image",
+            "name": "Zeta Image",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            }
+          },
+          {
+            "id": "no-name",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            }
+          },
+          {
+            "id": "alpha-image",
+            "name": "Alpha Image",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            }
+          }
+        ]
+      },
+      "providers": {
+        "data": {
+          "endpoints": [
+            {
+              "provider_name": "First Provider",
+              "context_length": 8192
+            },
+            {
+              "provider_name": "Second Provider"
+            },
+            {
+              "context_length": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "providersNoModel": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{\"endpoints\":[{\"provider_name\":\"A\"}]}}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "5",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"5-tqHZpoYWLvn001yqZdyEBEfC0Ww\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "A"
+        ],
+        "bodyText": "[\"A\"]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/undefined/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "providersMapped": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{\"model\":\"author/model-name\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{\"endpoints\":[{\"provider_name\":\"First Provider\",\"context_length\":8192},{\"provider_name\":\"Second Provider\"},{\"context_length\":1}]}}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "41",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"29-xlDkgYu+124qXoCrrfoKbr7GBgo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "First Provider",
+          "Second Provider",
+          null
+        ],
+        "bodyText": "[\"First Provider\",\"Second Provider\",null]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/author/model-name/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "providersNoEndpoints": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{\"model\":\"m\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{}}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/m/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "providersNonOk": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{\"model\":\"m\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 500,
+          "statusText": "Stubbed Failure",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "peer says no"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/m/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "providersInvalidJSON": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{\"model\":\"m\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "body": "not json"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/m/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "providersThrows": {
+      "route": "/api/openrouter/models/providers",
+      "requestBody": "{\"model\":\"m\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "throws": true
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models/m/endpoints",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "multimodalFiltered": {
+      "route": "/api/openrouter/models/multimodal",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"zeta\",\"name\":\"Zeta\",\"architecture\":{\"input_modalities\":[\"image\",\"text\"],\"output_modalities\":[\"text\"]}},{\"id\":\"only-text\",\"name\":\"No Image\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"text\"]}},{\"id\":\"alpha\",\"name\":\"Alpha\",\"architecture\":{\"input_modalities\":[\"image\"],\"output_modalities\":[\"text\"]}},{\"id\":\"beta\",\"name\":\"Beta\",\"architecture\":{\"input_modalities\":[\"image\",\"text\"],\"output_modalities\":[\"image\"]}},{\"id\":\"no-architecture\"},{\"id\":\"bad-modalities\",\"architecture\":{\"input_modalities\":\"image\",\"output_modalities\":[\"text\"]}},{\"id\":\"gamma\",\"architecture\":{\"input_modalities\":[\"image\"],\"output_modalities\":[\"text\"]}}]}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-qj8Nof5IpZsspVEpxtzJVrzGw6g\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha",
+          "gamma",
+          "zeta"
+        ],
+        "bodyText": "[\"alpha\",\"gamma\",\"zeta\"]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=text",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "multimodalNonOk": {
+      "route": "/api/openrouter/models/multimodal",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 503,
+          "statusText": "Stubbed Failure",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "peer says no"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=text",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "multimodalNotArray": {
+      "route": "/api/openrouter/models/multimodal",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":\"nope\"}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=text",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "multimodalThrows": {
+      "route": "/api/openrouter/models/multimodal",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "throws": true
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=text",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "embeddingMapped": {
+      "route": "/api/openrouter/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"zeta-embed\",\"name\":\"Zeta Embed\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"embeddings\"]}},{\"id\":\"alpha-embed\",\"name\":\"Alpha Embed\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"embeddings\"]}},{\"id\":\"not-embedding\",\"name\":\"Image Out\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"image\"]}}]}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "83",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"53-8ngENchm1qpvMZWY67oJURR41Jk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "id": "alpha-embed",
+            "name": "Alpha Embed"
+          },
+          {
+            "id": "zeta-embed",
+            "name": "Zeta Embed"
+          }
+        ],
+        "bodyText": "[{\"id\":\"alpha-embed\",\"name\":\"Alpha Embed\"},{\"id\":\"zeta-embed\",\"name\":\"Zeta Embed\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=embeddings",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "embeddingNonOk": {
+      "route": "/api/openrouter/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 500,
+          "statusText": "Stubbed Failure",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "peer says no"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=embeddings",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "embeddingThrows": {
+      "route": "/api/openrouter/models/embedding",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "throws": true
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=embeddings",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "imageMapped": {
+      "route": "/api/openrouter/models/image",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"id\":\"zeta-image\",\"name\":\"Zeta Image\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"image\"]}},{\"id\":\"no-name\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"image\"]}},{\"id\":\"alpha-image\",\"name\":\"Alpha Image\",\"architecture\":{\"input_modalities\":[\"text\"],\"output_modalities\":[\"image\"]}}]}"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "126",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"7e-Iwnyj0MOYYaQ/nKXpgOcSZqnfgw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "value": "alpha-image",
+            "text": "Alpha Image"
+          },
+          {
+            "value": "no-name",
+            "text": "no-name"
+          },
+          {
+            "value": "zeta-image",
+            "text": "Zeta Image"
+          }
+        ],
+        "bodyText": "[{\"value\":\"alpha-image\",\"text\":\"Alpha Image\"},{\"value\":\"no-name\",\"text\":\"no-name\"},{\"value\":\"zeta-image\",\"text\":\"Zeta Image\"}]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=image",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "imageNonOk": {
+      "route": "/api/openrouter/models/image",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 500,
+          "statusText": "Stubbed Failure",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "peer says no"
+        }
+      ],
+      "secrets": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/models?output_modalities=image",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json"
+          }
+        }
+      ]
+    },
+    "creditsNoKey": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{\"total_credits\":1,\"total_usage\":1}}"
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "creditsComputed": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{\"total_credits\":10,\"total_usage\":2.5}}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "54",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"36-VZJt2zfn1yeBF0OKt4juadCHSsE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "remaining": 7.5,
+          "total_credits": 10,
+          "total_usage": 2.5
+        },
+        "bodyText": "{\"remaining\":7.5,\"total_credits\":10,\"total_usage\":2.5}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/credits",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          }
+        }
+      ]
+    },
+    "creditsStringTotals": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{\"total_credits\":\"5.5\",\"total_usage\":\"1.25\"}}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "61",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3d-qa0fyg3GKvfvgA1FWbBGc8nLHIA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "remaining": 4.25,
+          "total_credits": "5.5",
+          "total_usage": "1.25"
+        },
+        "bodyText": "{\"remaining\":4.25,\"total_credits\":\"5.5\",\"total_usage\":\"1.25\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/credits",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          }
+        }
+      ]
+    },
+    "creditsMissingData": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":{}}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-8mCqdoIud0kJgzocDPxrk8y7Pyw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "remaining": 0,
+          "total_credits": 0,
+          "total_usage": 0
+        },
+        "bodyText": "{\"remaining\":0,\"total_credits\":0,\"total_usage\":0}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/credits",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          }
+        }
+      ]
+    },
+    "creditsNonOk": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 500,
+          "statusText": "Stubbed Failure",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "peer says no"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/credits",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          }
+        }
+      ]
+    },
+    "creditsThrows": {
+      "route": "/api/openrouter/credits",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/credits",
+          "method": "GET",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          }
+        }
+      ]
+    }
+  }
+}
