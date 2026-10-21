@@ -36,6 +36,7 @@ type openAICaptionFixture struct {
 		BranchCount  int      `json:"branchCount"`
 		BranchValues []string `json:"branchValues"`
 	} `json:"inputs"`
+	APITypes  []string                      `json:"apiTypes"`
 	Scenarios map[string]transcribeScenario `json:"scenarios"`
 }
 
@@ -103,6 +104,20 @@ func TestOpenAICaptionDispatchTableMatchesFixture(t *testing.T) {
 	}
 	if len(fixture.Inputs.BranchValues) != 19 {
 		t.Fatalf("the fixture's branchValues carries %d entries, expected 19", len(fixture.Inputs.BranchValues))
+	}
+	// The `api_type` getter table: FOURTEEN keys, asserted as a count against the fixture's list so an omitted
+	// type fails as a count rather than passing as an absence. `api_type` is a different body member from
+	// `api`, and with it absent the pinned server adds no additional headers at all.
+	if len(fixture.APITypes) != 14 {
+		t.Fatalf("the fixture lists %d api_type values, expected 14", len(fixture.APITypes))
+	}
+	if len(openAICaptionAPITypes) != len(fixture.APITypes) {
+		t.Fatalf("the Go api_type table carries %d keys, the fixture lists %d", len(openAICaptionAPITypes), len(fixture.APITypes))
+	}
+	for index, apiType := range fixture.APITypes {
+		if openAICaptionAPITypes[index] != apiType {
+			t.Fatalf("api_type %d: the Go table has %q, the fixture has %q", index, openAICaptionAPITypes[index], apiType)
+		}
 	}
 }
 

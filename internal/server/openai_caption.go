@@ -278,6 +278,11 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	if key != "" {
 		headers = append(headers, outbound.Header{Name: "Authorization", Value: "Bearer " + key})
 	}
+	// `api_type` is a DIFFERENT body member from `api`: it selects the additional-header getter. With it
+	// ABSENT -- which is what every other scenario records -- the pinned server adds NOTHING.
+	if apiType, present := googleRawMemberString(input, "api_type"); present {
+		headers = runtime.openAICaptionApplyTypeHeaders(headers, directories, apiType)
+	}
 	response, err := outbound.Send(request.Context(), outbound.Request{
 		URL:     target,
 		Method:  http.MethodPost,
@@ -317,6 +322,53 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		return
 	}
 	respondJSONBytes(w, http.StatusOK, result)
+}
+
+// openAICaptionAPITypes is the pinned headerGetters table's fourteen keys, written down so an omitted type
+// fails as a count rather than passing as an absence.
+var openAICaptionAPITypes = []string{
+	"mancer", "vllm", "aphrodite", "tabby", "togetherai", "ooba", "infermaticai",
+	"dreamgen", "openrouter", "koboldcpp", "llamacpp", "featherless", "huggingface", "generic",
+}
+
+// openAICaptionApplyTypeHeaders merges the getter for api_type over the route headers. The getter's own
+// Authorization REPLACES the branch key when it has a secret of its own: a replacement, not an addition.
+//
+// MEASURED for openrouter: OPENROUTER_HEADERS plus `Authorization: Bearer <api_key_openrouter>` when that
+// secret exists. The OTHER THIRTEEN types are in the table but their header sets and secret keys are NOT yet
+// measured, so they contribute nothing here and the row states that rather than inventing them.
+func (runtime *accountRuntime) openAICaptionApplyTypeHeaders(headers []outbound.Header, directories startup.UserDirectories, apiType string) []outbound.Header {
+	known := false
+	for _, value := range openAICaptionAPITypes {
+		if value == apiType {
+			known = true
+			break
+		}
+	}
+	if !known || apiType != "openrouter" {
+		return headers
+	}
+	merged := []outbound.Header{
+		{Name: "HTTP-Referer", Value: "https://sillytavern.app"},
+		{Name: "X-Title", Value: "SillyTavern"},
+	}
+	if secret, err := startup.ReadSecretString(directories, "api_key_openrouter"); err == nil && secret != "" {
+		merged = append(merged, outbound.Header{Name: "Authorization", Value: "Bearer " + secret})
+	}
+	for _, extra := range merged {
+		replaced := false
+		for index := range headers {
+			if strings.EqualFold(headers[index].Name, extra.Name) {
+				headers[index].Value = extra.Value
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			headers = append(headers, extra)
+		}
+	}
+	return headers
 }
 
 // openAIOrDefaultString is `String(value || ”)` for a raw member.

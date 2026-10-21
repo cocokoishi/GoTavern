@@ -97,6 +97,17 @@ SCENARIOS.push(
       secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
       mocks: [{ match: 'proxy.example.test', times: 1, payload: CAPTION }] },
     { label: 'no-key', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' }, secrets: {}, mocks: [] },
+    // `api_type` is a DIFFERENT body member from `api`: it selects the additional-header getter, and with it
+    // ABSENT -- which is every other scenario -- the pinned server adds NOTHING. The type literal is taken
+    // from the api convention; the assertions below fail loudly if the getter does not fire.
+    { label: 'apiType-openrouter-headers', body: { api: 'openai', api_type: 'openrouter', prompt: 'x', image: IMAGE, model: 'm' },
+      secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
+      mocks: [{ match: 'api.openai.com', times: 1, payload: CAPTION }] },
+    // With the getter's OWN secret present its Authorization OVERWRITES the branch key: a REPLACEMENT, not an
+    // addition, which a merge-only-when-absent implementation would pass.
+    { label: 'apiType-openrouter-overwrites-key', body: { api: 'openai', api_type: 'openrouter', prompt: 'x', image: IMAGE, model: 'm' },
+      secrets: Object.assign(secretEntry('api_key_openai', 'synthetic-openai-key'), secretEntry('api_key_openrouter', 'synthetic-openrouter-key')),
+      mocks: [{ match: 'api.openai.com', times: 1, payload: CAPTION }] },
 );
 
 const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-openai-caption-oracle-', mocks: [] });
@@ -186,6 +197,21 @@ assert.equal(proxy.outbound.length, 1, 'the reverse_proxy MODIFIER still makes o
 assert.equal(proxy.outbound[0].url.includes('proxy.example.test/chat/completions'), true,
     `the modifier overrides the URL, saw ${proxy.outbound[0].url}`);
 
+// ── api_type: the additional-header getter, asserted as a FULL header set ────────────────────────────
+const apiType = scenarios['apiType-openrouter-headers'];
+assert.equal(apiType.response.status, 200, 'the api_type scenario answers 200');
+assert.equal(apiType.outbound.length, 1, 'and still makes exactly one request');
+const typeHeaders = apiType.outbound[0].headers;
+assert.equal(typeHeaders['http-referer'], 'https://sillytavern.app', 'the getter adds HTTP-Referer');
+assert.equal(typeHeaders['x-title'], 'SillyTavern', 'and X-Title, ON TOP of the route headers');
+assert.equal(typeHeaders['content-type'], 'application/json', 'the route Content-Type is still present');
+assert.equal(typeHeaders.authorization, 'Bearer synthetic-openai-key',
+    'and the BRANCH key is used while the getter has no secret of its own');
+const overwrite = scenarios['apiType-openrouter-overwrites-key'];
+assert.equal(overwrite.outbound[0].headers.authorization, 'Bearer synthetic-openrouter-key',
+    'the getter REPLACES the branch key when its own secret exists (the branch key was Bearer synthetic-openai-key)');
+assert.equal(overwrite.outbound[0].headers['http-referer'], 'https://sillytavern.app', 'and still carries its own headers');
+
 const fixture = {
     schemaVersion: 1,
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -197,6 +223,14 @@ const fixture = {
     branches: BRANCHES,
     branchCount: BRANCHES.length,
     modifiers: [{ name: 'reverse_proxy', note: 'a MODIFIER rather than a branch: it overrides the URL to ${reverse_proxy}/chat/completions for the keyed branches, and treating it as a branch would inflate the count and hide a missing modifier' }],
+    // `api_type` selects the additional-header getter. Fourteen types, written down so an omitted one fails as
+    // a count rather than passing as an absence. The getter's Authorization REPLACES the branch key when the
+    // getter has a secret of its own, and the host override below it is CONFIG-dependent.
+    apiTypes: ['mancer', 'vllm', 'aphrodite', 'tabby', 'togetherai', 'ooba', 'infermaticai', 'dreamgen', 'openrouter', 'koboldcpp', 'llamacpp', 'featherless', 'huggingface', 'generic'],
+    hostOverride: {
+        source: 'getConfigValue(requestOverrides)',
+        note: 'a config list of {hosts, headers} matched on the URL HOST, so it cannot be asserted from the request alone and is scheduled behind the writeConfig capability rather than guessed',
+    },
     pinnedSource: {
         'src/endpoints/openai.js:16': 'router.post(\'/caption-image\'): the 19-value api dispatch, the per-branch secret and apiUrl, and the shared 400 guards',
         'src/endpoints/openai.js:188': 'pollinations: a randomized bodyParams.seed and an anonymous vs keyed URL',
