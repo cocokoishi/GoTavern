@@ -225,7 +225,16 @@ domain.
    ordered-steps rule (16) applied to the harness itself rather than to the fixture's data. Related:
    a probe must fail by NAMING itself -- per-scenario timeout plus the scenario name and the mocks it
    was served -- because a bare `TimeoutError` cost a full turn to localise while the same defect with
-   diagnostics was fixed in one run. Do not add an exact-path match option to `tools/lib` on
+   diagnostics was fixed in one run.
+
+   THE ORDERING DISCIPLINE APPLIES TO ANY CONSUMER OF A RECORDED MOCK LIST, NOT ONLY TO THE PROBE. A
+   replay peer that serves mocks by REQUEST ORDER while the fixture's list is ordered for the
+   substring matcher will serve the wrong mock to the wrong shape -- the OpenAI video replay gave the
+   poll the content mock exactly that way, which is the probe-hang defect one layer over. A consumer
+   that does not reproduce the producer's matching semantics is a second place the same bug can live,
+   so the replay peer must implement the same substring and times selection the stub does.
+
+   Do not add an exact-path match option to `tools/lib` on
    initiative; it is a lib change and carries the `pipe()` discipline: every outbound probe must
    re-record byte-identically before it is committed.
 
