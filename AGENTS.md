@@ -213,6 +213,22 @@ domain.
    rule 7 in a new costume: a green that cannot fail. The same caution applies to any filter used
    before a commit, including mine.
 
+20. **The outbound stub selects a rule by SUBSTRING of the request URL, so overlapping shapes need
+   `times` and longest-path-first ordering.** `selectRule` does `href.includes(candidate.match)` and
+   returns the FIRST contained match, so a rule matching `/v1/videos` also matches `/v1/videos/{id}`
+   and `/v1/videos/{id}/content`. Without a `times` bound, the create rule answered the POLL as well,
+   the loop polled the create answer forever, and the probe hung -- a harness defect presenting as a
+   product hang, which is the most expensive way for it to present. Two consequences to apply before
+   writing any probe whose shapes share a path prefix: give the earlier shape a `times` bound so it
+   stops answering, and list the LONGER path FIRST (`/content` ahead of the poll rule, or the poll
+   rule swallows the content request and returns JSON where bytes are expected). This is the
+   ordered-steps rule (16) applied to the harness itself rather than to the fixture's data. Related:
+   a probe must fail by NAMING itself -- per-scenario timeout plus the scenario name and the mocks it
+   was served -- because a bare `TimeoutError` cost a full turn to localise while the same defect with
+   diagnostics was fixed in one run. Do not add an exact-path match option to `tools/lib` on
+   initiative; it is a lib change and carries the `pipe()` discipline: every outbound probe must
+   re-record byte-identically before it is committed.
+
 ## Architecture boundaries that are decided, not pending
 
 1. **Arbitrary Node server plugins are the sole explicit ecosystem exclusion** — see hard rule 16.
@@ -314,18 +330,3 @@ Never special-case these extensions in production code. They are canaries for th
 ## Definition of success
 
 A non-developer can install a prebuilt GoTavern release, start fresh or migrate an existing SillyTavern deployment, use the unmodified frontend and complex supported extension/preset workflows, and obtain the same effective provider requests and persistent/browser state as pinned Node SillyTavern—without Go/Node on the target server and without a data conversion layer.
-20. **The outbound stub selects a rule by SUBSTRING of the request URL, so overlapping shapes need
-   `times` and longest-path-first ordering.** `selectRule` does `href.includes(candidate.match)` and
-   returns the FIRST contained match, so a rule matching `/v1/videos` also matches `/v1/videos/{id}`
-   and `/v1/videos/{id}/content`. Without a `times` bound, the create rule answered the POLL as well,
-   the loop polled the create answer forever, and the probe hung -- a harness defect presenting as a
-   product hang, which is the most expensive way for it to present. Two consequences to apply before
-   writing any probe whose shapes share a path prefix: give the earlier shape a `times` bound so it
-   stops answering, and list the LONGER path FIRST (`/content` ahead of the poll rule, or the poll
-   rule swallows the content request and returns JSON where bytes are expected). This is the
-   ordered-steps rule (16) applied to the harness itself rather than to the fixture's data. Related:
-   a probe must fail by NAMING itself -- per-scenario timeout plus the scenario name and the mocks it
-   was served -- because a bare `TimeoutError` cost a full turn to localise while the same defect with
-   diagnostics was fixed in one run. Do not add an exact-path match option to `tools/lib` on
-   initiative; it is a lib change and carries the `pipe()` discipline: every outbound probe must
-   re-record byte-identically before it is committed.
