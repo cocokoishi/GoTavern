@@ -194,7 +194,18 @@ domain.
    comparing two values that happen to differ on one host; record `null` for a shape field and keep
    the reason; null its DERIVED fields too, because content-length measures those bytes and the ETag
    hashes them; and REFUSE outright if a scenario tries to classify `status` as shape, since every
-   scenario must compare its status. The one argued exception is a value that is CLIENT-derived and
+   scenario must compare its status. THE SAME RULE APPLIES WHEN THE INSTABILITY COMES FROM A RACE RATHER THAN FROM THE HOST, and the
+   sd-routes probe produced the first case: `upscalers.notArray` and `vaes.autoFirst` each start TWO
+   outbound requests to different endpoints before awaiting either, so the peer records ARRIVAL order,
+   and the probe reads the outbound log immediately after the response -- so when the route answers as
+   soon as the first request settles, the losing request has not landed yet and the recorded COUNT is 1
+   or 2 depending on timing. Measured: deterministic 5/5 on this host and non-deterministic on Linux,
+   which is why only the CI double-run could see it. When a pinned route starts more than one outbound
+   request before awaiting them, the fixture must record a sorted SET or NOTHING AT ALL -- never an
+   arrival-ordered array and never an observed count -- with the race named in the shape reason, and
+   the assertion must live in a labelled source-derived test (rule 4) instead. Do NOT widen the drain
+   window to catch the loser: that makes the count stable by luck rather than by contract, and the same
+   race reappears under different timing. The one argued exception is a value that is CLIENT-derived and
    byte-stable (`requestHeaders.connection`), which stays recorded with its reason -- nulling it
    would discard information with no host-dependence justification. After any such change, sweep
    every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`,`/Users/`): the
