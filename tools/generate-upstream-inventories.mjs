@@ -224,7 +224,7 @@ function generateRoutes() {
         '',
         'This inventory records route declarations and router mounts from the pinned source. A `partial` route has only the explicitly listed observer coverage; it does not establish middleware or end-to-end parity.',
         '',
-        `Route registrations found: **${rows.length}**. Method/path values that depend on computed expressions remain visible in the table for manual source tracing.`,
+        `Route registrations found: **${rows.length}**. STATUS CONVENTION, stated because the distinction is the difference between a decision and a backlog item: a bare \`not implemented\` means the route is NOT YET DONE and carries no claim beyond that; \`not implemented: <reason>\` means there is a REASON the route cannot or should not be built as a differential, and the reason names it -- an architecture boundary by number, a package-owned protocol, or an inherited property. A reader should never have to open a second document to tell which kind of \`not implemented\` they are looking at. Method/path values that depend on computed expressions remain visible in the table for manual source tracing.`,
         '',
         '| Method | Full path | Upstream declaration | Current status |',
         '|---|---|---|---|',

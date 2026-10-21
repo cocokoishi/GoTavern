@@ -4,14 +4,7 @@ Baseline: SillyTavern 1.19.0 at `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Gene
 
 This inventory records route declarations and router mounts from the pinned source. A `partial` route has only the explicitly listed observer coverage; it does not establish middleware or end-to-end parity.
 
-Route registrations found: **339**. STATUS CONVENTION, stated because the distinction is the difference
-between a decision and a backlog item: a bare `not implemented` means the route is NOT YET DONE and
-carries no claim beyond that; `not implemented: <reason>` means there is a REASON the route cannot or
-should not be built as a differential, and the reason names it -- an architecture boundary by number, a
-package-owned protocol, or an inherited property. Five routes cite a boundary by number and five more
-carry a named reason, ten in all, which is the exclusion count the compat matrix reports; the other
-twenty-two are backlog. A reader should never have to open a second document to tell which kind of
-`not implemented` they are looking at. Method/path values that depend on computed expressions remain visible in the table for manual source tracing.
+Route registrations found: **339**. STATUS CONVENTION, stated because the distinction is the difference between a decision and a backlog item: a bare `not implemented` means the route is NOT YET DONE and carries no claim beyond that; `not implemented: <reason>` means there is a REASON the route cannot or should not be built as a differential, and the reason names it -- an architecture boundary by number, a package-owned protocol, or an inherited property. A reader should never have to open a second document to tell which kind of `not implemented` they are looking at. Method/path values that depend on computed expressions remain visible in the table for manual source tracing.
 
 | Method | Full path | Upstream declaration | Current status |
 |---|---|---|---|
