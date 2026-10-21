@@ -34,6 +34,7 @@ type googleTTSMock struct {
 	Headers    map[string]string `json:"headers"`
 	Body       string            `json:"body"`
 	BinaryBody bool              `json:"binaryBody"`
+	Times      int               `json:"times"`
 }
 
 type googleTTSOutbound struct {

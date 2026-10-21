@@ -82,6 +82,14 @@ const SCENARIOS = [
           { match: JOB_PATH, times: 1, payload: completed },
           { match: `${JOB_PATH}/content`, headers: { 'content-type': 'video/mp4' }, binary: VIDEO_BYTES },
       ] },
+    // TRUTHY NON-STRING members: the pinned OR operator keeps the VALUE itself, so an array or an
+    // object is forwarded as that type. This is the input that discriminates a string-only helper.
+    { label: 'nonStringTruthyMembers', body: { prompt: 'a cat', model: [], size: {}, seconds: 12 }, secrets: secretEntry('api_key_openai', KEY),
+      mocks: [
+          { match: '/v1/videos', times: 1, payload: jobCreated },
+          { match: JOB_PATH, times: 1, payload: completed },
+          { match: JOB_PATH + '/content', times: 1, headers: { 'content-type': 'video/mp4' }, binary: VIDEO_BYTES },
+      ] },
     { label: 'reservedJobId', body: { prompt: 'a cat' }, secrets: secretEntry('api_key_openai', KEY),
       mocks: [
           { match: '/v1/videos', times: 1, payload: { id: 'job/one?x=1' } },
@@ -192,6 +200,8 @@ assert.equal(explicit.seconds, '12', 'an explicit duration stays a STRING');
 assert.deepEqual(JSON.parse(scenarios.falsyParameters.outbound[0].body), {
     prompt: 'a cat', model: 'sora-2', size: '720x1280', seconds: '8',
 }, 'every falsy member falls back through the OR operator, which is what the fixture ACTUALLY recorded');
+assert.deepEqual(JSON.parse(scenarios.nonStringTruthyMembers.outbound[0].body), { prompt: 'a cat', model: [], size: {}, seconds: 12 },
+    'a TRUTHY NON-STRING member is forwarded as its own type: the OR operator keeps the value, it does not stringify it');
 
 const reserved = scenarios.reservedJobId;
 assert.equal(reserved.outbound[1].url, `${VIDEOS}/job/one?x=1`, 'the provider-supplied job id is interpolated RAW into the poll path');
