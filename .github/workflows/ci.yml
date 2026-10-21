@@ -8,6 +8,15 @@ on:
 permissions:
   contents: read
 
+# Only the newest commit on a branch needs verifying. Without this, five pushes in
+# twenty minutes queued five full runs (~30 min each) and the answer about HEAD
+# arrived hours later, while the machine sat waiting. A superseded run is cancelled
+# because its result can no longer change what ships; a run is never cancelled on a
+# pull request, where the individual commit is the thing under review.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 jobs:
   oracle:
     runs-on: ubuntu-latest
