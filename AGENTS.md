@@ -113,6 +113,19 @@ domain.
    test it directly. A negative finding drawn from bounded output is the most dangerous kind of
    error this list covers, because it arrives looking like a measurement and is then quoted as
    evidence; it has already produced one false claim that propagated into a project rule.
+12. **An artefact derived from a file inherits that file's defects, including an invisible BOM.**
+   PowerShell's `Set-Content -Encoding utf8` writes a byte-order mark, so a commit message written
+   that way starts with U+FEFF. Ten published subjects in this repository carry one, all of them
+   rule-recording commits produced that way, and nobody noticed for months because a BOM renders as
+   nothing. Write generated text with
+   `[System.IO.File]::WriteAllText(path, text, (New-Object System.Text.UTF8Encoding($false)))`, and
+   assert the FIRST byte of anything you generate — not just that it decodes strictly, because a BOM
+   decodes perfectly. The check itself is the second trap: `git log -1 --format=%s` piped into
+   PowerShell has the BOM at the START of the stream, where the decoder consumes it as a stream
+   marker and silently drops it, so a per-commit loop reports zero. Prefix another field
+   (`--format="%H%x09%s"`) so the BOM can never land at stream start, and verify the check can
+   report a known instance before trusting a negative. The same reasoning applies to any evidence
+   file: verify the bytes you produced, not the readability of the bytes you produced.
 
 ## Phase order
 
