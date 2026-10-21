@@ -1034,7 +1034,7 @@ async function workflowScenarios(origin, auth) {
         ['upperA', 'A.json'],
         ['lowerA2', 'aa.json'],
         ['upperAB', 'AB.json'],
-        ['unicodeA', 'Ã„.json'],
+        ['unicodeA', 'Ä.json'],
     ]) {
         await step(`saveWorkflow.sort-${label}`, 'comfy/save-workflow', { file_name: name, workflow: `{"name":${JSON.stringify(name)}}` });
     }
