@@ -167,7 +167,13 @@ domain.
    normalisation, truncation or quoting needs an input that actually exercises the transformation,
    or it passes for the wrong reason. The test for this class is always the same question — "what
    input would make this assertion fail?" — and if no such input exists in the fixture, the
-   assertion is decoration.
+   assertion is decoration. THE SAME APPLIES TO THE HARNESS'S OWN VIEW OF A URL: the caption-image
+   replay re-anchored each mock rule on `recorded.URL.Path`, which is the DECODED path, so the
+   workers_ai account id `acc%2Fone%3Fx%3D1` became `acc/one?x=1`, the rule no longer matched the
+   request the peer had actually received, and the failure looked like a product defect while the Go
+   side was sending the correct escaped target. Use `EscapedPath()` wherever a harness matches or
+   records a URL it did not build itself, because the decoded form has already thrown away the
+   distinction the fixture exists to preserve.
 16. **A fixture whose steps share state is ORDERED DATA, not a keyed map.** The sprite-upload
    fixture first keyed its steps by name and the replay iterated them sorted; because every step
    mutates one shared user tree, sorting desynchronised every subsequent tree snapshot and made the
