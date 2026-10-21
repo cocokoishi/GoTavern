@@ -178,7 +178,11 @@ func TestOpenAICaptionMatchesPinnedOracle(t *testing.T) {
 				if normalizeGoogleSeed(actual.Body) != normalizeGoogleSeed(recorded.Body) {
 					t.Fatalf("request %d body = %q, pinned %q", index, actual.Body, recorded.Body)
 				}
-				if got, want := actual.Headers["authorization"], recorded.Headers["authorization"]; got != want {
+				// TRAILING OWS IS TRANSPORT-DERIVED, not product behaviour: the pinned no-key branch sends
+				// `Authorization: Bearer ` with a trailing space, and the receiving parser normalises trailing
+				// whitespace, so the value a peer OBSERVES is `Bearer`. Both sides are trimmed here, and the
+				// fixture keeps the pinned value with its space.
+				if got, want := strings.TrimSpace(actual.Headers["authorization"]), strings.TrimSpace(recorded.Headers["authorization"]); got != want {
 					t.Fatalf("request %d authorization = %q, pinned %q (a branch must use ITS OWN secret)", index, got, want)
 				}
 			}

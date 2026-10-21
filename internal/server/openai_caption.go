@@ -295,9 +295,12 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	headers := []outbound.Header{{Name: "Content-Type", Value: "application/json"}}
-	if key != "" {
-		headers = append(headers, outbound.Header{Name: "Authorization", Value: "Bearer " + key})
+	// The pinned header object is built UNCONDITIONALLY as `Authorization: Bearer ${key}`, so a no-key branch
+	// sends the literal "Bearer " rather than omitting the header. The fixture asserts that empty bearer, which
+	// a conditional implementation would fail.
+	headers := []outbound.Header{
+		{Name: "Content-Type", Value: "application/json"},
+		{Name: "Authorization", Value: "Bearer " + key},
 	}
 	// `api_type` is a DIFFERENT body member from `api`: it selects the additional-header getter. With it
 	// ABSENT -- which is what every other scenario records -- the pinned server adds NOTHING.

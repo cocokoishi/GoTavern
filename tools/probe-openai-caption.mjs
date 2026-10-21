@@ -103,6 +103,12 @@ SCENARIOS.push(
       secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
       mocks: [{ match: 'proxy.example.test', times: 1, payload: CAPTION }] },
     { label: 'no-key', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' }, secrets: {}, mocks: [] },
+    // The ALLOWANCE side of the same question: the pinned noKeyTypes list lets five branches run WITHOUT a
+    // key, and ooba resolves through the LOCAL FALLBACK, so this pins the resolved TARGET and the outbound
+    // COUNT as well as the status. A status alone cannot separate "correctly allowed" from "reached a peer by
+    // accident", which is why the refusal's zero-outbound assertion sits beside it below.
+    { label: 'allowance-ooba-without-key', body: { api: 'ooba', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'm' }, secrets: {},
+      mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
     // `api_type` is a DIFFERENT body member from `api`: it selects the additional-header getter, and with it
     // ABSENT -- which is every other scenario -- the pinned server adds NOTHING. The type literal is taken
     // from the api convention; the assertions below fail loudly if the getter does not fire.
@@ -274,6 +280,18 @@ const secondShape = scenarios['answer-secondShape'];
 assert.equal(secondShape.response.status, 200, 'the second extraction shape answers 200');
 assert.deepEqual(secondShape.response.body, { caption: 'a second-shape caption' },
     'reading data.message.content[0].text, which a choices-only implementation would miss');
+
+// ── the allowance and the refusal, read together ─────────────────────────────────────────────────────
+const allowance = scenarios['allowance-ooba-without-key'];
+assert.equal(allowance.response.status, 200, 'a noKeyTypes branch is ALLOWED without a key');
+assert.equal(allowance.outbound.length, 1, 'and reaches the peer EXACTLY once');
+assert.equal(allowance.outbound[0].url.endsWith('local.example.test/v1/chat/completions'), true,
+    `at the LOCAL FALLBACK target, saw ${allowance.outbound[0].url}`);
+assert.equal(allowance.outbound[0].headers.authorization, 'Bearer ',
+    'and sends the pinned EMPTY bearer: the header is built unconditionally as `Bearer ${key}`, so a no-key branch sends "Bearer " rather than omitting the header');
+const refusal = scenarios['no-key'];
+assert.equal(refusal.response.status, 400, 'while a keyed branch without a key answers 400');
+assert.equal(refusal.outbound.length, 0, 'and reaches NO peer at all');
 
 const fixture = {
     schemaVersion: 1,
