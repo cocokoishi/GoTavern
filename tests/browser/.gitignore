@@ -2,5 +2,10 @@
 node_modules/
 .pinned-run/
 test-results/
-generation-probe-report.jsongen-a.json
+generation-probe-report.json
+# Per-run legs of the two-leg generation comparison, 100-250 KB each. They are evidence for
+# one run, not an expectation: the committed artifact is generation-comparison.json, which
+# records the DIFFERENCE. Committing a leg would invite someone to treat a known divergence
+# as the expected value.
+gen-a.json
 gen-p1.json
