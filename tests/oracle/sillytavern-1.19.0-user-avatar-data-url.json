@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned persona-avatar data URL: GET /api/users/me avatar field resolved through mime-types (src/users.js:12,726) rather than the mime@1.6.0 table the static paths use, including the template literal interpolation of mime.lookup's false",
+  "normalizations": [
+    "Every avatar file is seeded with fixed bytes, so the recorded data URL base64 is a property of the fixture rather than of the recording host.",
+    "Only the avatar field is recorded. The same response also carries handle, name, admin, password and created, which are covered by the account routes."
+  ],
+  "gaps": [
+    "Until this probe existed the path had no oracle at all: be12d79 changed it to the mime@1.6.0 table and nothing could fail, which is why the regression reached main unnoticed.",
+    "An avatar filename whose sanitized form differs from the request (characters removed by sanitize-filename) is not probed."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-user-avatar-cookie-secret",
+    "seededUsers": [
+      {
+        "handle": "default-user",
+        "name": "Avatar Probe",
+        "created": 1700000000000,
+        "password": "",
+        "admin": true,
+        "enabled": true,
+        "salt": ""
+      }
+    ],
+    "avatarFiles": {
+      "probe.avif": "YXZhdGFyLWF2aWYtYnl0ZXM=",
+      "probe.heic": "YXZhdGFyLWhlaWMtYnl0ZXM=",
+      "probe.json": "eyJhdmF0YXIiOiJqc29uIn0=",
+      "probe.png": "YXZhdGFyLXBuZy1ieXRlcw==",
+      "probe.zzz": "YXZhdGFyLXVua25vd24tZXh0ZW5zaW9uLWJ5dGVz"
+    }
+  },
+  "responses": {
+    "probe_avif": {
+      "status": 200,
+      "avatar": "data:image/avif;base64,YXZhdGFyLWF2aWYtYnl0ZXM="
+    },
+    "probe_heic": {
+      "status": 200,
+      "avatar": "data:image/heic;base64,YXZhdGFyLWhlaWMtYnl0ZXM="
+    },
+    "probe_json": {
+      "status": 200,
+      "avatar": "data:application/json;base64,eyJhdmF0YXIiOiJqc29uIn0="
+    },
+    "probe_png": {
+      "status": 200,
+      "avatar": "data:image/png;base64,YXZhdGFyLXBuZy1ieXRlcw=="
+    },
+    "probe_zzz": {
+      "status": 200,
+      "avatar": "data:false;base64,YXZhdGFyLXVua25vd24tZXh0ZW5zaW9uLWJ5dGVz"
+    },
+    "missing_file": {
+      "status": 200,
+      "avatar": "/img/default-user.png"
+    },
+    "no_persona": {
+      "status": 200,
+      "avatar": "/img/default-user.png"
+    }
+  }
+}

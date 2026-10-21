@@ -547,13 +547,17 @@ func (runtime *accountRuntime) userAvatar(account storedAccount) string {
 					fileName := filepath.Base(filepath.Clean(avatar))
 					avatarPath := filepath.Join(runtime.options.DataRoot, account.string("handle"), "User Avatars", fileName)
 					if body, err := os.ReadFile(avatarPath); err == nil {
-						// The pinned media type table, not mime.TypeByExtension:
-						// Go builds the latter from the host (its own built-ins
-						// plus /etc/mime.types on Unix and the registry on
-						// Windows), which would make this data URL a property of
-						// the recording machine. The pinned table falls back to
-						// application/octet-stream on its own.
-						mediaType := pinnedMimeV1ContentType(fileName)
+						// src/users.js:726 calls mime.lookup, which is mime-types,
+						// not the mime@1.6.0 table the static paths use; the two
+						// disagree for .avif, .heic, the charset and unknown
+						// extensions. src/users.js:728 then interpolates the result
+						// into a template literal, so a not-found lookup yields the
+						// literal string "false" in the data URL. Neither the host
+						// MIME database nor the static table reproduces that.
+						mediaType, known := pinnedUserAvatarMediaType(fileName)
+						if !known {
+							mediaType = "false"
+						}
 						return "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(body)
 					}
 				}
