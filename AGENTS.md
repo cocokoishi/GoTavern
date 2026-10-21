@@ -137,6 +137,25 @@ domain.
    process. The same reasoning applies to log and repository searches for a term that appears in the
    command you are running.
 
+## Where verification runs
+
+The development machine is weak. Spend its cycles on the work only it can do, and let GitHub
+Actions spend the rest.
+
+- **Locally:** `go build ./...`, gofmt, and `go test -count=1` for the PACKAGES you changed. That is
+  the loop you need while writing code.
+- **In CI:** the full `go test ./...`, `go vet ./...`, `gotavern assets verify`, every cross-compile,
+  and `tools/build-generated-lib.mjs` — which re-records every oracle fixture and regenerates the
+  inventories on Linux and then requires a zero diff.
+- **Do not run `tools/build-generated-lib.mjs` locally** to "check" a fixture. It rewrites
+  host-dependent fixtures with Windows paths (`account-*`, `basic-auth`, `frontend-static`,
+  `host-whitelist`, `per-user-basic-auth` all differ on this host), it takes tens of minutes, and its
+  result is not the gate: the Linux CI run is. Push, read the failure, fix from that.
+- **Push early.** An unpushed commit has never been tested and cannot be reproached from CI output.
+  A red run that names the differing bytes is cheaper than an hour of local guessing.
+- When CI runs are the gate, a CI job must be able to tell you WHICH bytes differ. Prefer
+  `git diff --exit-code` plus the diff in the log over a bare exit status.
+
 ## Phase order
 
 - **Phase 0:** API/config/startup/data inventories; pinned `public/**` + `default/**`; generated frontend reproduction; Node oracle; multi-observer differential harness; release/installer skeleton.
