@@ -890,7 +890,17 @@ function routeScenarios(origin, auth) {
 }
 
 function snapshotWorkflowDirectory(directory) {
-    return readdirSync(directory).sort().map(name => {
+    const names = readdirSync(directory).sort();
+    // The snapshot order is compared by a Go replay that sorts UTF-8 byte strings, while
+    // JavaScript's default sort compares UTF-16 code units. Those orders agree for every name in
+    // this fixture, and the guard below refuses to record a set where they would not: a future
+    // non-BMP or otherwise unit-order-sensitive name would otherwise make the recording depend on
+    // which language sorted it.
+    const byteOrder = [...names].sort((left, right) => Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8')));
+    if (JSON.stringify(byteOrder) !== JSON.stringify(names)) {
+        throw new Error(`workflow snapshot order depends on the sort implementation (UTF-16 vs UTF-8): ${JSON.stringify(names)} vs ${JSON.stringify(byteOrder)}`);
+    }
+    return names.map(name => {
         const absolute = path.join(directory, name);
         const info = statSync(absolute);
         return {
@@ -947,6 +957,10 @@ async function workflowScenarios(origin, auth) {
         workflow: '{"hidden":true}',
     });
 
+    // Names in this fixture must be unique under ASCII CASE FOLDING: Windows filesystems are
+    // case-insensitive, so recording 'aa.json' and 'AA.json' in one run collapses them into one
+    // file there and leaves two files on Linux, which makes the recorded directory contents (and
+    // every list response after it) host-dependent. The guard below refuses such a recording.
     for (const [label, name] of [
         ['numericTen', '10.json'],
         ['numericTwo', '2.json'],
@@ -954,7 +968,7 @@ async function workflowScenarios(origin, auth) {
         ['space', 'a b.json'],
         ['upperA', 'A.json'],
         ['lowerA2', 'aa.json'],
-        ['upperA2', 'AA.json'],
+        ['upperAB', 'AB.json'],
         ['unicodeA', 'Ä.json'],
     ]) {
         await step(`saveWorkflow.sort-${label}`, 'comfy/save-workflow', { file_name: name, workflow: `{"name":${JSON.stringify(name)}}` });
@@ -1020,6 +1034,25 @@ async function workflowScenarios(origin, auth) {
     await step('renameWorkflow.directory', 'comfy/rename-workflow', { old_name: 'dir.json', new_name: 'moved.json' });
 
     await step('workflows.final', 'comfy/workflows', {});
+
+    // Host-independence guard. A workflow fixture must never create two names that differ only by
+    // ASCII case: Windows collapses them into one file (case-insensitive) while Linux keeps both,
+    // so the recorded directory contents and every later list response would be host-dependent.
+    // This is exactly the defect CI caught in 'sort-upperA2' after a v1 recording used 'aa.json'
+    // and 'AA.json' in the same run; refuse to record such a case instead of reproducing it.
+    const caseFoldedNames = new Map();
+    for (const recorded of steps) {
+        if (recorded.route !== 'comfy/save-workflow') continue;
+        const fileName = recorded.body.file_name;
+        if (fileName === undefined || fileName === null) continue;
+        const text = String(fileName);
+        const folded = text.toLowerCase();
+        const previous = caseFoldedNames.get(folded);
+        if (previous !== undefined && previous !== text) {
+            throw new Error(`workflow fixture would record a case-insensitive filename collision: ${JSON.stringify(previous)} and ${JSON.stringify(text)}; Windows and Linux would produce different directory contents`);
+        }
+        caseFoldedNames.set(folded, text);
+    }
 
     return { steps, state, collatorLocale };
 }

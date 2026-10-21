@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -73,6 +74,7 @@ func TestPinnedNodeSDComfyWorkflows(t *testing.T) {
 	if len(fixture.Steps) == 0 || len(fixture.State) != len(fixture.Steps) {
 		t.Fatalf("SD workflows oracle has %d steps and %d state snapshots", len(fixture.Steps), len(fixture.State))
 	}
+	verifyWorkflowFixtureIsHostIndependent(t, fixture)
 
 	dataRoot := t.TempDir()
 	installRoot := t.TempDir()
@@ -162,9 +164,17 @@ func snapshotSDWorkflows(t *testing.T, directory string) []sdWorkflowEntry {
 	for _, entry := range entries {
 		names = append(names, entry.Name())
 	}
-	// Node's readdirSync(...).sort() is a UTF-16 code-unit sort; for the recorded names this is
-	// the same order as a byte sort, which is what sort.Strings performs.
+	// The probe records the snapshot in Node's default (UTF-16 code unit) order, while this replay
+	// sorts byte strings. The two orders agree for every name in the fixture; refuse to run if a
+	// future name would make the snapshot order depend on the sort implementation.
+	utf16Order := append([]string(nil), names...)
+	sort.SliceStable(utf16Order, func(left, right int) bool {
+		return lessUTF16String(utf16Order[left], utf16Order[right])
+	})
 	sort.Strings(names)
+	if strings.Join(names, "\x00") != strings.Join(utf16Order, "\x00") {
+		t.Fatalf("workflow snapshot order depends on the sort implementation (UTF-16 vs UTF-8 bytes): %q vs %q", names, utf16Order)
+	}
 	snapshot := make([]sdWorkflowEntry, 0, len(names))
 	for _, name := range names {
 		info, err := os.Stat(filepath.Join(directory, name))
@@ -185,4 +195,50 @@ func snapshotSDWorkflows(t *testing.T, directory string) []sdWorkflowEntry {
 		snapshot = append(snapshot, entry)
 	}
 	return snapshot
+}
+
+// verifyWorkflowFixtureIsHostIndependent refuses to replay a fixture that creates two files whose
+// names differ only by ASCII case. Windows filesystems are case-insensitive and collapse such a
+// pair into one file, while Linux keeps both, so the recorded directory contents and every list
+// response after the second save would be host-dependent. This is the exact defect CI found in
+// 'sort-upperA2' (aa.json and AA.json recorded in one Windows run); refusing the fixture is better
+// than replaying a recording that cannot be true on both hosts.
+func verifyWorkflowFixtureIsHostIndependent(t *testing.T, fixture sdWorkflowsFixture) {
+	t.Helper()
+	declared := map[string]string{}
+	for _, step := range fixture.Steps {
+		if step.Route != "comfy/save-workflow" {
+			continue
+		}
+		raw, exists := step.Body["file_name"]
+		if !exists {
+			continue
+		}
+		var name string
+		if json.Unmarshal(raw, &name) != nil || name == "" {
+			continue
+		}
+		folded := strings.ToLower(name)
+		if previous, seen := declared[folded]; seen && previous != name {
+			t.Fatalf("%s: fixture creates %q and %q, which differ only by case; such a recording is accurate on a case-insensitive host only and cannot be replayed portably", step.Name, previous, name)
+		}
+		declared[folded] = name
+	}
+}
+
+// lessUTF16String compares two strings by UTF-16 code units, which is what JavaScript's default
+// Array.prototype.sort does.
+func lessUTF16String(left, right string) bool {
+	leftUnits := utf16.Encode([]rune(left))
+	rightUnits := utf16.Encode([]rune(right))
+	limit := len(leftUnits)
+	if len(rightUnits) < limit {
+		limit = len(rightUnits)
+	}
+	for index := 0; index < limit; index++ {
+		if leftUnits[index] != rightUnits[index] {
+			return leftUnits[index] < rightUnits[index]
+		}
+	}
+	return len(leftUnits) < len(rightUnits)
 }
