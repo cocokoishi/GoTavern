@@ -1,0 +1,5486 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/backends cheap routes: multimodal lists, process, kobold status/embed, textgen status/props, llamacpp/ollama/tabby management, bias",
+  "oracle": {
+    "file": "src/endpoints/backends/chat-completions.js, kobold.js, text-completions.js",
+    "mountedAt": "/api/backends (src/server-startup.js)"
+  },
+  "conventions": {
+    "mock": "body-URL peers are recorded as the <mock> marker; the Go replay substitutes its own local mock origin",
+    "outboundHeaderModel": "explicitHeaders are the header object the route passed, lowercased and sorted as node-fetch sends them; nodeFetchWireDefaults are asserted separately"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.specialHeader",
+      "observations.*.body",
+      "observations.*.outbound[] (url, method, explicitHeaders, body)",
+      "nodeFetchWireDefaults.headers"
+    ],
+    "shape": [
+      "observations.*.outbound[].transportConnection"
+    ],
+    "notRecorded": [
+      "the ephemeral peer authority",
+      "the pinned server listen port",
+      "startup log"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backends-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Backends Probe",
+      "admin": true,
+      "password": ""
+    },
+    "seamDefaults": {
+      "GOTAVERN_BACKENDS_POLLINATIONS_URL": "https://gen.pollinations.ai",
+      "GOTAVERN_BACKENDS_AIMLAPI_URL": "https://api.aimlapi.com",
+      "GOTAVERN_BACKENDS_NANOGPT_URL": "https://nano-gpt.com",
+      "GOTAVERN_BACKENDS_ELECTRONHUB_URL": "https://api.electronhub.ai",
+      "GOTAVERN_BACKENDS_CHUTES_URL": "https://llm.chutes.ai",
+      "GOTAVERN_BACKENDS_MISTRAL_URL": "https://api.mistral.ai",
+      "GOTAVERN_BACKENDS_XAI_URL": "https://api.x.ai",
+      "GOTAVERN_BACKENDS_MOONSHOT_URL": "https://api.moonshot.ai",
+      "GOTAVERN_BACKENDS_WORKERSAI_URL": "https://api.cloudflare.com"
+    },
+    "scenarios": {
+      "multimodal.pollinations.ok": {
+        "route": "chat-completions/multimodal-models/pollinations",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_POLLINATIONS_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models",
+            "body": "[{\"name\":\"text-model\",\"input_modalities\":[\"text\"]},{\"name\":\"vision-model\",\"input_modalities\":[\"text\",\"image\"]},{\"name\":\"no-modalities\"},{\"name\":\"bad-modalities\",\"input_modalities\":\"image\"}]"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.pollinations.nonOk": {
+        "route": "chat-completions/multimodal-models/pollinations",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_POLLINATIONS_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/models",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.pollinations.notArray": {
+        "route": "chat-completions/multimodal-models/pollinations",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_POLLINATIONS_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models",
+            "body": "{\"models\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.pollinations.throws": {
+        "route": "chat-completions/multimodal-models/pollinations",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_POLLINATIONS_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/models",
+            "throws": true
+          }
+        ],
+        "replayed": true,
+        "peer": "closed"
+      },
+      "multimodal.aimlapi.ok": {
+        "route": "chat-completions/multimodal-models/aimlapi",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_AIMLAPI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"vision-a\",\"features\":[\"openai/chat-completion\",\"openai/chat-completion.vision\"]},{\"id\":\"text-b\",\"features\":[\"openai/chat-completion\"]},{\"id\":\"no-features\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.aimlapi.notArray": {
+        "route": "chat-completions/multimodal-models/aimlapi",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_AIMLAPI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.nanogpt.ok": {
+        "route": "chat-completions/multimodal-models/nanogpt",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_NANOGPT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/v1/models",
+            "body": "{\"data\":[{\"id\":\"nano-vision\",\"capabilities\":{\"vision\":true}},{\"id\":\"nano-text\",\"capabilities\":{}}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.electronhub.ok": {
+        "route": "chat-completions/multimodal-models/electronhub",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_ELECTRONHUB_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"hub-vision\",\"metadata\":{\"vision\":true}},{\"id\":\"hub-text\",\"metadata\":{}}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.electronhub.missingData": {
+        "route": "chat-completions/multimodal-models/electronhub",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_ELECTRONHUB_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.chutes.ok": {
+        "route": "chat-completions/multimodal-models/chutes",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_CHUTES_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"chutes-vision\",\"input_modalities\":[\"text\",\"image\"]},{\"id\":\"chutes-text\",\"input_modalities\":[\"text\"]}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.chutes.noKey": {
+        "route": "chat-completions/multimodal-models/chutes",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_CHUTES_URL",
+        "secrets": {
+          "api_key_chutes": "",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.mistral.ok": {
+        "route": "chat-completions/multimodal-models/mistral",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_MISTRAL_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"mistral-vision\",\"capabilities\":{\"vision\":true}},{\"id\":\"mistral-text\",\"capabilities\":{\"vision\":false}}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.xai.addsGrok": {
+        "route": "chat-completions/multimodal-models/xai",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_XAI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/language-models",
+            "body": "{\"models\":[{\"id\":\"grok-vision\",\"input_modalities\":[\"text\",\"image\"]},{\"id\":\"grok-text\",\"input_modalities\":[\"text\"]}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.xai.keepsExistingGrok": {
+        "route": "chat-completions/multimodal-models/xai",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_XAI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/language-models",
+            "body": "{\"models\":[{\"id\":\"grok-4-0709\",\"input_modalities\":[\"text\",\"image\"]}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.moonshot.ok": {
+        "route": "chat-completions/multimodal-models/moonshot",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_MOONSHOT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"moonshot-vision\",\"supports_image_in\":true},{\"id\":\"moonshot-text\",\"supports_image_in\":false}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.workersai.ok": {
+        "route": "chat-completions/multimodal-models/workers_ai",
+        "query": "",
+        "body": {
+          "workers_ai_account_id": " probe-account "
+        },
+        "bodyText": "{\"workers_ai_account_id\":\" probe-account \"}",
+        "seam": "GOTAVERN_BACKENDS_WORKERSAI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/client/v4/accounts/probe-account/ai/models/search",
+            "body": "{\"result\":[{\"name\":\"@cf/vision\",\"properties\":[{\"property_id\":\"vision\",\"value\":\"true\"}]},{\"name\":\"@cf/text\",\"properties\":[{\"property_id\":\"vision\",\"value\":\"false\"}]},{\"name\":\"@cf/no-properties\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "multimodal.workersai.noAccount": {
+        "route": "chat-completions/multimodal-models/workers_ai",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": "GOTAVERN_BACKENDS_WORKERSAI_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.merge": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are helpful."
+            },
+            {
+              "role": "system",
+              "content": "Be terse."
+            },
+            {
+              "role": "user",
+              "content": "Hi",
+              "name": "Iris"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello",
+              "name": "Bot"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            },
+            {
+              "role": "tool",
+              "content": "tool result",
+              "tool_call_id": "call-1"
+            }
+          ],
+          "type": "merge",
+          "char_name": "Bot",
+          "user_name": "Iris"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\"},{\"role\":\"system\",\"content\":\"Be terse.\"},{\"role\":\"user\",\"content\":\"Hi\",\"name\":\"Iris\"},{\"role\":\"assistant\",\"content\":\"Hello\",\"name\":\"Bot\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}],\"type\":\"merge\",\"char_name\":\"Bot\",\"user_name\":\"Iris\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.mergeTools": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are helpful."
+            },
+            {
+              "role": "system",
+              "content": "Be terse."
+            },
+            {
+              "role": "user",
+              "content": "Hi",
+              "name": "Iris"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello",
+              "name": "Bot"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            },
+            {
+              "role": "tool",
+              "content": "tool result",
+              "tool_call_id": "call-1"
+            }
+          ],
+          "type": "merge_tools",
+          "char_name": "Bot",
+          "user_name": "Iris"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\"},{\"role\":\"system\",\"content\":\"Be terse.\"},{\"role\":\"user\",\"content\":\"Hi\",\"name\":\"Iris\"},{\"role\":\"assistant\",\"content\":\"Hello\",\"name\":\"Bot\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}],\"type\":\"merge_tools\",\"char_name\":\"Bot\",\"user_name\":\"Iris\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.semi": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are helpful."
+            },
+            {
+              "role": "system",
+              "content": "Be terse."
+            },
+            {
+              "role": "user",
+              "content": "Hi",
+              "name": "Iris"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello",
+              "name": "Bot"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            },
+            {
+              "role": "tool",
+              "content": "tool result",
+              "tool_call_id": "call-1"
+            }
+          ],
+          "type": "semi",
+          "char_name": "Bot",
+          "user_name": "Iris"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\"},{\"role\":\"system\",\"content\":\"Be terse.\"},{\"role\":\"user\",\"content\":\"Hi\",\"name\":\"Iris\"},{\"role\":\"assistant\",\"content\":\"Hello\",\"name\":\"Bot\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}],\"type\":\"semi\",\"char_name\":\"Bot\",\"user_name\":\"Iris\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.strict": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are helpful."
+            },
+            {
+              "role": "system",
+              "content": "Be terse."
+            },
+            {
+              "role": "user",
+              "content": "Hi",
+              "name": "Iris"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello",
+              "name": "Bot"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            },
+            {
+              "role": "tool",
+              "content": "tool result",
+              "tool_call_id": "call-1"
+            }
+          ],
+          "type": "strict",
+          "char_name": "Bot",
+          "user_name": "Iris"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\"},{\"role\":\"system\",\"content\":\"Be terse.\"},{\"role\":\"user\",\"content\":\"Hi\",\"name\":\"Iris\"},{\"role\":\"assistant\",\"content\":\"Hello\",\"name\":\"Bot\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}],\"type\":\"strict\",\"char_name\":\"Bot\",\"user_name\":\"Iris\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.single": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are helpful."
+            },
+            {
+              "role": "system",
+              "content": "Be terse."
+            },
+            {
+              "role": "user",
+              "content": "Hi",
+              "name": "Iris"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello",
+              "name": "Bot"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            },
+            {
+              "role": "tool",
+              "content": "tool result",
+              "tool_call_id": "call-1"
+            }
+          ],
+          "type": "single",
+          "char_name": "Bot",
+          "user_name": "Iris"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\"},{\"role\":\"system\",\"content\":\"Be terse.\"},{\"role\":\"user\",\"content\":\"Hi\",\"name\":\"Iris\"},{\"role\":\"assistant\",\"content\":\"Hello\",\"name\":\"Bot\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}],\"type\":\"single\",\"char_name\":\"Bot\",\"user_name\":\"Iris\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.none": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hi"
+            }
+          ],
+          "type": ""
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}],\"type\":\"\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.unknownType": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [],
+          "type": "bogus"
+        },
+        "bodyText": "{\"messages\":[],\"type\":\"bogus\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.notArray": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": "nope",
+          "type": "merge"
+        },
+        "bodyText": "{\"messages\":\"nope\",\"type\":\"merge\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.empty": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [],
+          "type": "merge"
+        },
+        "bodyText": "{\"messages\":[],\"type\":\"merge\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.mediaParts": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "look"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,AAAA"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,BBBB"
+                  }
+                }
+              ]
+            }
+          ],
+          "type": "merge"
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"look\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,BBBB\"}}]}],\"type\":\"merge\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "process.groupNames": {
+        "route": "chat-completions/process",
+        "query": "",
+        "body": {
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Already: prefixed"
+            },
+            {
+              "role": "assistant",
+              "content": "plain"
+            }
+          ],
+          "type": "merge",
+          "char_name": "Bot",
+          "user_name": "Iris",
+          "group_names": [
+            "Already",
+            "Other"
+          ]
+        },
+        "bodyText": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"Already: prefixed\"},{\"role\":\"assistant\",\"content\":\"plain\"}],\"type\":\"merge\",\"char_name\":\"Bot\",\"user_name\":\"Iris\",\"group_names\":[\"Already\",\"Other\"]}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.status.ok": {
+        "route": "kobold/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "koboldcpp"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"koboldcpp\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/info/version",
+            "body": "{\"result\":\"1.2.3\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/extra/version",
+            "body": "{\"result\":\"1.70\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/model",
+            "body": "{\"result\":\"kobold-model\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.status.modelError": {
+        "route": "kobold/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/info/version",
+            "body": "{\"result\":\"1.2.3\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/extra/version",
+            "body": "{\"result\":\"1.70\"}"
+          },
+          {
+            "path": "/v1/model",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.status.readOnlyModel": {
+        "route": "kobold/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/info/version",
+            "body": "{\"result\":\"0.0.1\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/extra/version",
+            "body": "{\"result\":\"1.71\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/model",
+            "body": "{\"result\":\"ReadOnly\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.status.versionsFail": {
+        "route": "kobold/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/info/version",
+            "status": 500,
+            "body": "nope"
+          },
+          {
+            "path": "/extra/version",
+            "status": 404,
+            "body": "nope"
+          },
+          {
+            "path": "/v1/model",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.status.localhostRewrite": {
+        "route": "kobold/status",
+        "query": "",
+        "body": {
+          "api_server": "http://localhost:<port>"
+        },
+        "bodyText": "{\"api_server\":\"http://localhost:<port>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.embed.ok": {
+        "route": "kobold/embed",
+        "query": "",
+        "body": {
+          "server": "<mock>",
+          "items": [
+            "a",
+            "b"
+          ],
+          "api_type": "koboldcpp"
+        },
+        "bodyText": "{\"server\":\"<mock>\",\"items\":[\"a\",\"b\"],\"api_type\":\"koboldcpp\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/extra/embeddings",
+            "body": "{\"model\":\"embed-model\",\"data\":[{\"index\":1,\"embedding\":[2,2]},{\"index\":0,\"embedding\":[1,1]}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.embed.arrayItems": {
+        "route": "kobold/embed",
+        "query": "",
+        "body": {
+          "server": "<mock>",
+          "items": [
+            "a"
+          ]
+        },
+        "bodyText": "{\"server\":\"<mock>\",\"items\":[\"a\"]}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/extra/embeddings",
+            "body": "{\"data\":[[{\"index\":0,\"embedding\":[9]}]]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.embed.missingData": {
+        "route": "kobold/embed",
+        "query": "",
+        "body": {
+          "server": "<mock>",
+          "items": [
+            "a"
+          ],
+          "api_type": "koboldcpp"
+        },
+        "bodyText": "{\"server\":\"<mock>\",\"items\":[\"a\"],\"api_type\":\"koboldcpp\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/extra/embeddings",
+            "body": "{\"model\":\"m\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.embed.noServer": {
+        "route": "kobold/embed",
+        "query": "",
+        "body": {
+          "items": [
+            "a"
+          ]
+        },
+        "bodyText": "{\"items\":[\"a\"]}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "kobold.embed.nonJson": {
+        "route": "kobold/embed",
+        "query": "",
+        "body": {
+          "server": "<mock>",
+          "items": [
+            "a"
+          ]
+        },
+        "bodyText": "{\"server\":\"<mock>\",\"items\":[\"a\"]}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 500,
+            "path": "/api/extra/embeddings",
+            "body": "not json"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.ok": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>/v1",
+          "api_type": "generic",
+          "api_key": "x"
+        },
+        "bodyText": "{\"api_server\":\"<mock>/v1\",\"api_type\":\"generic\",\"api_key\":\"x\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"model-b\"},{\"id\":\"model-a\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.ooba": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "ooba"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"loaded-model\"}]}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/internal/model/info",
+            "body": "{\"model_name\":\"my-model\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.tabby": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "tabby"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/model/list",
+            "body": "{\"data\":[{\"id\":\"tabby-one\"}]}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/model",
+            "body": "{\"id\":\"tabby-loaded\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.tabbyNoModel": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "tabby"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/model/list",
+            "body": "{\"data\":[{\"id\":\"tabby-one\"}]}"
+          },
+          {
+            "path": "/v1/model",
+            "status": 400,
+            "body": "{\"error\":\"no model\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.ollama": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "ollama"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ollama\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/tags",
+            "body": "{\"models\":[{\"name\":\"llama3:latest\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.togetherai": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "togetherai"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"togetherai\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/models",
+            "body": "[{\"name\":\"together-model\"}]"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.huggingface": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "huggingface"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"huggingface\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/info",
+            "body": "{\"data\":[{\"id\":\"hf-model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.nonOk": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "generic"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"generic\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/models",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.notArray": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "generic"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"generic\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"models\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.localhostRewrite": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "http://localhost:<port>",
+          "api_type": "generic"
+        },
+        "bodyText": "{\"api_server\":\"http://localhost:<port>\",\"api_type\":\"generic\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.status.koboldcppKey": {
+        "route": "text-completions/status",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "koboldcpp"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"koboldcpp\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.ok": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {
+          "api_server": "<mock>/v1",
+          "api_type": "ooba"
+        },
+        "bodyText": "{\"api_server\":\"<mock>/v1\",\"api_type\":\"ooba\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/props",
+            "body": "{\"chat_template\":\"{{prompt}}\",\"n_ctx\":4096}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.llamacppNulTemplate": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "llamacpp",
+          "model": "some model"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"llamacpp\",\"model\":\"some model\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/props",
+            "body": "{\"chat_template\":\"template\\u0000\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.missingTemplate": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "generic"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"generic\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/props",
+            "body": "{\"n_ctx\":2048}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.missingServer": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.nonOk": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/props",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "textgen.props.nonJson": {
+        "route": "text-completions/props",
+        "query": "",
+        "body": {
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/props",
+            "body": "not json"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.props.ok": {
+        "route": "text-completions/llamacpp/props",
+        "query": "",
+        "body": {
+          "server_url": "<mock>/v1"
+        },
+        "bodyText": "{\"server_url\":\"<mock>/v1\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/props",
+            "body": "{\"n_ctx\":4096,\"model_path\":\"/models/x.gguf\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.props.missingServer": {
+        "route": "text-completions/llamacpp/props",
+        "query": "",
+        "body": {},
+        "bodyText": "{}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.props.nonOk": {
+        "route": "text-completions/llamacpp/props",
+        "query": "",
+        "body": {
+          "server_url": "<mock>"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/props",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.info": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "info"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"info\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/slots",
+            "body": "[{\"id\":0,\"is_processing\":false}]"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.save": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "save",
+          "id_slot": 0,
+          "filename": "slot.bin"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"save\",\"id_slot\":0,\"filename\":\"slot.bin\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/slots/0",
+            "body": "{\"id_slot\":0}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.erase": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "erase",
+          "id_slot": 1
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"erase\",\"id_slot\":1}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/slots/1",
+            "body": "{\"id_slot\":1}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.invalidAction": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "bogus"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"bogus\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.invalidSlot": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "save",
+          "id_slot": "x",
+          "filename": "f"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"save\",\"id_slot\":\"x\",\"filename\":\"f\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "llamacpp.slots.saveMissingFilename": {
+        "route": "text-completions/llamacpp/slots",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "action": "save",
+          "id_slot": 0
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"action\":\"save\",\"id_slot\":0}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.download.ok": {
+        "route": "text-completions/ollama/download",
+        "query": "",
+        "body": {
+          "name": "llama3",
+          "api_server": "<mock>/"
+        },
+        "bodyText": "{\"name\":\"llama3\",\"api_server\":\"<mock>/\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/pull",
+            "body": "{\"status\":\"success\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.download.missingParams": {
+        "route": "text-completions/ollama/download",
+        "query": "",
+        "body": {
+          "name": "llama3"
+        },
+        "bodyText": "{\"name\":\"llama3\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.download.nonOk": {
+        "route": "text-completions/ollama/download",
+        "query": "",
+        "body": {
+          "name": "llama3",
+          "api_server": "<mock>"
+        },
+        "bodyText": "{\"name\":\"llama3\",\"api_server\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/api/pull",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.caption.ok": {
+        "route": "text-completions/ollama/caption-image",
+        "query": "",
+        "body": {
+          "server_url": "<mock>/v1",
+          "model": "llava",
+          "prompt": "Describe",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"server_url\":\"<mock>/v1\",\"model\":\"llava\",\"prompt\":\"Describe\",\"image\":\"QUJD\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/generate",
+            "body": "{\"response\":\"A cat.\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.caption.empty": {
+        "route": "text-completions/ollama/caption-image",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "model": "llava",
+          "prompt": "Describe",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"model\":\"llava\",\"prompt\":\"Describe\",\"image\":\"QUJD\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/generate",
+            "body": "{\"response\":\"\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.caption.missingParams": {
+        "route": "text-completions/ollama/caption-image",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "prompt": "Describe"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"prompt\":\"Describe\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "ollama.caption.nonOk": {
+        "route": "text-completions/ollama/caption-image",
+        "query": "",
+        "body": {
+          "server_url": "<mock>",
+          "model": "llava",
+          "prompt": "Describe",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"server_url\":\"<mock>\",\"model\":\"llava\",\"prompt\":\"Describe\",\"image\":\"QUJD\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/api/generate",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "tabby.download.ok": {
+        "route": "text-completions/tabby/download",
+        "query": "",
+        "body": {
+          "api_server": "<mock>/",
+          "api_type": "tabby",
+          "model_name": "some-model"
+        },
+        "bodyText": "{\"api_server\":\"<mock>/\",\"api_type\":\"tabby\",\"model_name\":\"some-model\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/auth/permission",
+            "body": "{\"permission\":\"admin\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/download",
+            "body": "{\"status\":\"ok\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "tabby.download.notAdmin": {
+        "route": "text-completions/tabby/download",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "tabby",
+          "model_name": "some-model"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\",\"model_name\":\"some-model\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/auth/permission",
+            "body": "{\"permission\":\"read\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "tabby.download.permissionError": {
+        "route": "text-completions/tabby/download",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "tabby",
+          "model_name": "some-model"
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\",\"model_name\":\"some-model\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/auth/permission",
+            "status": 500,
+            "body": "nope"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "tabby.download.keyHeaders": {
+        "route": "text-completions/tabby/download",
+        "query": "",
+        "body": {
+          "api_server": "<mock>",
+          "api_type": "tabby",
+          "model_name": "some-model",
+          "secret_id": null
+        },
+        "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\",\"model_name\":\"some-model\",\"secret_id\":null}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/auth/permission",
+            "body": "{\"permission\":\"admin\"}"
+          },
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/download",
+            "body": "{}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "bias.emptyBody": {
+        "route": "chat-completions/bias",
+        "query": "?model=gpt-3.5-turbo",
+        "body": {},
+        "bodyText": "{}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "bias.claudeSkips": {
+        "route": "chat-completions/bias",
+        "query": "?model=claude-3-haiku",
+        "body": [
+          {
+            "text": "hello",
+            "value": 5
+          }
+        ],
+        "bodyText": "[{\"text\":\"hello\",\"value\":5}]",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "bias.openai": {
+        "route": "chat-completions/bias",
+        "query": "?model=gpt-3.5-turbo",
+        "body": [
+          {
+            "text": "hello",
+            "value": 5
+          },
+          {
+            "text": "world",
+            "value": -3
+          },
+          {
+            "text": "",
+            "value": 1
+          },
+          {
+            "value": 2
+          },
+          null
+        ],
+        "bodyText": "[{\"text\":\"hello\",\"value\":5},{\"text\":\"world\",\"value\":-3},{\"text\":\"\",\"value\":1},{\"value\":2},null]",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "bias.tokenIdJson": {
+        "route": "chat-completions/bias",
+        "query": "?model=gpt-3.5-turbo",
+        "body": [
+          {
+            "text": "[1, 2, 3]",
+            "value": 7
+          },
+          {
+            "text": "[1, \"x\"]",
+            "value": 8
+          }
+        ],
+        "bodyText": "[{\"text\":\"[1, 2, 3]\",\"value\":7},{\"text\":\"[1, \\\"x\\\"]\",\"value\":8}]",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "bias.noModel": {
+        "route": "chat-completions/bias",
+        "query": "",
+        "body": [
+          {
+            "text": "hello",
+            "value": 5
+          }
+        ],
+        "bodyText": "[{\"text\":\"hello\",\"value\":5}]",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      }
+    }
+  },
+  "observations": {
+    "multimodal.pollinations.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "16",
+      "etag": "W/\"10-sJ+JyuAlXs5agDpEvL7zLJ1CccM\"",
+      "specialHeader": null,
+      "body": "[\"vision-model\"]",
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.pollinations.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+      "specialHeader": null,
+      "body": "[]",
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.pollinations.notArray": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+      "specialHeader": null,
+      "body": "[]",
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.pollinations.throws": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "specialHeader": null,
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.aimlapi.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "12",
+      "etag": "W/\"c-lNoMp3WYYCZFOe+qRBdNJFA9RGA\"",
+      "specialHeader": null,
+      "body": "[\"vision-a\"]",
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.aimlapi.notArray": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+      "specialHeader": null,
+      "body": "[]",
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.nanogpt.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "15",
+      "etag": "W/\"f-CHALZ1fzSGLQd/Rjc2srQ356b9Y\"",
+      "specialHeader": null,
+      "body": "[\"nano-vision\"]",
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/models?detailed=true",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.electronhub.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-qsixhoY2nkVzU7rp2FKOIKHfVWo\"",
+      "specialHeader": null,
+      "body": "[\"hub-vision\"]",
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.electronhub.missingData": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "specialHeader": null,
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.chutes.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "17",
+      "etag": "W/\"11-MgH+TlZPRAawJpd0F2vAsMCJsRg\"",
+      "specialHeader": null,
+      "body": "[\"chutes-vision\"]",
+      "outbound": [
+        {
+          "url": "https://llm.chutes.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-chutes-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.chutes.noKey": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+      "specialHeader": null,
+      "body": "[]",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.mistral.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "18",
+      "etag": "W/\"12-Ddt+VX4RJDnbZVU7a65Aga0ZQbY\"",
+      "specialHeader": null,
+      "body": "[\"mistral-vision\"]",
+      "outbound": [
+        {
+          "url": "https://api.mistral.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-mistral-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.xai.addsGrok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "29",
+      "etag": "W/\"1d-VxgR/WXjZRUeADD+4ZDmBv2he/s\"",
+      "specialHeader": null,
+      "body": "[\"grok-vision\",\"grok-4-0709\"]",
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/language-models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-xai-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.xai.keepsExistingGrok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "15",
+      "etag": "W/\"f-TKT3WDVgquaMrRvoWcCP2do7uRU\"",
+      "specialHeader": null,
+      "body": "[\"grok-4-0709\"]",
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/language-models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-xai-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.moonshot.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "19",
+      "etag": "W/\"13-6xnPrU2TeLodvUcb+7yh8p+3YOY\"",
+      "specialHeader": null,
+      "body": "[\"moonshot-vision\"]",
+      "outbound": [
+        {
+          "url": "https://api.moonshot.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-moonshot-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.workersai.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-nIMj6zQWScz0CdaxooBjwUWhIdo\"",
+      "specialHeader": null,
+      "body": "[\"@cf/vision\"]",
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/probe-account/ai/models/search?task=Text+Generation&per_page=1000",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-workers-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "multimodal.workersai.noAccount": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+      "specialHeader": null,
+      "body": "[]",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.merge": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "204",
+      "etag": "W/\"cc-AMM9fd/gzTAQK/q7+TmUoQWO2y4\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\n\\nBe terse.\"},{\"role\":\"user\",\"content\":\"Iris: Hi\"},{\"role\":\"assistant\",\"content\":\"Bot: Hello\"},{\"role\":\"user\",\"content\":\"Again\\n\\ntool result\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.mergeTools": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "253",
+      "etag": "W/\"fd-9pS8ZTHly/vSKrfYAbMzeau8jyc\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\n\\nBe terse.\"},{\"role\":\"user\",\"content\":\"Iris: Hi\"},{\"role\":\"assistant\",\"content\":\"Bot: Hello\"},{\"role\":\"user\",\"content\":\"Again\"},{\"role\":\"tool\",\"content\":\"tool result\",\"tool_call_id\":\"call-1\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.semi": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "204",
+      "etag": "W/\"cc-AMM9fd/gzTAQK/q7+TmUoQWO2y4\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\n\\nBe terse.\"},{\"role\":\"user\",\"content\":\"Iris: Hi\"},{\"role\":\"assistant\",\"content\":\"Bot: Hello\"},{\"role\":\"user\",\"content\":\"Again\\n\\ntool result\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.strict": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "204",
+      "etag": "W/\"cc-AMM9fd/gzTAQK/q7+TmUoQWO2y4\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\n\\nBe terse.\"},{\"role\":\"user\",\"content\":\"Iris: Hi\"},{\"role\":\"assistant\",\"content\":\"Bot: Hello\"},{\"role\":\"user\",\"content\":\"Again\\n\\ntool result\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.single": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "134",
+      "etag": "W/\"86-En2FOn3kY5pqRBZIiFlgs10ot0I\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"You are helpful.\\n\\nBe terse.\\n\\nIris: Hi\\n\\nBot: Hello\\n\\nIris: Again\\n\\nIris: tool result\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.none": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "45",
+      "etag": "W/\"2d-K2/jqnOZXmT4rqS7gv5YCnppKSw\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.unknownType": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "35",
+      "etag": "W/\"23-fLHqDmUSSNwiojy5Cpzp5u53Kb8\"",
+      "specialHeader": null,
+      "body": "{\"error\":\"Unknown processing type\"}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.notArray": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "35",
+      "etag": "W/\"23-/LICpnLZC2knR1HRsI4cWaiPFAI\"",
+      "specialHeader": null,
+      "body": "{\"error\":\"Invalid messages format\"}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.empty": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "61",
+      "etag": "W/\"3d-lHM7jaMM5MfJxYWr5QZbNPQ84qc\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"[Start a new chat]\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.mediaParts": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "212",
+      "etag": "W/\"d4-KGnGdmnq/Cl1oMFiyZQWDJsBTrU\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"look\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,BBBB\"}}]}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "process.groupNames": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "74",
+      "etag": "W/\"4a-PeG915XXhpvrtptC7/9U4Lj5P6I\"",
+      "specialHeader": null,
+      "body": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"Already: prefixed\\n\\nplain\"}]}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.status.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "80",
+      "etag": "W/\"50-Vr1TuEfzCvTdJdpJRPHCI69AkMc\"",
+      "specialHeader": null,
+      "body": "{\"koboldUnitedVersion\":\"1.2.3\",\"koboldCppVersion\":\"1.70\",\"model\":\"kobold-model\"}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/info/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/extra/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.status.modelError": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "81",
+      "etag": "W/\"51-ZtinBywiS0jZN3rhQ6bYKZM1LrY\"",
+      "specialHeader": null,
+      "body": "{\"koboldUnitedVersion\":\"1.2.3\",\"koboldCppVersion\":\"1.70\",\"model\":\"no_connection\"}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/info/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/extra/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.status.readOnlyModel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "81",
+      "etag": "W/\"51-CrxbZOSZV+UCfPqQ2xmyG20iSgI\"",
+      "specialHeader": null,
+      "body": "{\"koboldUnitedVersion\":\"0.0.1\",\"koboldCppVersion\":\"1.71\",\"model\":\"no_connection\"}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/info/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/extra/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.status.versionsFail": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "55",
+      "etag": "W/\"37-cN85DoG+ramBxDKcz+6TAa0bvso\"",
+      "specialHeader": null,
+      "body": "{\"koboldUnitedVersion\":\"0.0.0\",\"model\":\"no_connection\"}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/info/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/extra/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.status.localhostRewrite": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "55",
+      "etag": "W/\"37-cN85DoG+ramBxDKcz+6TAa0bvso\"",
+      "specialHeader": null,
+      "body": "{\"koboldUnitedVersion\":\"0.0.0\",\"model\":\"no_connection\"}",
+      "outbound": [
+        {
+          "url": "http://127.0.0.1:59999/v1/info/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "http://127.0.0.1:59999/extra/version",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        },
+        {
+          "url": "http://127.0.0.1:59999/v1/model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.embed.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-YVvM5DL1w4XrBZjd+4He92uzx+8\"",
+      "specialHeader": null,
+      "body": "{\"model\":\"embed-model\",\"embeddings\":[[1,1],[2,2]]}",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/embeddings",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ]
+          ],
+          "body": "{\"input\":[\"a\",\"b\"]}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.embed.arrayItems": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "38",
+      "etag": "W/\"26-I4QiVpB3ibOUak11wa2OVSECV/M\"",
+      "specialHeader": null,
+      "body": "{\"model\":\"unknown\",\"embeddings\":[[9]]}",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/embeddings",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ]
+          ],
+          "body": "{\"input\":[\"a\"]}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.embed.missingData": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "specialHeader": null,
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/embeddings",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ]
+          ],
+          "body": "{\"input\":[\"a\"]}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.embed.noServer": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "kobold.embed.nonJson": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+      "specialHeader": null,
+      "body": "Internal server error",
+      "outbound": [
+        {
+          "url": "<mock>/api/extra/embeddings",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ]
+          ],
+          "body": "{\"input\":[\"a\"]}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "63",
+      "etag": "W/\"3f-GOGkhh7O3nn7Q0jcxznDKARidOg\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"model-b\",\"data\":[{\"id\":\"model-b\"},{\"id\":\"model-a\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.ooba": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "52",
+      "etag": "W/\"34-TJ5/Wfz+sqNPc6HFr93RXdCD5FY\"",
+      "specialHeader": "true",
+      "body": "{\"result\":\"my-model\",\"data\":[{\"id\":\"loaded-model\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/internal/model/info",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.tabby": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "53",
+      "etag": "W/\"35-jB46BJB7x23+m3HrltDZA4JTKGg\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"tabby-loaded\",\"data\":[{\"id\":\"tabby-one\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/model/list",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.tabbyNoModel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "45",
+      "etag": "W/\"2d-KHKek6DoyBBBXOMk4EVEHQGRNX0\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"None\",\"data\":[{\"id\":\"tabby-one\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/model/list",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/model",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.ollama": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "81",
+      "etag": "W/\"51-XQi1QBC76C7u3v/gKUwtRHeAEqw\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"llama3:latest\",\"data\":[{\"id\":\"llama3:latest\",\"name\":\"llama3:latest\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/api/tags",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.togetherai": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "84",
+      "etag": "W/\"54-Z/9GczQgKsoIvdkwKM4ujXYgajg\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"together-model\",\"data\":[{\"id\":\"together-model\",\"name\":\"together-model\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/api/models?&info",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.huggingface": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "28",
+      "etag": "W/\"1c-LmgnDxClr6d/BstpsJ8prmjeCZ8\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"Valid\",\"data\":[]}",
+      "outbound": [
+        {
+          "url": "<mock>/info",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.nonOk": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.notArray": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.localhostRewrite": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [
+        {
+          "url": "http://127.0.0.1:59999/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.status.koboldcppKey": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "28",
+      "etag": "W/\"1c-LmgnDxClr6d/BstpsJ8prmjeCZ8\"",
+      "specialHeader": null,
+      "body": "{\"result\":\"Valid\",\"data\":[]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-koboldcpp-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "131",
+      "etag": "W/\"83-FQArxHU/oGEOeel5u4l3z2PtyYg\"",
+      "specialHeader": null,
+      "body": "{\"chat_template\":\"{{prompt}}\",\"n_ctx\":4096,\"chat_template_hash\":\"effa18501e44aafd9bc42a2f64ffc9b6350f94025520ca2ed382f9bdc4b6e982\"}",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.llamacppNulTemplate": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "118",
+      "etag": "W/\"76-N5MLSYgYGm+cxpRTBVjxHiQRraM\"",
+      "specialHeader": null,
+      "body": "{\"chat_template\":\"template\\n\",\"chat_template_hash\":\"90d69c78fb9ef942c8ce0a0d88a7455572ada06044bc1516473472664ddd013b\"}",
+      "outbound": [
+        {
+          "url": "<mock>/props?model=some%20model",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.missingTemplate": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "specialHeader": null,
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-generic-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.missingServer": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.nonOk": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "textgen.props.nonJson": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "specialHeader": null,
+      "body": "Internal Server Error",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.props.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "44",
+      "etag": "W/\"2c-la85vA3aZJWXfit0AXflPcaDzAM\"",
+      "specialHeader": null,
+      "body": "{\"n_ctx\":4096,\"model_path\":\"/models/x.gguf\"}",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.props.missingServer": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.props.nonOk": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/props",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.info": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "32",
+      "etag": "W/\"20-2LEDjzxAm9kX4wIGCfHN0wDSLVM\"",
+      "specialHeader": null,
+      "body": "[{\"id\":0,\"is_processing\":false}]",
+      "outbound": [
+        {
+          "url": "<mock>/slots",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.save": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "13",
+      "etag": "W/\"d-kcTf+VVo0Y2f9j6+1APtrf2Y3Ao\"",
+      "specialHeader": null,
+      "body": "{\"id_slot\":0}",
+      "outbound": [
+        {
+          "url": "<mock>/slots/0?action=save",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"filename\":\"slot.bin\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.erase": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "13",
+      "etag": "W/\"d-Im8I8qgdJ+Orz2NA6uQpgLQgMUI\"",
+      "specialHeader": null,
+      "body": "{\"id_slot\":1}",
+      "outbound": [
+        {
+          "url": "<mock>/slots/1?action=erase",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.invalidAction": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.invalidSlot": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "llamacpp.slots.saveMissingFilename": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.download.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "specialHeader": null,
+      "body": "{\"ok\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/api/pull",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"name\":\"llama3\",\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.download.missingParams": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.download.nonOk": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/api/pull",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"name\":\"llama3\",\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.caption.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "20",
+      "etag": "W/\"14-cIz25RFbKq56LuH4bU+xLc1C86w\"",
+      "specialHeader": null,
+      "body": "{\"caption\":\"A cat.\"}",
+      "outbound": [
+        {
+          "url": "<mock>/api/generate",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"model\":\"llava\",\"prompt\":\"Describe\",\"images\":[\"QUJD\"],\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.caption.empty": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/api/generate",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"model\":\"llava\",\"prompt\":\"Describe\",\"images\":[\"QUJD\"],\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.caption.missingParams": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "ollama.caption.nonOk": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/api/generate",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"model\":\"llava\",\"prompt\":\"Describe\",\"images\":[\"QUJD\"],\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "tabby.download.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "specialHeader": null,
+      "body": "{\"ok\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/auth/permission",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/download",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": "{\"api_server\":\"<mock>/\",\"api_type\":\"tabby\",\"model_name\":\"some-model\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "tabby.download.notAdmin": {
+      "status": 403,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/auth/permission",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "tabby.download.permissionError": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/auth/permission",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "tabby.download.keyHeaders": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-Ai2R8hgEarLmHKwesT1qcY913ys\"",
+      "specialHeader": null,
+      "body": "{\"ok\":true}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/auth/permission",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "<mock>/v1/download",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-tabby-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-tabby-key"
+            ]
+          ],
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"tabby\",\"model_name\":\"some-model\",\"secret_id\":null}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "bias.emptyBody": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "specialHeader": null,
+      "body": "Bad Request",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "bias.claudeSkips": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-vyGp6PvFo4RvsFtPoIWeCReyIC8\"",
+      "specialHeader": null,
+      "body": "{}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "bias.openai": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "22",
+      "etag": "W/\"16-IQ8ANhus+w29k9DybtGHXl4vH7k\"",
+      "specialHeader": null,
+      "body": "{\"14957\":-3,\"15339\":5}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "bias.tokenIdJson": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "64",
+      "etag": "W/\"40-UIyGCiWL1Ms4a+oiwSc099ijhRE\"",
+      "specialHeader": null,
+      "body": "{\"1\":7,\"2\":7,\"3\":7,\"11\":8,\"16\":8,\"58\":8,\"87\":8,\"330\":8,\"1365\":8}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "bias.noModel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-fX2jWsdgVnxWEaIStcDQWvTmpQM\"",
+      "specialHeader": null,
+      "body": "{\"15339\":5}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "route": "/api/backends/kobold/status",
+      "status": "pinned crash not reproduced",
+      "reason": "the pinned handler has no try/catch; a request without api_server throws inside the async handler and the pinned process exits. GoTavern answers 500 and keeps serving. Recorded, not replayed."
+    },
+    {
+      "routesL": [
+        "/api/backends/kobold/generate",
+        "/api/backends/kobold/transcribe-audio",
+        "/api/backends/text-completions/generate",
+        "/api/backends/chat-completions/status"
+      ],
+      "status": "not implemented this round",
+      "reason": "the two generate routes proxy live provider streams (SSE and Ollama JSON-frame streams) with cancellation, retry and per-api-type body filtering; transcribe-audio needs multipart upload and a transcription peer; chat-completions/status is a 380-line source matrix. Each needs its own oracle and harness, so they are deferred rather than faked."
+    }
+  ]
+}
