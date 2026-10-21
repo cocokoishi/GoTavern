@@ -56,6 +56,7 @@ type HTTPHandlerOptions struct {
 	HostWhitelistEnabled             bool
 	HostWhitelistScan                bool
 	HostWhitelistHosts               []string
+	WhitelistImportDomains           []string
 	hostWhitelistWarningWriter       io.Writer
 	BasicAuthEnabled                 bool
 	BasicAuthMode                    bool
@@ -132,6 +133,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	}
 	if parsed.TokenizersDownloadAllowed != nil {
 		options.EnableDownloadableTokenizers = parsed.TokenizersDownloadAllowed
+		options.WhitelistImportDomains = parsed.ImportDomainsWhitelist
 	}
 	if enabled, ok := optionBooleanValue(settings.RequestCompressionEnabled); ok {
 		options.RequestCompressionEnabled = &enabled

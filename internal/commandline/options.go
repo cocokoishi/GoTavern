@@ -111,6 +111,12 @@ type CommandLineResult struct {
 	// excluded from the serialized result so the command-line differential still compares the
 	// same map Node produces.
 	TokenizersDownloadAllowed *bool `json:"-"`
+	// ImportDomainsWhitelist carries whitelistImportDomains, which the pinned
+	// src/endpoints/content-manager.js reads directly from the config. It is excluded from the
+	// serialized result for the same reason as the tokenizer flag: Node's startup settings map does
+	// not contain this key, and adding it there made the command-line differential disagree with
+	// Node in four scenarios before this was split out.
+	ImportDomainsWhitelist []string `json:"-"`
 }
 
 type cliOptionKind uint8
@@ -272,7 +278,27 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config)}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config)}, nil
+}
+
+// importDomainsWhitelist resolves whitelistImportDomains the way the pinned
+// src/endpoints/content-manager.js reads it: a config key whose DEFAULT is the four-host list. It is
+// reported separately, not through the startup settings map, because Node's map does not contain
+// this key and putting it there made the command-line differential disagree in four scenarios.
+func importDomainsWhitelist(config map[string]any) []string {
+	defaultDomains := []any{"localhost", "cdn.discordapp.com", "files.catbox.moe", "raw.githubusercontent.com"}
+	value := getConfigValue(config, "whitelistImportDomains", defaultDomains, cliArray)
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	domains := make([]string, 0, len(items))
+	for _, item := range items {
+		if domain, ok := item.(string); ok {
+			domains = append(domains, domain)
+		}
+	}
+	return domains
 }
 
 // tokenizersDownloadAllowed resolves enableDownloadableTokenizers the way the pinned
