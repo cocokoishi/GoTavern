@@ -71,10 +71,15 @@ type sdObservation struct {
 	Etag          *string  `json:"etag"`
 	Body          string   `json:"body"`
 	Requests      []sdWire `json:"requests"`
-	Comparison    struct {
+	// NormalizedContentLength is a RawMessage so an ABSENT field is distinguishable from a present
+	// null: the canonical length is the compared counterpart of a host-derived content-length, and the
+	// fixture must carry the key (null where no canonical body exists) rather than omit it.
+	NormalizedContentLength json.RawMessage `json:"normalizedContentLength"`
+	Comparison              struct {
 		Compared    []string          `json:"compared"`
 		Shape       []string          `json:"shape"`
 		ShapeReason map[string]string `json:"shapeReason"`
+		HostDerived []string          `json:"hostDerived"`
 	} `json:"comparison"`
 }
 
@@ -240,6 +245,80 @@ func verifySDClassification(t *testing.T, fixture sdRoutesFixture) {
 			t.Fatalf("observable %q is never compared, so this suite cannot prove it", key)
 		}
 	}
+
+	// The host-derived marker is asserted, not trusted. A field whose recorded value would be this
+	// host's answer must be NULL, must be classified shape, and must carry a reason; otherwise the
+	// zero-diff gate can fail on a fixture that looks correctly classified.
+	hostDerivedAnywhere := 0
+	separatorBearingBodies := 0
+	for name, observation := range fixture.Observations {
+		if strings.ContainsRune(observation.Body, '\\') {
+			separatorBearingBodies++
+		}
+		for _, key := range observation.Comparison.HostDerived {
+			hostDerivedAnywhere++
+			if !sdContainsString(observation.Comparison.Shape, key) {
+				t.Fatalf("%s: host-derived field %q is not classified shape", name, key)
+			}
+			if strings.TrimSpace(observation.Comparison.ShapeReason[key]) == "" {
+				t.Fatalf("%s: host-derived field %q has no reason", name, key)
+			}
+			switch key {
+			case "contentType":
+				if observation.ContentType != nil {
+					t.Fatalf("%s: host-derived contentType records %q; it must be null", name, *observation.ContentType)
+				}
+			case "contentLength":
+				if observation.ContentLength != nil {
+					t.Fatalf("%s: host-derived contentLength records %q; it must be null", name, *observation.ContentLength)
+				}
+			case "etag":
+				if observation.Etag != nil {
+					t.Fatalf("%s: host-derived etag records %q; it must be null", name, *observation.Etag)
+				}
+			case "body":
+				if observation.Body != "" {
+					t.Fatalf("%s: host-derived body records %d bytes; it must be null", name, len(observation.Body))
+				}
+			default:
+				t.Fatalf("%s: unknown host-derived field %q", name, key)
+			}
+		}
+		if len(observation.Comparison.HostDerived) > 0 {
+			if len(observation.NormalizedContentLength) == 0 {
+				t.Fatalf("%s: host-derived fields must come with a normalizedContentLength key", name)
+			}
+			if string(observation.NormalizedContentLength) != "null" {
+				t.Fatalf("%s: normalizedContentLength = %s; this probe has no canonical body to measure",
+					name, string(observation.NormalizedContentLength))
+			}
+		}
+	}
+
+	// Evidence-based guard: the check is per-fixture, not a global boolean. The malformed-JSON branch is
+	// declared host-derived by a property of the ROUTE (it renders a development error page), so the
+	// marker must be present even though its body is now nulled and the separator count is therefore
+	// zero. The count is printed so the next reader sees the measurement rather than assuming the check
+	// is missing.
+	if _, present := fixture.Observations["ping.malformedJson"]; !present {
+		t.Fatal("the fixture no longer records the malformed-JSON error page, so the host-derived marker is unguarded")
+	}
+	if len(fixture.Observations["ping.malformedJson"].Comparison.HostDerived) == 0 {
+		t.Fatal("the malformed-JSON error page must declare host-derived fields: it renders an absolute path")
+	}
+	if separatorBearingBodies > 0 && hostDerivedAnywhere == 0 {
+		t.Fatalf("%d recorded bodies carry a backslash separator but no field is marked host-derived", separatorBearingBodies)
+	}
+	t.Logf("host-derived fields declared: %d; recorded bodies carrying a backslash separator: %d", hostDerivedAnywhere, separatorBearingBodies)
+}
+
+func sdContainsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func newSDRouteHandler(t *testing.T, dataRoot, installRoot, cookieSecret string, account sdFixtureAccount) (http.Handler, string, string) {
