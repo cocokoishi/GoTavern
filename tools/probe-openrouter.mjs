@@ -166,10 +166,10 @@ assert.deepEqual(scenarios.creditsComputed.response.body, { remaining: 7.5, tota
 assert.deepEqual(scenarios.creditsStringTotals.response.body, { remaining: 4.25, total_credits: '5.5', total_usage: '1.25' },
     'string totals are echoed as strings while remaining is coerced to a number');
 assert.deepEqual(scenarios.creditsMissingData.response.body, { remaining: 0, total_credits: 0, total_usage: 0 }, 'missing totals default to 0');
-assert.equal(scenarios.creditsComputed.outbound[0].headers.authorization, `Bearer ${OPENROUTER_KEY}`, 'the credits request carries the bearer key');
-assert.equal(scenarios.providersNoModel.outbound[0].url, `${OPENROUTER_API}/models/undefined/endpoints`,
+assert.equal(requireOutbound('creditsComputed', 0).headers.authorization, `Bearer ${OPENROUTER_KEY}`, 'the credits request carries the bearer key');
+assert.equal(requireOutbound('providersNoModel', 0).url, `${OPENROUTER_API}/models/undefined/endpoints`,
     'a missing model is interpolated literally as "undefined" in the upstream path');
-assert.equal(scenarios.multimodalFiltered.outbound[0].url, `${OPENROUTER_API}/models?output_modalities=text`,
+assert.equal(requireOutbound('multimodalFiltered', 0).url, `${OPENROUTER_API}/models?output_modalities=text`,
     'the modality query is the output modality, encodeURIComponent-encoded');
 
 const fixture = {
@@ -217,3 +217,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-openrouter.json', fixture);
 console.log(`boot outbound requests: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

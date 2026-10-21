@@ -234,43 +234,43 @@ assert.deepEqual(scenarios.voicesByAlias.response.body, ['alloy', 'echo'], 'an a
 assert.equal(scenarios.voicesUnknownModel.response.status, 500, 'no matching model is a 500');
 assert.equal(scenarios.voicesNoVoices.response.status, 500, 'a model without a voices array is a 500');
 assert.equal(scenarios.voicesNotArray.response.status, 500, 'a non-array payload is a 500');
-assert.equal(scenarios.voicesDefaultModel.outbound[0].url, `${POLLINATIONS}/text/models`, 'voices fetches the pinned models URL');
+assert.equal(requireOutbound('voicesDefaultModel', 0).url, `${POLLINATIONS}/text/models`, 'voices fetches the pinned models URL');
 assert.equal(scenarios.generateNoKey.response.status, 400, 'generate without a Pollinations key answers 400');
 assert.equal(scenarios.generateNoKey.outbound.length, 0, 'a missing key must not reach the peer');
 assert.equal(scenarios.generateOk.response.status, 200, 'generate answers 200');
 assert.equal(scenarios.generateOk.response.headers['content-type'], 'audio/mpeg', 'generate answers audio/mpeg');
 assert.equal(scenarios.generateOk.response.sha256, createHash('sha256').update(AUDIO_MAGIC).digest('hex'),
     'the base64 audio data is decoded and returned as bytes');
-assert.equal(scenarios.generateOk.outbound[0].url, `${POLLINATIONS}/v1/chat/completions`, 'generate posts to the pinned completions URL');
-const generateBody = JSON.parse(scenarios.generateOk.outbound[0].body);
+assert.equal(requireOutbound('generateOk', 0).url, `${POLLINATIONS}/v1/chat/completions`, 'generate posts to the pinned completions URL');
+const generateBody = JSON.parse(requireOutbound('generateOk', 0).body);
 assert.equal(generateBody.model, 'openai-audio', 'the default model is openai-audio');
 assert.equal(generateBody.audio.voice, 'alloy', 'the default voice is alloy');
 assert.equal(generateBody.stream, false, 'stream is false');
 assert.deepEqual(generateBody.modalities, ['text', 'audio'], 'modalities is the pinned pair');
 assert.equal(generateBody.messages[0].role, 'user', 'the text is sent as a user message');
 assert.equal(generateBody.messages[0].content, 'hello', 'the text reaches the message content');
-assert.equal(scenarios.generateOk.outbound[0].body.includes('"seed":"<seed>"'), true, 'the seed is randomized per request');
-assert.equal(scenarios.generateOk.outbound[0].headers.authorization, `Bearer ${POLLINATIONS_KEY}`, 'generate carries the bearer key');
+assert.equal(requireOutbound('generateOk', 0).body.includes('"seed":"<seed>"'), true, 'the seed is randomized per request');
+assert.equal(requireOutbound('generateOk', 0).headers.authorization, `Bearer ${POLLINATIONS_KEY}`, 'generate carries the bearer key');
 assert.equal(scenarios.generateMissingAudio.response.status, 500, 'missing audio data is a 500');
-assert.equal(scenarios.generateModelAndVoice.outbound[0].body.includes('"model":"openai-audio-large"'), true, 'the requested model is forwarded');
-assert.equal(scenarios.generateModelAndVoice.outbound[0].body.includes('"voice":"nova"'), true, 'the requested voice is forwarded');
+assert.equal(requireOutbound('generateModelAndVoice', 0).body.includes('"model":"openai-audio-large"'), true, 'the requested model is forwarded');
+assert.equal(requireOutbound('generateModelAndVoice', 0).body.includes('"voice":"nova"'), true, 'the requested voice is forwarded');
 
 assert.equal(scenarios.elevenlabsVoicesNoKey.response.status, 400, 'a missing ElevenLabs key answers 400');
 assert.deepEqual(scenarios.elevenlabsVoicesOk.response.body, { voices: [{ voice_id: 'v1', name: 'Voice One' }] }, 'voices passes the payload through');
-assert.equal(scenarios.elevenlabsVoicesOk.outbound[0].url, `${ELEVENLABS}/v1/voices`, 'voices fetches the pinned URL');
-assert.equal(scenarios.elevenlabsVoicesOk.outbound[0].headers['xi-api-key'], ELEVENLABS_KEY, 'the key travels in xi-api-key');
+assert.equal(requireOutbound('elevenlabsVoicesOk', 0).url, `${ELEVENLABS}/v1/voices`, 'voices fetches the pinned URL');
+assert.equal(requireOutbound('elevenlabsVoicesOk', 0).headers['xi-api-key'], ELEVENLABS_KEY, 'the key travels in xi-api-key');
 assert.deepEqual(scenarios.elevenlabsVoiceSettingsOk.response.body, { stability: 0.5, similarity_boost: 0.75 }, 'voice-settings passes the payload through');
-assert.equal(scenarios.elevenlabsVoiceSettingsOk.outbound[0].url, `${ELEVENLABS}/v1/voices/settings/default`, 'voice-settings URL');
-assert.equal(scenarios.elevenlabsHistoryOk.outbound[0].url, `${ELEVENLABS}/v1/history`, 'history URL');
+assert.equal(requireOutbound('elevenlabsVoiceSettingsOk', 0).url, `${ELEVENLABS}/v1/voices/settings/default`, 'voice-settings URL');
+assert.equal(requireOutbound('elevenlabsHistoryOk', 0).url, `${ELEVENLABS}/v1/history`, 'history URL');
 assert.equal(scenarios.elevenlabsHistoryNonOk.response.status, 500, 'a non-ok history answer is a 500');
 
 assert.equal(scenarios.synthesizeMissingVoice.response.status, 400, 'synthesize without voiceId answers 400');
 assert.equal(scenarios.synthesizeMissingRequest.response.status, 400, 'synthesize without request answers 400');
 assert.equal(scenarios.synthesizeEmptyRequest.response.status, 200, 'an EMPTY request object is truthy, so it passes the guard');
-assert.equal(scenarios.synthesizeOk.outbound[0].url, `${ELEVENLABS}/v1/text-to-speech/voice/one`, 'the voiceId is interpolated into the path');
-assert.equal(scenarios.synthesizeOk.outbound[0].body, '{"text":"hello","model_id":"eleven_multilingual_v2","voice_settings":{"stability":0.4}}',
+assert.equal(requireOutbound('synthesizeOk', 0).url, `${ELEVENLABS}/v1/text-to-speech/voice/one`, 'the voiceId is interpolated into the path');
+assert.equal(requireOutbound('synthesizeOk', 0).body, '{"text":"hello","model_id":"eleven_multilingual_v2","voice_settings":{"stability":0.4}}',
     'the request sub-object is re-serialized as the upstream JSON body');
-assert.equal(scenarios.synthesizeReserialized.outbound[0].body, '{"text":"hello","stability":0.5,"seed":100}',
+assert.equal(requireOutbound('synthesizeReserialized', 0).body, '{"text":"hello","stability":0.5,"seed":100}',
     're-serialization normalizes whitespace, 0.50 and 1e2, which forwarding the raw member text would not');
 assert.equal(scenarios.synthesizeOk.response.headers['content-type'], 'audio/mpeg', 'synthesize answers audio/mpeg');
 assert.equal(scenarios.synthesizeOk.response.sha256, createHash('sha256').update(AUDIO_MAGIC).digest('hex'), 'the audio bytes are forwarded');
@@ -278,19 +278,19 @@ assert.equal(scenarios.synthesizeNonOk.response.status, 500, 'a non-ok synthesiz
 assert.equal(scenarios.synthesizeThrows.response.status, 500, 'a rejected synthesize fetch is a 500');
 
 assert.equal(scenarios.historyAudioNoId.response.status, 400, 'history-audio without an id answers 400');
-assert.equal(scenarios.historyAudioOk.outbound[0].url, `${ELEVENLABS}/v1/history/item/one/audio`, 'the history id is interpolated');
+assert.equal(requireOutbound('historyAudioOk', 0).url, `${ELEVENLABS}/v1/history/item/one/audio`, 'the history id is interpolated');
 assert.equal(scenarios.historyAudioOk.response.sha256, createHash('sha256').update(AUDIO_MAGIC).digest('hex'), 'history audio bytes are forwarded');
 assert.equal(scenarios.historyAudioNonOk.response.status, 500, 'a non-ok history-audio answer is a 500');
 
-const voicesAddParts = scenarios.voicesAddDefaults.outbound[0].parts;
+const voicesAddParts = requireOutbound('voicesAddDefaults', 0).parts;
 assert.deepEqual(voicesAddParts.map(part => part.name), ['name', 'description', 'labels'], 'the default fields are sent in order');
-assert.equal(scenarios.voicesAddDefaults.outbound[0].url, `${ELEVENLABS}/v1/voices/add`, 'voices/add URL');
-const withFiles = scenarios.voicesAddWithFiles.outbound[0].parts;
+assert.equal(requireOutbound('voicesAddDefaults', 0).url, `${ELEVENLABS}/v1/voices/add`, 'voices/add URL');
+const withFiles = requireOutbound('voicesAddWithFiles', 0).parts;
 assert.deepEqual(withFiles.map(part => part.name), ['name', 'description', 'labels', 'files'], 'a file part is appended after the text fields');
 assert.equal(withFiles[3].filename, 'audio.wav', 'the filename extension comes from the mime type');
 assert.equal(withFiles[3].contentType, 'audio/wav', 'the part content type is the data-URI mime type');
 assert.equal(withFiles[3].sha256, createHash('sha256').update(WAV_UPLOAD).digest('hex'), 'the decoded data-URI bytes are sent');
-const invalidFileParts = scenarios.voicesAddInvalidFile.outbound[0].parts;
+const invalidFileParts = requireOutbound('voicesAddInvalidFile', 0).parts;
 assert.deepEqual(invalidFileParts.map(part => part.name), ['name', 'description', 'labels', 'files'],
     'the non-data-URI entry is skipped, while the malformed-base64 data URI still produces a file part');
 assert.equal(invalidFileParts[3].filename, 'audio.mpga', 'the measured mime-types extension for audio/mpeg is mpga, not mpeg');
@@ -298,12 +298,12 @@ assert.equal(invalidFileParts[3].sha256, createHash('sha256').update(Buffer.from
     'Buffer.from decodes the malformed base64 the way the pinned route does, which drops the invalid characters');
 
 assert.equal(scenarios.recognizeNoFile.response.status, 400, 'recognize without an uploaded file answers 400');
-assert.equal(scenarios.recognizeOk.outbound[0].url, `${ELEVENLABS}/v1/speech-to-text`, 'recognize URL');
-assert.deepEqual(scenarios.recognizeOk.outbound[0].parts.map(part => part.name), ['file', 'model_id'], 'the file part precedes model_id');
-assert.equal(scenarios.recognizeOk.outbound[0].parts[0].filename, 'audio.wav', 'the upstream file is always named audio.wav');
-assert.equal(scenarios.recognizeOk.outbound[0].parts[0].contentType, 'audio/wav', 'the upstream part is audio/wav');
-assert.equal(scenarios.recognizeOk.outbound[0].parts[0].sha256, createHash('sha256').update(WAV_UPLOAD).digest('hex'), 'the uploaded bytes are forwarded');
-assert.equal(scenarios.recognizeOk.outbound[0].parts[1].name, 'model_id', 'the model field is forwarded');
+assert.equal(requireOutbound('recognizeOk', 0).url, `${ELEVENLABS}/v1/speech-to-text`, 'recognize URL');
+assert.deepEqual(requireOutbound('recognizeOk', 0).parts.map(part => part.name), ['file', 'model_id'], 'the file part precedes model_id');
+assert.equal(requireOutbound('recognizeOk', 0).parts[0].filename, 'audio.wav', 'the upstream file is always named audio.wav');
+assert.equal(requireOutbound('recognizeOk', 0).parts[0].contentType, 'audio/wav', 'the upstream part is audio/wav');
+assert.equal(requireOutbound('recognizeOk', 0).parts[0].sha256, createHash('sha256').update(WAV_UPLOAD).digest('hex'), 'the uploaded bytes are forwarded');
+assert.equal(requireOutbound('recognizeOk', 0).parts[1].name, 'model_id', 'the model field is forwarded');
 assert.deepEqual(scenarios.recognizeOk.response.body, { text: 'transcribed words' }, 'recognize passes the payload through');
 assert.equal(scenarios.recognizeNoKey.response.status, 400, 'recognize without a key answers 400');
 assert.equal(scenarios.recognizeNonOk.response.status, 500, 'a non-ok recognize answer is a 500');
@@ -356,3 +356,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-speech.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

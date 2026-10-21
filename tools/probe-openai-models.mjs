@@ -144,16 +144,16 @@ assert.equal(scenarios.chutesNonOk.response.body, 'chutes says no', 'the peer TE
 assert.deepEqual(scenarios.nanogptOk.response.body, MODELS_PAYLOAD.data, 'NanoGPT answers data.data unchanged');
 assert.equal(scenarios.nanogptNonOk.response.status, 500, 'a non-ok NanoGPT answer is a 500');
 assert.deepEqual(scenarios.siliconflowGlobal.response.body, MODELS_PAYLOAD.data, 'SiliconFlow answers data.data unchanged');
-assert.equal(scenarios.siliconflowCN.outbound[0].url.includes('api.siliconflow.cn'), true,
+assert.equal(requireOutbound('siliconflowCN', 0).url.includes('api.siliconflow.cn'), true,
     'siliconflow_endpoint:"cn" selects the .cn upstream');
-assert.equal(scenarios.siliconflowGlobal.outbound[0].url.includes('api.siliconflow.com'), true,
+assert.equal(requireOutbound('siliconflowGlobal', 0).url.includes('api.siliconflow.com'), true,
     'any other endpoint selects the .com upstream');
 assert.deepEqual(scenarios.workersNoKey.response.status, 400, 'a missing Workers AI key answers 400');
 assert.equal(scenarios.workersNoAccount.response.status, 400, 'a missing account id answers 400');
 assert.equal(scenarios.workersZeroAccount.response.status, 400, 'a ZERO account id is falsy, so it answers 400');
-assert.equal(scenarios.workersAccountTrimmed.outbound[0].url.includes('probe%20account%2Fid'), true,
+assert.equal(requireOutbound('workersAccountTrimmed', 0).url.includes('probe%20account%2Fid'), true,
     'the account id is trimmed and encodeURIComponent-encoded into the path');
-assert.equal(scenarios.workersNumericAccount.outbound[0].url.includes('/accounts/12345/'), true,
+assert.equal(requireOutbound('workersNumericAccount', 0).url.includes('/accounts/12345/'), true,
     'a numeric account id is String()-coerced');
 assert.deepEqual(scenarios.workersAccountTrimmed.response.body, [
     { name: 'worker-b', task: { name: 'Text Embeddings' }, id: 'worker-b' },
@@ -196,3 +196,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-openai-models.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

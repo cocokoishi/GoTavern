@@ -257,25 +257,25 @@ assert.equal(scenarios.aiStudioProviderErrorJson.response.status, 429, 'a provid
 assert.deepEqual(scenarios.aiStudioProviderErrorJson.response.body, { error: 'quota exceeded' }, 'the provider message is forwarded');
 assert.equal(scenarios.aiStudioProviderErrorText.response.status, 500, 'a NON-JSON error body is flattened to 500');
 assert.deepEqual(scenarios.aiStudioProviderErrorText.response.body, { error: 'Internal server error during TTS generation' }, 'the generic message');
-assert.equal(scenarios.aiStudioReservedModel.outbound[0].url, `${MAKERSUITE}/v1beta/models/models/x y?z=1:generateContent`,
+assert.equal(requireOutbound('aiStudioReservedModel', 0).url, `${MAKERSUITE}/v1beta/models/models/x y?z=1:generateContent`,
     'the model is interpolated RAW into the path (rule 15)');
 // The pinned AI Studio branch does NOT guard the key: it reads the secret, gets undefined and sends the
 // request anyway, with no key header at all. That is the behaviour to reproduce, not to harden.
 assert.equal(scenarios.aiStudioNoKey.outbound.length, 1, 'a missing AI Studio key still sends the request');
-assert.equal(scenarios.aiStudioNoKey.outbound[0].headers['x-goog-api-key'], '', 'and sends the key header EMPTY, because node-fetch serialises an undefined value as an empty string');
+assert.equal(requireOutbound('aiStudioNoKey', 0).headers['x-goog-api-key'], '', 'and sends the key header EMPTY, because node-fetch serialises an undefined value as an empty string');
 assert.equal(scenarios.aiStudioNoKey.response.status, 200, 'the provider answer is used as-is');
 
 // ── Vertex express branch ───────────────────────────────────────────────────────────────────────
-assert.equal(scenarios.vertexExpressWithProject.outbound[0].url,
+assert.equal(requireOutbound('vertexExpressWithProject', 0).url,
     `${VERTEX}/v1/projects/gotavern-synthetic-project/locations/us-central1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent`,
     'the express branch with a project id');
-assert.equal(scenarios.vertexExpressWithoutProject.outbound[0].url,
+assert.equal(requireOutbound('vertexExpressWithoutProject', 0).url,
     `${VERTEX}/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent`,
     'the express branch without a project id');
-assert.equal(scenarios.vertexExpressGlobalRegion.outbound[0].url,
+assert.equal(requireOutbound('vertexExpressGlobalRegion', 0).url,
     `${VERTEX_GLOBAL}/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent`,
     'the global region drops the region prefix');
-assert.equal(scenarios.vertexExpressWithProject.outbound[0].headers['x-goog-api-key'], KEYS.vertexai, 'the express branch authenticates with a key header');
+assert.equal(requireOutbound('vertexExpressWithProject', 0).headers['x-goog-api-key'], KEYS.vertexai, 'the express branch authenticates with a key header');
 
 // ── Vertex full branch: the JWT is byte-for-byte ────────────────────────────────────────────────
 const full = scenarios.vertexFullJwt;
@@ -308,11 +308,11 @@ assert.equal(scenarios.vertexFullTokenExchangeFails.response.status, 500, 'a fai
 assert.equal(scenarios.vertexFullTokenExchangeFails.outbound.length, 1, 'a failed token exchange stops before the model call');
 
 // ── Reverse proxy branch ────────────────────────────────────────────────────────────────────────
-assert.equal(scenarios.proxyMode.outbound[0].url, `https://proxy.example.test/v1beta/models/gemini-2.5-flash-preview-tts:generateContent`,
+assert.equal(requireOutbound('proxyMode', 0).url, `https://proxy.example.test/v1beta/models/gemini-2.5-flash-preview-tts:generateContent`,
     'the AI Studio proxy URL');
-assert.equal(scenarios.proxyMode.outbound[0].headers['x-goog-api-key'], KEYS.proxyPassword, 'in the AI Studio proxy branch the proxy password IS the api key header, not a bearer token');
-assert.equal(scenarios.proxyMode.outbound[0].headers.authorization, undefined, 'and no Authorization header is sent in that branch');
-assert.equal(scenarios.proxyModeVertex.outbound[0].url, `https://proxy.example.test/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent`,
+assert.equal(requireOutbound('proxyMode', 0).headers['x-goog-api-key'], KEYS.proxyPassword, 'in the AI Studio proxy branch the proxy password IS the api key header, not a bearer token');
+assert.equal(requireOutbound('proxyMode', 0).headers.authorization, undefined, 'and no Authorization header is sent in that branch');
+assert.equal(requireOutbound('proxyModeVertex', 0).url, `https://proxy.example.test/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent`,
     'the Vertex proxy URL');
 
 const fixture = {
@@ -373,3 +373,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-google-native-tts.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

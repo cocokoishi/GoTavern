@@ -214,52 +214,52 @@ assert.deepEqual(scenarios.sdSamplers.response.body, [
 ], 'sd-samplers answers the SDK enum values in declaration order');
 assert.equal(scenarios.sdSamplers.outbound.length, 0, 'sd-samplers makes no request');
 assert.deepEqual(scenarios.sdModelsOk.response.body, { stable_diffusion: [{ name: 'model-a' }] }, 'sd-models passes the list through');
-assert.equal(scenarios.sdModelsOk.outbound[0].url, `${API}/api/v2/status/models`, 'sd-models URL');
-assert.equal(scenarios.sdModelsOk.outbound[0].headers['content-type'], 'application/json', 'the SDK sends Content-Type even on GET');
-assert.equal(scenarios.sdModelsOk.outbound[0].headers.apikey, undefined, 'getModels sends no apikey');
+assert.equal(requireOutbound('sdModelsOk', 0).url, `${API}/api/v2/status/models`, 'sd-models URL');
+assert.equal(requireOutbound('sdModelsOk', 0).headers['content-type'], 'application/json', 'the SDK sends Content-Type even on GET');
+assert.equal(requireOutbound('sdModelsOk', 0).headers.apikey, undefined, 'getModels sends no apikey');
 assert.equal(scenarios.sdModelsNonOk.response.status, 500, 'a non-2xx SDK answer throws and answers 500');
 assert.equal(scenarios.sdModelsThrows.response.status, 500, 'a rejected SDK fetch answers 500');
 
 assert.deepEqual(scenarios.userInfoNoKey.response.body, { anonymous: true }, 'no key means anonymous');
 assert.equal(scenarios.userInfoNoKey.outbound.length, 0, 'no key means no request');
 assert.deepEqual(scenarios.userInfoOk.response.body, { user: { username: 'probe-user', id: 7 }, sharedKey: { kudos: 100 }, anonymous: false }, 'user-info composes user and sharedKey');
-assert.equal(scenarios.userInfoOk.outbound[0].url, `${API}/api/v2/sharedkeys/${HORDE_KEY}`, 'the shared key path carries the raw key');
-assert.equal(scenarios.userInfoOk.outbound[0].headers.apikey, undefined, 'getSharedKey passes no token');
-assert.equal(scenarios.userInfoOk.outbound[1].headers.apikey, HORDE_KEY, 'findUser passes the token as apikey');
+assert.equal(requireOutbound('userInfoOk', 0).url, `${API}/api/v2/sharedkeys/${HORDE_KEY}`, 'the shared key path carries the raw key');
+assert.equal(requireOutbound('userInfoOk', 0).headers.apikey, undefined, 'getSharedKey passes no token');
+assert.equal(requireOutbound('userInfoOk', 1).headers.apikey, HORDE_KEY, 'findUser passes the token as apikey');
 assert.deepEqual(scenarios.userInfoSharedKeyFails.response.body, { user: { username: 'probe-user' }, sharedKey: null, anonymous: false }, 'a failed shared key is null, not an error');
 assert.equal(scenarios.userInfoFindFails.response.status, 500, 'a failed findUser is a 500');
 
-assert.equal(scenarios.cancelTaskOk.outbound[0].method, 'DELETE', 'cancel-task DELETEs the text status');
-assert.equal(scenarios.cancelTaskOk.outbound[0].url, `${API}/api/v2/generate/text/status/task-1`, 'cancel-task URL');
-assert.equal(scenarios.cancelTaskOk.outbound[0].headers.apikey, undefined, 'cancel-task sends no apikey');
+assert.equal(requireOutbound('cancelTaskOk', 0).method, 'DELETE', 'cancel-task DELETEs the text status');
+assert.equal(requireOutbound('cancelTaskOk', 0).url, `${API}/api/v2/generate/text/status/task-1`, 'cancel-task URL');
+assert.equal(requireOutbound('cancelTaskOk', 0).headers.apikey, undefined, 'cancel-task sends no apikey');
 assert.deepEqual(scenarios.cancelTaskOk.response.body, { message: 'Cancelled' }, 'cancel-task passes the answer through');
 assert.equal(scenarios.cancelTaskNonJson.response.status, 500, 'a body that is not JSON makes cancel-task throw');
-assert.equal(scenarios.taskStatusOk.outbound[0].method, 'GET', 'task-status GETs the same resource');
+assert.equal(requireOutbound('taskStatusOk', 0).method, 'GET', 'task-status GETs the same resource');
 assert.deepEqual(scenarios.taskStatusOk.response.body, { done: true, generations: [{ text: 'hello' }] }, 'task-status passes the answer through');
 assert.deepEqual(scenarios.taskStatusErrorBody.response.body, { message: 'boom' }, 'task-status has NO ok guard, so an error body is returned as-is');
 assert.equal(scenarios.taskStatusErrorBody.response.status, 200, 'the error body is answered with 200');
 
 assert.deepEqual(scenarios.generateTextOk.response.body, { id: 'task-9', kudos: 5 }, 'generate-text answers the async submission');
-assert.equal(scenarios.generateTextOk.outbound[0].method, 'POST', 'generate-text POSTs');
-assert.equal(scenarios.generateTextOk.outbound[0].url, `${API}/api/v2/generate/text/async`, 'generate-text URL');
-assert.equal(scenarios.generateTextOk.outbound[0].headers.apikey, HORDE_KEY, 'a configured key travels as apikey');
-assert.equal(scenarios.generateTextNoKey.outbound[0].headers.apikey, ANONYMOUS_KEY, 'a missing key falls back to the anonymous key');
-assert.equal(scenarios.generateTextOk.outbound[0].headers['client-agent'].startsWith('SillyTavern:'), true, 'Client-Agent comes from /version');
+assert.equal(requireOutbound('generateTextOk', 0).method, 'POST', 'generate-text POSTs');
+assert.equal(requireOutbound('generateTextOk', 0).url, `${API}/api/v2/generate/text/async`, 'generate-text URL');
+assert.equal(requireOutbound('generateTextOk', 0).headers.apikey, HORDE_KEY, 'a configured key travels as apikey');
+assert.equal(requireOutbound('generateTextNoKey', 0).headers.apikey, ANONYMOUS_KEY, 'a missing key falls back to the anonymous key');
+assert.equal(requireOutbound('generateTextOk', 0).headers['client-agent'].startsWith('SillyTavern:'), true, 'Client-Agent comes from /version');
 assert.deepEqual(scenarios.generateTextNonOk.response.body, { error: { message: 'bad prompt' } }, 'a non-ok submission answers {error:{message}}');
 assert.equal(scenarios.generateTextNonOk.response.status, 200, 'that error shape is answered with 200');
 assert.deepEqual(scenarios.generateTextThrows.response.body, { error: true }, 'a rejected fetch answers {error:true}');
-assert.equal(scenarios.generateTextReserialized.outbound[0].body, '{"prompt":"hello","params":{"max_length":50,"temperature":0.7}}',
+assert.equal(requireOutbound('generateTextReserialized', 0).body, '{"prompt":"hello","params":{"max_length":50,"temperature":0.7}}',
     'the submitted body is re-serialized (whitespace and 0.70 normalized)');
 
 assert.deepEqual(scenarios.captionOk.response.body, { caption: CAPTION }, 'caption-image answers {caption}');
-assert.equal(scenarios.captionOk.outbound[0].method, 'POST', 'caption-image submits asynchronously');
-assert.equal(scenarios.captionOk.outbound[0].url, `${API}/api/v2/interrogate/async`, 'the interrogation submit URL');
-assert.equal(scenarios.captionOk.outbound[0].headers.apikey, HORDE_KEY, 'the interrogation submit carries apikey');
-assert.equal(scenarios.captionOk.outbound[0].body, '{"source_image":"data:image/png;base64,AAAA","forms":[{"name":"caption"}]}',
+assert.equal(requireOutbound('captionOk', 0).method, 'POST', 'caption-image submits asynchronously');
+assert.equal(requireOutbound('captionOk', 0).url, `${API}/api/v2/interrogate/async`, 'the interrogation submit URL');
+assert.equal(requireOutbound('captionOk', 0).headers.apikey, HORDE_KEY, 'the interrogation submit carries apikey');
+assert.equal(requireOutbound('captionOk', 0).body, '{"source_image":"data:image/png;base64,AAAA","forms":[{"name":"caption"}]}',
     'the interrogation body is the SDK-built pair');
 assert.equal(scenarios.captionOk.outbound.filter(request => request.url.includes('/interrogate/status/')).length, 3,
     'the status was polled three times');
-assert.equal(scenarios.captionOk.outbound[1].headers.apikey, undefined, 'the status poll carries no apikey');
+assert.equal(requireOutbound('captionOk', 1).headers.apikey, undefined, 'the status poll carries no apikey');
 assert.equal(scenarios.captionFaulted.response.status, 503, 'a faulted interrogation answers 503');
 assert.equal(scenarios.captionCancelled.response.status, 503, 'a cancelled interrogation answers 503');
 assert.equal(scenarios.captionNoCaption.response.status, 500, 'a done interrogation without a caption answers 500');
@@ -273,19 +273,19 @@ assert.equal(scenarios.imageNoId.response.status, 400, 'an unsatisfiable image r
 assert.equal(scenarios.imageOk.response.status, 200, 'generate-image answers 200');
 assert.equal(scenarios.imageOk.response.bodyText, IMAGE_PROMPT, 'the image URL is answered as a plain string');
 assert.equal(scenarios.imageOk.response.headers['content-type'], 'text/html; charset=utf-8', 'a string body is typed html by Express');
-assert.equal(scenarios.imageOk.outbound[0].body, '{"prompt":"a tree ### ugly","params":{"sampler_name":"k_euler","hires_fix":false,"use_gfpgan":false,"cfg_scale":7.5,"steps":20,"width":512,"height":512,"karras":false,"clip_skip":2,"seed":"42","n":1},"r2":false,"nsfw":false,"models":["model-a"]}',
+assert.equal(requireOutbound('imageOk', 0).body, '{"prompt":"a tree ### ugly","params":{"sampler_name":"k_euler","hires_fix":false,"use_gfpgan":false,"cfg_scale":7.5,"steps":20,"width":512,"height":512,"karras":false,"clip_skip":2,"seed":"42","n":1},"r2":false,"nsfw":false,"models":["model-a"]}',
     'the async image body is the SDK-built shape with the prompt joined to the negative prompt');
 assert.equal(scenarios.imageOk.outbound.filter(request => request.method === 'GET' && request.url.includes('/generate/check/')).length, 2, 'the check was polled twice');
 assert.equal(scenarios.imageOk.outbound.filter(request => request.method === 'GET' && request.url.includes('/generate/status/')).length, 1, 'the status was fetched once');
 assert.equal(scenarios.imageFaulted.response.status, 500, 'a faulted generation answers 500');
 assert.equal(scenarios.imageNoGenerations.response.status, 500, 'a status without generations answers 500');
-const sanitizedBody = JSON.parse(scenarios.imageSanitized.outbound[0].body);
+const sanitizedBody = JSON.parse(requireOutbound('imageSanitized', 0).body);
 assert.equal(sanitizedBody.prompt.includes('woman'), true, 'sanitize rewrites girl to woman');
 assert.equal(sanitizedBody.prompt.includes(' man'), true, 'sanitize rewrites boy to man');
 assert.equal(sanitizedBody.prompt.includes('girl'), false, 'the original word is gone');
 assert.equal(sanitizedBody.prompt.includes('young'), false, 'the risky adjective is removed');
 assert.equal(sanitizedBody.prompt.endsWith(' ### ugly'), true, 'the negative prompt is appended');
-const truncatedBody = JSON.parse(scenarios.imageTruncated.outbound[0].body);
+const truncatedBody = JSON.parse(requireOutbound('imageTruncated', 0).body);
 // maxLength = 5000 - String('ugly').length - 5 = 4991, then the prompt is joined with ' ### ugly'.
 assert.equal(truncatedBody.prompt, 'x'.repeat(4991) + ' ### ugly', 'the prompt is truncated to the pinned threshold');
 const abortScenario = scenarios.imageClientAbort;
@@ -338,3 +338,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-horde.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

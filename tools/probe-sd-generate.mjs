@@ -245,65 +245,65 @@ const sha256 = value => createHash('sha256').update(value).digest('hex');
 
 // ── WAVE 1 ──────────────────────────────────────────────────────────────────────────────────────
 assert.deepEqual(scenarios.pollinationsPng.response.body, { image: PNG_BYTES.toString('base64'), format: 'png' }, 'pollinations projection');
-assert.equal(scenarios.pollinationsPng.outbound[0].url,
+assert.equal(requireOutbound('pollinationsPng', 0).url,
     `${POLLINATIONS}/image/a%20tree?model=flux&negative_prompt=ugly&seed=<seed>&width=512&height=768`, 'pollinations query order');
-assert.equal(scenarios.pollinationsReservedChars.outbound[0].url,
+assert.equal(requireOutbound('pollinationsReservedChars', 0).url,
     `${POLLINATIONS}/image/a%2Fb%3Fc%26d%3De%23f%2520g?model=flux&negative_prompt=undefined&seed=<seed>&width=1024&height=1024`,
     'a reserved-character prompt is percent-encoded in the path (rule 15)');
 assert.equal(scenarios.pollinationsNoKey.response.status, 400, 'pollinations without a key is 400');
 assert.deepEqual(scenarios.togetherBase64.response.body, { format: 'jpg', data: BASE64_IMAGE }, 'together projection');
-assert.deepEqual(JSON.parse(scenarios.togetherBase64.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('togetherBase64', 0).body), {
     prompt: 'a tree', negative_prompt: 'ugly', height: 768, width: 512, model: 'flux', steps: 20, n: 1, seed: '<seed>',
 }, 'together body order');
 assert.equal(scenarios.togetherUrlFallback.outbound.length, 2, 'together url fallback is a second request');
 
 assert.deepEqual(scenarios.huggingfaceOk.response.body, { image: PNG_BYTES.toString('base64') }, 'huggingface returns the image bytes only');
-assert.equal(scenarios.huggingfaceOk.outbound[0].url, `${HUGGINGFACE}/models/black-forest-labs/FLUX.1-schnell`,
+assert.equal(requireOutbound('huggingfaceOk', 0).url, `${HUGGINGFACE}/models/black-forest-labs/FLUX.1-schnell`,
     'the huggingface model is interpolated into the path WITHOUT encoding, so a slash stays a path separator');
-assert.equal(scenarios.huggingfaceReservedModel.outbound[0].url, `${HUGGINGFACE}/models/org/model v1?x=1`,
+assert.equal(requireOutbound('huggingfaceReservedModel', 0).url, `${HUGGINGFACE}/models/org/model v1?x=1`,
     'a reserved-character model is interpolated raw, which is the pinned behaviour to reproduce');
-assert.deepEqual(JSON.parse(scenarios.huggingfaceOk.outbound[0].body), { inputs: 'a tree' }, 'huggingface body is {inputs}');
-assert.equal(scenarios.huggingfaceOk.outbound[0].headers.authorization, `Bearer ${KEYS.huggingface}`, 'huggingface bearer key');
+assert.deepEqual(JSON.parse(requireOutbound('huggingfaceOk', 0).body), { inputs: 'a tree' }, 'huggingface body is {inputs}');
+assert.equal(requireOutbound('huggingfaceOk', 0).headers.authorization, `Bearer ${KEYS.huggingface}`, 'huggingface bearer key');
 assert.equal(scenarios.huggingfaceNoKey.response.status, 400, 'huggingface without a key is 400');
 assert.equal(scenarios.huggingfaceNonOk.response.status, 500, 'huggingface non-ok is 500');
 
 assert.deepEqual(scenarios.electronhubOk.response.body, { image: BASE64_IMAGE }, 'electronhub returns {image}');
-assert.deepEqual(JSON.parse(scenarios.electronhubOk.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('electronhubOk', 0).body), {
     model: 'flux', prompt: 'a tree', response_format: 'b64_json', size: '1024x1024', quality: 'high',
 }, 'electronhub body order with the optional fields appended');
-assert.deepEqual(JSON.parse(scenarios.electronhubOptionalFields.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('electronhubOptionalFields', 0).body), {
     model: 'flux', prompt: 'a tree', response_format: 'b64_json',
 }, 'falsy size and quality are omitted');
 assert.equal(scenarios.electronhubNoImage.response.status, 500, 'electronhub without b64_json is 500');
 assert.equal(scenarios.electronhubNoKey.response.status, 400, 'electronhub without a key is 400');
 
 assert.deepEqual(scenarios.chutesDefaults.response.body, { image: PNG_BYTES.toString('base64') }, 'chutes returns the bytes as base64');
-assert.deepEqual(JSON.parse(scenarios.chutesDefaults.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('chutesDefaults', 0).body), {
     model: 'flux', prompt: 'a tree', negative_prompt: 'ugly', guidance_scale: 7, width: 1024, height: 1024, num_inference_steps: 10,
 }, 'chutes defaults come from ||, not ??');
-assert.deepEqual(JSON.parse(scenarios.chutesExplicit.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('chutesExplicit', 0).body), {
     model: 'flux', prompt: 'a tree', negative_prompt: 'ugly', guidance_scale: 3.5, width: 256, height: 384, num_inference_steps: 4,
 }, 'chutes explicit values pass through');
 assert.equal(scenarios.chutesNoKey.response.status, 400, 'chutes without a key is 400');
 
 assert.deepEqual(scenarios.nanogptBodyPassthrough.response.body, { image: BASE64_IMAGE }, 'nanogpt returns {image}');
-assert.equal(scenarios.nanogptBodyPassthrough.outbound[0].body, '{"prompt":"a tree","model":"flux","params":{"width":256,"scale":0.7}}',
+assert.equal(requireOutbound('nanogptBodyPassthrough', 0).body, '{"prompt":"a tree","model":"flux","params":{"width":256,"scale":0.7}}',
     'nanogpt forwards the WHOLE request body, re-serialized');
-assert.equal(scenarios.nanogptBodyPassthrough.outbound[0].headers['x-api-key'], KEYS.nanogpt, 'nanogpt authenticates with x-api-key');
+assert.equal(requireOutbound('nanogptBodyPassthrough', 0).headers['x-api-key'], KEYS.nanogpt, 'nanogpt authenticates with x-api-key');
 assert.equal(scenarios.nanogptNoImage.response.status, 500, 'nanogpt without b64_json is 500');
 
 assert.deepEqual(scenarios.xaiPlainBase64.response.body, { image: BASE64_IMAGE, format: 'jpg' }, 'a plain base64 answer is JPEG');
 assert.deepEqual(scenarios.xaiDataUrl.response.body, { image: BASE64_IMAGE, format: 'png' }, 'a data URL answer yields its mime extension');
-assert.deepEqual(JSON.parse(scenarios.xaiPlainBase64.outbound[0].body), {
+assert.deepEqual(JSON.parse(requireOutbound('xaiPlainBase64', 0).body), {
     prompt: 'a tree', model: 'grok-2-image', aspect_ratio: '16:9', resolution: '1k', response_format: 'b64_json',
 }, 'xai body order');
 assert.equal(scenarios.xaiEmptyImage.response.status, 500, 'xai without an image is 500');
 assert.equal(scenarios.xaiNoKey.response.status, 400, 'xai without a key is 400');
 
 assert.deepEqual(scenarios.aimlapiB64.response.body, { format: 'png', data: BASE64_IMAGE }, 'aimlapi projects {format,data}');
-assert.equal(scenarios.aimlapiB64.outbound[0].body, '{"prompt":"a tree","model":"flux","image_size":"square"}', 'aimlapi forwards the whole body');
-assert.equal(scenarios.aimlapiB64.outbound[0].headers['http-referer'], 'https://sillytavern.app', 'the AIMLAPI referer header');
-assert.equal(scenarios.aimlapiB64.outbound[0].headers['x-title'], 'SillyTavern', 'the AIMLAPI title header');
+assert.equal(requireOutbound('aimlapiB64', 0).body, '{"prompt":"a tree","model":"flux","image_size":"square"}', 'aimlapi forwards the whole body');
+assert.equal(requireOutbound('aimlapiB64', 0).headers['http-referer'], 'https://sillytavern.app', 'the AIMLAPI referer header');
+assert.equal(requireOutbound('aimlapiB64', 0).headers['x-title'], 'SillyTavern', 'the AIMLAPI title header');
 assert.deepEqual(scenarios.aimlapiBase64Field.response.body, { format: 'png', data: BASE64_IMAGE }, 'the base64 field is accepted as well');
 assert.equal(scenarios.aimlapiUrlFallback.response.body.data, FETCHED_BYTES.toString('base64'), 'the url fallback re-encodes the fetched bytes');
 assert.equal(scenarios.aimlapiUrlFallback.outbound.length, 2, 'the aimlapi url fallback is a second request');
@@ -377,3 +377,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-sd-generate.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}

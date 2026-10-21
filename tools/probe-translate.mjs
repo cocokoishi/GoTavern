@@ -162,45 +162,45 @@ try {
 // ── assertions: each route's translation and outbound form, not merely its status ───────────────
 assert.equal(scenarios.libreOk.response.status, 200, 'libre answers 200');
 assert.equal(scenarios.libreOk.response.bodyText, 'Hallo Welt', 'libre answers json.translatedText as a plain string');
-assert.equal(scenarios.libreOk.outbound[0].method, 'POST', 'libre POSTs');
-assert.deepEqual(JSON.parse(scenarios.libreOk.outbound[0].body),
+assert.equal(requireOutbound('libreOk', 0).method, 'POST', 'libre POSTs');
+assert.deepEqual(JSON.parse(requireOutbound('libreOk', 0).body),
     { q: 'hello', source: 'auto', target: 'de', format: 'text', api_key: '' },
     'libre sends the pinned JSON body, including an EMPTY api_key when no key is configured');
-assert.deepEqual(JSON.parse(scenarios.libreWithKey.outbound[0].body).api_key, 'synthetic-libre-key',
+assert.deepEqual(JSON.parse(requireOutbound('libreWithKey', 0).body).api_key, 'synthetic-libre-key',
     'libre sends the configured api_key');
-assert.deepEqual(JSON.parse(scenarios.libreZhCN.outbound[0].body).target, 'zh', 'libre maps zh-CN to zh');
-assert.deepEqual(JSON.parse(scenarios.libreZhTW.outbound[0].body).target, 'zt', 'libre maps zh-TW to zt');
-assert.deepEqual(JSON.parse(scenarios.librePtBR.outbound[0].body).target, 'pt', 'libre maps pt-BR to pt');
+assert.deepEqual(JSON.parse(requireOutbound('libreZhCN', 0).body).target, 'zh', 'libre maps zh-CN to zh');
+assert.deepEqual(JSON.parse(requireOutbound('libreZhTW', 0).body).target, 'zt', 'libre maps zh-TW to zt');
+assert.deepEqual(JSON.parse(requireOutbound('librePtBR', 0).body).target, 'pt', 'libre maps pt-BR to pt');
 assert.equal(scenarios.libreEmptyPayload.response.bodyText, '', 'an absent translatedText sends an EMPTY body with 200');
 assert.equal(scenarios.libreNonOk.response.status, 500, 'a non-ok libre peer answers 500');
 assert.equal(scenarios.libreThrows.response.status, 500, 'a rejected libre fetch answers 500');
 assert.equal(scenarios.libreNoUrl.response.status, 400, 'libre without a configured URL answers 400');
 assert.equal(scenarios.libreNoUrl.outbound.length, 0, 'libre without a URL must not reach any peer');
 
-assert.equal(scenarios.deeplxDefaultUrl.outbound[0].url, `${DEFAULTS.deeplx}`, 'deeplx defaults to the pinned local URL');
-assert.deepEqual(JSON.parse(scenarios.deeplxSecretUrl.outbound[0].body),
+assert.equal(requireOutbound('deeplxDefaultUrl', 0).url, `${DEFAULTS.deeplx}`, 'deeplx defaults to the pinned local URL');
+assert.deepEqual(JSON.parse(requireOutbound('deeplxSecretUrl', 0).body),
     { text: 'hello', source_lang: 'auto', target_lang: 'de' }, 'deeplx sends the pinned JSON body');
-assert.deepEqual(JSON.parse(scenarios.deeplxZhCN.outbound[0].body).target_lang, 'ZH', 'deeplx maps zh-CN to ZH');
+assert.deepEqual(JSON.parse(requireOutbound('deeplxZhCN', 0).body).target_lang, 'ZH', 'deeplx maps zh-CN to ZH');
 assert.equal(scenarios.deeplxNoText.response.status, 400, 'deeplx without text answers 400');
 
-assert.equal(scenarios.oneringDefaultUrl.outbound[0].url,
+assert.equal(requireOutbound('oneringDefaultUrl', 0).url,
     `${DEFAULTS.onering}?text=hello&from_lang=en&to_lang=de`,
     'onering defaults to the pinned local URL and sends URLSearchParams as the query');
-assert.equal(scenarios.oneringSecretUrl.outbound[0].url,
+assert.equal(requireOutbound('oneringSecretUrl', 0).url,
     `${TEST_URLS.onering}?text=hello&from_lang=en&to_lang=de`,
     'onering uses the configured URL with the same ordered query');
 assert.equal(scenarios.oneringNoFromLang.response.status, 400, 'onering without from_lang answers 400');
-assert.equal(scenarios.oneringPtBR.outbound[0].url.includes('to_lang=pt-BR'), true,
+assert.equal(requireOutbound('oneringPtBR', 0).url.includes('to_lang=pt-BR'), true,
     'onering does not remap to_lang, only an unused lang variable');
 assert.equal(scenarios.oneringNonOk.response.status, 500, 'a non-ok onering peer answers 500');
 
-assert.equal(scenarios.lingvaDefaultUrl.outbound[0].url, `${DEFAULTS.lingva}/auto/de/hello`,
+assert.equal(requireOutbound('lingvaDefaultUrl', 0).url, `${DEFAULTS.lingva}/auto/de/hello`,
     'lingva defaults to the pinned public URL and joins auto/lang/text');
-assert.equal(scenarios.lingvaSecretUrl.outbound[0].url, `${TEST_URLS.lingva}/auto/de/hello`,
+assert.equal(requireOutbound('lingvaSecretUrl', 0).url, `${TEST_URLS.lingva}/auto/de/hello`,
     'lingva uses the configured URL');
-assert.equal(scenarios.lingvaTrailingSlash.outbound[0].url, `${TEST_URLS.lingva}/auto/de/hello%20world`,
+assert.equal(requireOutbound('lingvaTrailingSlash', 0).url, `${TEST_URLS.lingva}/auto/de/hello%20world`,
     'url-join collapses the trailing slash and the text is encodeURIComponent-encoded');
-assert.equal(scenarios.lingvaZhCN.outbound[0].url, `${TEST_URLS.lingva}/auto/zh/hello`, 'lingva maps zh-CN to zh');
+assert.equal(requireOutbound('lingvaZhCN', 0).url, `${TEST_URLS.lingva}/auto/zh/hello`, 'lingva maps zh-CN to zh');
 assert.equal(scenarios.lingvaNonOkValidJSON.response.status, 200,
     'a non-ok lingva answer with valid JSON is still parsed and returned');
 assert.equal(scenarios.lingvaNonOkValidJSON.response.bodyText, 'Hallo Welt', 'the lingva translation is returned despite the peer status');
@@ -208,29 +208,29 @@ assert.equal(scenarios.lingvaNonOkInvalidJSON.response.status, 500, 'a non-ok li
 assert.equal(scenarios.lingvaThrows.response.status, 500, 'a rejected lingva fetch answers 500');
 
 assert.equal(scenarios.deeplNoKey.response.status, 400, 'deepl without a key answers 400');
-assert.equal(scenarios.deeplFree.outbound[0].url, DEFAULTS.deeplFree, 'deepl uses the free endpoint by default');
-assert.equal(scenarios.deeplPro.outbound[0].url, DEFAULTS.deeplPro, 'endpoint:"pro" selects the paid endpoint');
-assert.equal(scenarios.deeplFree.outbound[0].body, 'text=hello&target_lang=en',
+assert.equal(requireOutbound('deeplFree', 0).url, DEFAULTS.deeplFree, 'deepl uses the free endpoint by default');
+assert.equal(requireOutbound('deeplPro', 0).url, DEFAULTS.deeplPro, 'endpoint:"pro" selects the paid endpoint');
+assert.equal(requireOutbound('deeplFree', 0).body, 'text=hello&target_lang=en',
     'deepl form-encodes text and target_lang in that order, with no formality for "en"');
-assert.equal(scenarios.deeplFormality.outbound[0].body, 'text=hello&target_lang=de&formality=default',
+assert.equal(requireOutbound('deeplFormality', 0).body, 'text=hello&target_lang=de&formality=default',
     'deepl appends formality for a supported language, defaulting the config value to "default"');
-assert.equal(scenarios.deeplNoFormalityForEnglish.outbound[0].body, 'text=hello&target_lang=en-US',
+assert.equal(requireOutbound('deeplNoFormalityForEnglish', 0).body, 'text=hello&target_lang=en-US',
     'deepl adds formality only for its supported language list');
-assert.equal(scenarios.deeplZhCN.outbound[0].body, 'text=hello&target_lang=ZH', 'deepl maps zh-CN to ZH');
-assert.equal(scenarios.deeplFree.outbound[0].headers.authorization, 'DeepL-Auth-Key synthetic-deepl-key',
+assert.equal(requireOutbound('deeplZhCN', 0).body, 'text=hello&target_lang=ZH', 'deepl maps zh-CN to ZH');
+assert.equal(requireOutbound('deeplFree', 0).headers.authorization, 'DeepL-Auth-Key synthetic-deepl-key',
     'deepl authenticates with the pinned scheme');
 assert.equal(scenarios.deeplNonOk.response.status, 500, 'a non-ok deepl peer answers 500');
 
 assert.equal(scenarios.yandexNoChunks.response.status, 400, 'yandex without chunks answers 400');
-assert.equal(scenarios.yandexChunks.outbound[0].body, 'text=hello+&text=world&lang=de',
+assert.equal(requireOutbound('yandexChunks', 0).body, 'text=hello+&text=world&lang=de',
     'yandex appends one text parameter per chunk, preserving order, then lang');
-assert.equal(scenarios.yandexEmptyChunks.outbound[0].body, 'lang=de',
+assert.equal(requireOutbound('yandexEmptyChunks', 0).body, 'lang=de',
     'an EMPTY chunks array is truthy, so the request carries only lang');
-assert.equal(scenarios.yandexChunks.outbound[0].url,
+assert.equal(requireOutbound('yandexChunks', 0).url,
     `${DEFAULTS.yandex}?ucid=<uuid>&srv=android&format=text`,
     'the yandex URL carries a fresh ucid, normalized here');
-assert.equal(scenarios.yandexZhCN.outbound[0].body, 'text=hello&lang=zh', 'yandex maps zh-CN to zh');
-assert.equal(scenarios.yandexPtPT.outbound[0].body, 'text=hello&lang=pt', 'yandex maps pt-PT to pt');
+assert.equal(requireOutbound('yandexZhCN', 0).body, 'text=hello&lang=zh', 'yandex maps zh-CN to zh');
+assert.equal(requireOutbound('yandexPtPT', 0).body, 'text=hello&lang=pt', 'yandex maps pt-PT to pt');
 assert.equal(scenarios.yandexChunks.response.bodyText, 'Hallo,Welt',
     'yandex joins the returned text array with a comma');
 assert.equal(scenarios.yandexEmptyPayload.response.status, 500,
@@ -276,3 +276,36 @@ const fixture = {
 const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-translate.json', fixture);
 console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
 console.log(`fixture written to ${outputFile}`);
+
+// â”€â”€ Refusal guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An assertion that dereferences `outbound[0]` turns a fixture difference into a stack trace, and it
+// would have been a SILENT PASS had the expected value also been undefined. Every dereference goes
+// through requireOutbound, which REFUSES with the evidence needed to tell a probe defect from a product
+// difference: the recorded status, the recorded body and the pinned server's own log tail.
+function refuseProbe(message) {
+    console.error('PROBE REFUSES: ' + message);
+    try {
+        const logs = typeof server !== 'undefined' && server && Array.isArray(server.logs) ? server.logs.join('') : '';
+        console.error('pinned server log tail:');
+        console.error(logs.slice(-4000));
+    } catch (error) {
+        console.error('could not read the pinned server log: ' + error);
+    }
+    process.exit(1);
+}
+
+function requireOutbound(label, index = 0) {
+    const scenario = scenarios[label];
+    if (!scenario) {
+        refuseProbe(`scenario ${label} is missing from the recording`);
+    }
+    if (scenario.outbound.length <= index) {
+        const response = scenario.response ?? {};
+        const body = response.bodyText ?? response.sha256 ?? '';
+        refuseProbe(`scenario ${label} recorded ${scenario.outbound.length} outbound request(s), so request ${index} cannot be compared`
+            + ` | recorded status ${response.status}`
+            + ` | recorded body ${String(body).slice(0, 500)}`
+            + ` | scenario request body ${String(scenario.requestBody).slice(0, 300)}`);
+    }
+    return scenario.outbound[index];
+}
