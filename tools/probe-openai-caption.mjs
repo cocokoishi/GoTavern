@@ -143,6 +143,19 @@ SCENARIOS.push(
     { label: 'answer-secondShape', body: { api: 'openai', prompt: 'x', image: IMAGE, model: 'm' },
       secrets: secretEntry('api_key_openai', 'synthetic-openai-key'),
       mocks: [{ match: 'api.openai.com', times: 1, payload: { message: { content: [{ text: 'a second-shape caption' }] } } }] },
+    // USER-CONTROLLED MERGES. They are `custom`-BRANCH ONLY -- the pinned guard at openai.js:38 encloses BOTH
+    // includes -- and the input is a YAML STRING (a JSON string parses as YAML), because mergeObjectWithYaml
+    // runs yaml.parse on it. `custom_include_body` merges into bodyParams, which spreads AFTER model and
+    // messages, so the assertion names BOTH sides: an implementation that merged before those keys would pass
+    // an addition-only check. `custom` needs a server_url for its URL and is in noKeyTypes, so no key is sent.
+    { label: 'merge-include-body-overrides-model',
+      body: { api: 'custom', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'request-model',
+        custom_include_body: '{"model":"caller-model","temperature":0.5}' },
+      secrets: {}, mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
+    { label: 'merge-include-headers-overrides-auth',
+      body: { api: 'custom', server_url: 'https://local.example.test', prompt: 'x', image: IMAGE, model: 'm',
+        custom_include_headers: '{"Authorization":"Bearer caller-token","X-Caller":"yes"}' },
+      secrets: {}, mocks: [{ match: 'local.example.test', times: 1, payload: CAPTION }] },
 );
 
 const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-openai-caption-oracle-', mocks: [] });
@@ -250,6 +263,18 @@ assert.equal(configMessages[0].role, 'user',
     'and the GROQ branch rewrites a leading SYSTEM message to user, which is only reachable when the config is set');
 assert.equal(configMessages[0].content, 'You are a captioner.', 'keeping its STRING content');
 assert.equal(Array.isArray(configMessages[1].content), true, 'while the original user message still carries array content');
+
+// ── the user-controlled merges: `custom`-BRANCH ONLY, a YAML STRING input, and an OVERRIDE not an addition ──
+const mergedBody = scenarios['merge-include-body-overrides-model'];
+assert.equal(mergedBody.response.status, 200, 'the custom branch with a body merge answers 200');
+const mergedJson = JSON.parse(mergedBody.outbound[0].body);
+assert.equal(mergedJson.model, 'caller-model',
+    'custom_include_body OVERRIDES model: the request asked for request-model and the caller sent caller-model, so an implementation that merged BEFORE those keys fails here');
+assert.equal(mergedJson.temperature, 0.5, 'and adds a member the branch does not set');
+const mergedHeaders = scenarios['merge-include-headers-overrides-auth'];
+assert.equal(mergedHeaders.outbound[0].headers.authorization, 'Bearer caller-token',
+    'custom_include_headers REPLACES the credential: the branch sent its own key and the caller sent Bearer caller-token');
+assert.equal(mergedHeaders.outbound[0].headers['x-caller'], 'yes', 'and adds a header the branch does not set');
 
 // THE COUNT IS OVER THE 19 BRANCH VALUES, written down as data.
 assert.equal(BRANCHES.length, 19, 'the branch table must carry nineteen values');

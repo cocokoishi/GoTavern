@@ -43,6 +43,8 @@ import (
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
+
+	"gopkg.in/yaml.v3"
 )
 
 type openAICaptionBranch struct {
@@ -297,6 +299,21 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		body.setMember("seed", nodeNumber(float64(sdRandomSeedNumber(4294967296))))
 	}
 
+	// The three USER-CONTROLLED behaviours are `custom`-BRANCH ONLY in the pinned source: the guard at
+	// openai.js:38 encloses BOTH includes, and excludeKeysByYaml sits inside its own `if (api === 'custom')`.
+	// They are reproduced verbatim rather than hardened. `custom_include_body` merges into bodyParams, which the
+	// pinned body literal spreads AFTER model and messages, so it can OVERRIDE either -- the scenario asserts the
+	// override with both sides named, because an implementation that merges before those keys would pass an
+	// addition-only check. A deliberate hardening would be a visible compatibility decision rather than a
+	// route-local cleanup.
+	if api == "custom" {
+		if patch, ok := openAICaptionYamlStringPatch(input, "custom_include_body"); ok {
+			for name, value := range patch {
+				setRawMember(&body, name, value)
+			}
+		}
+	}
+
 	encoded, err := marshalCharacterJSON(body)
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
@@ -313,6 +330,20 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	// ABSENT -- which is what every other scenario records -- the pinned server adds NOTHING.
 	if apiType, present := googleRawMemberString(input, "api_type"); present {
 		headers = runtime.openAICaptionApplyTypeHeaders(headers, directories, apiType)
+	}
+	// `custom_include_headers` merges into the pinned headers object, which spreads AFTER
+	// `Authorization: Bearer <key>` -- so a caller can REPLACE the credential. A header that replaces rather
+	// than adds is invisible to a presence check, which is why the scenario names both sides.
+	if api == "custom" {
+		if patch, ok := openAICaptionYamlStringPatch(input, "custom_include_headers"); ok {
+			for name, raw := range patch {
+				var text string
+				if err := json.Unmarshal(raw, &text); err != nil {
+					continue
+				}
+				headers = openAICaptionSetHeader(headers, name, text)
+			}
+		}
 	}
 	response, err := outbound.Send(request.Context(), outbound.Request{
 		URL:     target,
@@ -418,6 +449,62 @@ func (runtime *accountRuntime) openAICaptionApplyTypeHeaders(headers []outbound.
 		}
 	}
 	return headers
+}
+
+// openAICaptionYamlStringPatch reproduces `mergeObjectWithYaml(obj, yamlString)`'s INPUT contract: the member
+// is a YAML STRING, parsed with the SAME library family the pinned server uses, so the whole YAML surface is
+// accepted rather than the JSON subset -- a caller sending `model: caller-model` without braces is valid input
+// and must merge rather than silently vanish, which would be a divergence on the happy path for input a user
+// can legitimately send. A falsy or unparsable member is a NO-OP, matching the pinned helper's `catch { }`; the
+// error return is how that is reproduced rather than approximated.
+func openAICaptionYamlStringPatch(input map[string]json.RawMessage, name string) (map[string]json.RawMessage, bool) {
+	raw, present := input[name]
+	if !present || len(raw) == 0 {
+		return nil, false
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil || text == "" {
+		return nil, false
+	}
+	var parsed any
+	if err := yaml.Unmarshal([]byte(text), &parsed); err != nil {
+		return nil, false
+	}
+	patch := map[string]json.RawMessage{}
+	merge := func(candidate any) {
+		object, ok := candidate.(map[string]any)
+		if !ok {
+			return
+		}
+		for key, value := range object {
+			encoded, err := json.Marshal(value)
+			if err != nil {
+				continue
+			}
+			patch[key] = encoded
+		}
+	}
+	if items, isArray := parsed.([]any); isArray {
+		// The pinned helper merges every OBJECT element of an array and skips the rest.
+		for _, item := range items {
+			merge(item)
+		}
+	} else {
+		merge(parsed)
+	}
+	return patch, len(patch) > 0
+}
+
+// openAICaptionSetHeader replaces a header in place or appends it, matching `Object.assign` semantics: an
+// existing name is OVERWRITTEN rather than duplicated.
+func openAICaptionSetHeader(headers []outbound.Header, name, value string) []outbound.Header {
+	for index := range headers {
+		if strings.EqualFold(headers[index].Name, name) {
+			headers[index].Value = value
+			return headers
+		}
+	}
+	return append(headers, outbound.Header{Name: name, Value: value})
 }
 
 // openAIOrDefaultString is `String(value || ”)` for a raw member.
