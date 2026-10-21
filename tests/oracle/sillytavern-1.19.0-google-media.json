@@ -1,0 +1,1152 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-google-media.mjs",
+  "implementedRoutes": [
+    "/api/google/caption-image",
+    "/api/google/generate-image"
+  ],
+  "notImplementedRoutes": [
+    "/api/google/generate-video"
+  ],
+  "notImplementedReasons": {
+    "/api/google/generate-video": "It polls up to THIRTY times with a wall-clock `delay(5000 + attempt * 1000)`, has three request shapes (create, poll, and a fetch of a provider-supplied video URI whose host cannot be redirected to a controlled peer), and wires an AbortController to the client socket. The timeout branch alone would cost about ten minutes of wall clock, so it needs timed rules plus a cancellation scenario and is its own increment."
+  },
+  "pinnedSource": {
+    "src/endpoints/google.js:234": "router.post('/caption-image'): splits the data URI, forwards contents+inlineData, returns {caption} from the model text",
+    "src/endpoints/google.js:432": "router.post('/generate-image'): predict with the pinned parameter block, returns predictions[0].bytesBase64Encoded unchanged",
+    "src/endpoints/google.js:498": "router.post('/generate-video'): predictLongRunning plus a polling loop (not recorded here)"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer; the Go side reuses the same four Google auth branches and replays the peer through a real listener.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/500 themselves and flatten provider statuses"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "a string body is html-typed, a JSON body is json-typed"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the caption and image projections, and three distinct error messages"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "four auth branches, the raw model interpolation and the endpoint suffix"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the pinned parameter block, including members JSON.stringify DROPS because they are undefined"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "x-goog-api-key or Authorization, asserted in both directions by the test"
+    },
+    {
+      "path": "scenarios.*.response.body.image",
+      "comparison": "compared",
+      "reason": "the provider base64 is passed through, so byte equality is the right comparison and no codec is involved"
+    }
+  ],
+  "normalizations": [
+    "A vertex `seed` is randomized when absent, so it is replaced by a marker in the recorded body.",
+    "The AI Studio proxy host is not reachable from the Go peer, so the test substitutes the peer origin and compares the path the route builds."
+  ],
+  "inputs": {
+    "imageBase64": "Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=",
+    "generatedBase64": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==",
+    "caption": "a synthetic caption",
+    "makersuiteKey": "synthetic-makersuite-key",
+    "vertexKey": "synthetic-vertex-express-key",
+    "proxyPassword": "synthetic-proxy-password",
+    "imageSha256": "115ee1fec15af60dbd4819497b00cb6f6dbfdfc96e008191951f541f530c8125"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "captionNoImage": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"prompt\":\"describe\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outbound": []
+    },
+    "captionOk": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\",\"model\":\"gemini-2.0-flash\"}",
+      "mocks": [
+        {
+          "run": "captionOk",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionDefaultModel": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\"}",
+      "mocks": [
+        {
+          "run": "captionDefaultModel",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionMalformedImage": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"not-a-data-uri\",\"prompt\":\"describe\"}",
+      "mocks": [
+        {
+          "run": "captionMalformedImage",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionNoCandidates": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\"}",
+      "mocks": [
+        {
+          "run": "captionNoCandidates",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "52",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-zXqJ5mL7Ng/GMW5BrIwr48qB6l4\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No candidates found, image was most likely filtered.",
+        "bodyText": "No candidates found, image was most likely filtered."
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionNoCaption": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\"}",
+      "mocks": [
+        {
+          "run": "captionNoCaption",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionProviderError": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\"}",
+      "mocks": [
+        {
+          "run": "captionProviderError",
+          "match": "/models/",
+          "status": 429,
+          "statusText": "Too Many Requests",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":{\"message\":\"quota\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyText": "{\"error\":true}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionReservedModel": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\",\"model\":\"models/x y?z=1\"}",
+      "mocks": [
+        {
+          "run": "captionReservedModel",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/models/x y?z=1:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionVertexExpress": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\",\"model\":\"gemini-2.0-flash\",\"api\":\"vertexai\"}",
+      "mocks": [
+        {
+          "run": "captionVertexExpress",
+          "match": "-aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "captionProxyMode": {
+      "route": "/api/google/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\",\"prompt\":\"describe\",\"reverse_proxy\":\"https://proxy.example.test\",\"proxy_password\":\"synthetic-proxy-password\"}",
+      "mocks": [
+        {
+          "run": "captionProxyMode",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a synthetic caption\"}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/v1beta/models/gemini-2.0-flash:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-proxy-password"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"describe\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2UtYnl0ZXM=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "generateImageOk": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"imagen-3.0-generate-002\"}",
+      "mocks": [
+        {
+          "run": "generateImageOk",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"safetySetting\":\"block_low_and_above\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageDefaultModel": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "generateImageDefaultModel",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"safetySetting\":\"block_low_and_above\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageVertex": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"imagen-3.0-generate-002\",\"api\":\"vertexai\",\"seed\":42,\"enhance\":true,\"negative_prompt\":\"ugly\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "generateImageVertex",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"seed\":\"<seed>\",\"enhancePrompt\":true,\"negativePrompt\":\"ugly\",\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_adult\",\"language\":\"auto\",\"safetySetting\":\"block_only_high\",\"addWatermark\":false,\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageVertexRandomSeed": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"imagen-3.0-generate-002\",\"api\":\"vertexai\"}",
+      "mocks": [
+        {
+          "run": "generateImageVertexRandomSeed",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"seed\":\"<seed>\",\"enhancePrompt\":false,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"language\":\"auto\",\"safetySetting\":\"block_only_high\",\"addWatermark\":false,\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageDeprecatedModel": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"imagegeneration@006\"}",
+      "mocks": [
+        {
+          "run": "generateImageDeprecatedModel",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/imagegeneration@006:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageNoImage": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "generateImageNoImage",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-TBT+FruTfKsttU0kEq+9dqbaFyo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No image data found in response",
+        "bodyText": "No image data found in response"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"safetySetting\":\"block_low_and_above\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageProviderError": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "generateImageProviderError",
+          "match": ":predict",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "imagen says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-DWtt+JAJRpAJw3gVXzlSszpDNX8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Image generation request failed",
+        "bodyText": "Image generation request failed"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"safetySetting\":\"block_low_and_above\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    },
+    "generateImageReservedModel": {
+      "route": "/api/google/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"models/x y?z=1\"}",
+      "mocks": [
+        {
+          "run": "generateImageReservedModel",
+          "match": ":predict",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "68",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-ynu/hjeqY1SpS1QcRLCuVQ7GE9w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw=="
+        },
+        "bodyText": "{\"image\":\"Z290YXZlcm4tc3ludGhldGljLWdlbmVyYXRlZC1pbWFnZS1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/models/x y?z=1:predict",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a tree\"}],\"parameters\":{\"sampleCount\":1,\"aspectRatio\":\"1:1\",\"personGeneration\":\"allow_adult\",\"safetySetting\":\"block_low_and_above\",\"outputOptions\":{\"mimeType\":\"image/jpeg\",\"compressionQuality\":100}}}"
+        }
+      ]
+    }
+  }
+}

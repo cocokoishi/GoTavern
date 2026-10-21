@@ -76,12 +76,6 @@ func googleVertexGlobalBaseURL() string {
 
 func googleOAuthURL() string { return sdSeamURL("GOTAVERN_GOOGLE_OAUTH_URL", googleOAuthDefaultURL) }
 
-// googleAPIVersionSeam stands in for the pinned `getConfigValue('gemini.apiVersion', 'v1beta')`. The
-// config-file override is not honoured yet and the row records that as a known gap.
-func googleAPIVersionSeam() string {
-	return sdSeamURL("GOTAVERN_GOOGLE_API_VERSION", googleDefaultAPIVersion)
-}
-
 type googleSafetySetting struct {
 	category  string
 	threshold string
@@ -110,7 +104,7 @@ type googleAPIConfig struct {
 	safety  []googleSafetySetting
 }
 
-func (runtime *accountRuntime) googleAPIConfigFor(request *http.Request, directories startup.UserDirectories, input map[string]json.RawMessage, model, endpoint string) (googleAPIConfig, error) {
+func (runtime *accountRuntime) googleAPIConfigFor(request *http.Request, directories startup.UserDirectories, options HTTPHandlerOptions, input map[string]json.RawMessage, model, endpoint string) (googleAPIConfig, error) {
 	useVertex := false
 	if raw, present := input["api"]; present && nodeTruthyJSON(raw) {
 		useVertex = sdRawJavaScriptString(raw) == "vertexai"
@@ -152,7 +146,7 @@ func (runtime *accountRuntime) googleAPIConfigFor(request *http.Request, directo
 		if reverseProxy != "" {
 			base = reverseProxy
 		}
-		config.url = strings.TrimRight(base, "/") + "/" + googleAPIVersionSeam() + "/models/" + model + ":" + endpoint
+		config.url = strings.TrimRight(base, "/") + "/" + googleAPIVersion(options) + "/models/" + model + ":" + endpoint
 		config.headers = []outbound.Header{
 			{Name: "Content-Type", Value: "application/json"},
 			{Name: "x-goog-api-key", Value: apiKey},
@@ -360,7 +354,7 @@ func respondGoogleTTSFailure(w http.ResponseWriter, message string) {
 	respondJSONBytes(w, http.StatusInternalServerError, body)
 }
 
-func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWriter, request *http.Request) {
+func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWriter, request *http.Request, options HTTPHandlerOptions) {
 	directories, ok := runtime.secretsDirectories(w, request)
 	if !ok {
 		return
@@ -371,7 +365,7 @@ func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWrite
 		return
 	}
 	model := sdRawJavaScriptString(input["model"])
-	config, err := runtime.googleAPIConfigFor(request, directories, input, model, "generateContent")
+	config, err := runtime.googleAPIConfigFor(request, directories, options, input, model, "generateContent")
 	if err != nil {
 		respondGoogleTTSFailure(w, googleNativeTTSGenericFail)
 		return
@@ -529,6 +523,6 @@ func registerGoogleNativeTTSRoutes(mux *http.ServeMux, accounts *accountRuntime,
 			serveStatic(w, r, notFoundPage, options)
 			return
 		}
-		accounts.serveGoogleGenerateNativeTTS(w, r)
+		accounts.serveGoogleGenerateNativeTTS(w, r, options)
 	})
 }

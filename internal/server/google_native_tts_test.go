@@ -193,7 +193,6 @@ func TestGoogleNativeTTSMatchesPinnedOracle(t *testing.T) {
 			t.Setenv("GOTAVERN_GOOGLE_VERTEX_URL", peer.server.URL)
 			t.Setenv("GOTAVERN_GOOGLE_VERTEX_GLOBAL_URL", peer.server.URL)
 			t.Setenv("GOTAVERN_GOOGLE_OAUTH_URL", peer.server.URL)
-			t.Setenv("GOTAVERN_GOOGLE_API_VERSION", "")
 			dataRoot := t.TempDir()
 			handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
 			writeGoogleTTSSecrets(t, dataRoot, scenario.Secrets)
