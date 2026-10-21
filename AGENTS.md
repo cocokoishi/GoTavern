@@ -131,7 +131,12 @@ domain.
    marker and silently drops it, so a per-commit loop reports zero. Prefix another field
    (`--format="%H%x09%s"`) so the BOM can never land at stream start, and verify the check can
    report a known instance before trusting a negative. The same reasoning applies to any evidence
-   file: verify the bytes you produced, not the readability of the bytes you produced.
+   file: verify the bytes you produced, not the readability of the bytes you produced. A shell
+   redirection is the same trap in a different costume: PowerShell `>` writes UTF-16LE, so
+   `git show HEAD:file > file` restored a workflow as a binary blob that YAML still parsed and CI
+   still ran, while git reported it as binary and every ordinary tool refused it. Write recovered
+   text with `[System.IO.File]::WriteAllText(path, text, UTF8Encoding($false))`, and check the
+   first bytes plus whether git says "Bin" afterwards.
 13. **A process query that contains its own search text matches itself.** `Get-CimInstance` and `ps`
    read the full command line, and a shell command's own text is part of the command line of the
    wrapper that runs it. Searching for `codex` or `server.js` therefore flags the shell that is
