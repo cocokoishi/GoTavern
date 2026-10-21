@@ -139,7 +139,14 @@ domain.
    specific thing and let the query succeed or fail on its own — count it, filter for its path, or
    test it directly. A negative finding drawn from bounded output is the most dangerous kind of
    error this list covers, because it arrives looking like a measurement and is then quoted as
-   evidence; it has already produced one false claim that propagated into a project rule.
+   evidence; it has already produced one false claim that propagated into a project rule. THE SAME APPLIES TO
+   VERIFYING A SPECIFICATION: checking its ENUMERATED items is not checking the artefact. A handover
+   spec for `/api/sd/comfy/generate` listed five numbered behaviours and a separate sentence claiming
+   that only the initial prompt fetch carried an abort `signal`; the five behaviours were verified line
+   by line and the sentence was skipped, and the sentence was the one that was WRONG -- no fetch in that
+   handler is signal-bound at all, so the abort controller is a no-op. Verify every CLAIM, not only the
+   items that happen to be numbered, and when a spec mixes verified behaviour with asserted mechanism,
+   treat the mechanism as unverified until it has been read too.
 12. **An artefact derived from a file inherits that file's defects, including an invisible BOM.**
    PowerShell's `Set-Content -Encoding utf8` writes a byte-order mark, so a commit message written
    that way starts with U+FEFF. Ten published subjects in this repository carry one, all of them
