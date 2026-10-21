@@ -1,0 +1,1037 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openai-generate-video.mjs",
+  "implementedRoutes": [
+    "/api/openai/generate-video"
+  ],
+  "notImplementedRoutes": [
+    "/api/openai/caption-image"
+  ],
+  "notImplementedReasons": {
+    "/api/openai/caption-image": "A chat-completions body over a large per-api branch table; its own wave."
+  },
+  "pinnedSource": {
+    "src/endpoints/openai.js:653": "router.post('/generate-video'): create POST /v1/videos, then a 30-attempt poll loop with delay(5000 + attempt * 1000), then GET /v1/videos/{id}/content",
+    "src/endpoints/openai.js:699": "the loop; an aborted client answers 500 \"Video generation aborted by client\"",
+    "src/endpoints/openai.js:748": "the catch; there is NO return after the loop, so an exhausted job answers NOTHING and the request hangs"
+  },
+  "inheritedProperties": {
+    "exhaustedJobHangs": "After thirty exhausted attempts the pinned handler falls off the end of its try block and Express answers NOTHING: the request HANGS until the client gives up. The replacement reproduces this deliberately, and a client must impose its own timeout. Answering instead would change every client behaviour, and a 200 with an empty body would be actively misleading.",
+    "rawJobId": "The provider-supplied job id is interpolated RAW into the poll and content paths."
+  },
+  "harnessNotes": {
+    "substringMatch": "The probe stub selects the first rule whose match is CONTAINED in the request URL, so a rule for /v1/videos also matches /v1/videos/{id} and /v1/videos/{id}/content. Every rule whose match is a PREFIX of a later shape must carry `times`, or it serves the wrong answer and the route appears to hang. The diagnostic in this probe prints the scenario name, the mocks served and the captured outbound on failure."
+  },
+  "mechanism": "Every upstream is a hardcoded literal on a FIXED host, so no production seam is needed: the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer and the Go side points the same peer origin at the base seam. The provider-supplied URI case does not arise here.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "200, 400 for the refusal, or 500 for each failure answer"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "json for the projection, html for the text bodies"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the {format,data} projection and five distinct failure messages"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the three shapes, including the raw job id in two paths"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the create body with its OR-defaults"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the bearer key, asserted in both directions"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "the POLL COUNT is the only thing that separates the real loop from a shortcut"
+    }
+  ],
+  "notRecorded": [
+    "the TIMEOUT leg: thirty polls with escalating delays is about ten minutes of wall clock, and the pinned behaviour is a HANG rather than an answer, so parity is UNOBSERVED. It is a labelled Go implementation test, and the probe does not shorten the delay to make it observable.",
+    "cancellation: labelled for the same reason; the pinned abort rides on request.socket.on(close)."
+  ],
+  "normalizations": [
+    "None: the request and the answers are deterministic."
+  ],
+  "inputs": {
+    "videoSha256": "79757f32f44942083b472a1c55941a90e6ce546aee55da2f9ab1be6dcc8c102b",
+    "videoBase64": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+    "jobId": "video_abc123",
+    "openaiKey": "synthetic-openai-key",
+    "pollCounts": {
+      "completedFirstPoll": 1,
+      "completedSecondPoll": 2
+    }
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "completedFirstPoll": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat on a skateboard\"}",
+      "mocks": [
+        {
+          "run": "completedFirstPoll",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "completedFirstPoll",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "completedFirstPoll",
+          "match": "/v1/videos/video_abc123/content",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-TV4+PosTWEaNyL9Vq41zMTrcF4Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "data": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat on a skateboard\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "completedSecondPoll": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "completedSecondPoll",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "completedSecondPoll",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"in_progress\",\"progress\":50}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "completedSecondPoll",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "completedSecondPoll",
+          "match": "/v1/videos/video_abc123/content",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-TV4+PosTWEaNyL9Vq41zMTrcF4Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "data": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "explicitParameters": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"sora-2-pro\",\"size\":\"1024x1792\",\"seconds\":\"12\"}",
+      "mocks": [
+        {
+          "run": "explicitParameters",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "explicitParameters",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "explicitParameters",
+          "match": "/v1/videos/video_abc123/content",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-TV4+PosTWEaNyL9Vq41zMTrcF4Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "data": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2-pro\",\"size\":\"1024x1792\",\"seconds\":\"12\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falsyParameters": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"\",\"size\":\"\",\"seconds\":\"\"}",
+      "mocks": [
+        {
+          "run": "falsyParameters",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falsyParameters",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falsyParameters",
+          "match": "/v1/videos/video_abc123/content",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-TV4+PosTWEaNyL9Vq41zMTrcF4Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "data": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "reservedJobId": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "reservedJobId",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"job/one?x=1\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "reservedJobId",
+          "match": "job/one?x=1/content",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==",
+          "binaryBody": true,
+          "times": 1
+        },
+        {
+          "run": "reservedJobId",
+          "match": "job/one?x=1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-TV4+PosTWEaNyL9Vq41zMTrcF4Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "data": "Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLW9wZW5haS12aWRlby1ieXRlcw==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/job/one?x=1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/job/one?x=1/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "statusFailed": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "statusFailed",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "statusFailed",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"failed\"}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "23",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"17-ElrFH+qal/fDDrz+OH091Azaz70\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video generation failed",
+        "bodyText": "Video generation failed"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "noJobId": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "noJobId",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "24",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-EPVaNkOWhcIvANiQRtaMj9Bga60\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No video job ID returned",
+        "bodyText": "No video job ID returned"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        }
+      ]
+    },
+    "createNonOk": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "createNonOk",
+          "match": "/v1/videos",
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "create says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "14",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-6dbvPmggl/gWUCYqQhUobqXSYHY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "create says no",
+        "bodyText": "create says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        }
+      ]
+    },
+    "pollNonOk": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "pollNonOk",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "pollNonOk",
+          "match": "/v1/videos/video_abc123",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "12",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-pzWK/54h51imPA8inuAWcLKddIM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "poll says no",
+        "bodyText": "poll says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "contentNonOk": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [
+        {
+          "run": "contentNonOk",
+          "match": "/v1/videos",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"queued\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "contentNonOk",
+          "match": "/v1/videos/video_abc123",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"video_abc123\",\"status\":\"completed\",\"progress\":100}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "contentNonOk",
+          "match": "/v1/videos/video_abc123/content",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "content says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "15",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-BQlRB3DMaKyi2EOi2M4Ti5bf6Q0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "content says no",
+        "bodyText": "content says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/videos",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"sora-2\",\"size\":\"720x1280\",\"seconds\":\"8\"}"
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.openai.com/v1/videos/video_abc123/content",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "noKey": {
+      "route": "/api/openai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    }
+  }
+}
