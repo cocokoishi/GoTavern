@@ -234,7 +234,45 @@ const CONFIG_YAML = [
  *   outbound()                     -> every outbound request attempted since the last call
  *   writeSecrets(object)           -> replace the user's secrets.json
  */
-export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = [] }) {
+// WHICH CONFIG MECHANISM TO USE, so the next reader does not reach for the wrong one:
+//
+//   - `startPinnedProviderServer({ config })` is for asserting a CONFIG-DRIVEN BRANCH. The override is applied
+//     to the document at the SAME point the real startup writes config.yaml, BEFORE the server is spawned, so
+//     the server parses it through its normal path and the scenario asserts a config the product would really
+//     build. There is no mid-run mutation, so there is no shared state to restore and no ordering constraint.
+//   - the handle's `writeConfig`/`restoreConfig` pair is for a DIFFERENT use case: asserting what the pinned
+//     server WRITES to its config (config-init, migration, startup seeding). It cannot make a config-driven
+//     BRANCH observable, because getConfigValue reads a config parsed at STARTUP and a running process never
+//     re-reads the file -- measured, with the assertion failing at "actual: 1, expected: 2" messages.
+//
+// The merge is TEXT-LEVEL on purpose: re-serializing the whole document with our own yaml writer could
+// reformat unrelated keys into something the pinned reader parses differently, which would change every
+// scenario's config at once. Only the addressed key's line is touched.
+function mergeConfigDocument(original, patch) {
+    let text = original;
+    for (const [dotted, value] of Object.entries(patch)) {
+        const literal = typeof value === 'string' ? value : JSON.stringify(value);
+        const [section, member] = dotted.includes('.') ? dotted.split('.', 2) : [null, dotted];
+        if (section === null) {
+            const pattern = new RegExp(`^${member}:.*$`, 'mu');
+            text = pattern.test(text) ? text.replace(pattern, `${member}: ${literal}`) : `${text.trimEnd()}\n${member}: ${literal}\n`;
+            continue;
+        }
+        const sectionPattern = new RegExp(`^${section}:$`, 'mu');
+        if (!sectionPattern.test(text)) {
+            text = `${text.trimEnd()}\n${section}:\n  ${member}: ${literal}\n`;
+            continue;
+        }
+        const afterSection = text.slice(text.search(sectionPattern));
+        const memberPattern = new RegExp(`^  ${member}:.*$`, 'mu');
+        text = memberPattern.test(afterSection)
+            ? text.replace(afterSection, afterSection.replace(memberPattern, `  ${member}: ${literal}`))
+            : text.replace(sectionPattern, `${section}:\n  ${member}: ${literal}`);
+    }
+    return text;
+}
+
+export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = [], config = null }) {
     const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), prefix));
     const dataRoot = path.join(runtimeRoot, 'data');
     const configPath = path.join(runtimeRoot, 'config.yaml');
@@ -252,7 +290,10 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
 
     mkdirSync(path.join(dataRoot, '_storage'), { recursive: true });
     writeFileSync(path.join(dataRoot, 'cookie-secret.txt'), 'gotavern-pinned-outbound-cookie-secret');
-    writeFileSync(configPath, CONFIG_YAML);
+    // The BOOT-TIME config override is applied HERE, at the same point the real startup writes config.yaml and
+    // before the server is spawned, so the pinned server parses it through its normal path rather than through
+    // a test-only branch. `config` is null for every existing probe, so their bytes cannot change.
+    writeFileSync(configPath, config === null ? CONFIG_YAML : mergeConfigDocument(CONFIG_YAML, config));
     writeFileSync(path.join(dataRoot, '_storage', sha256('user:default-user')), JSON.stringify({
         key: 'user:default-user',
         value: {
