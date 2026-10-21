@@ -1,0 +1,882 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/backups/chat delete and download routes",
+  "oracle": {
+    "file": "src/endpoints/backups.js"
+  },
+  "conventions": {
+    "fixedMtimes": "every seeded file has mtime 1700000000 (whole seconds) so no recorded value depends on host mtime precision",
+    "paths": "snapshot paths use forward slashes and are sorted; responses whose order comes from readdir are normalised by sorting arrays and object keys before recording"
+  },
+  "fixtureFields": {
+    "compared": [
+      "steps[].response.status",
+      "steps[].response.contentType",
+      "steps[].response.contentLength",
+      "steps[].response.etag",
+      "steps[].response.contentDisposition",
+      "steps[].response.body (normalised: arrays and object keys sorted)",
+      "steps[].response.bodySha256",
+      "state[<step>] tree (path, kind, size, sha256)",
+      "deleted files (absence from the next snapshot)"
+    ],
+    "shape": [
+      "response.body order (readdir order is host-dependent; the sorted set is compared instead)"
+    ],
+    "shapeReason": {
+      "response.body order": "the pinned routes build their arrays in readdir order, which differs between NTFS and ext4; the fixture records the sorted set and the replay compares the sorted set, so order is not asserted"
+    }
+  },
+  "steps": [
+    {
+      "name": "backups.download.ok",
+      "route": "download",
+      "body": {
+        "name": "chat_alpha.jsonl"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/octet-stream",
+        "contentLength": "42",
+        "etag": "W/\"2a-18bcfe56800\"",
+        "contentDisposition": "attachment; filename=\"chat_alpha.jsonl\"",
+        "body": null,
+        "bodyText": "{\"user_name\":\"u\"}\n{\"mes\":\"a\"}\n{\"mes\":\"b\"}\n",
+        "bodyBase64": "eyJ1c2VyX25hbWUiOiJ1In0KeyJtZXMiOiJhIn0KeyJtZXMiOiJiIn0K",
+        "bodySha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.empty",
+      "route": "download",
+      "body": {
+        "name": "chat_empty.jsonl"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "application/octet-stream",
+        "contentLength": "0",
+        "etag": "W/\"0-18bcfe56800\"",
+        "contentDisposition": "attachment; filename=\"chat_empty.jsonl\"",
+        "body": null,
+        "bodyText": "",
+        "bodyBase64": "",
+        "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.nonPrefix",
+      "route": "download",
+      "body": {
+        "name": "other.jsonl"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.missing",
+      "route": "download",
+      "body": {
+        "name": "chat_missing.jsonl"
+      },
+      "response": {
+        "status": 404,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "9",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Not Found",
+        "bodyBase64": "Tm90IEZvdW5k",
+        "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.traversal",
+      "route": "download",
+      "body": {
+        "name": "../backups/other.jsonl"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.noName",
+      "route": "download",
+      "body": {},
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Internal Server Error",
+        "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+        "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.delete.ok",
+      "route": "delete",
+      "body": {
+        "name": "chat_2024-01-01T00-00-00.jsonl"
+      },
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "OK",
+        "bodyBase64": "T0s=",
+        "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.delete.missing",
+      "route": "delete",
+      "body": {
+        "name": "chat_2024-01-01T00-00-00.jsonl"
+      },
+      "response": {
+        "status": 404,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "9",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Not Found",
+        "bodyBase64": "Tm90IEZvdW5k",
+        "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.delete.nonPrefix",
+      "route": "delete",
+      "body": {
+        "name": "other.jsonl"
+      },
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.delete.noName",
+      "route": "delete",
+      "body": {},
+      "response": {
+        "status": 500,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Internal Server Error",
+        "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+        "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "backups.download.afterDelete",
+      "route": "download",
+      "body": {
+        "name": "chat_2024-01-01T00-00-00.jsonl"
+      },
+      "response": {
+        "status": 404,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "9",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Not Found",
+        "bodyBase64": "Tm90IEZvdW5k",
+        "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    }
+  ],
+  "state": {
+    "backups.download.ok": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.empty": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.nonPrefix": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.missing": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.traversal": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.noName": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_2024-01-01T00-00-00.jsonl",
+          "kind": "file",
+          "size": 31,
+          "sha256": "0650580aff3fd2cc89201a44a44bd4d5899f03fd11d79b29853832c4b0630806"
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.delete.ok": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.delete.missing": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.delete.nonPrefix": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.delete.noName": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    },
+    "backups.download.afterDelete": {
+      "backups": [
+        {
+          "path": "_sysprompt",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "chat_alpha.jsonl",
+          "kind": "file",
+          "size": 42,
+          "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+        },
+        {
+          "path": "chat_empty.jsonl",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "note.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "edb465624291e4053c6c5ea4b7eb320dec773e10a57d26b95dcf0564f8e310f8"
+        },
+        {
+          "path": "other.jsonl",
+          "kind": "file",
+          "size": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ]
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/backups/chat/get"
+      ],
+      "status": "not implemented",
+      "reason": "the route depends on getChatInfo (chats.js:393): file stats, formatBytes, first-message parsing and chat_items counting; porting it without an oracle for chats.js internals would be a derivation, so it is deferred"
+    }
+  ]
+}

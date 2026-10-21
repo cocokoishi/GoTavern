@@ -1,0 +1,3119 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/assets get, delete and character routes",
+  "oracle": {
+    "file": "src/endpoints/assets.js"
+  },
+  "conventions": {
+    "fixedMtimes": "every seeded file has mtime 1700000000 (whole seconds) so no recorded value depends on host mtime precision",
+    "paths": "snapshot paths use forward slashes and are sorted; responses whose order comes from readdir are normalised by sorting arrays and object keys before recording"
+  },
+  "fixtureFields": {
+    "compared": [
+      "steps[].response.status",
+      "steps[].response.contentType",
+      "steps[].response.contentLength",
+      "steps[].response.etag",
+      "steps[].response.contentDisposition",
+      "steps[].response.body (normalised: arrays and object keys sorted)",
+      "steps[].response.bodySha256",
+      "state[<step>] tree (path, kind, size, sha256)",
+      "deleted files (absence from the next snapshot)"
+    ],
+    "shape": [
+      "response.body order (readdir order is host-dependent; the sorted set is compared instead)"
+    ],
+    "shapeReason": {
+      "response.body order": "the pinned routes build their arrays in readdir order, which differs between NTFS and ext4; the fixture records the sorted set and the replay compares the sorted set, so order is not asserted"
+    }
+  },
+  "steps": [
+    {
+      "name": "assets.get.seeded",
+      "route": "get",
+      "body": {},
+      "query": "",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "285",
+        "etag": "W/\"11d-x4HURxUmgrJd9frd3ngpHNsETJU\"",
+        "contentDisposition": null,
+        "body": {
+          "ambient": [
+            "assets/ambient/wind.ogg"
+          ],
+          "bgm": [
+            "assets/bgm/one.mp3",
+            "assets/bgm/two.mp3"
+          ],
+          "blip": [],
+          "character": [
+            "assets/character/char.png"
+          ],
+          "live2d": [
+            "/assets/live2d/modelA/model3.json"
+          ],
+          "vrm": {
+            "animation": [
+              "/assets/vrm/animation/idle.anim"
+            ],
+            "model": [
+              "/assets/vrm/model/avatar.vrm"
+            ]
+          }
+        },
+        "bodyText": null,
+        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7Im1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXSwiYW5pbWF0aW9uIjpbIi9hc3NldHMvdnJtL2FuaW1hdGlvbi9pZGxlLmFuaW0iXX19",
+        "bodySha256": "cceff4e9013c3aa7476444b35be64ed643adc436b74c90adb0d2ac06e6d3f971",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.get.characterQueryIgnored",
+      "route": "get",
+      "body": {
+        "query": "x"
+      },
+      "query": "",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "285",
+        "etag": "W/\"11d-x4HURxUmgrJd9frd3ngpHNsETJU\"",
+        "contentDisposition": null,
+        "body": {
+          "ambient": [
+            "assets/ambient/wind.ogg"
+          ],
+          "bgm": [
+            "assets/bgm/one.mp3",
+            "assets/bgm/two.mp3"
+          ],
+          "blip": [],
+          "character": [
+            "assets/character/char.png"
+          ],
+          "live2d": [
+            "/assets/live2d/modelA/model3.json"
+          ],
+          "vrm": {
+            "animation": [
+              "/assets/vrm/animation/idle.anim"
+            ],
+            "model": [
+              "/assets/vrm/model/avatar.vrm"
+            ]
+          }
+        },
+        "bodyText": null,
+        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7Im1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXSwiYW5pbWF0aW9uIjpbIi9hc3NldHMvdnJtL2FuaW1hdGlvbi9pZGxlLmFuaW0iXX19",
+        "bodySha256": "cceff4e9013c3aa7476444b35be64ed643adc436b74c90adb0d2ac06e6d3f971",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.delete.ok",
+      "route": "delete",
+      "body": {
+        "category": "bgm",
+        "filename": "one.mp3"
+      },
+      "query": "",
+      "response": {
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "OK",
+        "bodyBase64": "T0s=",
+        "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.delete.missing",
+      "route": "delete",
+      "body": {
+        "category": "bgm",
+        "filename": "one.mp3"
+      },
+      "query": "",
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.delete.badCategory",
+      "route": "delete",
+      "body": {
+        "category": "nope",
+        "filename": "two.mp3"
+      },
+      "query": "",
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.delete.invalidFilename",
+      "route": "delete",
+      "body": {
+        "category": "bgm",
+        "filename": "../two.mp3"
+      },
+      "query": "",
+      "response": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "72",
+        "etag": "W/\"48-raHjTGO3FG4zfexw1tjnW1dBfDs\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Illegal character in filename; only alphanumeric, '_', '-' are accepted.",
+        "bodyBase64": "SWxsZWdhbCBjaGFyYWN0ZXIgaW4gZmlsZW5hbWU7IG9ubHkgYWxwaGFudW1lcmljLCAnXycsICctJyBhcmUgYWNjZXB0ZWQu",
+        "bodySha256": "ed2cef5becaf32d6ba909beaf725d057ee5011015109e735662bab6c579a644d",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.delete.traversalSanitized",
+      "route": "delete",
+      "body": {
+        "category": "bgm",
+        "filename": "a/b.mp3"
+      },
+      "query": "",
+      "response": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "72",
+        "etag": "W/\"48-raHjTGO3FG4zfexw1tjnW1dBfDs\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Illegal character in filename; only alphanumeric, '_', '-' are accepted.",
+        "bodyBase64": "SWxsZWdhbCBjaGFyYWN0ZXIgaW4gZmlsZW5hbWU7IG9ubHkgYWxwaGFudW1lcmljLCAnXycsICctJyBhcmUgYWNjZXB0ZWQu",
+        "bodySha256": "ed2cef5becaf32d6ba909beaf725d057ee5011015109e735662bab6c579a644d",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.ok",
+      "route": "character",
+      "body": {},
+      "query": "?name=Seraphina&category=ambient",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "77",
+        "etag": "W/\"4d-prj9GYmLWOQUoFqgSPQs2cL3Q98\"",
+        "contentDisposition": null,
+        "body": [
+          "/characters/Seraphina/ambient/a.mp3",
+          "/characters/Seraphina/ambient/b.mp3"
+        ],
+        "bodyText": null,
+        "bodyBase64": "WyIvY2hhcmFjdGVycy9TZXJhcGhpbmEvYW1iaWVudC9hLm1wMyIsIi9jaGFyYWN0ZXJzL1NlcmFwaGluYS9hbWJpZW50L2IubXAzIl0=",
+        "bodySha256": "3036581f1f5380845cc8f3229affe2d6fd92a8e7782f215780a7529bf4b186c8",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.live2d",
+      "route": "character",
+      "body": {},
+      "query": "?name=Seraphina&category=live2d",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "53",
+        "etag": "W/\"35-iORkHqzkM2PIfSxA7+YYa2f+f0Q\"",
+        "contentDisposition": null,
+        "body": [
+          "characters/Seraphina/live2d/modelA/model.json"
+        ],
+        "bodyText": null,
+        "bodyBase64": "WyJjaGFyYWN0ZXJzXFxTZXJhcGhpbmFcXGxpdmUyZFxcbW9kZWxBXFxtb2RlbC5qc29uIl0=",
+        "bodySha256": "2bb93880d4ce4c87fc24165e245ab94498bca95102c5aafea6aa743ce86c2571",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.bgm",
+      "route": "character",
+      "body": {},
+      "query": "?name=Seraphina&category=bgm",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "35",
+        "etag": "W/\"23-LUV/fTIBtij4LsPOwulAlhh1htc\"",
+        "contentDisposition": null,
+        "body": [
+          "/characters/Seraphina/bgm/x.mp3"
+        ],
+        "bodyText": null,
+        "bodyBase64": "WyIvY2hhcmFjdGVycy9TZXJhcGhpbmEvYmdtL3gubXAzIl0=",
+        "bodySha256": "53f99e3695601f3217c56162e985a9818b473eccbc312373d9aa0b629322acee",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.noName",
+      "route": "character",
+      "body": {},
+      "query": "?category=ambient",
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.badCategory",
+      "route": "character",
+      "body": {},
+      "query": "?name=Seraphina&category=nope",
+      "response": {
+        "status": 400,
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "11",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "contentDisposition": null,
+        "body": null,
+        "bodyText": "Bad Request",
+        "bodyBase64": "QmFkIFJlcXVlc3Q=",
+        "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    },
+    {
+      "name": "assets.character.missingFolder",
+      "route": "character",
+      "body": {},
+      "query": "?name=Nobody&category=ambient",
+      "response": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "2",
+        "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+        "contentDisposition": null,
+        "body": [],
+        "bodyText": null,
+        "bodyBase64": "W10=",
+        "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "comparison": {
+          "compared": [
+            "status",
+            "contentType",
+            "contentLength",
+            "contentDisposition",
+            "body",
+            "bodyText",
+            "bodySha256"
+          ],
+          "shape": [
+            "etag",
+            "body order",
+            "path separators"
+          ],
+          "shapeReason": {
+            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+          }
+        }
+      }
+    }
+  ],
+  "state": {
+    "assets.get.seeded": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "b298b377f2cbb95022affc0072db3b8045647ff600039f0161f5c2c0db4ad184"
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.get.characterQueryIgnored": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "b298b377f2cbb95022affc0072db3b8045647ff600039f0161f5c2c0db4ad184"
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.delete.ok": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.delete.missing": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.delete.badCategory": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.delete.invalidFilename": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.delete.traversalSanitized": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.ok": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.live2d": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.bgm": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.noName": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.badCategory": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    },
+    "assets.character.missingFolder": {
+      "assets": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "ambient/wind.ogg",
+          "kind": "file",
+          "size": 7,
+          "sha256": "f2f3590f492afe9f1e26a55d56ca592a5699a8150f13b7756b1717f93c58e391"
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/two.mp3",
+          "kind": "file",
+          "size": 7,
+          "sha256": "45735e004a77f356c02e5e5215cda78a0c15f83aa84f1283ac8a5891f8c4c867"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip/.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character/char.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "7d6734e7eca17f57fcdeafee486bd035aa1f410c06cca1e721d8228a2e0f20de"
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d/modelA/model3.json",
+          "kind": "file",
+          "size": 13,
+          "sha256": "31f7a0fc545a9a5dc5fb3e087d3843c4fcb1e6047567b021c866fc5141ba6a61"
+        },
+        {
+          "path": "live2d/modelA/texture.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "796120837694d3f3f29259cfeb25091698c2a0aa87873658d840b4993ee889b3"
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp/ignored.png",
+          "kind": "file",
+          "size": 4,
+          "sha256": "b969079f888367325aef6037380aa9c3e27e34fc8e90eaaab1e0b4a0218f7928"
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/animation/idle.anim",
+          "kind": "file",
+          "size": 4,
+          "sha256": "23062d6496658e2507af3d71674da52e170e931b91367acf261ded13445e5da5"
+        },
+        {
+          "path": "vrm/model",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm/model/avatar.vrm",
+          "kind": "file",
+          "size": 3,
+          "sha256": "2df0c96bdfba3e233565db7d45e76ef2e01982f94f64a39a0c6015d645f40633"
+        },
+        {
+          "path": "vrm/model/skip.placeholder",
+          "kind": "file",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "characters": [
+        {
+          "path": "Seraphina",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/ambient/a.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+        },
+        {
+          "path": "Seraphina/ambient/b.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
+        },
+        {
+          "path": "Seraphina/bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/bgm/x.mp3",
+          "kind": "file",
+          "size": 1,
+          "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015"
+        },
+        {
+          "path": "Seraphina/live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "Seraphina/live2d/modelA/extra.json",
+          "kind": "file",
+          "size": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/model.json",
+          "kind": "file",
+          "size": 16,
+          "sha256": "1ff28f8949f2a58604b67e9eec3d993b71946e038e79191e388323a87fe51340"
+        },
+        {
+          "path": "Seraphina/live2d/modelA/tex.png",
+          "kind": "file",
+          "size": 3,
+          "sha256": "805668405be9836d00e4eac01c8bc1a4ab426e9f137d195e5343477becfc7050"
+        }
+      ]
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/assets/download"
+      ],
+      "status": "not implemented",
+      "reason": "the route checks config whitelistImportDomains and streams the download to a temp file before moving it; the whitelist config is not projected into HTTPHandlerOptions and a streamed write would be a second write path, so it is deferred rather than faked"
+    }
+  ]
+}
