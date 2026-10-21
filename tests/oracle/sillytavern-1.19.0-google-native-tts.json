@@ -1,0 +1,1155 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-google-native-tts.mjs",
+  "implementedRoutes": [
+    "/api/google/generate-native-tts"
+  ],
+  "notImplementedRoutes": [
+    "/api/google/caption-image",
+    "/api/google/generate-image",
+    "/api/google/generate-video"
+  ],
+  "notImplementedReasons": {
+    "/api/google/caption-image": "Gemini multimodal envelope via getGoogleApiConfig; not in this increment.",
+    "/api/google/generate-image": "Gemini image generation envelope (`:predict`); not in this increment.",
+    "/api/google/generate-video": "Gemini video generation envelope, polling; not in this increment."
+  },
+  "pinnedSource": {
+    "src/endpoints/google.js:356": "router.post('/generate-native-tts') — getGoogleApiConfig, then a POST with responseModalities AUDIO and a prebuilt voice",
+    "src/endpoints/google.js:41": "getVertexAIAuth: proxy, express or full (service account)",
+    "src/endpoints/google.js:89": "generateJWTToken: RS256 over base64url(header).base64url(claims)",
+    "src/endpoints/google.js:118": "getAccessToken: POST oauth2.googleapis.com/token with grant_type jwt-bearer",
+    "src/endpoints/google.js:17": "createWavHeader/createCompleteWavFile: the 44-byte RIFF/WAVE mono 16-bit header"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer; the Go side replays the same peer through a real listener. The pinned child clock is frozen through NODE_OPTIONS so the RS256 JWT is deterministic and comparable byte for byte.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler propagates the PROVIDER status on a provider error and answers 500 elsewhere"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "audio/wav for audio/l16, the provider mime type otherwise"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "JSON answers are compared as text, including the two distinct error shapes"
+    },
+    {
+      "path": "scenarios.*.response.sha256/bytes",
+      "comparison": "compared",
+      "reason": "audio answers are compared by digest and length; a UTF-8 round trip would corrupt the RIFF header bytes"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "four auth branches build four URL shapes, including the raw model interpolation"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the token request carries the JWT assertion, compared byte for byte against the deterministic RS256 output"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "x-goog-api-key or Authorization: Bearer, asserted in both directions by the test"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "the full branch makes two requests per call (token, then model) and never caches"
+    },
+    {
+      "path": "safetySettings",
+      "comparison": "shape",
+      "reason": "the pinned handler merges GEMINI_SAFETY with VERTEX_SAFETY from constants.js; the fixture records the merged array but the Go side is expected to reproduce it verbatim once those constants are ported, so only its shape is asserted here"
+    }
+  ],
+  "normalizations": [
+    "The pinned clock is frozen at 2023-11-14T22:13:20.000Z so `iat`/`exp` and therefore the whole JWT are deterministic.",
+    "The service-account private key is a synthetic 2048-bit key embedded in the probe; no real credential is recorded."
+  ],
+  "inputs": {
+    "fixedEpochMilliseconds": 1700000000000,
+    "fixedEpochSeconds": 1700000000,
+    "serviceAccount": {
+      "type": "service_account",
+      "project_id": "gotavern-synthetic-project",
+      "private_key_id": "synthetic-key-id",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDEeEszoF7Ax81j\nk3uJSL+W1IN5v5gt159jt0V/Ev5yfVQy3WQkumAsN3jBU+eYA8zUSvdmyf3FfZdX\nd4L3faOxgHKGa4FJQD5xTGF2NdUGe8CyInSTJ0N+fH6raOx/pW64Pijm+HTqThZp\nSjXoXTEUEJpib5ocvwGiUZpt3Qpu9wI4Hhl3vHv8arBHlu9tsOA2MboGuvqrQvJf\nf4F8qyiJIg703cWamzYDZeSkFjz2+KZrAkRK3crIsBaMwh6t14AR7myZkAUaMhjS\nT8jKRGDldcyLHH/wfVTmCC1F9VOBD0bO6Qt61resu3eF3ekIyyIzFw9cp+S3+XK5\nwj6fdq6dAgMBAAECggEAIPZ7y4QfEaIUHB5M7joV5uTt0Bnsmthf5heEIe9aYHQV\nkdkiKaVZaGHAMVN1+kO89GtFeenu2VkacLLc9tAODERcMqBL1zHfqBukCHS8snNF\n3703KM9AHDMf/3tBnqLvYhsPury5xOvoB69LPxqPlum4NUa7KRKE4CpnygH5c6dT\nY6kkHo+Iqo+brsBi5nknXU4oDWGskGVZSAFrRcE/msaV/1W+q2q+erRF4ziG63xw\nmqOhVgHJOTI54VNx+6EyE7DVurFPzvHIZww1xAfaVtI1q+cr/lWGajnoiMUF28cr\nMsg6hIq0cE23u0rkvQ6D9v8cNXJmxbBDavr1EVr2MwKBgQDkrdywtCPy8+cuOynT\noNIK3GGI56KCb26G3F3PWjB0su3k7tNF3RxZvq04fHM2p7jHMOrdiPJUmJ0yKebr\nlGZ4ugKea+LemJDAX29Zvu6pJI2KSbV5vhWDPeLR9MFqfQU8mYRTK1roFNq/ZAPY\nVFnUM2k5U4gqXRz19jiR+ApMkwKBgQDb8VBNqKea8l2rLg5JwEYDMc1dzJnukGqN\nK4z/TLZ7ogAiM93R+yMnb7fDKGg41+hu8kiS96EL1bpq9NQRa3voiDLsQinufrTK\nLMJzWIwzh5LWHlHZ9eIFjwpF/IwTvkvt4A3V03ooiAHfU+HpIE2ot78tM/vnMcdn\nHgb0geRGDwKBgQCI5XAlNGIE8nAl4/MhJrg3GkElVQ2bKhwvjcJ2/BXf9rGliDdg\nLoLnUted5hqO0I80Z5tibbYsYIRSYHVF+Dvz797bediByzF0iG0/e6aiCSjWbVO/\ngsScIbMkX3JeTmORKJHnvB+aqcleJACNQ8nW18QZNmFggwdwUysAb02zEwKBgQC3\nH7aC0leqdP10V0ZiNYqVglPBM2c+8FMm8wnUTuTpDzsZPyIDgRwF68iO3wfXvDy0\nk1nFtBQMrIkoIGypjFqAg1YSzAvpnOmeI6JLM4CYLtsdF+WCmmzzv+MH3nwqvBiw\nGAqs7AUb1hHpBghkeBbw0PyGAHBOUG37905HKhcMFQKBgHSdk/j9aa1XULFIG/Fp\nFEcLIbbJA6ObHiOonm2SnI7yhizsWZuuIVJ+hiq2s7WhdaLC/GMwRCvIt5rb++yc\nQ1gMY5TyzWG2BjyR0V2LEFB5kzLXw8WCyw2hxJX4e2HTgNTWr6E+3R1IT9IVBacw\nPkkPwulnlizGMFj8X4jkJOCE\n-----END PRIVATE KEY-----",
+      "client_email": "gotavern-synthetic@gotavern-synthetic-project.iam.gserviceaccount.com",
+      "client_id": "1234567890",
+      "token_uri": "https://oauth2.googleapis.com/token"
+    },
+    "serviceAccountKeySha256": "134c4f0c02fc15cf4c596ea11776274923910ccf75bea5e04a0d7292065bb5a0",
+    "pcmSha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+    "wavSha256": "eb0b802a9ca464d13ee5c3b35ed504f2da3f44a42ad4ea572a961c9880f18c36",
+    "wavBytes": 78,
+    "defaultRateWavSha256": "eb0b802a9ca464d13ee5c3b35ed504f2da3f44a42ad4ea572a961c9880f18c36",
+    "mp3Sha256": "835007822715491f56551c7744186b7aa62502f18068df95c0a800b521778adf",
+    "accessToken": "synthetic-access-token",
+    "makersuiteKey": "synthetic-makersuite-key",
+    "vertexKey": "synthetic-vertex-express-key",
+    "proxyPassword": "synthetic-proxy-password"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "aiStudioWav": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Zephyr\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioWav",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/l16;rate=24000\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "audio/wav",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-h5rDzFbNu7X7BxzcgfU0o1DMoyM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "eb0b802a9ca464d13ee5c3b35ed504f2da3f44a42ad4ea572a961c9880f18c36",
+        "bytes": 78
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Zephyr\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioDefaultRate": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Puck\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioDefaultRate",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/L16\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "audio/wav",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-h5rDzFbNu7X7BxzcgfU0o1DMoyM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "eb0b802a9ca464d13ee5c3b35ed504f2da3f44a42ad4ea572a961c9880f18c36",
+        "bytes": 78
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Puck\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioOtherMime": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioOtherMime",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLW1wMy1wYXlsb2Fk\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-vRpBL302X6cB5Fw4E9TTis57+Gg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "835007822715491f56551c7744186b7aa62502f18068df95c0a800b521778adf",
+        "bytes": 30
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioNoAudio": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioNoAudio",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-G/tU+UWFWwimS/fMz6/1yHq2rjY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "No audio data found in response"
+        },
+        "bodyText": "{\"error\":\"No audio data found in response\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioProviderErrorJson": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioProviderErrorJson",
+          "match": "/models/",
+          "status": 429,
+          "statusText": "Too Many Requests",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":{\"message\":\"quota exceeded\"}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "content-length": "26",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-wZae707WqA2sWSmlCwAlnHZQZd0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "quota exceeded"
+        },
+        "bodyText": "{\"error\":\"quota exceeded\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioProviderErrorText": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioProviderErrorText",
+          "match": "/models/",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "not json at all",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "55",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"37-R2Cn0VCZT4Jg9lnEtgTST5mc5tg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Internal server error during TTS generation"
+        },
+        "bodyText": "{\"error\":\"Internal server error during TTS generation\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioReservedModel": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"models/x y?z=1\"}",
+      "mocks": [
+        {
+          "run": "aiStudioReservedModel",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/models/x y?z=1:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "aiStudioNoKey": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "aiStudioNoKey",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLW1wMy1wYXlsb2Fk\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-vRpBL302X6cB5Fw4E9TTis57+Gg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "835007822715491f56551c7744186b7aa62502f18068df95c0a800b521778adf",
+        "bytes": 30
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": ""
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexExpressWithProject": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\",\"vertexai_express_project_id\":\"gotavern-synthetic-project\"}",
+      "mocks": [
+        {
+          "run": "vertexExpressWithProject",
+          "match": "-aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/projects/gotavern-synthetic-project/locations/us-central1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexExpressWithoutProject": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "vertexExpressWithoutProject",
+          "match": "-aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexExpressGlobalRegion": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\",\"vertexai_region\":\"global\"}",
+      "mocks": [
+        {
+          "run": "vertexExpressGlobalRegion",
+          "match": "aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexFullJwt": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"vertexai_auth_mode\":\"full\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "vertexFullJwt",
+          "match": "oauth2.googleapis.com/token",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"access_token\":\"synthetic-access-token\",\"expires_in\":3600,\"token_type\":\"Bearer\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexFullJwt",
+          "match": "-aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "vertexai_service_account_json": [
+          {
+            "id": "sid-vertexai_service_account_json",
+            "value": "{\"type\":\"service_account\",\"project_id\":\"gotavern-synthetic-project\",\"private_key_id\":\"synthetic-key-id\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDEeEszoF7Ax81j\\nk3uJSL+W1IN5v5gt159jt0V/Ev5yfVQy3WQkumAsN3jBU+eYA8zUSvdmyf3FfZdX\\nd4L3faOxgHKGa4FJQD5xTGF2NdUGe8CyInSTJ0N+fH6raOx/pW64Pijm+HTqThZp\\nSjXoXTEUEJpib5ocvwGiUZpt3Qpu9wI4Hhl3vHv8arBHlu9tsOA2MboGuvqrQvJf\\nf4F8qyiJIg703cWamzYDZeSkFjz2+KZrAkRK3crIsBaMwh6t14AR7myZkAUaMhjS\\nT8jKRGDldcyLHH/wfVTmCC1F9VOBD0bO6Qt61resu3eF3ekIyyIzFw9cp+S3+XK5\\nwj6fdq6dAgMBAAECggEAIPZ7y4QfEaIUHB5M7joV5uTt0Bnsmthf5heEIe9aYHQV\\nkdkiKaVZaGHAMVN1+kO89GtFeenu2VkacLLc9tAODERcMqBL1zHfqBukCHS8snNF\\n3703KM9AHDMf/3tBnqLvYhsPury5xOvoB69LPxqPlum4NUa7KRKE4CpnygH5c6dT\\nY6kkHo+Iqo+brsBi5nknXU4oDWGskGVZSAFrRcE/msaV/1W+q2q+erRF4ziG63xw\\nmqOhVgHJOTI54VNx+6EyE7DVurFPzvHIZww1xAfaVtI1q+cr/lWGajnoiMUF28cr\\nMsg6hIq0cE23u0rkvQ6D9v8cNXJmxbBDavr1EVr2MwKBgQDkrdywtCPy8+cuOynT\\noNIK3GGI56KCb26G3F3PWjB0su3k7tNF3RxZvq04fHM2p7jHMOrdiPJUmJ0yKebr\\nlGZ4ugKea+LemJDAX29Zvu6pJI2KSbV5vhWDPeLR9MFqfQU8mYRTK1roFNq/ZAPY\\nVFnUM2k5U4gqXRz19jiR+ApMkwKBgQDb8VBNqKea8l2rLg5JwEYDMc1dzJnukGqN\\nK4z/TLZ7ogAiM93R+yMnb7fDKGg41+hu8kiS96EL1bpq9NQRa3voiDLsQinufrTK\\nLMJzWIwzh5LWHlHZ9eIFjwpF/IwTvkvt4A3V03ooiAHfU+HpIE2ot78tM/vnMcdn\\nHgb0geRGDwKBgQCI5XAlNGIE8nAl4/MhJrg3GkElVQ2bKhwvjcJ2/BXf9rGliDdg\\nLoLnUted5hqO0I80Z5tibbYsYIRSYHVF+Dvz797bediByzF0iG0/e6aiCSjWbVO/\\ngsScIbMkX3JeTmORKJHnvB+aqcleJACNQ8nW18QZNmFggwdwUysAb02zEwKBgQC3\\nH7aC0leqdP10V0ZiNYqVglPBM2c+8FMm8wnUTuTpDzsZPyIDgRwF68iO3wfXvDy0\\nk1nFtBQMrIkoIGypjFqAg1YSzAvpnOmeI6JLM4CYLtsdF+WCmmzzv+MH3nwqvBiw\\nGAqs7AUb1hHpBghkeBbw0PyGAHBOUG37905HKhcMFQKBgHSdk/j9aa1XULFIG/Fp\\nFEcLIbbJA6ObHiOonm2SnI7yhizsWZuuIVJ+hiq2s7WhdaLC/GMwRCvIt5rb++yc\\nQ1gMY5TyzWG2BjyR0V2LEFB5kzLXw8WCyw2hxJX4e2HTgNTWr6E+3R1IT9IVBacw\\nPkkPwulnlizGMFj8X4jkJOCE\\n-----END PRIVATE KEY-----\",\"client_email\":\"gotavern-synthetic@gotavern-synthetic-project.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"token_uri\":\"https://oauth2.googleapis.com/token\"}",
+            "label": "vertexai_service_account_json",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://oauth2.googleapis.com/token",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3RhdmVybi1zeW50aGV0aWNAZ290YXZlcm4tc3ludGhldGljLXByb2plY3QuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJzY29wZSI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2xvdWQtcGxhdGZvcm0iLCJhdWQiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoxNzAwMDAzNjAwfQ.rh-CGxCgidU_BIu9ARnFAqpobKvWGYd3VWxuUuviTO9IKiqKc8ch-O0a76WEqnmPKswYGFZ4lZKd1DPZj9c1wju-i4uooQZ3IqXwha65mDE-10DsPbRgwx-HA553LbcXZGWvzJMCFohtEV3c8SlyrlsBxFONs2M_ls6H-xrM5Wy_xj7EnTvMFKC9RoOfYjvVc-rnHrQ-BYIgoL6KLlMJA41IxtZmZLmNhnnK2dbRlMO2aJh60nqH8HpFLLNBuyYl-xSeWCzyAGBXVpXn8kyycvUM7fDm2n4pPmL9LV-7As6VXmOA1BQ_m4ohsg56ZdXmwiXo6ParOOUJmHyUm7woew"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/projects/gotavern-synthetic-project/locations/us-central1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-access-token"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexFullJwtSecondRequest": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"vertexai_auth_mode\":\"full\",\"text\":\"again\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "vertexFullJwtSecondRequest",
+          "match": "oauth2.googleapis.com/token",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"access_token\":\"synthetic-access-token\",\"expires_in\":3600,\"token_type\":\"Bearer\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexFullJwtSecondRequest",
+          "match": "-aiplatform.googleapis.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "vertexai_service_account_json": [
+          {
+            "id": "sid-vertexai_service_account_json",
+            "value": "{\"type\":\"service_account\",\"project_id\":\"gotavern-synthetic-project\",\"private_key_id\":\"synthetic-key-id\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDEeEszoF7Ax81j\\nk3uJSL+W1IN5v5gt159jt0V/Ev5yfVQy3WQkumAsN3jBU+eYA8zUSvdmyf3FfZdX\\nd4L3faOxgHKGa4FJQD5xTGF2NdUGe8CyInSTJ0N+fH6raOx/pW64Pijm+HTqThZp\\nSjXoXTEUEJpib5ocvwGiUZpt3Qpu9wI4Hhl3vHv8arBHlu9tsOA2MboGuvqrQvJf\\nf4F8qyiJIg703cWamzYDZeSkFjz2+KZrAkRK3crIsBaMwh6t14AR7myZkAUaMhjS\\nT8jKRGDldcyLHH/wfVTmCC1F9VOBD0bO6Qt61resu3eF3ekIyyIzFw9cp+S3+XK5\\nwj6fdq6dAgMBAAECggEAIPZ7y4QfEaIUHB5M7joV5uTt0Bnsmthf5heEIe9aYHQV\\nkdkiKaVZaGHAMVN1+kO89GtFeenu2VkacLLc9tAODERcMqBL1zHfqBukCHS8snNF\\n3703KM9AHDMf/3tBnqLvYhsPury5xOvoB69LPxqPlum4NUa7KRKE4CpnygH5c6dT\\nY6kkHo+Iqo+brsBi5nknXU4oDWGskGVZSAFrRcE/msaV/1W+q2q+erRF4ziG63xw\\nmqOhVgHJOTI54VNx+6EyE7DVurFPzvHIZww1xAfaVtI1q+cr/lWGajnoiMUF28cr\\nMsg6hIq0cE23u0rkvQ6D9v8cNXJmxbBDavr1EVr2MwKBgQDkrdywtCPy8+cuOynT\\noNIK3GGI56KCb26G3F3PWjB0su3k7tNF3RxZvq04fHM2p7jHMOrdiPJUmJ0yKebr\\nlGZ4ugKea+LemJDAX29Zvu6pJI2KSbV5vhWDPeLR9MFqfQU8mYRTK1roFNq/ZAPY\\nVFnUM2k5U4gqXRz19jiR+ApMkwKBgQDb8VBNqKea8l2rLg5JwEYDMc1dzJnukGqN\\nK4z/TLZ7ogAiM93R+yMnb7fDKGg41+hu8kiS96EL1bpq9NQRa3voiDLsQinufrTK\\nLMJzWIwzh5LWHlHZ9eIFjwpF/IwTvkvt4A3V03ooiAHfU+HpIE2ot78tM/vnMcdn\\nHgb0geRGDwKBgQCI5XAlNGIE8nAl4/MhJrg3GkElVQ2bKhwvjcJ2/BXf9rGliDdg\\nLoLnUted5hqO0I80Z5tibbYsYIRSYHVF+Dvz797bediByzF0iG0/e6aiCSjWbVO/\\ngsScIbMkX3JeTmORKJHnvB+aqcleJACNQ8nW18QZNmFggwdwUysAb02zEwKBgQC3\\nH7aC0leqdP10V0ZiNYqVglPBM2c+8FMm8wnUTuTpDzsZPyIDgRwF68iO3wfXvDy0\\nk1nFtBQMrIkoIGypjFqAg1YSzAvpnOmeI6JLM4CYLtsdF+WCmmzzv+MH3nwqvBiw\\nGAqs7AUb1hHpBghkeBbw0PyGAHBOUG37905HKhcMFQKBgHSdk/j9aa1XULFIG/Fp\\nFEcLIbbJA6ObHiOonm2SnI7yhizsWZuuIVJ+hiq2s7WhdaLC/GMwRCvIt5rb++yc\\nQ1gMY5TyzWG2BjyR0V2LEFB5kzLXw8WCyw2hxJX4e2HTgNTWr6E+3R1IT9IVBacw\\nPkkPwulnlizGMFj8X4jkJOCE\\n-----END PRIVATE KEY-----\",\"client_email\":\"gotavern-synthetic@gotavern-synthetic-project.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"token_uri\":\"https://oauth2.googleapis.com/token\"}",
+            "label": "vertexai_service_account_json",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://oauth2.googleapis.com/token",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3RhdmVybi1zeW50aGV0aWNAZ290YXZlcm4tc3ludGhldGljLXByb2plY3QuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJzY29wZSI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2xvdWQtcGxhdGZvcm0iLCJhdWQiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoxNzAwMDAzNjAwfQ.rh-CGxCgidU_BIu9ARnFAqpobKvWGYd3VWxuUuviTO9IKiqKc8ch-O0a76WEqnmPKswYGFZ4lZKd1DPZj9c1wju-i4uooQZ3IqXwha65mDE-10DsPbRgwx-HA553LbcXZGWvzJMCFohtEV3c8SlyrlsBxFONs2M_ls6H-xrM5Wy_xj7EnTvMFKC9RoOfYjvVc-rnHrQ-BYIgoL6KLlMJA41IxtZmZLmNhnnK2dbRlMO2aJh60nqH8HpFLLNBuyYl-xSeWCzyAGBXVpXn8kyycvUM7fDm2n4pPmL9LV-7As6VXmOA1BQ_m4ohsg56ZdXmwiXo6ParOOUJmHyUm7woew"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/projects/gotavern-synthetic-project/locations/us-central1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-access-token"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"again\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "vertexFullMissingServiceAccount": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"vertexai_auth_mode\":\"full\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "55",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"37-R2Cn0VCZT4Jg9lnEtgTST5mc5tg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Internal server error during TTS generation"
+        },
+        "bodyText": "{\"error\":\"Internal server error during TTS generation\"}"
+      },
+      "outbound": []
+    },
+    "vertexFullInvalidServiceAccount": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"vertexai_auth_mode\":\"full\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [],
+      "secrets": {
+        "vertexai_service_account_json": [
+          {
+            "id": "sid-vertexai_service_account_json",
+            "value": "not-json-at-all",
+            "label": "vertexai_service_account_json",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "55",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"37-R2Cn0VCZT4Jg9lnEtgTST5mc5tg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Internal server error during TTS generation"
+        },
+        "bodyText": "{\"error\":\"Internal server error during TTS generation\"}"
+      },
+      "outbound": []
+    },
+    "vertexFullTokenExchangeFails": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"vertexai_auth_mode\":\"full\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "vertexFullTokenExchangeFails",
+          "match": "oauth2.googleapis.com/token",
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":\"invalid_grant\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "vertexai_service_account_json": [
+          {
+            "id": "sid-vertexai_service_account_json",
+            "value": "{\"type\":\"service_account\",\"project_id\":\"gotavern-synthetic-project\",\"private_key_id\":\"synthetic-key-id\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDEeEszoF7Ax81j\\nk3uJSL+W1IN5v5gt159jt0V/Ev5yfVQy3WQkumAsN3jBU+eYA8zUSvdmyf3FfZdX\\nd4L3faOxgHKGa4FJQD5xTGF2NdUGe8CyInSTJ0N+fH6raOx/pW64Pijm+HTqThZp\\nSjXoXTEUEJpib5ocvwGiUZpt3Qpu9wI4Hhl3vHv8arBHlu9tsOA2MboGuvqrQvJf\\nf4F8qyiJIg703cWamzYDZeSkFjz2+KZrAkRK3crIsBaMwh6t14AR7myZkAUaMhjS\\nT8jKRGDldcyLHH/wfVTmCC1F9VOBD0bO6Qt61resu3eF3ekIyyIzFw9cp+S3+XK5\\nwj6fdq6dAgMBAAECggEAIPZ7y4QfEaIUHB5M7joV5uTt0Bnsmthf5heEIe9aYHQV\\nkdkiKaVZaGHAMVN1+kO89GtFeenu2VkacLLc9tAODERcMqBL1zHfqBukCHS8snNF\\n3703KM9AHDMf/3tBnqLvYhsPury5xOvoB69LPxqPlum4NUa7KRKE4CpnygH5c6dT\\nY6kkHo+Iqo+brsBi5nknXU4oDWGskGVZSAFrRcE/msaV/1W+q2q+erRF4ziG63xw\\nmqOhVgHJOTI54VNx+6EyE7DVurFPzvHIZww1xAfaVtI1q+cr/lWGajnoiMUF28cr\\nMsg6hIq0cE23u0rkvQ6D9v8cNXJmxbBDavr1EVr2MwKBgQDkrdywtCPy8+cuOynT\\noNIK3GGI56KCb26G3F3PWjB0su3k7tNF3RxZvq04fHM2p7jHMOrdiPJUmJ0yKebr\\nlGZ4ugKea+LemJDAX29Zvu6pJI2KSbV5vhWDPeLR9MFqfQU8mYRTK1roFNq/ZAPY\\nVFnUM2k5U4gqXRz19jiR+ApMkwKBgQDb8VBNqKea8l2rLg5JwEYDMc1dzJnukGqN\\nK4z/TLZ7ogAiM93R+yMnb7fDKGg41+hu8kiS96EL1bpq9NQRa3voiDLsQinufrTK\\nLMJzWIwzh5LWHlHZ9eIFjwpF/IwTvkvt4A3V03ooiAHfU+HpIE2ot78tM/vnMcdn\\nHgb0geRGDwKBgQCI5XAlNGIE8nAl4/MhJrg3GkElVQ2bKhwvjcJ2/BXf9rGliDdg\\nLoLnUted5hqO0I80Z5tibbYsYIRSYHVF+Dvz797bediByzF0iG0/e6aiCSjWbVO/\\ngsScIbMkX3JeTmORKJHnvB+aqcleJACNQ8nW18QZNmFggwdwUysAb02zEwKBgQC3\\nH7aC0leqdP10V0ZiNYqVglPBM2c+8FMm8wnUTuTpDzsZPyIDgRwF68iO3wfXvDy0\\nk1nFtBQMrIkoIGypjFqAg1YSzAvpnOmeI6JLM4CYLtsdF+WCmmzzv+MH3nwqvBiw\\nGAqs7AUb1hHpBghkeBbw0PyGAHBOUG37905HKhcMFQKBgHSdk/j9aa1XULFIG/Fp\\nFEcLIbbJA6ObHiOonm2SnI7yhizsWZuuIVJ+hiq2s7WhdaLC/GMwRCvIt5rb++yc\\nQ1gMY5TyzWG2BjyR0V2LEFB5kzLXw8WCyw2hxJX4e2HTgNTWr6E+3R1IT9IVBacw\\nPkkPwulnlizGMFj8X4jkJOCE\\n-----END PRIVATE KEY-----\",\"client_email\":\"gotavern-synthetic@gotavern-synthetic-project.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"token_uri\":\"https://oauth2.googleapis.com/token\"}",
+            "label": "vertexai_service_account_json",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "55",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"37-R2Cn0VCZT4Jg9lnEtgTST5mc5tg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Internal server error during TTS generation"
+        },
+        "bodyText": "{\"error\":\"Internal server error during TTS generation\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://oauth2.googleapis.com/token",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          "body": "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3RhdmVybi1zeW50aGV0aWNAZ290YXZlcm4tc3ludGhldGljLXByb2plY3QuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJzY29wZSI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2xvdWQtcGxhdGZvcm0iLCJhdWQiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoxNzAwMDAzNjAwfQ.rh-CGxCgidU_BIu9ARnFAqpobKvWGYd3VWxuUuviTO9IKiqKc8ch-O0a76WEqnmPKswYGFZ4lZKd1DPZj9c1wju-i4uooQZ3IqXwha65mDE-10DsPbRgwx-HA553LbcXZGWvzJMCFohtEV3c8SlyrlsBxFONs2M_ls6H-xrM5Wy_xj7EnTvMFKC9RoOfYjvVc-rnHrQ-BYIgoL6KLlMJA41IxtZmZLmNhnnK2dbRlMO2aJh60nqH8HpFLLNBuyYl-xSeWCzyAGBXVpXn8kyycvUM7fDm2n4pPmL9LV-7As6VXmOA1BQ_m4ohsg56ZdXmwiXo6ParOOUJmHyUm7woew"
+        }
+      ]
+    },
+    "proxyMode": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"reverse_proxy\":\"https://proxy.example.test\",\"proxy_password\":\"synthetic-proxy-password\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "proxyMode",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-proxy-password"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    },
+    "proxyModeVertex": {
+      "route": "/api/google/generate-native-tts",
+      "requestBody": "{\"api\":\"vertexai\",\"reverse_proxy\":\"https://proxy.example.test\",\"proxy_password\":\"synthetic-proxy-password\",\"text\":\"hello there\",\"voice\":\"Kore\",\"model\":\"gemini-2.5-flash-preview-tts\"}",
+      "mocks": [
+        {
+          "run": "proxyModeVertex",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"Z290YXZlcm4tc3ludGhldGljLXBjbS1sMTYtcGF5bG9hZA==\",\"mimeType\":\"audio/mpeg\"}}]}}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-KWVw3vx8tydtR5GOvp3tKp9kJ6c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "8234770dca83a126425ccecde3b1588a153c55293e50d5cca98f7ab9fb6de9db",
+        "bytes": 34
+      },
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/v1/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-proxy-password"
+          },
+          "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}]}"
+        }
+      ]
+    }
+  }
+}
