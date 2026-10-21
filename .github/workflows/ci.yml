@@ -18,7 +18,49 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
+  # The oracle job re-records every fixture on Linux and requires a zero diff. It is the only
+  # slow job (~30 min, because it boots the pinned server for dozens of probes twice), so running
+  # it for a documentation or harness-only push means the ANSWER about that commit arrives half an
+  # hour later than it needed to. This gate decides whether the commit can possibly have changed a
+  # fixture, and the oracle job is skipped when it cannot.
+  #
+  # The failure mode this fixes is real: for a stretch of this project's history no run completed
+  # at all, because every push queued behind an oracle job and the verdict never arrived. A gate
+  # that keeps failing to report is worse than a slower gate that reports.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      oracle: ${{ steps.diff.outputs.oracle }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Does this commit touch anything a fixture depends on?
+        run: |
+          set -eu
+          base="${{ github.event.before }}"
+          if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD^ 2>/dev/null || echo '')"
+          fi
+          if [ -z "${base}" ]; then
+            echo "no parent commit to diff against; running the oracle"
+            echo "oracle=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "${base}" HEAD)"
+          echo "${changed}"
+          if printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib\.mjs|tools/generate-upstream-inventories\.mjs|tests/oracle/|upstream/|internal/|cmd/|go\.mod$|go\.sum$)'; then
+            echo "oracle=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "oracle=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Report the decision
+        run: echo "oracle job will run: ${{ steps.diff.outputs.oracle }}"
+
   oracle:
+    needs: changes
+    if: needs.changes.outputs.oracle == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
