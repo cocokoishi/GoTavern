@@ -175,6 +175,15 @@ domain.
    iterate them in recorded order, and let the replay refuse a fixture whose required step shapes are
    missing. The same applies to any recorded sequence where step N's observable depends on step N-1:
    users, chats, avatars, secrets migration, workflow CRUD.
+17. **An unimplemented branch must be distinguishable from a refused one.** `/api/content` import
+   refuses an unknown host with 404 as a POLICY decision, and the branch's whole value is that a
+   404 means "the operator's whitelist said no". Answering 404 for a provider branch that simply is
+   not implemented would make that assertion unfalsifiable: a test would see the same status for
+   "correctly refused" and "not written yet". Those branches answer 501 instead, so the refusal
+   stays meaningful and the gap stays visible. Apply the same split anywhere a route has both a
+   policy refusal and unimplemented paths, and assert the number of outbound requests (zero for a
+   refusal) rather than only the status.
+
 18. **A field classified `shape` must not record the observed value.** The oracle gate compares the
    fixture's BYTES, so a host-derived value sitting in a `shape` field differs across hosts however
    the field is classified. `sd-routes` had exactly that: a finalhandler development error page was
@@ -191,14 +200,6 @@ domain.
    every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`): the
    sweep is cheap, it is the only check that finds this class, and it found exactly one location
    across 100 fixtures.
-17. **An unimplemented branch must be distinguishable from a refused one.** `/api/content` import
-   refuses an unknown host with 404 as a POLICY decision, and the branch's whole value is that a
-   404 means "the operator's whitelist said no". Answering 404 for a provider branch that simply is
-   not implemented would make that assertion unfalsifiable: a test would see the same status for
-   "correctly refused" and "not written yet". Those branches answer 501 instead, so the refusal
-   stays meaningful and the gap stays visible. Apply the same split anywhere a route has both a
-   policy refusal and unimplemented paths, and assert the number of outbound requests (zero for a
-   refusal) rather than only the status.
 
 ## Architecture boundaries that are decided, not pending
 

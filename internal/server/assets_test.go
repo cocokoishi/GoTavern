@@ -43,17 +43,30 @@ type userDataStep struct {
 	Response userDataResponse `json:"response"`
 }
 
+// userDataComparison is the fixture's own classification record. `hostDerived` names the fields whose
+// VALUE is a function of the recording host (raw content-length and raw ETag of a body built with the
+// platform separator): they are classified shape AND their values are recorded as null, because the
+// zero-diff check compares the file's bytes and a recorded host value would differ across hosts no
+// matter what the classification says. Local to this fixture so the shared searchComparison shape is
+// untouched while the provider-wire fixtures adopt the same rule separately.
+type userDataComparison struct {
+	Compared    []string          `json:"compared"`
+	Shape       []string          `json:"shape"`
+	ShapeReason map[string]string `json:"shapeReason"`
+	HostDerived []string          `json:"hostDerived"`
+}
+
 type userDataResponse struct {
-	Status                  int              `json:"status"`
-	ContentType             *string          `json:"contentType"`
-	ContentLength           *string          `json:"contentLength"`
-	NormalizedContentLength *int             `json:"normalizedContentLength"`
-	Etag                    *string          `json:"etag"`
-	ContentDisposition      *string          `json:"contentDisposition"`
-	Body                    json.RawMessage  `json:"body"`
-	BodyText                *string          `json:"bodyText"`
-	BodySha256              string           `json:"bodySha256"`
-	Comparison              searchComparison `json:"comparison"`
+	Status                  int                `json:"status"`
+	ContentType             *string            `json:"contentType"`
+	ContentLength           *string            `json:"contentLength"`
+	NormalizedContentLength *int               `json:"normalizedContentLength"`
+	Etag                    *string            `json:"etag"`
+	ContentDisposition      *string            `json:"contentDisposition"`
+	Body                    json.RawMessage    `json:"body"`
+	BodyText                *string            `json:"bodyText"`
+	BodySha256              string             `json:"bodySha256"`
+	Comparison              userDataComparison `json:"comparison"`
 }
 
 type userDataEntry struct {
@@ -181,6 +194,8 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 	t.Helper()
 	comparedAnywhere := map[string]bool{}
 	sawShapeReason := map[string]bool{}
+	separatorBearingSteps := 0
+	hostDerivedSteps := 0
 	for _, step := range fixture.Steps {
 		classified := map[string]bool{}
 		comparedSpecifically := map[string]bool{}
@@ -205,9 +220,49 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 		if (step.Response.Body == nil || string(step.Response.Body) == "null") && step.Response.BodyText == nil {
 			t.Fatalf("%s %s: response has neither a JSON body nor a text body", fixtureName, step.Name)
 		}
+		// HOST-INDEPENDENT EVIDENCE, measured per fixture: a step whose recorded body carries a path
+		// separator is a candidate for a separator-bearing branch, and such a fixture MUST record the
+		// host-derived fields (null values + shape + reason). A fixture with no such body legitimately
+		// records none, and the guard PASSES with the measured count rather than failing on a boolean.
+		if step.Response.Body != nil && string(step.Response.Body) != "null" {
+			var bodyValue any
+			if err := json.Unmarshal(step.Response.Body, &bodyValue); err == nil && userDataValueHasPathSeparator(bodyValue) {
+				separatorBearingSteps++
+			}
+		}
+		// A host-derived raw field is classified shape AND records NO value: the zero-diff check
+		// compares the file's bytes, so a shape field carrying the recording host's answer could never
+		// be byte-identical across hosts.
+		if step.Response.ContentLength != nil && classified["contentLength"] && !comparedSpecifically["contentLength"] {
+			t.Fatalf("%s %s: content-length is shape-classified but records the value %q; a host-derived shape field must record null", fixtureName, step.Name, *step.Response.ContentLength)
+		}
+		for _, key := range step.Response.Comparison.HostDerived {
+			if !classified[key] {
+				t.Fatalf("%s %s: host-derived field %q is neither compared nor shape-classified", fixtureName, step.Name, key)
+			}
+			if comparedSpecifically[key] {
+				t.Fatalf("%s %s: host-derived field %q is classified compared; it cannot be compared on a host-independent fixture", fixtureName, step.Name, key)
+			}
+			if reason := strings.TrimSpace(step.Response.Comparison.ShapeReason[key]); reason == "" {
+				t.Fatalf("%s %s: host-derived field %q has no reason", fixtureName, step.Name, key)
+			}
+			switch key {
+			case "contentLength":
+				if step.Response.ContentLength != nil {
+					t.Fatalf("%s %s: host-derived content-length records the value %q; it must be null", fixtureName, step.Name, *step.Response.ContentLength)
+				}
+			case "etag":
+				if step.Response.Etag != nil {
+					t.Fatalf("%s %s: host-derived etag records the value %q; it must be null", fixtureName, step.Name, *step.Response.Etag)
+				}
+			default:
+				t.Fatalf("%s %s: unknown host-derived field %q", fixtureName, step.Name, key)
+			}
+			hostDerivedSteps++
+		}
 		// A JSON body's byte length is derived from the body, so it must be derived from the
-		// NORMALISED body. The raw content-length is allowed to be shape only where it differs from
-		// that canonical length (separator-bearing bodies); normalizedContentLength is then required.
+		// NORMALISED body; normalizedContentLength is required and the recorded canonical length must
+		// be the canonical length of the recorded body.
 		if step.Response.Body != nil && string(step.Response.Body) != "null" {
 			if step.Response.NormalizedContentLength == nil {
 				t.Fatalf("%s %s: JSON response has no normalizedContentLength", fixtureName, step.Name)
@@ -252,6 +307,43 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 			t.Fatalf("%s: shape classification %q missing", fixtureName, key)
 		}
 	}
+	if hostDerivedSteps > separatorBearingSteps {
+		t.Fatalf("%s: %d steps record a host-derived field but only %d step bodies carry a path separator", fixtureName, hostDerivedSteps, separatorBearingSteps)
+	}
+	// Evidence-based refusal, per fixture: the separator count is MEASURED from the recorded bodies, so
+	// the assets fixture (whose listings carry '/') must exercise the host-derived rule, while the
+	// backups fixture (text bodies, no separator) legitimately records none and passes with the count
+	// stated. A regression that silently stops classifying would leave separatorBearingSteps > 0 and
+	// hostDerivedSteps == 0, which fails here.
+	if separatorBearingSteps > 0 {
+		if hostDerivedSteps == 0 {
+			t.Fatalf("%s: %d step bodies carry a path separator but no step records a host-derived field (contentLength/etag null with the host-derived reason); the host-independence assertions cannot fail", fixtureName, separatorBearingSteps)
+		}
+	} else {
+		t.Logf("%s: 0 step bodies carry a path separator, so this fixture legitimately records no host-derived field", fixtureName)
+	}
+}
+
+// userDataValueHasPathSeparator reports whether any string in a recorded JSON body contains a path
+// separator, which is the fixture-side evidence that the branch can emit platform separators.
+func userDataValueHasPathSeparator(value any) bool {
+	switch typed := value.(type) {
+	case string:
+		return strings.ContainsAny(typed, `/\`)
+	case []any:
+		for _, item := range typed {
+			if userDataValueHasPathSeparator(item) {
+				return true
+			}
+		}
+	case map[string]any:
+		for _, item := range typed {
+			if userDataValueHasPathSeparator(item) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func verifyUserDataDeletionsObservable(t *testing.T, fixtureName string, fixture userDataFixture, mode string) {

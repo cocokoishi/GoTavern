@@ -44,6 +44,7 @@
         "contentLength": "42",
         "etag": "W/\"2a-18bcfe56800\"",
         "contentDisposition": "attachment; filename=\"chat_alpha.jsonl\"",
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "{\"user_name\":\"u\"}\n{\"mes\":\"a\"}\n{\"mes\":\"b\"}\n",
         "bodyBase64": "eyJ1c2VyX25hbWUiOiJ1In0KeyJtZXMiOiJhIn0KeyJtZXMiOiJiIn0K",
@@ -52,11 +53,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -64,10 +65,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -83,6 +85,7 @@
         "contentLength": "0",
         "etag": "W/\"0-18bcfe56800\"",
         "contentDisposition": "attachment; filename=\"chat_empty.jsonl\"",
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "",
         "bodyBase64": "",
@@ -91,11 +94,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -103,10 +106,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -122,6 +126,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -130,11 +135,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -142,10 +147,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -161,6 +167,7 @@
         "contentLength": "9",
         "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Not Found",
         "bodyBase64": "Tm90IEZvdW5k",
@@ -169,11 +176,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -181,10 +188,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -200,6 +208,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -208,11 +217,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -220,10 +229,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -237,6 +247,7 @@
         "contentLength": "21",
         "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Internal Server Error",
         "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
@@ -245,11 +256,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -257,10 +268,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -276,6 +288,7 @@
         "contentLength": "2",
         "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "OK",
         "bodyBase64": "T0s=",
@@ -284,11 +297,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -296,10 +309,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -315,6 +329,7 @@
         "contentLength": "9",
         "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Not Found",
         "bodyBase64": "Tm90IEZvdW5k",
@@ -323,11 +338,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -335,10 +350,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -354,6 +370,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -362,11 +379,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -374,10 +391,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -391,6 +409,7 @@
         "contentLength": "21",
         "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Internal Server Error",
         "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
@@ -399,11 +418,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -411,10 +430,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -430,6 +450,7 @@
         "contentLength": "9",
         "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Not Found",
         "bodyBase64": "Tm90IEZvdW5k",
@@ -438,11 +459,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -450,10 +471,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     }

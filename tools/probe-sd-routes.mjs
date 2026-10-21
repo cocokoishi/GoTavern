@@ -263,20 +263,34 @@ function normaliseValue(value, replacements) {
     return result;
 }
 
+// PROBE_SIMULATE_POSIX rewrites Windows separators to POSIX ones and moves the measured length to match
+// the rewritten body. Without moving the length the simulation is not faithful: a classification decided
+// by comparing the header against the body would still see a Windows header next to a POSIX body and
+// survive the check. Generating the fixture with and without the flag must give the same bytes.
+const SIMULATE_POSIX = process.env.PROBE_SIMULATE_POSIX === '1';
+
 function captureResponse(result, replacements) {
+    const rawText = result.text;
+    const body = SIMULATE_POSIX ? rawText.split('\\\\').join('/') : rawText;
+    const contentLength = SIMULATE_POSIX
+        ? String(Buffer.byteLength(body, 'utf8'))
+        : result.response.headers.get('content-length');
     return {
         status: result.response.status,
         contentType: result.response.headers.get('content-type'),
-        contentLength: result.response.headers.get('content-length'),
+        contentLength,
         etag: result.response.headers.get('etag'),
-        body: normaliseValue(result.text, replacements),
+        body: normaliseValue(body, replacements),
     };
 }
 
-function sdComparison(shapeOverrides = {}) {
+function sdComparison(shapeOverrides = {}, hostDerived = []) {
     const comparison = {
         compared: ['status', 'contentType', 'contentLength', 'etag', 'body', 'requests', 'requestHeaders', 'requestBody'],
         shape: ['requestHeaders.connection'],
+        // Fields whose recorded value would be this host's answer: the replay test asserts each one is
+        // NULL, is shape-classified and carries a reason, so the marker cannot rot into a comment.
+        hostDerived,
         shapeReason: {
             'requestHeaders.connection': 'keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted',
         },
@@ -471,7 +485,7 @@ function routeScenarios(origin, auth) {
         observations[name] = {
             ...captureResponse(result, replacements),
             requests: recorded,
-            comparison: sdComparison(options.shape),
+            comparison: sdComparison(options.shape, options.hostDerived ?? []),
         };
         // A field classified `shape` must not carry THIS HOST's answer. The zero-diff gate compares the
         // fixture's bytes, so a recorded value differs across hosts however the field is classified: the
@@ -484,6 +498,15 @@ function routeScenarios(origin, auth) {
         // HTTP CLIENT rather than by the route, it is byte-stable across hosts, and the reason string
         // already says it is not compared. Nulling it would discard information without a host-dependence
         // justification.
+        if ((options.hostDerived ?? []).length > 0) {
+            // The compared counterpart of a host-derived length would be the CANONICAL body's byte length.
+            // No branch of this probe compares a canonical body today: the one host-derived body is a
+            // rendered development error page, which is not contract at all, so there is no canonical
+            // form to measure. The field is recorded as null and present, so the shape is uniform with the
+            // fixtures that do have one, and a future branch that gains a canonical body has somewhere to
+            // put it rather than silently keeping the raw length.
+            observations[name].normalizedContentLength = null;
+        }
         for (const key of Object.keys(options.shape ?? {})) {
             if (key === 'requestHeaders.connection') continue;
             if (key === 'status') {
@@ -541,6 +564,9 @@ function routeScenarios(origin, auth) {
         // the error page body is finalhandler's, which is environment specific.
         await run('ping.malformedJson', 'ping', {}, {}, {
             rawBody: '{"url": ',
+            // The error page is classified from a property of the ROUTE (it renders a development error
+            // page with an absolute path and stack frames), never from comparing two recorded values.
+            hostDerived: ['contentType', 'contentLength', 'etag', 'body'],
             shape: {
                 contentType: 'finalhandler renders a development error page whose shape depends on NODE_ENV and the thrown SyntaxError text; only the status is contract',
                 contentLength: 'same as contentType: the error page length is not contract',
@@ -1180,7 +1206,8 @@ try {
             },
             notRecorded: [
                 'the mock peer authority itself (normalised to <mock>) because it is an ephemeral port',
-                'every value of a field classified shape: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)',
+                'the raw value of every field listed in comparison.hostDerived (contentLength, etag and any body or content type derived from it): the value is null, the field is classified shape, and it carries a reason; comparison.normalizedContentLength carries the canonical length where a canonical body exists and null where none does',
+                'every value of a field listed in comparison.hostDerived: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)',
                 'the pinned server listen port and its startup log',
             ],
         };

@@ -2536,7 +2536,8 @@
     },
     "notRecorded": [
       "the mock peer authority itself (normalised to <mock>) because it is an ephemeral port",
-      "every value of a field classified shape: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)",
+      "the raw value of every field listed in comparison.hostDerived (contentLength, etag and any body or content type derived from it): the value is null, the field is classified shape, and it carries a reason; comparison.normalizedContentLength carries the canonical length where a canonical body exists and null where none does",
+      "every value of a field listed in comparison.hostDerived: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)",
       "the pinned server listen port and its startup log"
     ]
   },
@@ -2594,6 +2595,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2652,6 +2654,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2710,6 +2713,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2799,6 +2803,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2825,6 +2830,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2851,6 +2857,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2877,6 +2884,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -2903,6 +2911,12 @@
           "etag",
           "body"
         ],
+        "hostDerived": [
+          "contentType",
+          "contentLength",
+          "etag",
+          "body"
+        ],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted",
           "contentType": "finalhandler renders a development error page whose shape depends on NODE_ENV and the thrown SyntaxError text; only the status is contract",
@@ -2910,7 +2924,8 @@
           "etag": "same as contentType: the error page ETag is derived from a non-contract body",
           "body": "same as contentType: the error page body is not contract"
         }
-      }
+      },
+      "normalizedContentLength": null
     },
     "upscalers.ok": {
       "status": 200,
@@ -2996,6 +3011,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3085,6 +3101,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3174,6 +3191,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3263,6 +3281,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3352,6 +3371,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3441,6 +3461,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3530,6 +3551,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3588,6 +3610,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3646,6 +3669,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3704,6 +3728,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3762,6 +3787,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3820,6 +3846,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3878,6 +3905,7 @@
           "requestHeaders.connection",
           "contentLength"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted",
           "contentLength": "pinned res.send(undefined) ends a bodyless response without Content-Length; Go net/http emits Content-Length: 0 for a bodyless 200, so only the status and empty body are compared"
@@ -3937,6 +3965,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -3995,6 +4024,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4053,6 +4083,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4111,6 +4142,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4169,6 +4201,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4266,6 +4299,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4394,6 +4428,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4460,6 +4495,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4557,6 +4593,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4689,6 +4726,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4747,6 +4785,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4801,6 +4840,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4855,6 +4895,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4909,6 +4950,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -4963,6 +5005,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5017,6 +5060,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5071,6 +5115,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5125,6 +5170,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5179,6 +5225,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5237,6 +5284,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5295,6 +5343,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5353,6 +5402,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5411,6 +5461,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5437,6 +5488,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5491,6 +5543,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5545,6 +5598,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5599,6 +5653,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5653,6 +5708,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5707,6 +5763,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5761,6 +5818,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5815,6 +5873,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5869,6 +5928,7 @@
           "requestHeaders.connection",
           "contentLength"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted",
           "contentLength": "pinned res.send(undefined) ends a bodyless response without Content-Length and the compression middleware then uses chunked framing; Go net/http emits Content-Length: 0 for a bodyless 200, so only the status and empty body are compared"
@@ -5924,6 +5984,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -5982,6 +6043,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6008,6 +6070,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6066,6 +6129,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6124,6 +6188,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6186,6 +6251,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6248,6 +6314,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6274,6 +6341,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6336,6 +6404,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6398,6 +6467,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6424,6 +6494,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6482,6 +6553,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6540,6 +6612,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6598,6 +6671,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6660,6 +6734,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6722,6 +6797,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6748,6 +6824,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6806,6 +6883,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6864,6 +6942,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6890,6 +6969,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6948,6 +7028,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -6974,6 +7055,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7032,6 +7114,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7058,6 +7141,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7112,6 +7196,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7166,6 +7251,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7220,6 +7306,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7301,6 +7388,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7355,6 +7443,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }
@@ -7409,6 +7498,7 @@
         "shape": [
           "requestHeaders.connection"
         ],
+        "hostDerived": [],
         "shapeReason": {
           "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
         }

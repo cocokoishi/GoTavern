@@ -88,10 +88,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -153,10 +154,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -195,10 +197,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -237,10 +240,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -279,10 +283,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -321,10 +326,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -363,10 +369,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -406,10 +413,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -421,8 +429,8 @@
       "response": {
         "status": 200,
         "contentType": "application/json; charset=utf-8",
-        "contentLength": "53",
-        "etag": "W/\"35-iORkHqzkM2PIfSxA7+YYa2f+f0Q\"",
+        "contentLength": null,
+        "etag": null,
         "contentDisposition": null,
         "normalizedContentLength": 49,
         "body": [
@@ -448,11 +456,15 @@
             "contentLength"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "this branch builds paths with the platform separator, so the ETag hashes raw bytes that differ by host; it is host-derived on every platform and NO value is recorded",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same",
-            "contentLength": "the raw header (53) counts JSON-escaped path separators, which the host decides; the canonical body is 49 bytes, and normalizedContentLength is compared instead"
-          }
+            "contentLength": "this branch builds paths with the platform separator, so the raw header counts JSON-escaped separators and is host-derived on EVERY platform (53 bytes on Windows, 49 on Linux for the same listing); the canonical byte length is compared as normalizedContentLength and NO raw value is recorded"
+          },
+          "hostDerived": [
+            "contentLength",
+            "etag"
+          ]
         }
       }
     },
@@ -491,10 +503,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -530,10 +543,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -569,10 +583,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     },
@@ -609,10 +624,11 @@
             "path separators"
           ],
           "shapeReason": {
-            "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
+            "etag": "the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
             "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
-          }
+          },
+          "hostDerived": []
         }
       }
     }

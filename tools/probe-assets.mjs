@@ -177,11 +177,30 @@ function normalizeValue(value) {
     return value;
 }
 
-function captureResponse(result) {
+function captureResponse(result, options = {}) {
     let body = null;
     let bodyText = null;
     let bodySha256 = result.sha256;
-    const raw = result.buffer.toString('utf8');
+    // HOST-INDEPENDENT CLASSIFICATION. A branch is separator-bearing because the PINNED ROUTE builds
+    // its paths with the platform separator (path.join); that is a property of the route, not of the
+    // recording. Deciding the classification by comparing the raw header with the canonical length
+    // made the CLASSIFICATION itself host-dependent (shape on Windows, compared on Linux), so the
+    // fixture could never be byte-identical across hosts. The caller states the property instead.
+    const separatorBearing = options.separatorBearing === true;
+    let raw = result.buffer.toString('utf8');
+    if (separatorBearing && process.env.PROBE_SIMULATE_POSIX === '1') {
+        // Local Linux simulation for this branch only: the pinned route would emit '/' separators
+        // there, so rewrite the Windows wire body the same way. A fixture byte-identical with and
+        // without this flag has no host-derived value left in it. Restricted to separator-bearing
+        // branches: replacing backslashes in OTHER bodies would corrupt content that legitimately
+        // contains them (measured: the backups fixture changed when the flag was applied globally).
+        raw = raw.split('\\\\').join('/');
+        // A real POSIX host also emits a content-length that MATCHES its wire body, so the simulated
+        // header must move with the rewritten body. Without this the simulation is not a faithful
+        // stand-in: a host-comparison classification would still see the Windows 53 against a 49-byte
+        // body and would not be exposed locally.
+        result.headers.contentLength = String(Buffer.byteLength(raw, 'utf8'));
+    }
     // Pinned path.join produces backslash separators on Windows and '/' on POSIX. Separators are
     // host-dependent, so JSON string values are normalised to '/' before recording and hashing;
     // the separator is classified shape, the path set is compared.
@@ -190,39 +209,39 @@ function captureResponse(result) {
         body = normalizeValue(JSON.parse(raw));
         const canonicalBodyText = JSON.stringify(body);
         bodySha256 = sha256(canonicalBodyText);
-        // Content-length is DERIVED FROM THE BODY, so it must be normalised with the body. On Windows
-        // the live2d branch's path.join emits backslashes, and JSON escapes each one as `\\`: the wire
-        // body is four bytes longer than the canonical `/` form. Recording the raw header would bake
-        // the recording host into the fixture (53 vs 49). Record the canonical byte length instead and
-        // classify the raw header shape ONLY for the steps where the two differ.
+        // Content-length is DERIVED FROM THE BODY, so it is recorded as the CANONICAL byte length and
+        // the raw header is never carried as a value on a separator-bearing branch.
         normalizedContentLength = Buffer.byteLength(canonicalBodyText, 'utf8');
     } catch {
         bodyText = raw;
         bodySha256 = sha256(raw);
     }
+    const hostDerived = separatorBearing ? ['contentLength', 'etag'] : [];
     const compared = ['status', 'contentType', 'contentDisposition', 'body', 'bodyText', 'bodySha256'];
     const shape = ['etag', 'body order', 'path separators'];
     const shapeReason = {
-        etag: 'the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings',
+        etag: separatorBearing
+            ? 'this branch builds paths with the platform separator, so the ETag hashes raw bytes that differ by host; it is host-derived on every platform and NO value is recorded'
+            : 'the ETag is a raw-byte hash; this branch produces identical bytes on every host, so the value is recorded but not compared (shape by policy)',
         'body order': 'the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead',
         'path separators': 'pinned path.join uses the host separator; the fixture normalises to / and the replay does the same',
     };
     if (normalizedContentLength !== null) {
         compared.push('normalizedContentLength');
-        if (result.headers.contentLength !== null && Number(result.headers.contentLength) !== normalizedContentLength) {
-            shape.push('contentLength');
-            shapeReason.contentLength = `the raw header (${result.headers.contentLength}) counts JSON-escaped path separators, which the host decides; the canonical body is ${normalizedContentLength} bytes, and normalizedContentLength is compared instead`;
-        } else {
-            compared.push('contentLength');
-        }
+    }
+    if (separatorBearing) {
+        shape.push('contentLength');
+        shapeReason.contentLength = 'this branch builds paths with the platform separator, so the raw header counts JSON-escaped separators and is host-derived on EVERY platform (53 bytes on Windows, 49 on Linux for the same listing); the canonical byte length is compared as normalizedContentLength and NO raw value is recorded';
     } else {
         compared.push('contentLength');
     }
     return {
         status: result.status,
         contentType: result.headers.contentType,
-        contentLength: result.headers.contentLength,
-        etag: result.headers.etag,
+        // A shape field must not carry a host-derived VALUE: the zero-diff check compares the file's
+        // bytes, so a recorded 53 would differ from a Linux 49 no matter what the classification says.
+        contentLength: separatorBearing ? null : result.headers.contentLength,
+        etag: separatorBearing ? null : result.headers.etag,
         contentDisposition: result.headers.contentDisposition,
         normalizedContentLength,
         body,
@@ -231,10 +250,9 @@ function captureResponse(result) {
         // this field is not compared, but a host-dependent value in the file invites a future trap.
         bodyBase64: body !== null ? Buffer.from(JSON.stringify(body), 'utf8').toString('base64') : result.buffer.toString('base64'),
         bodySha256,
-        comparison: { compared, shape, shapeReason },
+        comparison: { compared, shape, shapeReason, hostDerived },
     };
 }
-
 function snapshotTree(root) {
     const entries = [];
     const walk = (absolute, relative) => {
@@ -298,7 +316,7 @@ async function assetsScenarios(origin, auth) {
     }, JSON.stringify(body ?? {}));
     const step = async (name, route, body, options = {}) => {
         const result = await post(route, body, options.query ?? '');
-        const captured = captureResponse(result);
+        const captured = captureResponse(result, options);
         // assets.get creates missing category folders as a side effect; snapshot both trees.
         steps.push({ name, route, body: body ?? {}, query: options.query ?? '', response: captured });
         state[name] = { assets: snapshotTree(path.join(userRoot, 'assets')), characters: snapshotTree(path.join(userRoot, 'characters')) };
@@ -311,7 +329,10 @@ async function assetsScenarios(origin, auth) {
     await step('assets.delete.invalidFilename', 'delete', { category: 'bgm', filename: '../two.mp3' });
     await step('assets.delete.traversalSanitized', 'delete', { category: 'bgm', filename: 'a/b.mp3' });
     await step('assets.character.ok', 'character', {}, { query: '?name=Seraphina&category=ambient' });
-    await step('assets.character.live2d', 'character', {}, { query: '?name=Seraphina&category=live2d' });
+    // The live2d branch walks characters/<name>/live2d/<model>/ with path.join, so its listing
+    // carries the PLATFORM separator and its raw content-length and ETag are host-derived on every
+    // platform. The flag is a property of the route, so the classification it drives is host-independent.
+    await step('assets.character.live2d', 'character', {}, { query: '?name=Seraphina&category=live2d', separatorBearing: true });
     await step('assets.character.bgm', 'character', {}, { query: '?name=Seraphina&category=bgm' });
     await step('assets.character.noName', 'character', {}, { query: '?category=ambient' });
     await step('assets.character.badCategory', 'character', {}, { query: '?name=Seraphina&category=nope' });
