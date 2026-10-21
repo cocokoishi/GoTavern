@@ -31,7 +31,7 @@ has to be argued per area.
 | Assets / backups / sprites (user data) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-{assets,backups,sprites}.json`. Thumbnails do NOT gain E: `/thumbnail/<computed: Identifier>` is `not implemented` |
 | SD non-generate routes | ✓ | ✓ | ✓ | ✓* | n/a | partial | `tests/oracle/sillytavern-1.19.0-sd-{routes,workflows}.json`; *E for the startup scenario only (`/api/sd/comfy/workflows` equal) |
 | SD generate (8 sources) | ✓ | ✓ | ✓ |  |  | partial | `tests/oracle/sillytavern-1.19.0-sd-generate.json` |
-| Horde domain | ✓ | ✓ |  |  |  | partial | `tests/oracle/sillytavern-1.19.0-horde.json` |
+| Horde domain | ✓ | ✓ | n/a |  |  | partial | `tests/oracle/sillytavern-1.19.0-horde.json`. **F is n/a by argument, not by omission**: the pinned `src/endpoints/horde.js` contains no `writeFile`/`appendFile`/`mkdir`/`unlink`/`createWriteStream`/`fs.` call at all, and the Go routes likewise write nothing -- the domain keeps only the 60-second `models`/`workers` caches in memory. One prompt/one response, no persisted state to compare |
 | Speech / images | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-{speech,images}.json` |
 | Content import (importURL/importUUID) | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-content{,-uuid}.json` |
 | Providers / tokenization / streaming at the SERVER level | ✓ | ✓ | ✓ |  | ✓ | partial | `tests/oracle/sillytavern-1.19.0-provider-wire.json` (stream + abort scenarios) |
