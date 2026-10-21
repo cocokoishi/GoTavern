@@ -201,6 +201,16 @@ domain.
    sweep is cheap, it is the only check that finds this class, and it found exactly one location
    across 100 fixtures.
 
+19. **A `go test -run` filter that matches nothing reports `ok`, which reads as success.** The real
+   name of the sd-routes guard is `TestPinnedNodeSDRoutes`; `-run TestSD` does not match it, and Go
+   answers `ok ... [no tests to run]` with exit status 0. Every green reported for that fixture under
+   a `TestSD` filter was therefore vacuous for the one test that matters, and it was caught only
+   because a mutation appeared to survive -- the mutation had never executed. Run the EXACT test name
+   (or a prefix that provably matches), and confirm the test actually ran: `-v` shows `=== RUN`, and
+   a test that logs a measurement (like the host-derived count) proves its own execution. This is
+   rule 7 in a new costume: a green that cannot fail. The same caution applies to any filter used
+   before a commit, including mine.
+
 ## Architecture boundaries that are decided, not pending
 
 1. **Arbitrary Node server plugins are the sole explicit ecosystem exclusion** — see hard rule 16.
@@ -302,12 +312,3 @@ Never special-case these extensions in production code. They are canaries for th
 ## Definition of success
 
 A non-developer can install a prebuilt GoTavern release, start fresh or migrate an existing SillyTavern deployment, use the unmodified frontend and complex supported extension/preset workflows, and obtain the same effective provider requests and persistent/browser state as pinned Node SillyTavern—without Go/Node on the target server and without a data conversion layer.
-19. **A `go test -run` filter that matches nothing reports `ok`, which reads as success.** The real
-   name of the sd-routes guard is `TestPinnedNodeSDRoutes`; `-run TestSD` does not match it, and Go
-   answers `ok ... [no tests to run]` with exit status 0. Every green reported for that fixture under
-   a `TestSD` filter was therefore vacuous for the one test that matters, and it was caught only
-   because a mutation appeared to survive -- the mutation had never executed. Run the EXACT test name
-   (or a prefix that provably matches), and confirm the test actually ran: `-v` shows `=== RUN`, and
-   a test that logs a measurement (like the host-derived count) proves its own execution. This is
-   rule 7 in a new costume: a green that cannot fail. The same caution applies to any filter used
-   before a commit, including mine.
