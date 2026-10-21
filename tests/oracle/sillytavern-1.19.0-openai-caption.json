@@ -1,0 +1,1559 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openai-caption.mjs",
+  "implementedRoutes": [
+    "/api/openai/caption-image"
+  ],
+  "notImplementedRoutes": [],
+  "branches": [
+    {
+      "api": "openai",
+      "secret": "api_key_openai",
+      "url": "https://api.openai.com/v1/chat/completions"
+    },
+    {
+      "api": "xai",
+      "secret": "api_key_xai",
+      "url": "https://api.x.ai/v1/chat/completions"
+    },
+    {
+      "api": "mistral",
+      "secret": "api_key_mistralai",
+      "url": "https://api.mistral.ai/v1/chat/completions"
+    },
+    {
+      "api": "custom",
+      "secret": "api_key_custom",
+      "url": "https://local.example.test/chat/completions"
+    },
+    {
+      "api": "openrouter",
+      "secret": "api_key_openrouter",
+      "url": "https://openrouter.ai/api/v1/chat/completions"
+    },
+    {
+      "api": "ooba",
+      "secret": "api_key_ooba",
+      "url": "https://local.example.test/v1/chat/completions"
+    },
+    {
+      "api": "koboldcpp",
+      "secret": "api_key_koboldcpp",
+      "url": "https://local.example.test/v1/chat/completions"
+    },
+    {
+      "api": "llamacpp",
+      "secret": "api_key_llamacpp",
+      "url": "https://local.example.test/v1/chat/completions"
+    },
+    {
+      "api": "vllm",
+      "secret": "api_key_vllm",
+      "url": "https://local.example.test/v1/chat/completions"
+    },
+    {
+      "api": "aimlapi",
+      "secret": "api_key_aimlapi",
+      "url": "https://api.aimlapi.com/v1/chat/completions"
+    },
+    {
+      "api": "groq",
+      "secret": "api_key_groq",
+      "url": "https://api.groq.com/openai/v1/chat/completions"
+    },
+    {
+      "api": "cohere",
+      "secret": "api_key_cohere",
+      "url": "https://api.cohere.ai/v2/chat"
+    },
+    {
+      "api": "moonshot",
+      "secret": "api_key_moonshot",
+      "url": "https://api.moonshot.ai/v1/chat/completions"
+    },
+    {
+      "api": "nanogpt",
+      "secret": "api_key_nanogpt",
+      "url": "https://nano-gpt.com/api/v1/chat/completions"
+    },
+    {
+      "api": "chutes",
+      "secret": "api_key_chutes",
+      "url": "https://llm.chutes.ai/v1/chat/completions"
+    },
+    {
+      "api": "electronhub",
+      "secret": "api_key_electronhub",
+      "url": "https://api.electronhub.ai/v1/chat/completions"
+    },
+    {
+      "api": "zai",
+      "secret": "api_key_zai",
+      "url": "https://api.z.ai/api/paas/v4/chat/completions"
+    },
+    {
+      "api": "pollinations",
+      "secret": "api_key_pollinations",
+      "url": "https://gen.pollinations.ai/v1/chat/completions"
+    },
+    {
+      "api": "workers_ai",
+      "secret": "api_key_workers_ai",
+      "url": "https://api.cloudflare.com/client/v4/accounts/acc%2Fone%3Fx%3D1/ai/v1/chat/completions"
+    }
+  ],
+  "branchCount": 19,
+  "modifiers": [
+    {
+      "name": "reverse_proxy",
+      "note": "a MODIFIER rather than a branch: it overrides the URL to ${reverse_proxy}/chat/completions for the keyed branches, and treating it as a branch would inflate the count and hide a missing modifier"
+    }
+  ],
+  "pinnedSource": {
+    "src/endpoints/openai.js:16": "router.post('/caption-image'): the 19-value api dispatch, the per-branch secret and apiUrl, and the shared 400 guards",
+    "src/endpoints/openai.js:188": "pollinations: a randomized bodyParams.seed and an anonymous vs keyed URL",
+    "src/endpoints/openai.js:208": "zai: the endpoint chosen by zai_endpoint, plus max_tokens 4096",
+    "src/endpoints/openai.js:231": "workers_ai: an encodeURIComponent account id in the path, 400 without one"
+  },
+  "inheritedProperties": {
+    "customIncludeMerges": "NOT YET PROBED (commit 2): custom_include_body and custom_include_headers are USER-CONTROLLED objects merged into the outbound request, so a caller can set arbitrary upstream headers and body members. They will be reproduced verbatim and recorded here; a deliberate hardening would be a visible compatibility decision rather than a route-local cleanup."
+  },
+  "fields": [
+    {
+      "path": "scenarios.branch-*.response.status",
+      "comparison": "compared",
+      "reason": "the branch answers 200, or 400 for a guard"
+    },
+    {
+      "path": "scenarios.branch-*.response.body",
+      "comparison": "compared",
+      "reason": "the provider JSON pass-through"
+    },
+    {
+      "path": "scenarios.branch-*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the per-branch URL, which is what a missing or collapsed branch changes"
+    },
+    {
+      "path": "scenarios.branch-*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the PER-BRANCH secret, so a branch using another branch secret is visible"
+    },
+    {
+      "path": "scenarios.branch-*.outbound.length",
+      "comparison": "compared",
+      "reason": "one request per branch, zero for a guard (rule 17)"
+    },
+    {
+      "path": "scenarios.branch-pollinations.seedObservation",
+      "comparison": "shape",
+      "reason": "the seed is RANDOMIZED by the pinned code, so it cannot be byte-stable and NO value is recorded"
+    }
+  ],
+  "normalizations": [
+    "The pollinations branch sets a RANDOMIZED bodyParams.seed; the recorded request body carries the marker <seed> instead of the value, and the seed field itself is classified shape with no value recorded."
+  ],
+  "inputs": {
+    "imageDataUri": "data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=",
+    "caption": {
+      "choices": [
+        {
+          "message": {
+            "role": "assistant",
+            "content": "a synthetic caption"
+          }
+        }
+      ]
+    },
+    "branchValues": [
+      "openai",
+      "xai",
+      "mistral",
+      "custom",
+      "openrouter",
+      "ooba",
+      "koboldcpp",
+      "llamacpp",
+      "vllm",
+      "aimlapi",
+      "groq",
+      "cohere",
+      "moonshot",
+      "nanogpt",
+      "chutes",
+      "electronhub",
+      "zai",
+      "pollinations",
+      "workers_ai"
+    ],
+    "branchCount": 19
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "branch-openai": {
+      "route": "/api/openai/caption-image",
+      "branch": "openai",
+      "requestBody": "{\"api\":\"openai\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-openai",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openai-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-xai": {
+      "route": "/api/openai/caption-image",
+      "branch": "xai",
+      "requestBody": "{\"api\":\"xai\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-xai",
+          "match": "api.x.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_xai": [
+          {
+            "id": "sid-api_key_xai",
+            "value": "synthetic-xai-key",
+            "label": "api_key_xai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-xai-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-mistral": {
+      "route": "/api/openai/caption-image",
+      "branch": "mistral",
+      "requestBody": "{\"api\":\"mistral\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-mistral",
+          "match": "api.mistral.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_mistralai": [
+          {
+            "id": "sid-api_key_mistralai",
+            "value": "synthetic-mistral-key",
+            "label": "api_key_mistralai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.mistral.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-mistral-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-custom": {
+      "route": "/api/openai/caption-image",
+      "branch": "custom",
+      "requestBody": "{\"api\":\"custom\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"server_url\":\"https://local.example.test\"}",
+      "mocks": [
+        {
+          "run": "branch-custom",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_custom": [
+          {
+            "id": "sid-api_key_custom",
+            "value": "synthetic-custom-key",
+            "label": "api_key_custom",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-custom-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-openrouter": {
+      "route": "/api/openai/caption-image",
+      "branch": "openrouter",
+      "requestBody": "{\"api\":\"openrouter\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-openrouter",
+          "match": "openrouter.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-api_key_openrouter",
+            "value": "synthetic-openrouter-key",
+            "label": "api_key_openrouter",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-openrouter-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-ooba": {
+      "route": "/api/openai/caption-image",
+      "branch": "ooba",
+      "requestBody": "{\"api\":\"ooba\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"server_url\":\"https://local.example.test\"}",
+      "mocks": [
+        {
+          "run": "branch-ooba",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_ooba": [
+          {
+            "id": "sid-api_key_ooba",
+            "value": "synthetic-ooba-key",
+            "label": "api_key_ooba",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-ooba-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}],\"temperature\":0.1}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-koboldcpp": {
+      "route": "/api/openai/caption-image",
+      "branch": "koboldcpp",
+      "requestBody": "{\"api\":\"koboldcpp\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"server_url\":\"https://local.example.test\"}",
+      "mocks": [
+        {
+          "run": "branch-koboldcpp",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_koboldcpp": [
+          {
+            "id": "sid-api_key_koboldcpp",
+            "value": "synthetic-koboldcpp-key",
+            "label": "api_key_koboldcpp",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-koboldcpp-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-llamacpp": {
+      "route": "/api/openai/caption-image",
+      "branch": "llamacpp",
+      "requestBody": "{\"api\":\"llamacpp\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"server_url\":\"https://local.example.test\"}",
+      "mocks": [
+        {
+          "run": "branch-llamacpp",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_llamacpp": [
+          {
+            "id": "sid-api_key_llamacpp",
+            "value": "synthetic-llamacpp-key",
+            "label": "api_key_llamacpp",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-llamacpp-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-vllm": {
+      "route": "/api/openai/caption-image",
+      "branch": "vllm",
+      "requestBody": "{\"api\":\"vllm\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"server_url\":\"https://local.example.test\"}",
+      "mocks": [
+        {
+          "run": "branch-vllm",
+          "match": "local.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_vllm": [
+          {
+            "id": "sid-api_key_vllm",
+            "value": "synthetic-vllm-key",
+            "label": "api_key_vllm",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://local.example.test/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-vllm-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-aimlapi": {
+      "route": "/api/openai/caption-image",
+      "branch": "aimlapi",
+      "requestBody": "{\"api\":\"aimlapi\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-aimlapi",
+          "match": "api.aimlapi.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-groq": {
+      "route": "/api/openai/caption-image",
+      "branch": "groq",
+      "requestBody": "{\"api\":\"groq\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-groq",
+          "match": "api.groq.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_groq": [
+          {
+            "id": "sid-api_key_groq",
+            "value": "synthetic-groq-key",
+            "label": "api_key_groq",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.groq.com/openai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-groq-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-cohere": {
+      "route": "/api/openai/caption-image",
+      "branch": "cohere",
+      "requestBody": "{\"api\":\"cohere\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-cohere",
+          "match": "api.cohere.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_cohere": [
+          {
+            "id": "sid-api_key_cohere",
+            "value": "synthetic-cohere-key",
+            "label": "api_key_cohere",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cohere.ai/v2/chat",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-cohere-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-moonshot": {
+      "route": "/api/openai/caption-image",
+      "branch": "moonshot",
+      "requestBody": "{\"api\":\"moonshot\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-moonshot",
+          "match": "api.moonshot.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_moonshot": [
+          {
+            "id": "sid-api_key_moonshot",
+            "value": "synthetic-moonshot-key",
+            "label": "api_key_moonshot",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.moonshot.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-moonshot-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-nanogpt": {
+      "route": "/api/openai/caption-image",
+      "branch": "nanogpt",
+      "requestBody": "{\"api\":\"nanogpt\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-nanogpt",
+          "match": "nano-gpt.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "synthetic-nanogpt-key",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-nanogpt-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-chutes": {
+      "route": "/api/openai/caption-image",
+      "branch": "chutes",
+      "requestBody": "{\"api\":\"chutes\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-chutes",
+          "match": "llm.chutes.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://llm.chutes.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-chutes-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-electronhub": {
+      "route": "/api/openai/caption-image",
+      "branch": "electronhub",
+      "requestBody": "{\"api\":\"electronhub\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-electronhub",
+          "match": "api.electronhub.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "synthetic-electronhub-key",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-electronhub-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-zai": {
+      "route": "/api/openai/caption-image",
+      "branch": "zai",
+      "requestBody": "{\"api\":\"zai\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"zai_endpoint\":\"common\"}",
+      "mocks": [
+        {
+          "run": "branch-zai",
+          "match": "api.z.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "branch-pollinations": {
+      "route": "/api/openai/caption-image",
+      "branch": "pollinations",
+      "requestBody": "{\"api\":\"pollinations\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\"}",
+      "mocks": [
+        {
+          "run": "branch-pollinations",
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-pollinations-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}],\"seed\":\"<seed>\"}"
+        }
+      ],
+      "seedObservation": {
+        "comparison": "shape",
+        "value": null,
+        "reason": "the pinned handler sets bodyParams.seed to Math.floor(Math.random() * 2^32); the value cannot be byte-stable and the pinned code offers no seam, so it is NOT OBSERVED rather than pinned to whichever value this run produced"
+      }
+    },
+    "branch-workers_ai": {
+      "route": "/api/openai/caption-image",
+      "branch": "workers_ai",
+      "requestBody": "{\"api\":\"workers_ai\",\"prompt\":\"describe this\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"gpt-4o-mini\",\"workers_ai_account_id\":\"acc/one?x=1\"}",
+      "mocks": [
+        {
+          "run": "branch-workers_ai",
+          "match": "api.cloudflare.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers_ai-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.cloudflare.com/client/v4/accounts/acc%2Fone%3Fx%3D1/ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-workers_ai-key"
+          },
+          "body": "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"describe this\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "guard-workers-ai-without-account": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"workers_ai\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_workers_ai": [
+          {
+            "id": "sid-api_key_workers_ai",
+            "value": "synthetic-workers-key",
+            "label": "api_key_workers_ai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-G4YIXs1EFA1TQ9NP16vR983tRow\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Cloudflare Workers AI Account ID is required"
+        },
+        "bodyText": "{\"error\":\"Cloudflare Workers AI Account ID is required\"}"
+      },
+      "outbound": [],
+      "seedObservation": null
+    },
+    "modifier-reverse-proxy": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"openai\",\"reverse_proxy\":\"https://proxy.example.test\",\"proxy_password\":\"synthetic-proxy-password\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [
+        {
+          "run": "modifier-reverse-proxy",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"a synthetic caption\"}}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-b5ErrEmjn6HnxFtFFHxXDnpiNqU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic caption\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-proxy-password"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\"}}]}]}"
+        }
+      ],
+      "seedObservation": null
+    },
+    "no-key": {
+      "route": "/api/openai/caption-image",
+      "branch": null,
+      "requestBody": "{\"api\":\"openai\",\"prompt\":\"x\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWNhcHRpb24taW1hZ2U=\",\"model\":\"m\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "seedObservation": null
+    }
+  }
+}
