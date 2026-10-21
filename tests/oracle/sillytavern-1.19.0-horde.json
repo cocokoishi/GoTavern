@@ -1,0 +1,2261 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-horde.mjs",
+  "pinnedSource": {
+    "src/endpoints/horde.js:144": "cancel-task: DELETE /generate/text/status/{taskId}",
+    "src/endpoints/horde.js:164": "task-status: GET the same resource, no ok guard",
+    "src/endpoints/horde.js:183": "generate-text: POST /generate/text/async with the re-serialized body and apikey",
+    "src/endpoints/horde.js:214": "sd-samplers: Object.values(ModelGenerationInputStableSamplers), no request",
+    "src/endpoints/horde.js:224": "sd-models: SDK getModels() -> GET /status/models",
+    "src/endpoints/horde.js:235": "caption-image: SDK postAsyncInterrogate then polled getInterrogationStatus, 200 attempts x 3000ms",
+    "src/endpoints/horde.js:285": "user-info: getSharedKey + findUser, anonymous short-circuit",
+    "src/endpoints/horde.js:309": "generate-image: sanitize/truncate, SDK postAsyncImageGenerate, polled check+status, client-abort DELETE, 504 after 200 attempts",
+    "node_modules/@zeldafan0225/ai_horde/index.js": "SDK 5.2.0: base https://aihorde.net/api/v2, headers Client-Agent + Content-Type: application/json, apikey only when a token option is passed, non-2xx throws APIError"
+  },
+  "mechanism": "The pinned server runs unmodified; only its node-fetch module is replaced by a controlled peer, because https://aihorde.net is hardcoded and four routes go through the AI Horde SDK. Poll sequences are expressed as timed rules in the peer, so no scenario depends on a wall-clock timeout.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/500/503 themselves"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them, including the html type for a string body"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the projection is endpoint behaviour, including the {error:{message}} shape at status 200"
+    },
+    {
+      "path": "scenarios.*.outbound[].url/method",
+      "comparison": "compared",
+      "reason": "the constructed URL, including the raw key and task id in the path"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the SDK-built or re-serialized body, where member order and undefined omission are behaviour"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers.client-agent",
+      "comparison": "compared",
+      "reason": "taken from /version and therefore a value that can drift"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers.apikey",
+      "comparison": "compared",
+      "reason": "present only when the pinned call passes a token, and the anonymous fallback is a literal"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers.content-type",
+      "comparison": "compared",
+      "reason": "the SDK sends JSON on GET as well"
+    },
+    {
+      "path": "poll counts",
+      "comparison": "compared",
+      "reason": "the number of status/check requests is a property of the controlled sequence"
+    },
+    {
+      "path": "live list content",
+      "comparison": "shape",
+      "reason": "sd-models content is third-party data: the fixture supplies a controlled payload and asserts the passthrough"
+    },
+    {
+      "path": "poll interval",
+      "comparison": "shape",
+      "reason": "the 3000ms cadence is not recorded (wall-clock does not cross the boundary); it is asserted as a constant in the Go test"
+    },
+    {
+      "path": "200-attempt fall-through",
+      "comparison": "shape",
+      "reason": "reaching it would take ten minutes, so it is unprobed; the Go deviation is named in the compat row"
+    }
+  ],
+  "normalizations": [
+    "Polling terminates by an explicit rule sequence (`times`), never by a timeout, so the recorded poll counts do not depend on machine speed.",
+    "sd-models content is supplied by the controlled peer; nothing about the live Horde list is recorded as a constant.",
+    "Synthetic credentials only.",
+    "The image cancel-on-client-disconnect path is NOT probed (see the comment in the probe body); the fixture records it as unprobed instead of pretending to compare it.",
+    "Stray DELETE /generate/status calls, which the pinned handler fires un-awaited on socket close after a response, are excluded from a scenario recording so a scenario holds only its own calls. They belong to the route, but the pinned timing puts them outside the request that caused them."
+  ],
+  "inputs": {
+    "api": "https://aihorde.net",
+    "hordeKey": "synthetic-horde-key",
+    "anonymousKey": "0000000000",
+    "image": "https://img.test/generated.png",
+    "caption": "a cat sitting on a mat",
+    "sdkVersion": "5.2.0"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "sdSamplers": {
+      "route": "/api/horde/sd-samplers",
+      "requestBody": "{}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "166",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a6-2/fKShROf8jXxKFff4TTcSdMglY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "lcm",
+          "k_lms",
+          "k_heun",
+          "k_euler_a",
+          "k_euler",
+          "k_dpm_2",
+          "k_dpm_2_a",
+          "DDIM",
+          "PLMS",
+          "k_dpm_fast",
+          "k_dpm_adaptive",
+          "k_dpmpp_2s_a",
+          "k_dpmpp_2m",
+          "dpmsolver",
+          "k_dpmpp_sde"
+        ],
+        "bodyText": "[\"lcm\",\"k_lms\",\"k_heun\",\"k_euler_a\",\"k_euler\",\"k_dpm_2\",\"k_dpm_2_a\",\"DDIM\",\"PLMS\",\"k_dpm_fast\",\"k_dpm_adaptive\",\"k_dpmpp_2s_a\",\"k_dpmpp_2m\",\"dpmsolver\",\"k_dpmpp_sde\"]"
+      },
+      "outbound": []
+    },
+    "sdModelsOk": {
+      "route": "/api/horde/sd-models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "sdModelsOk",
+          "match": "https://aihorde.net/api/v2/status/models",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"stable_diffusion\":[{\"name\":\"model-a\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "41",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"29-5dlvFG2+PcHqmGKISCOUxYyQ3Po\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "stable_diffusion": [
+            {
+              "name": "model-a"
+            }
+          ]
+        },
+        "bodyText": "{\"stable_diffusion\":[{\"name\":\"model-a\"}]}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/status/models",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "sdModelsNonOk": {
+      "route": "/api/horde/sd-models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "sdModelsNonOk",
+          "match": "https://aihorde.net/api/v2/status/models",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"horde down\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/status/models",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "sdModelsThrows": {
+      "route": "/api/horde/sd-models",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "sdModelsThrows",
+          "match": "https://aihorde.net/api/v2/status/models",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/status/models",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "userInfoNoKey": {
+      "route": "/api/horde/user-info",
+      "requestBody": "{}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "18",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"12-hwuao3Qtq5yL5aUVZLTk3lZK3BM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "anonymous": true
+        },
+        "bodyText": "{\"anonymous\":true}"
+      },
+      "outbound": []
+    },
+    "userInfoOk": {
+      "route": "/api/horde/user-info",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "userInfoOk",
+          "match": "https://aihorde.net/api/v2/sharedkeys/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"kudos\":100}",
+          "throws": false
+        },
+        {
+          "run": "userInfoOk",
+          "match": "https://aihorde.net/api/v2/find_user",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"username\":\"probe-user\",\"id\":7}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "85",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"55-MnE5790nxLTaKVj7Cc3raxXcmR0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "user": {
+            "username": "probe-user",
+            "id": 7
+          },
+          "sharedKey": {
+            "kudos": 100
+          },
+          "anonymous": false
+        },
+        "bodyText": "{\"user\":{\"username\":\"probe-user\",\"id\":7},\"sharedKey\":{\"kudos\":100},\"anonymous\":false}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/sharedkeys/synthetic-horde-key",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/find_user",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "userInfoSharedKeyFails": {
+      "route": "/api/horde/user-info",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "userInfoSharedKeyFails",
+          "match": "https://aihorde.net/api/v2/sharedkeys/",
+          "status": 404,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"no such shared key\"}",
+          "throws": false
+        },
+        {
+          "run": "userInfoSharedKeyFails",
+          "match": "https://aihorde.net/api/v2/find_user",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"username\":\"probe-user\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "69",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"45-rp5LPhChIqABXa4wN9zUSftNaEA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "user": {
+            "username": "probe-user"
+          },
+          "sharedKey": null,
+          "anonymous": false
+        },
+        "bodyText": "{\"user\":{\"username\":\"probe-user\"},\"sharedKey\":null,\"anonymous\":false}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/sharedkeys/synthetic-horde-key",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/find_user",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "userInfoFindFails": {
+      "route": "/api/horde/user-info",
+      "requestBody": "{}",
+      "mocks": [
+        {
+          "run": "userInfoFindFails",
+          "match": "https://aihorde.net/api/v2/sharedkeys/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"kudos\":1}",
+          "throws": false
+        },
+        {
+          "run": "userInfoFindFails",
+          "match": "https://aihorde.net/api/v2/find_user",
+          "status": 401,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"bad key\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/sharedkeys/synthetic-horde-key",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/find_user",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "cancelTaskOk": {
+      "route": "/api/horde/cancel-task",
+      "requestBody": "{\"taskId\":\"task-1\"}",
+      "mocks": [
+        {
+          "run": "cancelTaskOk",
+          "match": "https://aihorde.net/api/v2/generate/text/status/task-1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"Cancelled\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "23",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"17-Z1n1sLLdrDwe1wS3UJKjF8soo2I\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "Cancelled"
+        },
+        "bodyText": "{\"message\":\"Cancelled\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/status/task-1",
+          "method": "DELETE",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": null
+        }
+      ]
+    },
+    "cancelTaskNonJson": {
+      "route": "/api/horde/cancel-task",
+      "requestBody": "{\"taskId\":\"task-2\"}",
+      "mocks": [
+        {
+          "run": "cancelTaskNonJson",
+          "match": "https://aihorde.net/api/v2/generate/text/status/task-2",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "nope",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/status/task-2",
+          "method": "DELETE",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": null
+        }
+      ]
+    },
+    "taskStatusOk": {
+      "route": "/api/horde/task-status",
+      "requestBody": "{\"taskId\":\"task-1\"}",
+      "mocks": [
+        {
+          "run": "taskStatusOk",
+          "match": "https://aihorde.net/api/v2/generate/text/status/task-1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"generations\":[{\"text\":\"hello\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "46",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2e-GXfg7GyEJ8MmB//3ZhzmGqypSpU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "done": true,
+          "generations": [
+            {
+              "text": "hello"
+            }
+          ]
+        },
+        "bodyText": "{\"done\":true,\"generations\":[{\"text\":\"hello\"}]}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/status/task-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": null
+        }
+      ]
+    },
+    "taskStatusErrorBody": {
+      "route": "/api/horde/task-status",
+      "requestBody": "{\"taskId\":\"task-3\"}",
+      "mocks": [
+        {
+          "run": "taskStatusErrorBody",
+          "match": "https://aihorde.net/api/v2/generate/text/status/task-3",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"boom\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "18",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"12-qnmlzUEyMFk/sAOSLLa4fwleRTg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "message": "boom"
+        },
+        "bodyText": "{\"message\":\"boom\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/status/task-3",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": null
+        }
+      ]
+    },
+    "generateTextOk": {
+      "route": "/api/horde/generate-text",
+      "requestBody": "{\"prompt\":\"hello\",\"params\":{\"max_length\":50}}",
+      "mocks": [
+        {
+          "run": "generateTextOk",
+          "match": "https://aihorde.net/api/v2/generate/text/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"task-9\",\"kudos\":5}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "25",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"19-xDqW05l17XSR8vqBQei4kM8N3mg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "task-9",
+          "kudos": 5
+        },
+        "bodyText": "{\"id\":\"task-9\",\"kudos\":5}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/async",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key",
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": "{\"prompt\":\"hello\",\"params\":{\"max_length\":50}}"
+        }
+      ]
+    },
+    "generateTextNoKey": {
+      "route": "/api/horde/generate-text",
+      "requestBody": "{\"prompt\":\"hello\"}",
+      "mocks": [
+        {
+          "run": "generateTextNoKey",
+          "match": "https://aihorde.net/api/v2/generate/text/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"task-9\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-lj53VtkMdsw3gtnSrjmwmbbj8Vw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "task-9"
+        },
+        "bodyText": "{\"id\":\"task-9\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/async",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "apikey": "0000000000",
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": "{\"prompt\":\"hello\"}"
+        }
+      ]
+    },
+    "generateTextNonOk": {
+      "route": "/api/horde/generate-text",
+      "requestBody": "{\"prompt\":\"hello\"}",
+      "mocks": [
+        {
+          "run": "generateTextNonOk",
+          "match": "https://aihorde.net/api/v2/generate/text/async",
+          "status": 400,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bad prompt",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-Pd5GC1NGreP73mVPgSOKVPb7xmI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": {
+            "message": "bad prompt"
+          }
+        },
+        "bodyText": "{\"error\":{\"message\":\"bad prompt\"}}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/async",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key",
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": "{\"prompt\":\"hello\"}"
+        }
+      ]
+    },
+    "generateTextThrows": {
+      "route": "/api/horde/generate-text",
+      "requestBody": "{\"prompt\":\"hello\"}",
+      "mocks": [
+        {
+          "run": "generateTextThrows",
+          "match": "https://aihorde.net/api/v2/generate/text/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyText": "{\"error\":true}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/async",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key",
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": "{\"prompt\":\"hello\"}"
+        }
+      ]
+    },
+    "generateTextReserialized": {
+      "route": "/api/horde/generate-text",
+      "requestBody": "{\"prompt\":\"hello\",\"params\":{ \"max_length\" : 50 , \"temperature\" : 0.70 }}",
+      "mocks": [
+        {
+          "run": "generateTextReserialized",
+          "match": "https://aihorde.net/api/v2/generate/text/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"task-9\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-lj53VtkMdsw3gtnSrjmwmbbj8Vw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "id": "task-9"
+        },
+        "bodyText": "{\"id\":\"task-9\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/text/async",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key",
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207"
+          },
+          "body": "{\"prompt\":\"hello\",\"params\":{\"max_length\":50,\"temperature\":0.7}}"
+        }
+      ]
+    },
+    "captionOk": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionOk",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"inter-1\"}",
+          "throws": false
+        },
+        {
+          "run": "captionOk",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"waiting\"}",
+          "throws": false,
+          "times": 2
+        },
+        {
+          "run": "captionOk",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"done\",\"forms\":[{\"form\":\"caption\",\"result\":{\"caption\":\"a cat sitting on a mat\"}}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "36",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"24-O9iNLUjPtl+qm86qymktLdMpc98\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a cat sitting on a mat"
+        },
+        "bodyText": "{\"caption\":\"a cat sitting on a mat\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "captionFaulted": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionFaulted",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"inter-2\"}",
+          "throws": false
+        },
+        {
+          "run": "captionFaulted",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"faulted\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "content-length": "19",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-/70LdyMNgL+PAJa+Q/RtnRF82z8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Service Unavailable",
+        "bodyText": "Service Unavailable"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-2",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "captionCancelled": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionCancelled",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"inter-3\"}",
+          "throws": false
+        },
+        {
+          "run": "captionCancelled",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"cancelled\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "content-length": "19",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"13-/70LdyMNgL+PAJa+Q/RtnRF82z8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Service Unavailable",
+        "bodyText": "Service Unavailable"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-3",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "captionNoCaption": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionNoCaption",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"inter-4\"}",
+          "throws": false
+        },
+        {
+          "run": "captionNoCaption",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"done\",\"forms\":[{}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-4",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "captionNoForms": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionNoForms",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"inter-5\"}",
+          "throws": false
+        },
+        {
+          "run": "captionNoForms",
+          "match": "https://aihorde.net/api/v2/interrogate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"state\":\"done\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/status/inter-5",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "captionNoId": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionNoId",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"cannot interrogate\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        }
+      ]
+    },
+    "captionAsyncThrows": {
+      "route": "/api/horde/caption-image",
+      "requestBody": "{\"image\":\"data:image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "captionAsyncThrows",
+          "match": "https://aihorde.net/api/v2/interrogate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/interrogate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"source_image\":\"data:image/png;base64,AAAA\",\"forms\":[{\"name\":\"caption\"}]}"
+        }
+      ]
+    },
+    "imageNoPrompt": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "imageNoId": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "imageNoId",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"not possible\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"a tree ### undefined\",\"params\":{\"karras\":false,\"n\":1},\"r2\":false,\"models\":[null]}"
+        }
+      ]
+    },
+    "imageOk": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"model\":\"model-a\",\"sampler\":\"k_euler\",\"steps\":20,\"width\":512,\"height\":512,\"scale\":7.5,\"seed\":42,\"karras\":false,\"enable_hr\":false,\"restore_faces\":false,\"clip_skip\":2,\"nfsw\":false}",
+      "mocks": [
+        {
+          "run": "imageOk",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gen-1\",\"kudos\":10}",
+          "throws": false
+        },
+        {
+          "run": "imageOk",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":false,\"waiting\":1}",
+          "throws": false,
+          "times": 1
+        },
+        {
+          "run": "imageOk",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true}",
+          "throws": false
+        },
+        {
+          "run": "imageOk",
+          "match": "https://aihorde.net/api/v2/generate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"generations\":[{\"img\":\"https://img.test/generated.png\"}]}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-IwhzsMlUMYK7OkvS1A6G5bBgjCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "https://img.test/generated.png",
+        "bodyText": "https://img.test/generated.png"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"a tree ### ugly\",\"params\":{\"sampler_name\":\"k_euler\",\"hires_fix\":false,\"use_gfpgan\":false,\"cfg_scale\":7.5,\"steps\":20,\"width\":512,\"height\":512,\"karras\":false,\"clip_skip\":2,\"seed\":\"42\",\"n\":1},\"r2\":false,\"nsfw\":false,\"models\":[\"model-a\"]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/status/gen-1",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "imageFaulted": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "imageFaulted",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gen-2\"}",
+          "throws": false
+        },
+        {
+          "run": "imageFaulted",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"faulted\":true}",
+          "throws": false
+        },
+        {
+          "run": "imageFaulted",
+          "match": "https://aihorde.net/api/v2/generate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"a tree ### undefined\",\"params\":{\"karras\":false,\"n\":1},\"r2\":false,\"models\":[null]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-2",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "imageNoGenerations": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "imageNoGenerations",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gen-3\"}",
+          "throws": false
+        },
+        {
+          "run": "imageNoGenerations",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true}",
+          "throws": false
+        },
+        {
+          "run": "imageNoGenerations",
+          "match": "https://aihorde.net/api/v2/generate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"message\":\"no generations\"}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"a tree ### undefined\",\"params\":{\"karras\":false,\"n\":1},\"r2\":false,\"models\":[null]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-3",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/status/gen-3",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "imageSanitized": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"a young girl and a boy\",\"negative_prompt\":\"ugly\",\"sanitize\":true,\"model\":\"model-a\"}",
+      "mocks": [
+        {
+          "run": "imageSanitized",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gen-4\"}",
+          "throws": false
+        },
+        {
+          "run": "imageSanitized",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"faulted\":true}",
+          "throws": false
+        },
+        {
+          "run": "imageSanitized",
+          "match": "https://aihorde.net/api/v2/generate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"a  woman and a man ### ugly\",\"params\":{\"karras\":false,\"n\":1},\"r2\":false,\"models\":[\"model-a\"]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-4",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    },
+    "imageTruncated": {
+      "route": "/api/horde/generate-image",
+      "requestBody": "{\"prompt\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"negative_prompt\":\"ugly\",\"model\":\"model-a\"}",
+      "mocks": [
+        {
+          "run": "imageTruncated",
+          "match": "https://aihorde.net/api/v2/generate/async",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gen-5\"}",
+          "throws": false
+        },
+        {
+          "run": "imageTruncated",
+          "match": "https://aihorde.net/api/v2/generate/check/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"faulted\":true}",
+          "throws": false
+        },
+        {
+          "run": "imageTruncated",
+          "match": "https://aihorde.net/api/v2/generate/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_horde": [
+          {
+            "id": "sid-api_key_horde",
+            "value": "synthetic-horde-key",
+            "label": "api_key_horde",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://aihorde.net/api/v2/generate/async",
+          "method": "POST",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json",
+            "apikey": "synthetic-horde-key"
+          },
+          "body": "{\"prompt\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ### ugly\",\"params\":{\"karras\":false,\"n\":1},\"r2\":false,\"models\":[\"model-a\"]}"
+        },
+        {
+          "url": "https://aihorde.net/api/v2/generate/check/gen-5",
+          "method": "GET",
+          "headers": {
+            "client-agent": "SillyTavern:1.19.0:Cohee#1207",
+            "content-type": "application/json"
+          },
+          "body": null
+        }
+      ]
+    }
+  }
+}

@@ -98,7 +98,13 @@ function hookProgram({ realFetchURL, rulesPath, recordPath }) {
         `  "function lower(headers) { const out = {}; if (!headers) return out; for (const [name, value] of Object.entries(headers)) out[String(name).toLowerCase()] = String(value); return out; }",`,
         `  "async function recordBody(body) { if (body === undefined || body === null) return { body: null }; if (typeof body === 'string') return { body }; if (Buffer.isBuffer(body)) return { bodyBase64: body.toString('base64') }; if (typeof body.getBuffer === 'function') { try { const buffer = await body.getBuffer(); return { bodyBase64: buffer.toString('base64') }; } catch { /* a part is a stream */ } } if (typeof body.pipe === 'function') { const collected = await new Promise((resolve, reject) => { const chunks = []; const sink = new Writable({ write(chunk, encoding, callback) { chunks.push(Buffer.from(chunk)); callback(); } }); sink.on('finish', () => resolve(Buffer.concat(chunks))); sink.on('error', reject); body.on('error', reject); body.pipe(sink); }); return { bodyBase64: collected.toString('base64') }; } return { body: String(body) }; }",`,
         `  "function makeResponse(rule) { const status = rule.status === undefined ? 200 : rule.status; const headers = rule.headers || {}; const buffer = rule.binaryBody ? Buffer.from(rule.body === undefined ? '' : rule.body, 'base64') : Buffer.from(rule.body === undefined ? '' : rule.body, 'utf8'); const text = buffer.toString('utf8'); return { ok: status >= 200 && status <= 299, status, statusText: rule.statusText === undefined ? '' : rule.statusText, headers: { get(name) { const key = String(name).toLowerCase(); const value = headers[key]; return value === undefined ? null : String(value); } }, text: async () => text, json: async () => JSON.parse(text), arrayBuffer: async () => buffer, body: Readable.from([buffer]) }; }",`,
-        `  "export default async function fetch(input, options = {}) { const href = typeof input === 'string' ? input : (input && input.href ? input.href : String(input)); const recorded = await recordBody(options.body); const headers = lower(options.headers); if (options.body && typeof options.body.getHeaders === 'function') { const extra = options.body.getHeaders(); for (const [name, value] of Object.entries(extra)) headers[String(name).toLowerCase()] = String(value); } appendFileSync(RECORD, JSON.stringify({ url: href, method: String(options.method || 'GET').toUpperCase(), headers, ...recorded }) + String.fromCharCode(10)); const rule = readRules().find(candidate => href.includes(candidate.match)); if (!rule) return makeResponse({ status: 500, statusText: 'Stubbed', body: 'gotavern: unstubbed outbound request ' + href }); if (rule.throws) throw new TypeError('fetch failed'); return makeResponse(rule); }",`,
+        `  "const USED = new Map();",`,
+        `  "function selectRule(href) { const rules = readRules(); for (let index = 0; index < rules.length; index++) { const candidate = rules[index]; if (!href.includes(candidate.match)) continue; if (candidate.times !== undefined) { const key = String(candidate.run === undefined ? '' : candidate.run) + '#' + index; const count = USED.get(key) || 0; if (count >= candidate.times) continue; USED.set(key, count + 1); } return candidate; } return null; }",`,
+        `  "async function stubFetch(input, options = {}) { const href = typeof input === 'string' ? input : (input && input.href ? input.href : String(input)); const recorded = await recordBody(options.body); const headers = lower(options.headers); if (options.body && typeof options.body.getHeaders === 'function') { const extra = options.body.getHeaders(); for (const [name, value] of Object.entries(extra)) headers[String(name).toLowerCase()] = String(value); } appendFileSync(RECORD, JSON.stringify({ url: href, method: String(options.method || 'GET').toUpperCase(), headers, ...recorded }) + String.fromCharCode(10)); const rule = selectRule(href); if (!rule) return makeResponse({ status: 500, statusText: 'Stubbed', body: 'gotavern: unstubbed outbound request ' + href }); if (rule.throws) throw new TypeError('fetch failed'); return makeResponse(rule); }",
+          "export default stubFetch;",
+          "// Packages that call the GLOBAL fetch (the AI Horde SDK does) must reach the controlled peer too,",
+          "// otherwise a probe silently hits the real service while its fixture records live data.",
+          "globalThis.fetch = stubFetch;",`,
         `].join(String.fromCharCode(10));`,
         ``,
     ].join('\n');
@@ -113,13 +119,13 @@ export function stableHeaders(response) {
         .sort(([left], [right]) => left.localeCompare(right)));
 }
 
-export async function rawRequest(url, method = 'GET', headers = {}, body) {
+export async function rawRequest(url, method = 'GET', headers = {}, body, signal = null) {
     const response = await fetch(url, {
         method,
         headers: { 'Accept-Encoding': 'identity', ...headers },
         body,
         redirect: 'manual',
-        signal: AbortSignal.timeout(20000),
+        signal: signal ?? AbortSignal.timeout(20000),
     });
     const bytes = Buffer.from(await response.arrayBuffer());
     const text = bytes.toString('utf8');
@@ -332,7 +338,13 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
             bootOutbound,
             userRoot,
             uploadsRoot: path.join(dataRoot, '_uploads'),
+            // A probe that must destroy the connection itself (a true client disconnect) needs the
+            // authenticated headers the helper already holds.
+            session: { cookie: sessionCookie, csrfToken: token },
             post: (route, body) => rawRequest(`${origin}${route}`, 'POST', jsonHeaders, body),
+            // A route whose client-abort path is part of its contract needs a request the probe can
+            // cancel mid-flight, so the caller supplies the signal.
+            postSignal: (route, body, signal) => rawRequest(`${origin}${route}`, 'POST', jsonHeaders, body, signal),
             // A multipart request must not carry the JSON content type: fetch sets its own boundary.
             postForm: (route, form) => rawRequest(`${origin}${route}`, 'POST', {
                 Cookie: sessionCookie, 'X-CSRF-Token': token,
