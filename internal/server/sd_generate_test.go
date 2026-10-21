@@ -108,6 +108,9 @@ type sdGenerateRule struct {
 	Body       string            `json:"body"`
 	BinaryBody bool              `json:"binaryBody"`
 	Throws     bool              `json:"throws"`
+	// Times is a TIMED rule: it answers at most this many times, so a poll loop's request COUNT is
+	// fixture data. The probe hook uses the same field.
+	Times int `json:"times"`
 }
 
 type sdGenerateScenario struct {
@@ -182,6 +185,9 @@ func newSDGeneratePeer(t *testing.T, scenario sdGenerateScenario) *sdGeneratePee
 	t.Helper()
 	peer := &sdGeneratePeer{}
 	var rules []sdGenerateRule
+	// usage counts TIMED rules, so a poll loop sees exactly the recorded number of empty answers
+	// before the terminal one; the count is the assertion.
+	usage := map[int]int{}
 	peer.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := readAllString(r)
 		peer.mu.Lock()
@@ -189,12 +195,18 @@ func newSDGeneratePeer(t *testing.T, scenario sdGenerateScenario) *sdGeneratePee
 		peer.mu.Unlock()
 		var chosen *sdGenerateRule
 		for index := range rules {
+			if rules[index].Times > 0 && usage[index] >= rules[index].Times {
+				continue
+			}
 			// Match on the DECODED target as well: a pinned rule for a raw-space path (the workersai
 			// model is interpolated RAW) is recorded with a literal space, while the wire target is
 			// percent-encoded.
 			decodedTarget, _ := url.PathUnescape(r.URL.RequestURI())
 			if strings.Contains(r.URL.RequestURI(), rules[index].Match) || strings.Contains(decodedTarget, rules[index].Match) {
 				chosen = &rules[index]
+				if rules[index].Times > 0 {
+					usage[index]++
+				}
 				break
 			}
 		}
