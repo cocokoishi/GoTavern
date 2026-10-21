@@ -16,7 +16,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
@@ -196,8 +196,21 @@ function compareProbeRuns(label, first, second) {
     recordProbeFailure(label, new Error(`oracle changed across identical pinned Node runs at: ${paths.join(', ')}`));
 }
 
+// A probe may import a shared helper from `tools/lib/`. Probes are copied into the build root as
+// `.gotavern-<name>.mjs`, so a relative `./lib/...` import resolves against the build root and the
+// directory has to be copied there too. Without this, three probes ran on the developer's machine
+// and failed in CI with ERR_MODULE_NOT_FOUND: the helper was in the repository, but the harness
+// materializes probe FILES and never their siblings. Copying is idempotent, so every probe can ask
+// for it without the harness needing to know which probes import what.
+function materializeProbeLib(root) {
+    const source = path.join(repositoryRoot, 'tools', 'lib');
+    if (!existsSync(source)) return;
+    cpSync(source, path.join(root, 'lib'), { recursive: true, force: true });
+}
+
 async function verifyProbe({ script, fixture, label, args = [], root = buildRoot }) {
     const scriptPath = path.join(root, `.gotavern-${script}`);
+    materializeProbeLib(root);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
     const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
     // Both runs always execute, even if the first one fails: the determinism
@@ -234,6 +247,7 @@ async function verifyProbe({ script, fixture, label, args = [], root = buildRoot
 
 function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot }) {
     const scriptPath = path.join(root, `.gotavern-${script}`);
+    materializeProbeLib(root);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
     const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
     let first;
