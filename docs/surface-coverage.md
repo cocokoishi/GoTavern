@@ -27,14 +27,21 @@ has to be argued per area.
 | Chat-completions generation, custom/OpenAI-compatible source | ✓ | ✓ | ✓ | ✓ | ✓ | **compatible** | `tests/oracle/sillytavern-1.19.0-backends.json`; `tests/browser/generation-comparison.json`; `tests/browser/streaming-comparison.json` |
 | Chat-completions generation, every other source | ✓ | ✓ | ✓ |  |  | partial | provider-wire only; no browser-driven capture for these sources |
 | Tokenizers (encode/decode/count/openai) | ✓ | n/a |  |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-tokenizers.json`. F is empty **and it matters**: a browser capture once measured the FALLBACK path because `tokenizers/` was missing beside the binary, which is now a hard failure in `assets verify` |
-| Secrets (all 8 routes) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-secrets.json` |
-| Assets / backups / sprites (user data) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-{assets,backups,sprites}.json` |
-| SD non-generate routes | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-sd-{routes,workflows}.json` |
+| Secrets (all 8 routes) | ✓ | n/a | ✓ | ✓* | n/a | partial | `tests/oracle/sillytavern-1.19.0-secrets.json`; *E from the startup scenario: `/api/secrets/read` and `/write` observed EQUAL on both legs |
+| Assets / backups / sprites (user data) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-{assets,backups,sprites}.json`. Thumbnails do NOT gain E: `/thumbnail/<computed: Identifier>` is `not implemented` |
+| SD non-generate routes | ✓ | ✓ | ✓ | ✓* | n/a | partial | `tests/oracle/sillytavern-1.19.0-sd-{routes,workflows}.json`; *E for the startup scenario only (`/api/sd/comfy/workflows` equal) |
 | SD generate (8 sources) | ✓ | ✓ | ✓ |  |  | partial | `tests/oracle/sillytavern-1.19.0-sd-generate.json` |
 | Horde domain | ✓ | ✓ |  |  |  | partial | `tests/oracle/sillytavern-1.19.0-horde.json` |
 | Speech / images | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-{speech,images}.json` |
 | Content import (importURL/importUUID) | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-content{,-uuid}.json` |
 | Providers / tokenization / streaming at the SERVER level | ✓ | ✓ | ✓ |  | ✓ | partial | `tests/oracle/sillytavern-1.19.0-provider-wire.json` (stream + abort scenarios) |
+| Startup / boot sequence | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/browser/startup-comparison.json`: 353 startup requests, 349 equal, 4 different-status ALL known (2 thumbnails are `not implemented`, `__transparent.png` and `user.css` are `cosmetic`), **0 unexpected**; final page state equal across 15 fields |
+
+`✓*` means the cell is covered for a NAMED SCENARIO only. The startup differential drives the page
+at boot, so it gives characters (`/api/characters/all`), chats (`recent`, `get`, `save`),
+backgrounds (`all`, `folders`), extensions (`discover` plus the built-in extension files), quick
+replies (`save`) and SD workflows (`comfy/workflows`) an E for that scenario and nothing more. Do
+not read it as "the area was driven end to end".
 
 ## What promotion actually requires
 

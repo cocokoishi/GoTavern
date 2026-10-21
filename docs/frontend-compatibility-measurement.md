@@ -735,3 +735,48 @@ Reproduce (each capture is ~1–2 min; pinned legs need the harness):
     node tests/browser/generation-probe.mjs --report tests/browser/nonstream-gotavern.json
     node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <absolute path>/nonstream-pinned.json
     node tests/browser/compare-streaming-legs.mjs stream-gotavern.json stream-pinned.json cancel-gotavern.json cancel-pinned.json nonstream-gotavern.json nonstream-pinned.json
+## 2026-10-21 — browser-events surface for the startup and data domains, measured on both legs
+
+`tests/browser/startup-comparison.json` is the two-leg differential for the requests the pinned
+frontend makes at boot. The drive completes first-run onboarding, selects `#main_api`, awaits
+`settingsReady`, configures the custom source and presses Connect; the report's `reachedUserState`
+asserts each of those and the comparison refuses to call the drive faithful otherwise.
+
+RESULT: **349 equal, 4 different-status, 0 missing-on-gotavern, 0 extra-on-gotavern,
+0 different-body, 0 unexpected**. Final page state is equal across every compared field (settings
+readiness, online status, character rows, main API value, send button presence/disabled, top bar, API
+panel, toast text, generating attribute, title, extension panel count, prompt manager, character list,
+quick replies). The four non-equal rows are ALL KNOWN, none unexpected:
+- `GET /thumbnail?type=avatar&file=default_Seraphina.png` 404 vs 200, and the persona thumbnail — the
+  `/thumbnail/<computed: Identifier>` route is `not implemented` in `docs/api-inventory.md`;
+- `GET /backgrounds/__transparent.png` 404 vs 200 and `GET /css/user.css` no-response vs 200 — both
+  classified `cosmetic` in `docs/frontend-startup-calls.md`.
+
+PROBE FAITHFULNESS, including the two suspects named before starting:
+- `startup-calls.mjs` does NOT have the generation probe's unconditional `clone().text()` defect: it
+  reads response bodies through Playwright's `response` object and never replaces the page's fetch.
+  The new differential uses the same mechanism, so streamed/buffered response bodies cannot be
+  conflated here.
+- The drive reached a real user state (onboarding completed, settingsReady true, Connect pressed, the
+  `POST /api/backends/chat-completions/status` request observed) on ALL FOUR captures. An early
+  version sampled the onboarding popup once immediately after the preloader disappeared and flaked
+  once into `settingsReady: false`; it now WAITS for the popup or readiness, which is what a user
+  does.
+- RELEASE-LAYOUT staging matters and has two failure modes, both measured: staging only `tokenizers/`
+  made the static/extension surface look missing (including `/api/extensions/discover` returning
+  `[]`), so the drive now also stages the built-in extensions subtree at
+  `<InstallRoot>/public/scripts/extensions`; staging the whole vendored `upstream/public` is WRONG —
+  that is the pinned SOURCE tree, and serving its index.html produced `Failed to resolve module
+  specifier "lodash"` because a release serves the GENERATED public bundle. Extensions only.
+- Response bodies are compared only where TWO RUNS OF EACH LEG produce the same digest; a body that
+  varies between two identical drives is recorded as `shape` with that reason. Repeat counts per
+  method+path vary with render/poll timing and are recorded, not asserted.
+
+PROPOSED `docs/surface-coverage.md` updates (not applied): the artifact is browser-event evidence for
+the startup scenario only. It can give E to a new **Startup / boot sequence** row and to the
+**Secrets** row (`/api/secrets/read` and `/api/secrets/write` were observed equal), and it supports E
+for startup-scenario coverage of characters (`/api/characters/all`), chats (`/api/chats/recent`,
+`get`, `save`), backgrounds (`/api/backgrounds/all`, `folders`), extensions (`discover` plus the
+built-in extension files), quick replies (`save`) and SD workflows (`/api/sd/comfy/workflows`) —
+provided those rows say "startup scenario" rather than implying every operation in the area was
+driven. The thumbnail gaps are inventory `not implemented`, not E evidence for the assets domain.
