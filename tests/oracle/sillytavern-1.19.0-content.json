@@ -1,0 +1,758 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/content/importURL: AICC, generic whitelisted host, refusal",
+  "oracle": {
+    "file": "src/endpoints/content-manager.js",
+    "lines": {
+      "importURL": 978
+    }
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "conventions": {
+    "steps": "steps are an ordered ARRAY; the two routes share no tree state here, but the array keeps the replay order explicit",
+    "mock": "the pinned peer port 18080 is stored as <mock> in inputs and outbound URLs; the replay substitutes its own port",
+    "filename": "downloadGenericPng derives the filename from the RESPONSE url (split ? then / then sanitize), which the stub exposes as the requested href"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.contentDisposition",
+      "observations.*.customContentType",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound",
+      "observations.*.tree"
+    ],
+    "shape": [
+      "observations.*.outbound[].transportConnection"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-content-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Content Probe",
+      "admin": true,
+      "password": ""
+    },
+    "whitelistImportDomains": [
+      "localhost",
+      "cdn.discordapp.com",
+      "files.catbox.moe",
+      "raw.githubusercontent.com"
+    ],
+    "steps": [
+      {
+        "name": "aicc.ok",
+        "urlTemplate": "https://aicharactercards.com/cards/author/card-name",
+        "bodyText": "{\"url\":\"https://aicharactercards.com/cards/author/card-name\"}",
+        "seam": "GOTAVERN_CONTENT_AICC_URL",
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/author/card-name",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-AICC-BYTES"
+          }
+        ]
+      },
+      {
+        "name": "aicc.nonOk",
+        "urlTemplate": "https://aicharactercards.com/cards/author/broken",
+        "bodyText": "{\"url\":\"https://aicharactercards.com/cards/author/broken\"}",
+        "seam": "GOTAVERN_CONTENT_AICC_URL",
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/wp-json/pngapi/v1/image/author/broken",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "no card"
+          }
+        ]
+      },
+      {
+        "name": "aicc.unparseable",
+        "urlTemplate": "https://aicharactercards.com/only-one-segment",
+        "bodyText": "{\"url\":\"https://aicharactercards.com/only-one-segment\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": []
+      },
+      {
+        "name": "generic.ok",
+        "urlTemplate": "http://localhost:<mock>/cards/hero",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/cards/hero\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/cards/hero",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-AICC-BYTES"
+          }
+        ]
+      },
+      {
+        "name": "generic.extensionPreserved",
+        "urlTemplate": "http://localhost:<mock>/cards/hero.webp",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/cards/hero.webp\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/cards/hero.webp",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "WEBP-NAMED-PNG"
+          }
+        ]
+      },
+      {
+        "name": "generic.nonPngContentType",
+        "urlTemplate": "http://localhost:<mock>/cards/hero.bin",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/cards/hero.bin\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/cards/hero.bin",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "BINARY-BODY"
+          }
+        ]
+      },
+      {
+        "name": "generic.reservedChars",
+        "urlTemplate": "http://localhost:<mock>/files/card&x;y=z",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/files/card&x;y=z\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/files/card&x;y=z",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-AICC-BYTES"
+          }
+        ]
+      },
+      {
+        "name": "generic.nonOk",
+        "urlTemplate": "http://localhost:<mock>/cards/missing",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/cards/missing\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": [
+          {
+            "path": "/cards/missing",
+            "status": 404,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "not found"
+          }
+        ]
+      },
+      {
+        "name": "generic.rejectedFetch",
+        "urlTemplate": "http://localhost:<mock>/cards/throw",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/cards/throw\"}",
+        "seam": null,
+        "peer": "closed",
+        "upstream": [
+          {
+            "path": "/cards/throw",
+            "throws": true
+          }
+        ]
+      },
+      {
+        "name": "refusal.unknownHost",
+        "urlTemplate": "https://example.com/card.png",
+        "bodyText": "{\"url\":\"https://example.com/card.png\"}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": []
+      },
+      {
+        "name": "missingUrl",
+        "bodyText": "{}",
+        "seam": null,
+        "peer": "mock",
+        "upstream": []
+      }
+    ]
+  },
+  "observations": {
+    "aicc.ok": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-uAWr4kZFOQSU67OH3xNzYa57YMA\"",
+      "contentDisposition": "attachment; filename=\"authorcard-name.png\"",
+      "customContentType": "character",
+      "bodyBase64": "UE5HLUFJQ0MtQllURVM=",
+      "bodySha256": "5dca008652e26c97e3a6ad6e1656ff25b66f7d7658d5097390c7b91ff05b6391",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/author/card-name",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "aicc.nonOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "https://aicharactercards.com/wp-json/pngapi/v1/image/author/broken",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "aicc.unparseable": {
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "9",
+      "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "Tm90IEZvdW5k",
+      "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+      "bodyLength": 9,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.ok": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-uAWr4kZFOQSU67OH3xNzYa57YMA\"",
+      "contentDisposition": "attachment; filename=\"hero.png\"",
+      "customContentType": "character",
+      "bodyBase64": "UE5HLUFJQ0MtQllURVM=",
+      "bodySha256": "5dca008652e26c97e3a6ad6e1656ff25b66f7d7658d5097390c7b91ff05b6391",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/cards/hero",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.extensionPreserved": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-y2a67fQxbV85EU6Egxq11ZRghlU\"",
+      "contentDisposition": "attachment; filename=\"hero.webp\"",
+      "customContentType": "character",
+      "bodyBase64": "V0VCUC1OQU1FRC1QTkc=",
+      "bodySha256": "db397b308c342aed46cd9228fc57a9c34637874e63cf57827e03505cec6056e0",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/cards/hero.webp",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.nonPngContentType": {
+      "status": 200,
+      "contentType": "application/octet-stream",
+      "contentLength": "11",
+      "etag": "W/\"b-yQJa9vRGr2tepyRVZrbUieNhANI\"",
+      "contentDisposition": "attachment; filename=\"hero.bin\"",
+      "customContentType": "character",
+      "bodyBase64": "QklOQVJZLUJPRFk=",
+      "bodySha256": "0b79705949494341403d0fcf11bb041946819e9fd92ae539a21a63a2e1270533",
+      "bodyLength": 11,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/cards/hero.bin",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.reservedChars": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "14",
+      "etag": "W/\"e-uAWr4kZFOQSU67OH3xNzYa57YMA\"",
+      "contentDisposition": "attachment; filename=\"card&x;y=z.png\"",
+      "customContentType": "character",
+      "bodyBase64": "UE5HLUFJQ0MtQllURVM=",
+      "bodySha256": "5dca008652e26c97e3a6ad6e1656ff25b66f7d7658d5097390c7b91ff05b6391",
+      "bodyLength": 14,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/files/card&x;y=z",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.nonOk": {
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "9",
+      "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "Tm90IEZvdW5k",
+      "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+      "bodyLength": 9,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/cards/missing",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "generic.rejectedFetch": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "http://localhost:<mock>/cards/throw",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "refusal.unknownHost": {
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "9",
+      "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "Tm90IEZvdW5k",
+      "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+      "bodyLength": 9,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    },
+    "missingUrl": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "contentDisposition": null,
+      "customContentType": null,
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "seed.txt",
+          "kind": "file",
+          "size": 4,
+          "sha256": "da5e401cb3ff5a148bb25fede7956a50cb990c4635f99fce1bb428f5b047c8b9"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "contentDisposition",
+          "customContentType",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records headers the route passed, not the transport Connection Node appends; presence only"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/content/importURL"
+      ],
+      "branches": [
+        "chub.ai / characterhub.org (character and lorebook)",
+        "janitorai",
+        "pygmalion.chat",
+        "realm.risuai.net",
+        "perchance.org"
+      ],
+      "status": "not implemented",
+      "reason": "each provider branch has its own downloader and needs its own provider oracle; the Go route answers 501 for those hosts instead of pretending they were refused. SECURITY PROPERTY (AGENTS.md boundary 4): pinned classifies providers by SUBSTRING matching on the hostname (host.includes(...)), so chub.ai.attacker.example passes isChub and is treated as chub; only the generic branch is an exact whitelistImportDomains match. That property is inherited and must remain visible in the compat row."
+    },
+    {
+      "routes": [
+        "/api/content/importUUID"
+      ],
+      "status": "not implemented",
+      "reason": "importUUID dispatches pygmalion/janitor/AICC/perchance/chub-character/chub-lorebook; all branches need downloaders ported in a later increment."
+    }
+  ]
+}
