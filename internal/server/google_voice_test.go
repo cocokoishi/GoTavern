@@ -1,0 +1,161 @@
+package server
+
+// Replay of tests/oracle/sillytavern-1.19.0-google-voices.json, recorded by tools/probe-google-voices.mjs
+// against the real pinned listener.
+//
+// `list-voices` performs no outbound request, so the whole comparison is the response: status, every
+// header and the exact body BYTES. The body is the entire 251-entry table, which pins its ORDER and the
+// resolution of the duplicated `auto` key in the pinned package (last value, first position) rather than
+// trusting either.
+//
+// `googleGetCode` is a DERIVATION from the pinned package, labelled as such: no oracle can exist for a
+// route that is not implemented, so it is tested against the pinned predicates rather than recorded.
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+type googleVoicesFixture struct {
+	Inputs struct {
+		TableLength int    `json:"tableLength"`
+		FirstCode   string `json:"firstCode"`
+		AutoValue   string `json:"autoValue"`
+		TableSHA256 string `json:"tableSha256"`
+		Package     string `json:"packageVersion"`
+	} `json:"inputs"`
+	ImplementedRoutes []string `json:"implementedRoutes"`
+	NotImplemented    []string `json:"notImplementedRoutes"`
+	Scenarios         map[string]struct {
+		Route       string `json:"route"`
+		RequestBody string `json:"requestBody"`
+		Response    struct {
+			Status   int               `json:"status"`
+			Headers  map[string]string `json:"headers"`
+			Body     json.RawMessage   `json:"body"`
+			BodyText string            `json:"bodyText"`
+		} `json:"response"`
+		Outbound []json.RawMessage `json:"outbound"`
+	} `json:"scenarios"`
+}
+
+func loadGoogleVoicesOracle(t *testing.T) googleVoicesFixture {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-google-voices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture googleVoicesFixture
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixture.Scenarios) == 0 {
+		t.Fatal("the google-voices oracle records no scenarios")
+	}
+	return fixture
+}
+
+// TestGoogleVoicesTableMatchesPinnedPackage pins the hand-written table to the recorded route response.
+// It also asserts the two properties of the pinned source that a copy is most likely to get wrong: the
+// table is ORDERED, and `auto` is declared twice in the package so the JS object keeps the LAST value at
+// the FIRST position.
+func TestGoogleVoicesTableMatchesPinnedPackage(t *testing.T) {
+	fixture := loadGoogleVoicesOracle(t)
+	if len(googleLanguages) != fixture.Inputs.TableLength {
+		t.Fatalf("table carries %d entries, pinned %d", len(googleLanguages), fixture.Inputs.TableLength)
+	}
+	autoCount := 0
+	for index, entry := range googleLanguages {
+		if entry.code == "auto" {
+			autoCount++
+			if index != 0 {
+				t.Fatalf("`auto` sits at index %d, pinned index 0", index)
+			}
+			if entry.name != fixture.Inputs.AutoValue {
+				t.Fatalf("`auto` = %q, pinned %q (the LAST duplicate value wins)", entry.name, fixture.Inputs.AutoValue)
+			}
+		}
+	}
+	if autoCount != 1 {
+		t.Fatalf("`auto` appears %d times; a JS object key can only survive once", autoCount)
+	}
+	if googleLanguages[0].code != fixture.Inputs.FirstCode {
+		t.Fatalf("first code = %q, pinned %q", googleLanguages[0].code, fixture.Inputs.FirstCode)
+	}
+}
+
+func TestGoogleListVoicesMatchesPinnedOracle(t *testing.T) {
+	fixture := loadGoogleVoicesOracle(t)
+	scenario, present := fixture.Scenarios["listVoices"]
+	if !present {
+		t.Fatal("the fixture records no listVoices scenario")
+	}
+	if len(scenario.Response.BodyText) < 1000 {
+		t.Fatalf("the recorded body is only %d bytes; it cannot be the whole table", len(scenario.Response.BodyText))
+	}
+	// Rule 14 in reverse: the pinned route performed no request, and this route has no client at all, so
+	// an empty recorded outbound list is the only correct state.
+	if len(scenario.Outbound) != 0 {
+		t.Fatalf("the pinned route emitted %d requests; it is supposed to emit none", len(scenario.Outbound))
+	}
+	dataRoot := t.TempDir()
+	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
+	response := postSecretsRoute(t, handler, scenario.Route, scenario.RequestBody)
+	if response.Code != scenario.Response.Status {
+		t.Fatalf("status = %d, want %d (body %q)", response.Code, scenario.Response.Status, response.Body.String())
+	}
+	assertPinnedHeaders(t, response.Header(), scenario.Response.Headers)
+	if got := response.Body.String(); got != scenario.Response.BodyText {
+		if len(got) != len(scenario.Response.BodyText) {
+			t.Fatalf("body length = %d, pinned %d", len(got), len(scenario.Response.BodyText))
+		}
+		for index := 0; index < len(got); index++ {
+			if got[index] != scenario.Response.BodyText[index] {
+				t.Fatalf("body differs at byte %d: got %q want %q", index, got[maxInt(0, index-40):minInt(len(got), index+40)], scenario.Response.BodyText[maxInt(0, index-40):minInt(len(scenario.Response.BodyText), index+40)])
+			}
+		}
+		t.Fatal("bodies differ in length-preserving way")
+	}
+}
+
+func maxInt(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
+}
+
+// TestGoogleGetCodeIsADerivedTable pins the package's `getCode` predicates. Labelled a derivation: no
+// oracle can exist for `generate-voice` because that route is deliberately not implemented.
+func TestGoogleGetCodeIsADerivedTable(t *testing.T) {
+	cases := []struct {
+		input  any
+		wanted string
+		found  bool
+		reason string
+	}{
+		{"en", "en", true, "an exact code wins"},
+		{"English", "en", true, "a name matches case-insensitively"},
+		{"english", "en", true, "the name comparison lowercases both sides"},
+		{"EN", "", false, "a CODE is never matched case-insensitively"},
+		{"klingon", "", false, "unknown input returns null"},
+		{"constructor", "constructor", true, "an inherited Object.prototype property resolves through the prototype chain"},
+		{42, "", false, "a non-string returns null"},
+		{nil, "", false, "null returns null"},
+	}
+	for _, testCase := range cases {
+		got, found := googleGetCode(testCase.input)
+		if found != testCase.found || got != testCase.wanted {
+			t.Fatalf("getCode(%#v) = (%q,%v), want (%q,%v): %s", testCase.input, got, found, testCase.wanted, testCase.found, testCase.reason)
+		}
+	}
+}
