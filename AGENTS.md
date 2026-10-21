@@ -193,12 +193,18 @@ domain.
    it is a product decision that must be made explicitly and recorded here — never absorbed silently
    into a `partial` row. FAKE FIXTURES FOR THESE ARE FORBIDDEN: a recorded "response" would be
    evidence for a behaviour that was never executed.
-3. **Image re-encoding is a codec decision, not a test gap.** `/api/avatars/upload` decodes, crops,
-   covers and re-encodes with Jimp, so the response bytes are the output of a specific image codec.
-   An oracle for it CAN exist (the pinned output is recordable), but a Go implementation cannot
-   reproduce those bytes without a Jimp-compatible codec, so the route cannot be claimed `partial`
-   through HTTP comparison alone. Do not fake byte equality by copying the recorded bytes, and do not
-   add a production seam purely to make it testable. Decide the codec question explicitly first.
+3. **Image re-encoding is a codec decision, not a test gap.** Two routes are in this class, both
+   because their bytes are the output of Jimp. `/api/avatars/upload` decodes, crops, covers and
+   re-encodes; `/thumbnail/<computed>` does `Jimp.read` -> `resize` with `ResizeStrategy.BILINEAR`
+   -> crop -> `getBuffer(JimpMime.png)` or `getBuffer(JimpMime.jpeg, {quality})`. For both, an oracle
+   CAN exist (the pinned output is recordable), but a Go implementation cannot reproduce those bytes
+   without a Jimp-compatible codec, so neither can be claimed `partial` through HTTP comparison
+   alone. Do not fake byte equality by copying the recorded bytes, and do not add a production seam
+   purely to make them testable. Decide the codec question explicitly first.
+   This matters for reading the startup differential: two of its four known differences are
+   `/thumbnail` 404s, and they are THIS BOUNDARY rather than missing work. Without that stated, a
+   future increment would set out to implement thumbnails and discover the codec problem only after
+   building a harness.
 4. **Inherited security weaknesses are reproduced AND recorded, never silently fixed or silently
    copied.** Content import (`/api/content/importURL` and `/importUUID`) classifies a provider with
    substring matching on the parsed hostname — `host.includes('chub.ai')`, `host.includes('janitorai')`
