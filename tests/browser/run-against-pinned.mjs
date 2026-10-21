@@ -10,6 +10,11 @@
 // it and compiles the frontend libraries, which takes 20-40s, so the readiness deadline is generous
 // and derived from `/version` rather than from a sleep.
 //
+// `--browserLaunchEnabled false` is NOT optional. The pinned checkout's config.yaml has
+// `browserLaunch.enabled: true`, so every boot opens a real tab in the developer's default browser
+// at a port that dies with the harness: six captures meant six dead SillyTavern tabs. The flag
+// overrides the config without editing the pinned checkout, which must stay untouched (rule 14).
+//
 // Reference resolution matches run-pinned-suite.mjs: --reference, then $GOTAVERN_REFERENCE, then
 // .reference/SillyTavern (the CI checkout), then ../SillyTavern (a local developer checkout).
 //
@@ -94,7 +99,7 @@ console.log(`[pinned] checkout   ${reference}`);
 console.log(`[pinned] dataRoot   ${dataRoot}`);
 console.log(`[pinned] baseURL    ${baseURL}`);
 
-const server = spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot], {
+const server = spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], {
     cwd: reference,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,

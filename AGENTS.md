@@ -126,6 +126,16 @@ domain.
    (`--format="%H%x09%s"`) so the BOM can never land at stream start, and verify the check can
    report a known instance before trusting a negative. The same reasoning applies to any evidence
    file: verify the bytes you produced, not the readability of the bytes you produced.
+13. **A process query that contains its own search text matches itself.** `Get-CimInstance` and `ps`
+   read the full command line, and a shell command's own text is part of the command line of the
+   wrapper that runs it. Searching for `codex` or `server.js` therefore flags the shell that is
+   doing the searching, and the visible result -- "one process found", with a PID that changes on
+   every query -- looks exactly like a genuine leftover process. It produced two false findings in
+   one session and a kill attempt aimed at the harness's own runner, which aborted the tool call.
+   Build the needle at runtime (`'server' + [char]46 + 'js'`), or exclude the wrapper by name, and
+   treat a *changing* PID as proof the match is the query itself rather than a stable long-lived
+   process. The same reasoning applies to log and repository searches for a term that appears in the
+   command you are running.
 
 ## Phase order
 
