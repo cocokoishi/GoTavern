@@ -561,3 +561,55 @@ request that should arrive is one that fails at transport; the comparison is abo
 
 Reproduce with: `node tests/browser/run-against-pinned.mjs capture-settings.mjs`.
 
+## The send leg: still no provider request, and now provably the DRIVER's fault
+
+With a faithful settings state the generation probe still reported `requestArrived: false`. The
+important result of this increment is not the negative: it is that the SAME drive against PINNED NODE
+fails the same way, which moves the finding from the product to the probe (verification rule 10, first
+case) and retires a question that had been standing as a possible GoTavern defect.
+
+```
+                          GoTavern          pinned Node 1.19.0
+requests recorded            251                    391
+tokenizer count calls         13                     14
+POST /api/backends/...    ABSENT                 ABSENT
+GENERATE_AFTER_DATA       reached                reached
+CHAT_COMPLETION_SETTINGS_READY   never           never
+provider request          none                   none
+```
+
+Three defects in the drive, each found by a measurement rather than by reading code:
+
+1. **`main_api` was `koboldhorde`.** It is not part of `oai_settings`, and it is an exported `let`, so
+   the probe's settings assignment could not set it. `sendGenerationRequest` branches on it BEFORE it
+   looks at the chat-completion source (script.js:6117), so the send went down the Horde path: the
+   console showed `adjustHordeGenerationParams`'s two-value log (`horde.js:148`, `8192 350`) and
+   `POST /api/horde/text-workers`, and no chat-completions call was ever made. The fix drives
+   `#main_api`, the control a user drives, whose change handler assigns the flag (script.js:7861).
+   Measured after the fix: `diagnostics.mainApi == 'openai'`.
+2. **`script.isGenerating` is not a usable gate.** It reads `true` on a freshly loaded page and
+   `true` after a generation that ended, which is why the probe's precondition correctly uses
+   `body[data-generating]` and the send button instead.
+3. **The rule-20 window was too short.** The world-info dry run counts every candidate, and 20 s
+   elapsed while token counts were still in flight. The recorder is now polled for 60 s.
+
+Two omissions in the REPORT, both of which had produced false confidence: no `console` listener at all
+(so "0 console errors" was a read of a field that did not exist), and no `toastr` reading (the
+frontend reports a refused generation by toast and fires `generation_ended` with no page error). The
+report now carries every console message with its type, the toast text, and the generation event trail.
+
+WHAT STILL DOES NOT ADD UP, stated rather than papered over: the run reaches `generate_after_data` and
+then stops with no fetch, no error, `generation_ended` never emitted and `CHAT_COMPLETION_SETTINGS_READY`
+never emitted -- on both servers. That event is emitted at openai.js:3146, immediately before the
+`fetch` to `/api/backends/chat-completions/generate`, so the hang is between the prompt being ready and
+the request being issued. Ruling things OUT is cheap here and has already been done: `reverse_proxy` is
+empty in the fixture, so `validateReverseProxy` (openai.js:2850) is not called; `tools` is absent, so
+`registerFunctionToolsOpenAI` (2841) is not either. What remains is inside the frontend's streaming
+dispatch, and one concrete suspect is that the fixture stores booleans as the STRINGS the panel writes
+(`stream_openai: "True"`), so any `=== true` or `=== 'true'` comparison in that path sees a third value.
+That is the next thing to measure, not something to fix by assignment.
+
+Reproduce with:
+`node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report <path>` (pinned) and
+`node tests/browser/generation-probe.mjs --report <path>` (GoTavern).
+

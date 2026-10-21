@@ -150,6 +150,14 @@ try {
     browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
+    // EVERY console message, not just errors. The frontend reports several generation problems with
+    // console.warn/console.debug rather than by throwing (for example the custom-endpoint guard in
+    // openai.js:4476 uses console.debug), so a report that only kept page errors could show a clean
+    // run for a send that the frontend itself refused to make.
+    report.console = [];
+    page.on('console', message => {
+        report.console.push({ type: message.type(), text: String(message.text()).slice(0, 500) });
+    });
     // Every request and its status, unfiltered: a negative finding about a call needs a log that
     // would have shown it, so the log is complete rather than pre-filtered.
     report.requests = [];
@@ -250,7 +258,26 @@ try {
             oai_settings.custom_url = mockUrl;
         }
 
+        // The API dispatch flag is NOT part of oai_settings, and `main_api` is an exported `let` that
+        // cannot be reassigned from outside its module, so the settings shortcut above leaves it at
+        // whatever the page happened to load. sendGenerationRequest branches on it BEFORE looking at
+        // the chat-completion source (script.js:6117), so a stale value sends the request down the
+        // Horde path instead: horde.js:148 logged `8192 350` and /api/horde/text-workers was called,
+        // and no chat-completions call was ever made -- identically on pinned Node and GoTavern. The
+        // fix is to drive the control a user drives, `#main_api`, whose change handler assigns it
+        // (script.js:7861).
+        const mainApiSelect = document.querySelector('#main_api');
+        if (!mainApiSelect) {
+            return { preconditions: { charactersLoaded: true }, error: '#main_api is not present, so the API cannot be selected the way a user selects it' };
+        }
+        mainApiSelect.value = 'openai';
+        mainApiSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const diagnostics = () => ({
+            // The API dispatch flag, which is NOT in oai_settings: sendGenerationRequest branches on
+            // it (script.js:6117) before it ever looks at the chat-completion source.
+            mainApi: String(script.main_api),
             thisChid: typeof script.this_chid === 'undefined' ? 'undefined' : String(script.this_chid),
             charactersLength: Array.isArray(script.characters) ? script.characters.length : 'not-array',
             chatLength: Array.isArray(script.chat) ? script.chat.length : 'not-array',
@@ -258,6 +285,10 @@ try {
             generatingAttribute: document.body.dataset.generating ?? null,
             sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
             hasSendButton: Boolean(document.querySelector('#send_but')),
+            // The frontend reports a refused generation through toastr, not through the console: a
+            // caught error renders a toast and fires generation_ended with no page error at all. A
+            // probe that only watched pageErrors and /api calls saw "nothing happened".
+            toastr: (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300),
         });
         const before = diagnostics();
         // Preconditions a real user action implies. Asserted, not assumed: an unfaithful drive must
@@ -278,22 +309,39 @@ try {
             composer.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const sendButton = document.querySelector('#send_but');
+        // Record the frontend's own generation events. A run that reaches generate_after_data and
+        // then never issues a request is indistinguishable, from the request log alone, from one
+        // that never assembled a prompt at all; the event trail names the last stage that completed,
+        // and CHAT_COMPLETION_SETTINGS_READY is emitted immediately before the fetch.
+        const { eventSource, event_types } = await import('./scripts/events.js');
+        globalThis.__probeEvents = [];
+        for (const [name, value] of Object.entries(event_types)) {
+            if (!['GENERATION_STARTED', 'GENERATE_AFTER_DATA', 'CHAT_COMPLETION_SETTINGS_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED'].includes(name)) {
+                continue;
+            }
+            eventSource.on(value, () => globalThis.__probeEvents.push(`${name}@${Math.round(performance.now())}`));
+        }
         sendButton.click();
 
-        // Give the frontend time to build and post the request.
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        // A short settle is enough to let the click register; the WAIT for the request happens below,
+        // against the recorded request log, because prompt assembly (world-info dry run plus a token
+        // count per candidate) legitimately takes longer than any fixed sleep would guess.
+        await new Promise(resolve => setTimeout(resolve, 3000));
         return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics() };
     }, `http://${mockAddress}`);
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
+    report.events = await page.evaluate(() => globalThis.__probeEvents ?? []);
     report.diagnostics = outcome.preconditions ?? null;
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }
 
-    // Poll the recorder rather than the page: arrival is the fact under test.
-    for (let attempt = 0; attempt < 100; attempt++) {
+    // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at 200ms
+    // is a 60s window, which prompt assembly has repeatedly needed: the world-info dry run counts
+    // every candidate, and the earlier 20s window gave up while token counts were still in flight.
+    for (let attempt = 0; attempt < 300; attempt++) {
         const recording = await (await fetch(`http://${mockAddress}/__mock/recording`)).json();
         if ((recording.requests ?? []).length > 0) {
             report.requestArrived = true;
