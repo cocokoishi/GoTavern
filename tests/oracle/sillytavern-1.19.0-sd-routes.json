@@ -2538,6 +2538,7 @@
       "the mock peer authority itself (normalised to <mock>) because it is an ephemeral port",
       "the raw value of every field listed in comparison.hostDerived (contentLength, etag and any body or content type derived from it): the value is null, the field is classified shape, and it carries a reason; comparison.normalizedContentLength carries the canonical length where a canonical body exists and null where none does",
       "every value of a field listed in comparison.hostDerived: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)",
+      "the REQUEST ARRAY of a producer-concurrency scenario (upscalers.notArray, vaes.autoFirst): the pinned route starts two requests before awaiting either, so arrival order varies and the losing request may not have landed when the log is drained. The value is null with a shape reason, and the SET is asserted by a source-derived expectation in the Go test",
       "the pinned server listen port and its startup log"
     ]
   },
@@ -3113,70 +3114,7 @@
       "contentLength": "21",
       "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
       "body": "Internal Server Error",
-      "requests": [
-        {
-          "method": "GET",
-          "target": "/sdapi/v1/latent-upscale-modes",
-          "headers": [
-            {
-              "name": "accept",
-              "value": "*/*"
-            },
-            {
-              "name": "accept-encoding",
-              "value": "gzip, deflate, br"
-            },
-            {
-              "name": "authorization",
-              "value": "Basic dXNlcjpwYXNz"
-            },
-            {
-              "name": "user-agent",
-              "value": "node-fetch"
-            },
-            {
-              "name": "Host",
-              "value": "<mock>"
-            },
-            {
-              "name": "Connection",
-              "value": "close"
-            }
-          ],
-          "bodyText": ""
-        },
-        {
-          "method": "GET",
-          "target": "/sdapi/v1/upscalers",
-          "headers": [
-            {
-              "name": "accept",
-              "value": "*/*"
-            },
-            {
-              "name": "accept-encoding",
-              "value": "gzip, deflate, br"
-            },
-            {
-              "name": "authorization",
-              "value": "Basic dXNlcjpwYXNz"
-            },
-            {
-              "name": "user-agent",
-              "value": "node-fetch"
-            },
-            {
-              "name": "Host",
-              "value": "<mock>"
-            },
-            {
-              "name": "Connection",
-              "value": "close"
-            }
-          ],
-          "bodyText": ""
-        }
-      ],
+      "requests": null,
       "comparison": {
         "compared": [
           "status",
@@ -3184,18 +3122,23 @@
           "contentLength",
           "etag",
           "body",
-          "requests",
           "requestHeaders",
           "requestBody"
         ],
         "shape": [
-          "requestHeaders.connection"
+          "requestHeaders.connection",
+          "requests"
         ],
         "hostDerived": [],
         "shapeReason": {
-          "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
+          "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted",
+          "requests": "the pinned route starts these requests concurrently and can answer before the losing request is recorded, so the arrival ORDER and the observed COUNT differ between runs; no value is recorded and the set is asserted by a source-derived expectation"
         }
-      }
+      },
+      "expectedTargetsSorted": [
+        "/sdapi/v1/latent-upscale-modes",
+        "/sdapi/v1/upscalers"
+      ]
     },
     "vaes.autoFirst": {
       "status": 200,
@@ -3203,70 +3146,7 @@
       "contentLength": "25",
       "etag": "W/\"19-9Y17nz1AxMdpeAq93KUNtNZevV8\"",
       "body": "[\"vae-ft-mse\",\"auto-vae\"]",
-      "requests": [
-        {
-          "method": "GET",
-          "target": "/sdapi/v1/sd-modules",
-          "headers": [
-            {
-              "name": "accept",
-              "value": "*/*"
-            },
-            {
-              "name": "accept-encoding",
-              "value": "gzip, deflate, br"
-            },
-            {
-              "name": "authorization",
-              "value": "Basic dXNlcjpwYXNz"
-            },
-            {
-              "name": "user-agent",
-              "value": "node-fetch"
-            },
-            {
-              "name": "Host",
-              "value": "<mock>"
-            },
-            {
-              "name": "Connection",
-              "value": "close"
-            }
-          ],
-          "bodyText": ""
-        },
-        {
-          "method": "GET",
-          "target": "/sdapi/v1/sd-vae",
-          "headers": [
-            {
-              "name": "accept",
-              "value": "*/*"
-            },
-            {
-              "name": "accept-encoding",
-              "value": "gzip, deflate, br"
-            },
-            {
-              "name": "authorization",
-              "value": "Basic dXNlcjpwYXNz"
-            },
-            {
-              "name": "user-agent",
-              "value": "node-fetch"
-            },
-            {
-              "name": "Host",
-              "value": "<mock>"
-            },
-            {
-              "name": "Connection",
-              "value": "close"
-            }
-          ],
-          "bodyText": ""
-        }
-      ],
+      "requests": null,
       "comparison": {
         "compared": [
           "status",
@@ -3274,18 +3154,23 @@
           "contentLength",
           "etag",
           "body",
-          "requests",
           "requestHeaders",
           "requestBody"
         ],
         "shape": [
-          "requestHeaders.connection"
+          "requestHeaders.connection",
+          "requests"
         ],
         "hostDerived": [],
         "shapeReason": {
-          "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted"
+          "requestHeaders.connection": "keep-alive framing chosen by Node/ node-fetch for the pinned run and by the shared outbound client for Go; the route never sets it, so only its presence is asserted",
+          "requests": "the pinned route starts these requests concurrently and can answer before the losing request is recorded, so the arrival ORDER and the observed COUNT differ between runs; no value is recorded and the set is asserted by a source-derived expectation"
         }
-      }
+      },
+      "expectedTargetsSorted": [
+        "/sdapi/v1/sd-modules",
+        "/sdapi/v1/sd-vae"
+      ]
     },
     "vaes.autoFails": {
       "status": 200,

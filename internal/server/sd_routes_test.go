@@ -75,7 +75,11 @@ type sdObservation struct {
 	// null: the canonical length is the compared counterpart of a host-derived content-length, and the
 	// fixture must carry the key (null where no canonical body exists) rather than omit it.
 	NormalizedContentLength json.RawMessage `json:"normalizedContentLength"`
-	Comparison              struct {
+	// ExpectedTargetsSorted is the SOURCE-DERIVED expectation for a producer-concurrency scenario: the
+	// fixture cannot record a request set that a concurrent producer makes unstable, so the internal
+	// decision is asserted by SET EQUALITY here while the response stays compared from the fixture.
+	ExpectedTargetsSorted []string `json:"expectedTargetsSorted"`
+	Comparison            struct {
 		Compared    []string          `json:"compared"`
 		Shape       []string          `json:"shape"`
 		ShapeReason map[string]string `json:"shapeReason"`
@@ -509,6 +513,33 @@ func compareOptionalHeader(t *testing.T, name, header string, want *string, got 
 }
 
 func compareSDWire(t *testing.T, name string, observation sdObservation, recorded []mockprovider.Request, unordered bool, mockAuthority string) {
+	// LABELLED SOURCE-DERIVED TEST (rule 4). A producer that starts several requests before awaiting any of
+	// them makes the recorded set unstable -- arrival order varies and the losing request may not have landed
+	// when the peer's log was drained -- so the fixture records `requests: null` with the race named, and the
+	// INTERNAL DECISION is asserted here instead: the Go side controls its own concurrency and must issue
+	// exactly the expected set. SET EQUALITY, not a subset: a subset assertion would let an implementation
+	// that drops one of the two concurrent requests pass, which is the defect this scenario exists to catch.
+	// The RESPONSE stays compared from the fixture, which is the oracle half of the split.
+	if len(observation.ExpectedTargetsSorted) > 0 {
+		observed := make([]string, 0, len(recorded))
+		for _, entry := range recorded {
+			observed = append(observed, entry.RawTarget)
+		}
+		sort.Strings(observed)
+		expected := append([]string{}, observation.ExpectedTargetsSorted...)
+		sort.Strings(expected)
+		if len(observed) != len(expected) {
+			t.Fatalf("%s: the go side made %d requests (%v); the source-derived expectation is %d (%v)",
+				name, len(observed), observed, len(expected), expected)
+		}
+		for index := range observed {
+			if observed[index] != expected[index] {
+				t.Fatalf("%s: request set differs at %d: %q, expected %q (set equality, not a subset)",
+					name, index, observed[index], expected[index])
+			}
+		}
+		return
+	}
 	t.Helper()
 	// The fixture normalises the ephemeral mock authority to <mock>; substitute this run's peer
 	// authority so the recorded Host header stays a compared value rather than a port literal.

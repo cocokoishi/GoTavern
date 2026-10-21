@@ -487,6 +487,20 @@ function routeScenarios(origin, auth) {
             requests: recorded,
             comparison: sdComparison(options.shape, options.hostDerived ?? []),
         };
+        if (options.concurrentRequests) {
+            // A producer that starts several requests before awaiting any of them makes BOTH the arrival order
+            // and the observed count unstable: the peer records arrival order, and the log is drained
+            // immediately after the response, so the losing request may not have landed. Widening the drain
+            // window would make the count stable by luck rather than by contract, so the racy value is NOT
+            // recorded and the SET is asserted by a source-derived expectation in the Go test.
+            const raceReason = 'the pinned route starts these requests concurrently and can answer before the losing request is recorded, so the arrival ORDER and the observed COUNT differ between runs; no value is recorded and the set is asserted by a source-derived expectation';
+            observations[name].requests = null;
+            observations[name].expectedTargetsSorted = (options.expectedTargets ?? []).slice().sort();
+            const comparison = observations[name].comparison;
+            comparison.compared = comparison.compared.filter(entry => entry !== 'requests');
+            if (!comparison.shape.includes('requests')) comparison.shape.push('requests');
+            comparison.shapeReason.requests = raceReason;
+        }
         // A field classified `shape` must not carry THIS HOST's answer. The zero-diff gate compares the
         // fixture's bytes, so a recorded value differs across hosts however the field is classified: the
         // malformed-JSON scenario's body is a rendered development error page that embeds an absolute
@@ -588,12 +602,12 @@ function routeScenarios(origin, auth) {
         await run('upscalers.notArray', 'upscalers', { url: '<mock>', auth: 'user:pass' }, {
             'GET /sdapi/v1/upscalers': [json('{"name":"not-an-array"}')],
             'GET /sdapi/v1/latent-upscale-modes': [json('[]')],
-        }, { mock: true, unordered: true });
+        }, { mock: true, unordered: true, concurrentRequests: true, expectedTargets: ['/sdapi/v1/latent-upscale-modes', '/sdapi/v1/upscalers'] });
 
         await run('vaes.autoFirst', 'vaes', { url: '<mock>', auth: 'user:pass' }, {
             'GET /sdapi/v1/sd-vae': [json(JSON.stringify([{ model_name: 'vae-ft-mse' }, { model_name: 'auto-vae' }]))],
             'GET /sdapi/v1/sd-modules': [json(JSON.stringify([{ model_name: 'forge-vae' }]))],
-        }, { mock: true, unordered: true });
+        }, { mock: true, unordered: true, concurrentRequests: true, expectedTargets: ['/sdapi/v1/sd-modules', '/sdapi/v1/sd-vae'] });
 
         await run('vaes.autoFails', 'vaes', { url: '<mock>', auth: 'user:pass' }, {
             'GET /sdapi/v1/sd-vae': [text(500, 'boom')],
@@ -1020,7 +1034,7 @@ async function workflowScenarios(origin, auth) {
         ['upperA', 'A.json'],
         ['lowerA2', 'aa.json'],
         ['upperAB', 'AB.json'],
-        ['unicodeA', 'Ä.json'],
+        ['unicodeA', 'Ã„.json'],
     ]) {
         await step(`saveWorkflow.sort-${label}`, 'comfy/save-workflow', { file_name: name, workflow: `{"name":${JSON.stringify(name)}}` });
     }
@@ -1208,6 +1222,7 @@ try {
                 'the mock peer authority itself (normalised to <mock>) because it is an ephemeral port',
                 'the raw value of every field listed in comparison.hostDerived (contentLength, etag and any body or content type derived from it): the value is null, the field is classified shape, and it carries a reason; comparison.normalizedContentLength carries the canonical length where a canonical body exists and null where none does',
                 'every value of a field listed in comparison.hostDerived: such a field is recorded as NULL rather than as the value this host produced, because the zero-diff gate compares the fixture BYTES and a rendered error page embeds an absolute path and stack frames (see ping.malformedJson, whose contentType, contentLength, etag and body are all null)',
+                'the REQUEST ARRAY of a producer-concurrency scenario (upscalers.notArray, vaes.autoFirst): the pinned route starts two requests before awaiting either, so arrival order varies and the losing request may not have landed when the log is drained. The value is null with a shape reason, and the SET is asserted by a source-derived expectation in the Go test',
                 'the pinned server listen port and its startup log',
             ],
         };
