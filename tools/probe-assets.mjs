@@ -185,12 +185,38 @@ function captureResponse(result) {
     // Pinned path.join produces backslash separators on Windows and '/' on POSIX. Separators are
     // host-dependent, so JSON string values are normalised to '/' before recording and hashing;
     // the separator is classified shape, the path set is compared.
+    let normalizedContentLength = null;
     try {
         body = normalizeValue(JSON.parse(raw));
-        bodySha256 = sha256(JSON.stringify(body));
+        const canonicalBodyText = JSON.stringify(body);
+        bodySha256 = sha256(canonicalBodyText);
+        // Content-length is DERIVED FROM THE BODY, so it must be normalised with the body. On Windows
+        // the live2d branch's path.join emits backslashes, and JSON escapes each one as `\\`: the wire
+        // body is four bytes longer than the canonical `/` form. Recording the raw header would bake
+        // the recording host into the fixture (53 vs 49). Record the canonical byte length instead and
+        // classify the raw header shape ONLY for the steps where the two differ.
+        normalizedContentLength = Buffer.byteLength(canonicalBodyText, 'utf8');
     } catch {
         bodyText = raw;
         bodySha256 = sha256(raw);
+    }
+    const compared = ['status', 'contentType', 'contentDisposition', 'body', 'bodyText', 'bodySha256'];
+    const shape = ['etag', 'body order', 'path separators'];
+    const shapeReason = {
+        etag: 'the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings',
+        'body order': 'the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead',
+        'path separators': 'pinned path.join uses the host separator; the fixture normalises to / and the replay does the same',
+    };
+    if (normalizedContentLength !== null) {
+        compared.push('normalizedContentLength');
+        if (result.headers.contentLength !== null && Number(result.headers.contentLength) !== normalizedContentLength) {
+            shape.push('contentLength');
+            shapeReason.contentLength = `the raw header (${result.headers.contentLength}) counts JSON-escaped path separators, which the host decides; the canonical body is ${normalizedContentLength} bytes, and normalizedContentLength is compared instead`;
+        } else {
+            compared.push('contentLength');
+        }
+    } else {
+        compared.push('contentLength');
     }
     return {
         status: result.status,
@@ -198,19 +224,14 @@ function captureResponse(result) {
         contentLength: result.headers.contentLength,
         etag: result.headers.etag,
         contentDisposition: result.headers.contentDisposition,
+        normalizedContentLength,
         body,
         bodyText,
-        bodyBase64: result.buffer.toString('base64'),
+        // Canonical bytes for JSON bodies so no recorded byte field depends on the recording host;
+        // this field is not compared, but a host-dependent value in the file invites a future trap.
+        bodyBase64: body !== null ? Buffer.from(JSON.stringify(body), 'utf8').toString('base64') : result.buffer.toString('base64'),
         bodySha256,
-        comparison: {
-            compared: ['status', 'contentType', 'contentLength', 'contentDisposition', 'body', 'bodyText', 'bodySha256'],
-            shape: ['etag', 'body order', 'path separators'],
-            shapeReason: {
-                etag: 'the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings',
-                'body order': 'the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead',
-                'path separators': 'pinned path.join uses the host separator; the fixture normalises to / and the replay does the same',
-            },
-        },
+        comparison: { compared, shape, shapeReason },
     };
 }
 

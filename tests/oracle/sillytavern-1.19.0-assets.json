@@ -43,6 +43,7 @@
         "contentLength": "285",
         "etag": "W/\"11d-x4HURxUmgrJd9frd3ngpHNsETJU\"",
         "contentDisposition": null,
+        "normalizedContentLength": 285,
         "body": {
           "ambient": [
             "assets/ambient/wind.ogg"
@@ -68,17 +69,18 @@
           }
         },
         "bodyText": null,
-        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7Im1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXSwiYW5pbWF0aW9uIjpbIi9hc3NldHMvdnJtL2FuaW1hdGlvbi9pZGxlLmFuaW0iXX19",
+        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7ImFuaW1hdGlvbiI6WyIvYXNzZXRzL3ZybS9hbmltYXRpb24vaWRsZS5hbmltIl0sIm1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXX19",
         "bodySha256": "cceff4e9013c3aa7476444b35be64ed643adc436b74c90adb0d2ac06e6d3f971",
         "comparison": {
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -106,6 +108,7 @@
         "contentLength": "285",
         "etag": "W/\"11d-x4HURxUmgrJd9frd3ngpHNsETJU\"",
         "contentDisposition": null,
+        "normalizedContentLength": 285,
         "body": {
           "ambient": [
             "assets/ambient/wind.ogg"
@@ -131,17 +134,18 @@
           }
         },
         "bodyText": null,
-        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7Im1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXSwiYW5pbWF0aW9uIjpbIi9hc3NldHMvdnJtL2FuaW1hdGlvbi9pZGxlLmFuaW0iXX19",
+        "bodyBase64": "eyJhbWJpZW50IjpbImFzc2V0cy9hbWJpZW50L3dpbmQub2dnIl0sImJnbSI6WyJhc3NldHMvYmdtL29uZS5tcDMiLCJhc3NldHMvYmdtL3R3by5tcDMiXSwiYmxpcCI6W10sImNoYXJhY3RlciI6WyJhc3NldHMvY2hhcmFjdGVyL2NoYXIucG5nIl0sImxpdmUyZCI6WyIvYXNzZXRzL2xpdmUyZC9tb2RlbEEvbW9kZWwzLmpzb24iXSwidnJtIjp7ImFuaW1hdGlvbiI6WyIvYXNzZXRzL3ZybS9hbmltYXRpb24vaWRsZS5hbmltIl0sIm1vZGVsIjpbIi9hc3NldHMvdnJtL21vZGVsL2F2YXRhci52cm0iXX19",
         "bodySha256": "cceff4e9013c3aa7476444b35be64ed643adc436b74c90adb0d2ac06e6d3f971",
         "comparison": {
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -170,6 +174,7 @@
         "contentLength": "2",
         "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "OK",
         "bodyBase64": "T0s=",
@@ -178,11 +183,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -211,6 +216,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -219,11 +225,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -252,6 +258,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -260,11 +267,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -293,6 +300,7 @@
         "contentLength": "72",
         "etag": "W/\"48-raHjTGO3FG4zfexw1tjnW1dBfDs\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Illegal character in filename; only alphanumeric, '_', '-' are accepted.",
         "bodyBase64": "SWxsZWdhbCBjaGFyYWN0ZXIgaW4gZmlsZW5hbWU7IG9ubHkgYWxwaGFudW1lcmljLCAnXycsICctJyBhcmUgYWNjZXB0ZWQu",
@@ -301,11 +309,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -334,6 +342,7 @@
         "contentLength": "72",
         "etag": "W/\"48-raHjTGO3FG4zfexw1tjnW1dBfDs\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Illegal character in filename; only alphanumeric, '_', '-' are accepted.",
         "bodyBase64": "SWxsZWdhbCBjaGFyYWN0ZXIgaW4gZmlsZW5hbWU7IG9ubHkgYWxwaGFudW1lcmljLCAnXycsICctJyBhcmUgYWNjZXB0ZWQu",
@@ -342,11 +351,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -372,6 +381,7 @@
         "contentLength": "77",
         "etag": "W/\"4d-prj9GYmLWOQUoFqgSPQs2cL3Q98\"",
         "contentDisposition": null,
+        "normalizedContentLength": 77,
         "body": [
           "/characters/Seraphina/ambient/a.mp3",
           "/characters/Seraphina/ambient/b.mp3"
@@ -383,11 +393,12 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -413,31 +424,34 @@
         "contentLength": "53",
         "etag": "W/\"35-iORkHqzkM2PIfSxA7+YYa2f+f0Q\"",
         "contentDisposition": null,
+        "normalizedContentLength": 49,
         "body": [
           "characters/Seraphina/live2d/modelA/model.json"
         ],
         "bodyText": null,
-        "bodyBase64": "WyJjaGFyYWN0ZXJzXFxTZXJhcGhpbmFcXGxpdmUyZFxcbW9kZWxBXFxtb2RlbC5qc29uIl0=",
+        "bodyBase64": "WyJjaGFyYWN0ZXJzL1NlcmFwaGluYS9saXZlMmQvbW9kZWxBL21vZGVsLmpzb24iXQ==",
         "bodySha256": "2bb93880d4ce4c87fc24165e245ab94498bca95102c5aafea6aa743ce86c2571",
         "comparison": {
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength"
           ],
           "shape": [
             "etag",
             "body order",
-            "path separators"
+            "path separators",
+            "contentLength"
           ],
           "shapeReason": {
             "etag": "the ETag is computed over the raw response bytes, which contain host-dependent path separators for live2d character listings",
             "body order": "the pinned routes build arrays in readdir order, which differs between NTFS and ext4; the fixture records a sorted set instead",
-            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same"
+            "path separators": "pinned path.join uses the host separator; the fixture normalises to / and the replay does the same",
+            "contentLength": "the raw header (53) counts JSON-escaped path separators, which the host decides; the canonical body is 49 bytes, and normalizedContentLength is compared instead"
           }
         }
       }
@@ -453,6 +467,7 @@
         "contentLength": "35",
         "etag": "W/\"23-LUV/fTIBtij4LsPOwulAlhh1htc\"",
         "contentDisposition": null,
+        "normalizedContentLength": 35,
         "body": [
           "/characters/Seraphina/bgm/x.mp3"
         ],
@@ -463,11 +478,12 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -493,6 +509,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -501,11 +518,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -531,6 +548,7 @@
         "contentLength": "11",
         "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
         "contentDisposition": null,
+        "normalizedContentLength": null,
         "body": null,
         "bodyText": "Bad Request",
         "bodyBase64": "QmFkIFJlcXVlc3Q=",
@@ -539,11 +557,11 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "contentLength"
           ],
           "shape": [
             "etag",
@@ -569,6 +587,7 @@
         "contentLength": "2",
         "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
         "contentDisposition": null,
+        "normalizedContentLength": 2,
         "body": [],
         "bodyText": null,
         "bodyBase64": "W10=",
@@ -577,11 +596,12 @@
           "compared": [
             "status",
             "contentType",
-            "contentLength",
             "contentDisposition",
             "body",
             "bodyText",
-            "bodySha256"
+            "bodySha256",
+            "normalizedContentLength",
+            "contentLength"
           ],
           "shape": [
             "etag",

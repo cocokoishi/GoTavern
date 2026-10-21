@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -43,15 +44,16 @@ type userDataStep struct {
 }
 
 type userDataResponse struct {
-	Status             int              `json:"status"`
-	ContentType        *string          `json:"contentType"`
-	ContentLength      *string          `json:"contentLength"`
-	Etag               *string          `json:"etag"`
-	ContentDisposition *string          `json:"contentDisposition"`
-	Body               json.RawMessage  `json:"body"`
-	BodyText           *string          `json:"bodyText"`
-	BodySha256         string           `json:"bodySha256"`
-	Comparison         searchComparison `json:"comparison"`
+	Status                  int              `json:"status"`
+	ContentType             *string          `json:"contentType"`
+	ContentLength           *string          `json:"contentLength"`
+	NormalizedContentLength *int             `json:"normalizedContentLength"`
+	Etag                    *string          `json:"etag"`
+	ContentDisposition      *string          `json:"contentDisposition"`
+	Body                    json.RawMessage  `json:"body"`
+	BodyText                *string          `json:"bodyText"`
+	BodySha256              string           `json:"bodySha256"`
+	Comparison              searchComparison `json:"comparison"`
 }
 
 type userDataEntry struct {
@@ -181,8 +183,10 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 	sawShapeReason := map[string]bool{}
 	for _, step := range fixture.Steps {
 		classified := map[string]bool{}
+		comparedSpecifically := map[string]bool{}
 		for _, key := range step.Response.Comparison.Compared {
 			classified[key] = true
+			comparedSpecifically[key] = true
 			comparedAnywhere[key] = true
 		}
 		for _, key := range step.Response.Comparison.Shape {
@@ -200,6 +204,42 @@ func verifyUserDataClassification(t *testing.T, fixtureName string, fixture user
 		}
 		if (step.Response.Body == nil || string(step.Response.Body) == "null") && step.Response.BodyText == nil {
 			t.Fatalf("%s %s: response has neither a JSON body nor a text body", fixtureName, step.Name)
+		}
+		// A JSON body's byte length is derived from the body, so it must be derived from the
+		// NORMALISED body. The raw content-length is allowed to be shape only where it differs from
+		// that canonical length (separator-bearing bodies); normalizedContentLength is then required.
+		if step.Response.Body != nil && string(step.Response.Body) != "null" {
+			if step.Response.NormalizedContentLength == nil {
+				t.Fatalf("%s %s: JSON response has no normalizedContentLength", fixtureName, step.Name)
+			}
+			if !classified["normalizedContentLength"] {
+				t.Fatalf("%s %s: normalizedContentLength is not classified as compared", fixtureName, step.Name)
+			}
+			// Fixture integrity: the recorded canonical length must BE the canonical length of the
+			// recorded body, and a raw header that differs from it must be classified shape. This
+			// makes a regeneration on a Windows host with the old probe fail HERE, instead of only
+			// on the Linux CI replay: content-length is derived from the body, so it cannot be
+			// compared raw when the body's path separators were normalised.
+			var canonicalValue any
+			if err := json.Unmarshal(step.Response.Body, &canonicalValue); err != nil {
+				t.Fatalf("%s %s: fixture body is not JSON: %v", fixtureName, step.Name, err)
+			}
+			canonicalBytes, err := json.Marshal(normalizeUserDataValue(canonicalValue))
+			if err != nil {
+				t.Fatalf("%s %s: re-encode canonical body: %v", fixtureName, step.Name, err)
+			}
+			if len(canonicalBytes) != *step.Response.NormalizedContentLength {
+				t.Fatalf("%s %s: normalizedContentLength = %d, canonical fixture body is %d bytes", fixtureName, step.Name, *step.Response.NormalizedContentLength, len(canonicalBytes))
+			}
+			if comparedSpecifically["contentLength"] && step.Response.ContentLength != nil {
+				rawLength, parseErr := strconv.Atoi(*step.Response.ContentLength)
+				if parseErr != nil {
+					t.Fatalf("%s %s: raw content-length %q is not a number", fixtureName, step.Name, *step.Response.ContentLength)
+				}
+				if rawLength != len(canonicalBytes) {
+					t.Fatalf("%s %s: raw content-length %d differs from canonical %d but is classified compared; it must be shape", fixtureName, step.Name, rawLength, len(canonicalBytes))
+				}
+			}
 		}
 	}
 	for _, key := range []string{"status", "contentType", "contentLength", "contentDisposition", "bodySha256"} {
@@ -244,7 +284,16 @@ func compareUserDataResponse(t *testing.T, step userDataStep, recorder *httptest
 		t.Fatalf("%s: status = %d, pinned Node has %d (body %q)", step.Name, recorder.Code, step.Response.Status, recorder.Body.String())
 	}
 	compareOptionalHeader(t, step.Name, "content-type", step.Response.ContentType, recorder.Header().Get("Content-Type"))
-	compareOptionalHeader(t, step.Name, "content-length", step.Response.ContentLength, recorder.Header().Get("Content-Length"))
+	// Compare the raw header only when the fixture classifies it as compared. For a body whose path
+	// separators are normalised, the raw header counts JSON-escaped separators and is HOST-DEPENDENT,
+	// so it is shape; in that case the canonical byte length below is the assertion.
+	compared := map[string]bool{}
+	for _, key := range step.Response.Comparison.Compared {
+		compared[key] = true
+	}
+	if compared["contentLength"] {
+		compareOptionalHeader(t, step.Name, "content-length", step.Response.ContentLength, recorder.Header().Get("Content-Length"))
+	}
 	compareOptionalHeader(t, step.Name, "content-disposition", step.Response.ContentDisposition, recorder.Header().Get("Content-Disposition"))
 	if step.Response.Etag != nil && *step.Response.Etag != "" && recorder.Header().Get("ETag") == "" {
 		t.Fatalf("%s: the replay sent no ETag although pinned Node did", step.Name)
@@ -275,6 +324,11 @@ func compareUserDataResponse(t *testing.T, step userDataStep, recorder *httptest
 	}
 	if userDataSHA256(gotJSON) != step.Response.BodySha256 {
 		t.Fatalf("%s: normalised body SHA-256 differs from pinned Node", step.Name)
+	}
+	if compared["normalizedContentLength"] && step.Response.NormalizedContentLength != nil {
+		if len(gotJSON) != *step.Response.NormalizedContentLength {
+			t.Fatalf("%s: normalised content-length = %d, pinned Node canonical body is %d bytes", step.Name, len(gotJSON), *step.Response.NormalizedContentLength)
+		}
 	}
 }
 
