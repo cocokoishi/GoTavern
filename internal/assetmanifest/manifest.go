@@ -64,7 +64,15 @@ func Verify(fsys fs.FS, root, manifestName string) error {
 	if err != nil {
 		return err
 	}
+	return VerifyWithManifest(fsys, root, manifestName, manifest)
+}
 
+// VerifyWithManifest verifies a tree against a manifest BODY rather than against a file in the same
+// filesystem. That split is needed because the shipped layout is not uniform: public, default and
+// generated live in the embedded filesystem, while tokenizers is a DIRECTORY BESIDE THE BINARY
+// (the tokenizer routes read it from <InstallRoot>/tokenizers), and only its manifest is embedded.
+// Verification therefore has to hash the on-disk tree against the embedded manifest.
+func VerifyWithManifest(fsys fs.FS, root, manifestName string, manifest []byte) error {
 	expected := make(map[string]string)
 	manifestText := strings.ReplaceAll(string(manifest), "\r\n", "\n")
 	for lineNumber, line := range strings.Split(strings.TrimSuffix(manifestText, "\n"), "\n") {

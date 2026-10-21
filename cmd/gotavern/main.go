@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -85,6 +86,19 @@ func run(args []string) error {
 			}
 			fmt.Printf("verified upstream/%s\n", item.root)
 		}
+		// tokenizers is shipped as a DIRECTORY BESIDE THE BINARY, not in the embedded filesystem,
+		// because that is where the tokenizer routes read it from (<InstallRoot>/tokenizers). Only
+		// its manifest is embedded, so the tree is hashed on disk against that manifest.
+		//
+		// This check exists because leaving it out was a real defect: with the tree absent the
+		// routes take the pinned FALLBACK path -- ids [], chunks null, guesstimate counts about 25%
+		// high -- so a release could pass verification and then silently count every prompt wrong.
+		// A browser probe measured exactly that signature and it was misread as a tokenizer route
+		// defect until the installation layout was checked.
+		if err := verifyInstalledTokenizers(); err != nil {
+			return err
+		}
+		fmt.Println("verified installed tokenizers")
 		return nil
 	default:
 		if args[0] == "start" {
@@ -93,6 +107,25 @@ func run(args []string) error {
 		printUsage()
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+// verifyInstalledTokenizers hashes the tokenizers directory beside the executable against the
+// embedded manifest. It fails when the tree is absent, which is the point: without it the tokenizer
+// routes silently degrade to guesstimates instead of reporting a broken installation.
+func verifyInstalledTokenizers() error {
+	manifest, err := fs.ReadFile(upstream.Assets, "manifests/tokenizers.sha256")
+	if err != nil {
+		return fmt.Errorf("read embedded tokenizers manifest: %w", err)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable path: %w", err)
+	}
+	installRoot := filepath.Dir(executable)
+	if _, err := os.Stat(filepath.Join(installRoot, "tokenizers")); err != nil {
+		return fmt.Errorf("tokenizers are missing from %s: the tokenizer routes would silently fall back to guesstimates: %w", installRoot, err)
+	}
+	return assetmanifest.VerifyWithManifest(os.DirFS(installRoot), "tokenizers", "manifests/tokenizers.sha256", manifest)
 }
 
 func runServer(args []string) error {
