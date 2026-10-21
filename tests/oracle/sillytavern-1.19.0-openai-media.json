@@ -1,0 +1,1725 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned OpenAI binary media routes: four voice-generation endpoints and the image generation passthrough",
+  "oracle": {
+    "file": "src/endpoints/openai.js",
+    "mountedAt": "/api/openai (src/server-startup.js)"
+  },
+  "conventions": {
+    "binary": "audio bodies are recorded as base64, SHA-256 and byte length; the replay compares those values, never the bytes as text",
+    "mock": "provider_endpoints supplied in the request body are recorded as the <mock> marker",
+    "stubLimit": "the pinned-outbound stub carries UTF-8 payloads only, so the recorded audio bytes are an ASCII pattern; arbitrary binary framing is a stated limitation, not a claimed property"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound[] (url, method, explicitHeaders, body)"
+    ],
+    "shape": [
+      "observations.*.outbound[].transportConnection"
+    ],
+    "notRecorded": [
+      "ephemeral peer authority",
+      "pinned listen port",
+      "startup log"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-openai-media-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "OpenAI Media Probe",
+      "admin": true,
+      "password": ""
+    },
+    "seamDefaults": {
+      "GOTAVERN_OPENAI_API_URL": "https://api.openai.com",
+      "GOTAVERN_OPENAI_ELECTRONHUB_URL": "https://api.electronhub.ai",
+      "GOTAVERN_OPENAI_CHUTES_TTS_URL": "https://chutes-kokoro.chutes.ai"
+    },
+    "scenarios": {
+      "generateVoice.ok": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello",
+          "voice": "nova",
+          "speed": 1.25,
+          "model": "tts-1-hd"
+        },
+        "bodyText": "{\"text\":\"hello\",\"voice\":\"nova\",\"speed\":1.25,\"model\":\"tts-1-hd\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/v1/audio/speech",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "generateVoice.defaults": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello"
+        },
+        "bodyText": "{\"text\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/v1/audio/speech",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "generateVoice.instructions": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello",
+          "instructions": "Speak slowly"
+        },
+        "bodyText": "{\"text\":\"hello\",\"instructions\":\"Speak slowly\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/v1/audio/speech",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "generateVoice.noKey": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello"
+        },
+        "bodyText": "{\"text\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": []
+      },
+      "generateVoice.nonOk": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello"
+        },
+        "bodyText": "{\"text\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/audio/speech",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "provider said no"
+          }
+        ]
+      },
+      "generateVoice.closedPort": {
+        "route": "generate-voice",
+        "body": {
+          "text": "hello"
+        },
+        "bodyText": "{\"text\":\"hello\"}",
+        "seam": null,
+        "peer": "closed",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/audio/speech",
+            "throws": true
+          }
+        ]
+      },
+      "customVoice.ok": {
+        "route": "custom/generate-voice",
+        "body": {
+          "input": "hello",
+          "provider_endpoint": "<mock>/custom-tts",
+          "response_format": "opus",
+          "voice": "af_bella",
+          "speed": 0.5,
+          "model": "custom-tts-1"
+        },
+        "bodyText": "{\"input\":\"hello\",\"provider_endpoint\":\"<mock>/custom-tts\",\"response_format\":\"opus\",\"voice\":\"af_bella\",\"speed\":0.5,\"model\":\"custom-tts-1\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/ogg"
+            },
+            "path": "/custom-tts",
+            "body": "SECOND-AUDIO-PAYLOAD"
+          }
+        ]
+      },
+      "customVoice.defaults": {
+        "route": "custom/generate-voice",
+        "body": {
+          "provider_endpoint": "<mock>/custom-tts"
+        },
+        "bodyText": "{\"provider_endpoint\":\"<mock>/custom-tts\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/custom-tts",
+            "body": "SECOND-AUDIO-PAYLOAD"
+          }
+        ]
+      },
+      "customVoice.noEndpoint": {
+        "route": "custom/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": []
+      },
+      "customVoice.noKey": {
+        "route": "custom/generate-voice",
+        "body": {
+          "input": "hello",
+          "provider_endpoint": "<mock>/custom-tts"
+        },
+        "bodyText": "{\"input\":\"hello\",\"provider_endpoint\":\"<mock>/custom-tts\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": ""
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/custom-tts",
+            "body": "SECOND-AUDIO-PAYLOAD"
+          }
+        ]
+      },
+      "customVoice.nonOk": {
+        "route": "custom/generate-voice",
+        "body": {
+          "input": "hello",
+          "provider_endpoint": "<mock>/custom-tts"
+        },
+        "bodyText": "{\"input\":\"hello\",\"provider_endpoint\":\"<mock>/custom-tts\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/custom-tts",
+            "status": 503,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "custom failed"
+          }
+        ]
+      },
+      "electronhubVoice.forwardsContentType": {
+        "route": "electronhub/generate-voice",
+        "body": {
+          "input": "hello",
+          "voice": "af_heart",
+          "model": "tts-1",
+          "response_format": "mp3",
+          "temperature": 0.7
+        },
+        "bodyText": "{\"input\":\"hello\",\"voice\":\"af_heart\",\"model\":\"tts-1\",\"response_format\":\"mp3\",\"temperature\":0.7}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/ogg"
+            },
+            "path": "/v1/audio/speech",
+            "body": "SECOND-AUDIO-PAYLOAD"
+          }
+        ]
+      },
+      "electronhubVoice.defaultContentType": {
+        "route": "electronhub/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {},
+            "path": "/v1/audio/speech",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "electronhubVoice.dynamicAndFiniteParams": {
+        "route": "electronhub/generate-voice",
+        "body": {
+          "input": "hello",
+          "voice": "v",
+          "instructions": "x",
+          "speaker_transcript": "y",
+          "cfg_scale": "2.5",
+          "cfg_filter_top_k": "not-a-number",
+          "speech_rate": "1.1",
+          "pitch_adjustment": 0,
+          "emotional_style": "calm",
+          "extra_field": "kept",
+          "ignored_null": null
+        },
+        "bodyText": "{\"input\":\"hello\",\"voice\":\"v\",\"instructions\":\"x\",\"speaker_transcript\":\"y\",\"cfg_scale\":\"2.5\",\"cfg_filter_top_k\":\"not-a-number\",\"speech_rate\":\"1.1\",\"pitch_adjustment\":0,\"emotional_style\":\"calm\",\"extra_field\":\"kept\",\"ignored_null\":null}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/v1/audio/speech",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "electronhubVoice.noKey": {
+        "route": "electronhub/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": []
+      },
+      "electronhubVoice.nonOk": {
+        "route": "electronhub/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/audio/speech",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "electronhub failed"
+          }
+        ]
+      },
+      "chutesVoice.ok": {
+        "route": "chutes/generate-voice",
+        "body": {
+          "input": "hello",
+          "voice": "am_adam",
+          "speed": 1.5
+        },
+        "bodyText": "{\"input\":\"hello\",\"voice\":\"am_adam\",\"speed\":1.5}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/wav"
+            },
+            "path": "/speak",
+            "body": "SECOND-AUDIO-PAYLOAD"
+          }
+        ]
+      },
+      "chutesVoice.defaults": {
+        "route": "chutes/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "path": "/speak",
+            "body": "AUDIO-BYTES-0123456789"
+          }
+        ]
+      },
+      "chutesVoice.noKey": {
+        "route": "chutes/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": []
+      },
+      "chutesVoice.nonOk": {
+        "route": "chutes/generate-voice",
+        "body": {
+          "input": "hello"
+        },
+        "bodyText": "{\"input\":\"hello\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/speak",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "chutes failed"
+          }
+        ]
+      },
+      "generateImage.ok": {
+        "route": "generate-image",
+        "body": {
+          "model": "gpt-image-1",
+          "prompt": "a cat",
+          "size": "1024x1024",
+          "n": 1,
+          "unknown_field": {
+            "nested": true
+          }
+        },
+        "bodyText": "{\"model\":\"gpt-image-1\",\"prompt\":\"a cat\",\"size\":\"1024x1024\",\"n\":1,\"unknown_field\":{\"nested\":true}}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "path": "/v1/images/generations",
+            "body": "{\"created\":1700000000,\"data\":[{\"b64_json\":\"SU1BR0U=\"}]}"
+          }
+        ]
+      },
+      "generateImage.emptyBody": {
+        "route": "generate-image",
+        "body": {},
+        "bodyText": "{}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "path": "/v1/images/generations",
+            "body": "{\"data\":[]}"
+          }
+        ]
+      },
+      "generateImage.noKey": {
+        "route": "generate-image",
+        "body": {
+          "prompt": "a cat"
+        },
+        "bodyText": "{\"prompt\":\"a cat\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": []
+      },
+      "generateImage.nonOk": {
+        "route": "generate-image",
+        "body": {
+          "prompt": "a cat"
+        },
+        "bodyText": "{\"prompt\":\"a cat\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/images/generations",
+            "status": 400,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "bad request body"
+          }
+        ]
+      },
+      "generateImage.notJson": {
+        "route": "generate-image",
+        "body": {
+          "prompt": "a cat"
+        },
+        "bodyText": "{\"prompt\":\"a cat\"}",
+        "seam": null,
+        "peer": "mock",
+        "secrets": {
+          "api_key_openai": "probe-openai-key",
+          "api_key_electronhub": "probe-electronhub-key",
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_custom_openai_tts": "probe-custom-tts-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "path": "/v1/images/generations",
+            "body": "not json"
+          }
+        ]
+      }
+    }
+  },
+  "observations": {
+    "generateVoice.ok": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"nova\",\"speed\":1.25,\"model\":\"tts-1-hd\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateVoice.defaults": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateVoice.instructions": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\",\"instructions\":\"Speak slowly\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateVoice.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateVoice.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "16",
+      "etag": "W/\"10-r+Qv322ubcl+1NvCxOIbw8DaraU\"",
+      "bodyBase64": "cHJvdmlkZXIgc2FpZCBubw==",
+      "bodySha256": "1d14aec3a9fc16c62753af13ccc5ec515f954ca425dd21501329d7aea12b19dd",
+      "bodyLength": 16,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateVoice.closedPort": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+      "bodyBase64": "SW50ZXJuYWwgc2VydmVyIGVycm9y",
+      "bodySha256": "f74d744451ed13502cccccac6c65505d59099b6621cc4debe58575e9442d66e6",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "customVoice.ok": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "20",
+      "etag": "W/\"14-cRcD1wpPjE7HUypfbpJidpgvluk\"",
+      "bodyBase64": "U0VDT05ELUFVRElPLVBBWUxPQUQ=",
+      "bodySha256": "c1ebfdf2550238ccad0240d7b8284f6d946b1805718aff650302ca0276c52687",
+      "bodyLength": 20,
+      "outbound": [
+        {
+          "url": "<mock>/custom-tts",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-tts-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"opus\",\"voice\":\"af_bella\",\"speed\":0.5,\"model\":\"custom-tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "customVoice.defaults": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "20",
+      "etag": "W/\"14-cRcD1wpPjE7HUypfbpJidpgvluk\"",
+      "bodyBase64": "U0VDT05ELUFVRElPLVBBWUxPQUQ=",
+      "bodySha256": "c1ebfdf2550238ccad0240d7b8284f6d946b1805718aff650302ca0276c52687",
+      "bodyLength": 20,
+      "outbound": [
+        {
+          "url": "<mock>/custom-tts",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-tts-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "customVoice.noEndpoint": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "customVoice.noKey": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "20",
+      "etag": "W/\"14-cRcD1wpPjE7HUypfbpJidpgvluk\"",
+      "bodyBase64": "U0VDT05ELUFVRElPLVBBWUxPQUQ=",
+      "bodySha256": "c1ebfdf2550238ccad0240d7b8284f6d946b1805718aff650302ca0276c52687",
+      "bodyLength": 20,
+      "outbound": [
+        {
+          "url": "<mock>/custom-tts",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer "
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "customVoice.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "13",
+      "etag": "W/\"d-CvioA882BIpPtvsGGvAjLwEY0Is\"",
+      "bodyBase64": "Y3VzdG9tIGZhaWxlZA==",
+      "bodySha256": "62fa6917b5cdecefed8c5c2bb16800d11975e8c1644076f49aa8f7f468f9a427",
+      "bodyLength": 13,
+      "outbound": [
+        {
+          "url": "<mock>/custom-tts",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-custom-tts-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"response_format\":\"mp3\",\"voice\":\"alloy\",\"speed\":1,\"model\":\"tts-1\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "electronhubVoice.forwardsContentType": {
+      "status": 200,
+      "contentType": "audio/ogg",
+      "contentLength": "20",
+      "etag": "W/\"14-cRcD1wpPjE7HUypfbpJidpgvluk\"",
+      "bodyBase64": "U0VDT05ELUFVRElPLVBBWUxPQUQ=",
+      "bodySha256": "c1ebfdf2550238ccad0240d7b8284f6d946b1805718aff650302ca0276c52687",
+      "bodyLength": 20,
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"voice\":\"af_heart\",\"speed\":1,\"temperature\":0.7,\"model\":\"tts-1\",\"response_format\":\"mp3\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "electronhubVoice.defaultContentType": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"speed\":1,\"model\":\"tts-1\",\"response_format\":\"mp3\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "electronhubVoice.dynamicAndFiniteParams": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"voice\":\"v\",\"speed\":1,\"model\":\"tts-1\",\"response_format\":\"mp3\",\"instructions\":\"x\",\"speaker_transcript\":\"y\",\"pitch_adjustment\":0,\"emotional_style\":\"calm\",\"cfg_scale\":\"2.5\",\"cfg_filter_top_k\":\"not-a-number\",\"speech_rate\":\"1.1\",\"extra_field\":\"kept\",\"ignored_null\":null}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "electronhubVoice.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "electronhubVoice.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "18",
+      "etag": "W/\"12-/nvbM30+w6I93aDhbxzTJeQdWzc\"",
+      "bodyBase64": "ZWxlY3Ryb25odWIgZmFpbGVk",
+      "bodySha256": "bc7818e1373828a98121de44b21c504f09d684816eb06c985eab6f8c1b8dc6d9",
+      "bodyLength": 18,
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/audio/speech",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"input\":\"hello\",\"speed\":1,\"model\":\"tts-1\",\"response_format\":\"mp3\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "chutesVoice.ok": {
+      "status": 200,
+      "contentType": "audio/wav",
+      "contentLength": "20",
+      "etag": "W/\"14-cRcD1wpPjE7HUypfbpJidpgvluk\"",
+      "bodyBase64": "U0VDT05ELUFVRElPLVBBWUxPQUQ=",
+      "bodySha256": "c1ebfdf2550238ccad0240d7b8284f6d946b1805718aff650302ca0276c52687",
+      "bodyLength": 20,
+      "outbound": [
+        {
+          "url": "https://chutes-kokoro.chutes.ai/speak",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-chutes-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"text\":\"hello\",\"voice\":\"am_adam\",\"speed\":1.5}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "chutesVoice.defaults": {
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "contentLength": "22",
+      "etag": "W/\"16-hnvYs7XOrNzHxgkaf1Vb8O2Ax0o\"",
+      "bodyBase64": "QVVESU8tQllURVMtMDEyMzQ1Njc4OQ==",
+      "bodySha256": "0499e56cf5d9bde8d84ae4cb3e058f79d9fcbae2ba40cd623f45778816794b61",
+      "bodyLength": 22,
+      "outbound": [
+        {
+          "url": "https://chutes-kokoro.chutes.ai/speak",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-chutes-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"text\":\"hello\",\"voice\":\"af_heart\",\"speed\":1}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "chutesVoice.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "chutesVoice.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "13",
+      "etag": "W/\"d-7rUDYdm5/qS0fvt2D6GAZY9lJvQ\"",
+      "bodyBase64": "Y2h1dGVzIGZhaWxlZA==",
+      "bodySha256": "3171c09d47a0df527760fc8fc67902d17c828b748f9c0bea672d3b3a713bb366",
+      "bodyLength": 13,
+      "outbound": [
+        {
+          "url": "https://chutes-kokoro.chutes.ai/speak",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-chutes-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"text\":\"hello\",\"voice\":\"af_heart\",\"speed\":1}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateImage.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "55",
+      "etag": "W/\"37-dKudFKOAeSeI9zw8U2e9kcbxiBA\"",
+      "bodyBase64": "eyJjcmVhdGVkIjoxNzAwMDAwMDAwLCJkYXRhIjpbeyJiNjRfanNvbiI6IlNVMUJSMFU9In1dfQ==",
+      "bodySha256": "3f3eb2bee339129e010977b14cc93c72d218c1db8e7e197112f3f72cad9cba5d",
+      "bodyLength": 55,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/images/generations",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"model\":\"gpt-image-1\",\"prompt\":\"a cat\",\"size\":\"1024x1024\",\"n\":1,\"unknown_field\":{\"nested\":true}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateImage.emptyBody": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFAlOux7Kcr/ZEgGkn2r+oFAbu4\"",
+      "bodyBase64": "eyJkYXRhIjpbXX0=",
+      "bodySha256": "8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0",
+      "bodyLength": 11,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/images/generations",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateImage.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateImage.nonOk": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "16",
+      "etag": "W/\"10-WUvA5mriPuPpBE9MdQsW3TJypmM\"",
+      "bodyBase64": "YmFkIHJlcXVlc3QgYm9keQ==",
+      "bodySha256": "e9d0cb006ecbbdf1d5be9c21cac121db4e57c155bf91c7393a9dd54c026df9b1",
+      "bodyLength": 16,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/images/generations",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"prompt\":\"a cat\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "generateImage.notJson": {
+      "status": 500,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+      "bodyBase64": "SW50ZXJuYWwgc2VydmVyIGVycm9y",
+      "bodySha256": "f74d744451ed13502cccccac6c65505d59099b6621cc4debe58575e9442d66e6",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/images/generations",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"prompt\":\"a cat\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/openai/caption-image",
+        "/api/openai/transcribe-audio",
+        "/api/openai/groq/transcribe-audio",
+        "/api/openai/mistral/transcribe-audio",
+        "/api/openai/zai/transcribe-audio",
+        "/api/openai/chutes/transcribe-audio",
+        "/api/openai/generate-video"
+      ],
+      "status": "not implemented",
+      "reason": "caption-image is a 250-line per-api provider matrix; the transcribe routes need multipart upload recording (part order and part headers) plus transcription peers; generate-video polls for five seconds per attempt with client-abort semantics. Each needs its own oracle harness, so they are deferred rather than faked."
+    },
+    {
+      "routes": [
+        "/api/google/caption-image",
+        "/api/google/generate-image",
+        "/api/google/generate-video",
+        "/api/google/generate-voice",
+        "/api/google/generate-native-tts",
+        "/api/google/list-voices",
+        "/api/google/list-native-voices"
+      ],
+      "status": "not implemented",
+      "reason": "the Google domain needs OAuth/service-account or api-key provider configuration (getGoogleApiConfig), a static language table imported from google-translate-api-x, PCM-to-WAV wrapping and its own binary capture; it is untouched this round."
+    }
+  ]
+}
