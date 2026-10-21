@@ -366,6 +366,44 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
                 writeFileSync(secretsPath, object === null ? '' : JSON.stringify(object, null, 4));
                 if (object === null) rmSync(secretsPath, { force: true });
             },
+            // CONFIG IS SHARED STATE ACROSS SCENARIOS. The runtime `config.yaml` is written once at boot, so a
+            // scenario that changes it changes what EVERY LATER scenario's pinned server reads. These two are
+            // therefore a PAIR: `writeConfig` returns the previous document and `restoreConfig` puts it back, so
+            // a probe can restore in a `finally` and a throwing scenario cannot leak. A probe must ALSO assert
+            // the isolation -- a later scenario observing the setting ABSENT -- because a restore that silently
+            // fails looks exactly like one that worked.
+            //
+            // The merge is TEXT-LEVEL on purpose: re-serializing the whole document with our own yaml writer
+            // could reformat unrelated keys into something the pinned reader parses differently, which would
+            // change every scenario's config at once. Only the addressed key's line is touched.
+            writeConfig: patch => {
+                const original = readFileSync(configPath, 'utf8');
+                let text = original;
+                for (const [dotted, value] of Object.entries(patch)) {
+                    const literal = typeof value === 'string' ? value : JSON.stringify(value);
+                    const [section, member] = dotted.includes('.') ? dotted.split('.', 2) : [null, dotted];
+                    if (section === null) {
+                        const pattern = new RegExp(`^${member}:.*$`, 'mu');
+                        text = pattern.test(text) ? text.replace(pattern, `${member}: ${literal}`) : `${text.trimEnd()}\n${member}: ${literal}\n`;
+                        continue;
+                    }
+                    const sectionPattern = new RegExp(`^${section}:$`, 'mu');
+                    if (!sectionPattern.test(text)) {
+                        text = `${text.trimEnd()}\n${section}:\n  ${member}: ${literal}\n`;
+                        continue;
+                    }
+                    const afterSection = text.slice(text.search(sectionPattern));
+                    const memberPattern = new RegExp(`^  ${member}:.*$`, 'mu');
+                    text = memberPattern.test(afterSection)
+                        ? text.replace(afterSection, afterSection.replace(memberPattern, `  ${member}: ${literal}`))
+                        : text.replace(sectionPattern, `${section}:\n  ${member}: ${literal}`);
+                }
+                writeFileSync(configPath, text);
+                return original;
+            },
+            restoreConfig: original => {
+                writeFileSync(configPath, original);
+            },
             stop,
         };
     } catch (error) {
