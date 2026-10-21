@@ -9,3 +9,15 @@ generation-probe-report.json
 # as the expected value.
 gen-a.json
 gen-p1.json
+# Per-run legs and captures of the two-leg comparisons (startup, streaming, cancel,
+# non-stream). They are 100-250 KB each and are evidence for ONE run, not an expectation: the
+# committed artifacts are *-comparison.json, which record the DIFFERENCES and the checks. A
+# committed leg invites someone to treat a known divergence as the expected value.
+startup-gotavern-*.json
+startup-pinned-*.json
+stream-gotavern.json
+stream-pinned.json
+cancel-gotavern.json
+cancel-pinned.json
+nonstream-gotavern.json
+nonstream-pinned.json
