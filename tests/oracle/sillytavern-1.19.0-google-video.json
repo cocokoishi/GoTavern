@@ -1,0 +1,1279 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-google-video.mjs",
+  "implementedRoutes": [
+    "/api/google/generate-video"
+  ],
+  "notImplementedRoutes": [],
+  "pinnedSource": {
+    "src/endpoints/google.js:498": "router.post('/generate-video'): predictLongRunning, then a 30-attempt poll loop with delay(5000 + attempt * 1000)",
+    "src/endpoints/google.js:551": "the poll loop; Vertex posts :fetchPredictOperation with {operationName}, AI Studio GETs urlJoin(baseUrl, jobName)",
+    "src/endpoints/google.js:620": "the AI Studio branch then fetches the PROVIDER-SUPPLIED video URI through node-fetch, which this probe replaces"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer; the Go side reuses the same four Google auth branches and replays the peer through a real listener. The provider-supplied URI fetch needs NO production seam because the pinned route reaches it through node-fetch.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler answers 200 or 500 with a fixed TEXT message per branch"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "a string body is html-typed"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the base64 video projection and eight distinct error messages"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "four auth branches, two poll shapes, the provider URI and the raw model interpolation"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the create parameter block and the vertex poll operationName, with the randomized seed masked"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "x-goog-api-key or Authorization, asserted in both directions by the test"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "THE POLL COUNT is the only thing that discriminates a cache-like shortcut from the real loop"
+    },
+    {
+      "path": "scenarios.*.elapsedBucket",
+      "comparison": "shape",
+      "reason": "a wall-clock bucket, recorded only to show that a poll actually waited; a duration in milliseconds would be host-derived and would break the zero-diff gate"
+    }
+  ],
+  "normalizations": [
+    "A veo-3 seed is randomized when absent, so it is replaced by a marker.",
+    "Elapsed time is bucketed rather than recorded, because a millisecond duration is host-derived."
+  ],
+  "notRecorded": [
+    "the TIMEOUT branch: thirty polls with delay(5000 + attempt*1000) is about ten minutes of wall clock, so parity cannot be observed. It is covered by a labelled Go implementation test, and the probe does NOT shorten the delay because that would record a behaviour the product does not have.",
+    "cancellation: the pinned route aborts through request.socket.on(close). The parity leg is attempted separately; if a destroyed socket produces no close, it becomes a labelled implementation test asserting the 500 \"Video generation aborted by client\" from source."
+  ],
+  "inputs": {
+    "videoBase64": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz",
+    "videoSha256": "1108e16b889f5cd264adb8a2a41da2e6130b8d15121a38f3052f7a1045cd8963",
+    "jobName": "operations/gotavern-synthetic-job",
+    "videoUri": "https://video.example.test/one.mp4",
+    "makersuiteKey": "synthetic-makersuite-key",
+    "vertexKey": "synthetic-vertex-express-key"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "vertexDoneFirstPoll": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "vertexDoneFirstPoll",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexDoneFirstPoll",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"videos\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "vertexDoneSecondPoll": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "vertexDoneSecondPoll",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexDoneSecondPoll",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":false}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "vertexDoneSecondPoll",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"videos\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "11s-two-polls",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "vertexParameters": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\",\"negative_prompt\":\"dogs\",\"seconds\":12,\"aspect_ratio\":\"9:16\",\"seed\":42}",
+      "mocks": [
+        {
+          "run": "vertexParameters",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexParameters",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"videos\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"dogs\",\"durationSeconds\":8,\"aspectRatio\":\"9:16\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "vertexNonVeo3Parameters": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-2.0-generate-001\",\"seconds\":1,\"seed\":42}",
+      "mocks": [
+        {
+          "run": "vertexNonVeo3Parameters",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexNonVeo3Parameters",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"videos\":[{\"bytesBase64Encoded\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-2.0-generate-001:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":5,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-2.0-generate-001:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "createFails": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "createFails",
+          "match": ":predictLongRunning",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "no video for you",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-m+cJy15Zj3lhdgfqmfnvA1tnuXY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video generation request failed",
+        "bodyText": "Video generation request failed"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        }
+      ]
+    },
+    "noJobName": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "noJobName",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "35",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-lcHCKEhNTQO+i4BFKVwICET7W8Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No video job name found in response",
+        "bodyText": "No video job name found in response"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        }
+      ]
+    },
+    "vertexPollFails": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "vertexPollFails",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexPollFails",
+          "match": ":fetchPredictOperation",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll failed",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-ToOYm2r6kkrojuVklKeddS6jbUc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video job status request failed",
+        "bodyText": "Video job status request failed"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "vertexNoVideoData": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"api\":\"vertexai\",\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "vertexNoVideoData",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "vertexNoVideoData",
+          "match": ":fetchPredictOperation",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_vertexai": [
+          {
+            "id": "sid-api_key_vertexai",
+            "value": "synthetic-vertex-express-key",
+            "label": "api_key_vertexai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-+1IzM5bSj4dNNk6RA+TuogpKKvs\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No video data found in response",
+        "bodyText": "No video data found in response"
+      },
+      "outbound": [
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://us-central1-aiplatform.googleapis.com/v1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-vertex-express-key"
+          },
+          "body": "{\"operationName\":\"operations/gotavern-synthetic-job\"}"
+        }
+      ]
+    },
+    "aiStudioDoneFirstPoll": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "aiStudioDoneFirstPoll",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioDoneFirstPoll",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"generateVideoResponse\":{\"generatedSamples\":[{\"video\":{\"uri\":\"https://video.example.test/one.mp4\"}}]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioDoneFirstPoll",
+          "match": "https://video.example.test/one.mp4",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://video.example.test/one.mp4",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "aiStudioNoUri": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "aiStudioNoUri",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioNoUri",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "30",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-pBbZz2Po5litet8y/AQazT6VexQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No video URI found in response",
+        "bodyText": "No video URI found in response"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "aiStudioUriFetchFails": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "aiStudioUriFetchFails",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioUriFetchFails",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"generateVideoResponse\":{\"generatedSamples\":[{\"video\":{\"uri\":\"https://video.example.test/one.mp4\"}}]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioUriFetchFails",
+          "match": "https://video.example.test/one.mp4",
+          "status": 404,
+          "statusText": "Not Found",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "gone",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-R0+RW3h+Teu82CJ6s8VLhhZpBUo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video fetch request failed",
+        "bodyText": "Video fetch request failed"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://video.example.test/one.mp4",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "aiStudioPollFails": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "aiStudioPollFails",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioPollFails",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll failed",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "31",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-ToOYm2r6kkrojuVklKeddS6jbUc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video job status request failed",
+        "bodyText": "Video job status request failed"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "aiStudioReservedModel": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"models/x y?z=1\"}",
+      "mocks": [
+        {
+          "run": "aiStudioReservedModel",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioReservedModel",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"generateVideoResponse\":{\"generatedSamples\":[{\"video\":{\"uri\":\"https://video.example.test/one.mp4\"}}]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioReservedModel",
+          "match": "https://video.example.test/one.mp4",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_makersuite": [
+          {
+            "id": "sid-api_key_makersuite",
+            "value": "synthetic-makersuite-key",
+            "label": "api_key_makersuite",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/models/x y?z=1:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://video.example.test/one.mp4",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": "synthetic-makersuite-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "aiStudioNoKey": {
+      "route": "/api/google/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"veo-3.1-generate-preview\"}",
+      "mocks": [
+        {
+          "run": "aiStudioNoKey",
+          "match": ":predictLongRunning",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"name\":\"operations/gotavern-synthetic-job\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioNoKey",
+          "match": "operations/gotavern-synthetic-job",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"done\":true,\"response\":{\"generateVideoResponse\":{\"generatedSamples\":[{\"video\":{\"uri\":\"https://video.example.test/one.mp4\"}}]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "aiStudioNoKey",
+          "match": "https://video.example.test/one.mp4",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "elapsedBucket": "5s-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "52",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"34-aoTVQMlTF1obyGIBFK26KghrxAU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "video": "Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz"
+        },
+        "bodyText": "{\"video\":\"Z290YXZlcm4tc3ludGhldGljLXZpZGVvLWJ5dGVz\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": ""
+          },
+          "body": "{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"negativePrompt\":\"\",\"durationSeconds\":6,\"aspectRatio\":\"16:9\",\"personGeneration\":\"allow_all\",\"seed\":\"<seed>\"}}"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/v1beta/operations/gotavern-synthetic-job",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": ""
+          },
+          "body": null
+        },
+        {
+          "url": "https://video.example.test/one.mp4",
+          "method": "GET",
+          "headers": {
+            "content-type": "application/json",
+            "x-goog-api-key": ""
+          },
+          "body": null
+        }
+      ]
+    }
+  }
+}

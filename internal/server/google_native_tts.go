@@ -98,7 +98,10 @@ var googleVertexSafety = []googleSafetySetting{
 }
 
 type googleAPIConfig struct {
-	url     string
+	url string
+	// baseURL is the <apiUrl>/<version> (AI Studio) or <vertexBase>/v1 prefix the VIDEO poll needs to
+	// join a job name onto. It is returned rather than recomputed so the two cannot drift.
+	baseURL string
 	headers []outbound.Header
 	apiName string
 	safety  []googleSafetySetting
@@ -146,7 +149,8 @@ func (runtime *accountRuntime) googleAPIConfigFor(request *http.Request, directo
 		if reverseProxy != "" {
 			base = reverseProxy
 		}
-		config.url = strings.TrimRight(base, "/") + "/" + googleAPIVersion(options) + "/models/" + model + ":" + endpoint
+		config.baseURL = strings.TrimRight(base, "/") + "/" + googleAPIVersion(options)
+		config.url = config.baseURL + "/models/" + model + ":" + endpoint
 		config.headers = []outbound.Header{
 			{Name: "Content-Type", Value: "application/json"},
 			{Name: "x-goog-api-key", Value: apiKey},
@@ -165,9 +169,11 @@ func (runtime *accountRuntime) googleAPIConfigFor(request *http.Request, directo
 	} else {
 		base = strings.ReplaceAll(googleVertexURLTemplate(), "{region}", region) + "/v1"
 	}
+	config.baseURL = base
 
 	if reverseProxy != "" {
-		config.url = strings.TrimRight(reverseProxy, "/") + "/v1/publishers/google/models/" + model + ":" + endpoint
+		config.baseURL = strings.TrimRight(reverseProxy, "/") + "/v1"
+		config.url = config.baseURL + "/publishers/google/models/" + model + ":" + endpoint
 		config.headers = []outbound.Header{
 			{Name: "Content-Type", Value: "application/json"},
 			{Name: "Authorization", Value: "Bearer " + proxyPassword},
