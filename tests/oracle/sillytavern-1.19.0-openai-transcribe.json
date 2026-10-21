@@ -1,0 +1,944 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openai-transcribe.mjs",
+  "implementedRoutes": [
+    "/api/openai/transcribe-audio",
+    "/api/openai/groq/transcribe-audio",
+    "/api/openai/mistral/transcribe-audio",
+    "/api/openai/zai/transcribe-audio"
+  ],
+  "notImplementedRoutes": [
+    "/api/openai/caption-image",
+    "/api/openai/generate-video",
+    "/api/openai/chutes/transcribe-audio"
+  ],
+  "notImplementedReasons": {
+    "/api/openai/chutes/transcribe-audio": "JSON with base64 audio and the model interpolated into the HOSTNAME; its own wave.",
+    "/api/openai/caption-image": "A chat-completions body over a large per-api branch table; its own wave.",
+    "/api/openai/generate-video": "A polling job with three fixed-host request shapes; its own wave."
+  },
+  "pinnedSource": {
+    "src/endpoints/openai.js:806": "createTranscribeHandler: reads request.file, appends fs.createReadStream to a form-data FormData, then model and optional language",
+    "src/endpoints/openai.js:856": "the four registrations, one fixed apiUrl each"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer; the Go side uses one handler with four seams and replays the peer through a real listener.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler answers 200, 400 for a refusal or 500 for a provider error"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "json for a pass-through, html for the text bodies"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the provider JSON pass-through and the forwarded provider text"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "four fixed endpoints, one per provider"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the bearer key and the multipart content type, asserted in both directions"
+    },
+    {
+      "path": "scenarios.*.outbound[].parts",
+      "comparison": "compared",
+      "reason": "the multipart parts, because the boundary is random per request; the part list must be NON-EMPTY or the run refuses"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "the refusals must reach NO peer, and every success exactly one"
+    },
+    {
+      "path": "uploaded bytes",
+      "comparison": "compared",
+      "reason": "the forwarded file is compared by digest, and it is synthetic"
+    }
+  ],
+  "normalizations": [
+    "The multipart boundary is random per request, so bodies are recorded as parsed parts and the content type records a boundary marker rather than the value."
+  ],
+  "inputs": {
+    "audioSha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+    "audioBytes": 47,
+    "transcript": {
+      "text": "transcribed words",
+      "language": "english"
+    },
+    "keys": {
+      "api_key_openai": "synthetic-openai-key",
+      "api_key_groq": "synthetic-groq-key",
+      "api_key_mistralai": "synthetic-mistral-key",
+      "api_key_zai": "synthetic-zai-key"
+    },
+    "multipartScenarios": [
+      "openaiOk",
+      "openaiLanguage",
+      "openaiNonOk",
+      "openaiReservedModel",
+      "groqOk",
+      "mistralOk",
+      "zaiOk",
+      "zaiNonOk"
+    ]
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "openaiOk": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-1\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-1"
+        }
+      },
+      "mocks": [
+        {
+          "run": "openaiOk",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "c6047764ba07c9c5a32d8226025afbce8a828bcefd300a85cdd19bc64cdd472f",
+              "bytes": 9
+            }
+          ]
+        }
+      ]
+    },
+    "openaiLanguage": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-1\",\"language\":\"en\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-1",
+          "language": "en"
+        }
+      },
+      "mocks": [
+        {
+          "run": "openaiLanguage",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "c6047764ba07c9c5a32d8226025afbce8a828bcefd300a85cdd19bc64cdd472f",
+              "bytes": 9
+            },
+            {
+              "name": "language",
+              "filename": null,
+              "contentType": null,
+              "sha256": "dbd3a49d0d906b4ed9216b73330d2fb080ef2f758c12f3885068222e5e17151c",
+              "bytes": 2
+            }
+          ]
+        }
+      ]
+    },
+    "openaiNoKey": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-1\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-1"
+        }
+      },
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "openaiNoFile": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-1\"}",
+      "upload": null,
+      "mocks": [],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "openaiNonOk": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-1\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-1"
+        }
+      },
+      "mocks": [
+        {
+          "run": "openaiNonOk",
+          "match": "api.openai.com",
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "openai says no"
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "14",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-jgqJWzcdj4divmEj3KMDKAYYkNI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "openai says no",
+        "bodyText": "openai says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "c6047764ba07c9c5a32d8226025afbce8a828bcefd300a85cdd19bc64cdd472f",
+              "bytes": 9
+            }
+          ]
+        }
+      ]
+    },
+    "openaiReservedModel": {
+      "route": "/api/openai/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper 1;x=1\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper 1;x=1"
+        }
+      },
+      "mocks": [
+        {
+          "run": "openaiReservedModel",
+          "match": "api.openai.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_openai": [
+          {
+            "id": "sid-api_key_openai",
+            "value": "synthetic-openai-key",
+            "label": "api_key_openai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-openai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "617981ec799af67faff1e3e10ba304fd618f3b0b95836926bf83e6f2c6dee81f",
+              "bytes": 13
+            }
+          ]
+        }
+      ]
+    },
+    "groqOk": {
+      "route": "/api/openai/groq/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-large-v3"
+        }
+      },
+      "mocks": [
+        {
+          "run": "groqOk",
+          "match": "api.groq.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_groq": [
+          {
+            "id": "sid-api_key_groq",
+            "value": "synthetic-groq-key",
+            "label": "api_key_groq",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-groq-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "5c89c896f0ae251ae1bc509e857d14bdf21bc658cbee65d5c08c6b3ebf4268de",
+              "bytes": 16
+            }
+          ]
+        }
+      ]
+    },
+    "groqNoKey": {
+      "route": "/api/openai/groq/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "whisper-large-v3"
+        }
+      },
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "mistralOk": {
+      "route": "/api/openai/mistral/transcribe-audio",
+      "requestBody": "{\"model\":\"voxtral-mini-latest\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "voxtral-mini-latest"
+        }
+      },
+      "mocks": [
+        {
+          "run": "mistralOk",
+          "match": "api.mistral.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_mistralai": [
+          {
+            "id": "sid-api_key_mistralai",
+            "value": "synthetic-mistral-key",
+            "label": "api_key_mistralai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.mistral.ai/v1/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-mistral-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "7b6c3f7e439782be2b710b3dee7f7f4360b0c9219d49bdfa358c9e148f1724bb",
+              "bytes": 19
+            }
+          ]
+        }
+      ]
+    },
+    "mistralNoKey": {
+      "route": "/api/openai/mistral/transcribe-audio",
+      "requestBody": "{\"model\":\"voxtral-mini-latest\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "voxtral-mini-latest"
+        }
+      },
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "zaiOk": {
+      "route": "/api/openai/zai/transcribe-audio",
+      "requestBody": "{\"model\":\"glm-asr\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "glm-asr"
+        }
+      },
+      "mocks": [
+        {
+          "run": "zaiOk",
+          "match": "api.z.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-pZtCgHxKEEJDbxO/R6AjvaM6d0s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words",
+          "language": "english"
+        },
+        "bodyText": "{\"text\":\"transcribed words\",\"language\":\"english\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "da4d0292965b3b3aaa550608600ccdb82e2fcf72544fe4e89d8b5ff732bf755c",
+              "bytes": 7
+            }
+          ]
+        }
+      ]
+    },
+    "zaiNonOk": {
+      "route": "/api/openai/zai/transcribe-audio",
+      "requestBody": "{\"model\":\"glm-asr\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy10cmFuc2NyaWJlLWF1ZGlvLXBheWxvYWQ=",
+        "body": {
+          "model": "glm-asr"
+        }
+      },
+      "mocks": [
+        {
+          "run": "zaiNonOk",
+          "match": "api.z.ai",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "zai says no"
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-v+d2eryqwGa0stJzAgRbdt0yKww\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "zai says no",
+        "bodyText": "zai says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/audio/transcriptions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "45fd5fc9da7347ed259ea8e6b03d23e355bb774ef8b537939d15a9b5b682a060",
+              "bytes": 47
+            },
+            {
+              "name": "model",
+              "filename": null,
+              "contentType": null,
+              "sha256": "da4d0292965b3b3aaa550608600ccdb82e2fcf72544fe4e89d8b5ff732bf755c",
+              "bytes": 7
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
