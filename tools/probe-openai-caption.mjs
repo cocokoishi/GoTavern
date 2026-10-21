@@ -201,6 +201,56 @@ try {
     await server.stop();
 }
 
+// ── THE CONFIG-PRESENT SCENARIO, on its OWN server ───────────────────────────────────────────────────
+// The override is applied at STARTUP, through the same path the real server uses, so there is NO shared
+// mutable state between scenarios: no restore, no isolation assertion and NO ORDERING CONSTRAINT, because
+// there is nothing to isolate. This scenario therefore boots a second server rather than mutating the first.
+const configServer = await startPinnedProviderServer({
+    sourceRoot,
+    prefix: 'gotavern-openai-caption-config-',
+    mocks: [],
+    config: { 'openai.captionSystemPrompt': 'You are a captioner.' },
+});
+try {
+    const configMocks = [{
+        run: 'config-captionSystemPrompt-groq',
+        match: 'api.groq.com',
+        status: 200,
+        statusText: 'OK',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(CAPTION),
+        times: 1,
+    }];
+    const configSecrets = secretEntry('api_key_groq', 'synthetic-groq-key');
+    configServer.writeSecrets(configSecrets);
+    configServer.setMocks(configMocks);
+    const configBody = { api: 'groq', prompt: 'x', image: IMAGE, model: 'm' };
+    const configResult = await configServer.post('/api/openai/caption-image', JSON.stringify(configBody));
+    scenarios['config-captionSystemPrompt-groq'] = {
+        route: '/api/openai/caption-image',
+        branch: 'groq',
+        requestBody: JSON.stringify(configBody),
+        mocks: configMocks,
+        secrets: configServer.readSecrets(),
+        response: captureHttp(configResult),
+        outbound: configServer.outbound().map(request => ({ url: request.url, method: request.method, headers: request.headers, body: request.body })),
+        configOverride: { 'openai.captionSystemPrompt': 'You are a captioner.' },
+    };
+} finally {
+    await configServer.stop();
+}
+
+// The two facts the smoke test demonstrated, now RECORDED: the config-driven system prompt is unshifted at
+// index 0, and the groq branch rewrites a leading system message to `user` while keeping its STRING content.
+const configPresent = scenarios['config-captionSystemPrompt-groq'];
+assert.equal(configPresent.response.status, 200, 'the config-present scenario answers 200');
+const configMessages = JSON.parse(configPresent.outbound[0].body).messages;
+assert.equal(configMessages.length, 2, 'the config-driven system prompt is UNSHIFTED, so there are two messages');
+assert.equal(configMessages[0].role, 'user',
+    'and the GROQ branch rewrites a leading SYSTEM message to user, which is only reachable when the config is set');
+assert.equal(configMessages[0].content, 'You are a captioner.', 'keeping its STRING content');
+assert.equal(Array.isArray(configMessages[1].content), true, 'while the original user message still carries array content');
+
 // THE COUNT IS OVER THE 19 BRANCH VALUES, written down as data.
 assert.equal(BRANCHES.length, 19, 'the branch table must carry nineteen values');
 const distinctApis = new Set(BRANCHES.map(branch => branch.api));
@@ -311,6 +361,15 @@ const fixture = {
     hostOverride: {
         source: 'getConfigValue(requestOverrides)',
         note: 'a config list of {hosts, headers} matched on the URL HOST, so it cannot be asserted from the request alone and is scheduled behind the writeConfig capability rather than guessed',
+    },
+    // WHY THREE EARLIER REQUIREMENTS WERE RETIRED: the config override is applied at STARTUP, through the same
+    // path the real server uses, so there is NO shared mutable state between scenarios -- no restore, no
+    // isolation assertion, and NO ORDERING CONSTRAINT. The file-write mechanism was designed, verified additive,
+    // and then retired by a measurement (the pinned server parses config.yaml at startup, so a running process
+    // never re-reads it: the assertion failed at "actual: 1, expected: 2" messages). The replacement REMOVES the
+    // hazard rather than managing it.
+    configScenarios: {
+        'config-captionSystemPrompt-groq': 'boots its OWN server with `openai.captionSystemPrompt` set, because the override is a startup input rather than a mutation; no ordering constraint applies',
     },
     pinnedSource: {
         'src/endpoints/openai.js:16': 'router.post(\'/caption-image\'): the 19-value api dispatch, the per-branch secret and apiUrl, and the shared 400 guards',

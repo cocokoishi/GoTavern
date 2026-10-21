@@ -40,6 +40,47 @@ type openAICaptionFixture struct {
 	Scenarios map[string]transcribeScenario `json:"scenarios"`
 }
 
+// captionConfigOverrides reads the fixture's per-scenario `configOverride` maps. They are a STARTUP INPUT for
+// the pinned server (the override is applied where the real startup writes config.yaml), so the Go side takes
+// them the same way -- through the environment, which the reader consults before the config file.
+func captionConfigOverrides(t *testing.T) map[string]map[string]string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-openai-caption.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wrapper struct {
+		Scenarios map[string]struct {
+			ConfigOverride map[string]string `json:"configOverride"`
+		} `json:"scenarios"`
+	}
+	if err := json.Unmarshal(raw, &wrapper); err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]map[string]string{}
+	for name, scenario := range wrapper.Scenarios {
+		if len(scenario.ConfigOverride) > 0 {
+			out[name] = scenario.ConfigOverride
+		}
+	}
+	return out
+}
+
+func captionConfigOverrideKeys(t *testing.T, scenario string) []string {
+	t.Helper()
+	keys := []string{}
+	for key := range captionConfigOverrides(t)[scenario] {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func captionConfigOverrideValue(t *testing.T, scenario, key string) string {
+	t.Helper()
+	return captionConfigOverrides(t)[scenario][key]
+}
+
 func loadOpenAICaptionOracle(t *testing.T) openAICaptionFixture {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-openai-caption.json"))
@@ -148,6 +189,12 @@ func TestOpenAICaptionMatchesPinnedOracle(t *testing.T) {
 			// each branch's PATH -- which is the part the dispatch decides.
 			t.Setenv("GOTAVERN_OPENAI_CAPTION_BASE_URL", peer.server.URL)
 			dataRoot := t.TempDir()
+			// A CONFIG-PRESENT scenario materialises its override the way the pinned server takes a startup
+			// input: the Go reader consults the environment FIRST (`SILLYTAVERN_<PATH>`), then the config file,
+			// so the override is a startup input here too and no ordering or isolation concern arises.
+			for _, key := range captionConfigOverrideKeys(t, name) {
+				t.Setenv("SILLYTAVERN_"+strings.ToUpper(strings.ReplaceAll(key, ".", "_")), captionConfigOverrideValue(t, name, key))
+			}
 			handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
 			writeGoogleTTSSecrets(t, dataRoot, scenario.Secrets)
 			recorder := httptest.NewRecorder()

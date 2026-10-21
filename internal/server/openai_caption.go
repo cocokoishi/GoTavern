@@ -278,6 +278,13 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		shifted.array = append(shifted.array, messages.array...)
 		messages = shifted
 	}
+	// The GROQ branch rewrites a LEADING SYSTEM message to `user`, keeping its string content. It is only
+	// reachable when the config supplies a system prompt, which is why it is asserted with the config PRESENT.
+	if api == "groq" && len(messages.array) > 0 {
+		if role, present := messages.array[0].member("role"); present && role.kind == 's' && role.scalar.(string) == "system" {
+			messages.array[0].setMember("role", nodeString("user"))
+		}
+	}
 	body.setMember("messages", messages)
 
 	switch api {
