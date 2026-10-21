@@ -47,6 +47,7 @@ func registerGoogleVoiceRoutes(mux *http.ServeMux, accounts *accountRuntime, not
 		})
 	}
 	post("/api/google/list-voices", accounts.serveGoogleListVoices)
+	post("/api/google/list-native-voices", accounts.serveGoogleListNativeVoices)
 }
 
 // serveGoogleListVoices answers the pinned language/voice table. The route performs no request and reads
@@ -60,6 +61,32 @@ func (runtime *accountRuntime) serveGoogleListVoices(w http.ResponseWriter, requ
 		table.setMember(entry.code, nodeString(entry.name))
 	}
 	body, err := marshalCharacterJSON(table)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	respondJSONBytes(w, http.StatusOK, body)
+}
+
+// serveGoogleListNativeVoices answers the pinned hardcoded Gemini voice table. Like list-voices it reads
+// no secret and performs no request; the envelope is `{ voices: [...] }` and each entry carries the
+// pinned member order name, voice_id, lang, description.
+func (runtime *accountRuntime) serveGoogleListNativeVoices(w http.ResponseWriter, request *http.Request) {
+	if _, ok := runtime.settingsRequestAccount(w, request); !ok {
+		return
+	}
+	voices := nodeArray()
+	for _, entry := range googleNativeVoices {
+		row := nodeObject()
+		row.setMember("name", nodeString(entry.name))
+		row.setMember("voice_id", nodeString(entry.voiceID))
+		row.setMember("lang", nodeString(entry.lang))
+		row.setMember("description", nodeString(entry.description))
+		voices.array = append(voices.array, row)
+	}
+	answer := nodeObject()
+	answer.setMember("voices", voices)
+	body, err := marshalCharacterJSON(answer)
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return

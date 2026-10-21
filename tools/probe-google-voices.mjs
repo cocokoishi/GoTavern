@@ -44,6 +44,15 @@ try {
         response: captureHttp(result),
         outbound: server.outbound(),
     };
+    // `list-native-voices` is a hardcoded 30-entry Gemini voice table (google.js:317-348) wrapped in
+    // `{ voices }`. It reads no secret and performs no request either.
+    const nativeResult = await server.post('/api/google/list-native-voices', '{}');
+    scenarios.listNativeVoices = {
+        route: '/api/google/list-native-voices',
+        requestBody: '{}',
+        response: captureHttp(nativeResult),
+        outbound: server.outbound(),
+    };
 } catch (error) {
     console.error('PROBE FAILED; pinned server log tail:');
     console.error(server.logs.join('').slice(-8000));
@@ -66,22 +75,32 @@ assert.equal(voices.en, 'English', 'a plain code maps to its name');
 assert.equal(voices.auto !== voices.en, true, 'the two rows are distinct entries');
 assert.equal(scenarios.listVoices.outbound.length, 0, 'list-voices performs NO request');
 
+const nativeVoices = scenarios.listNativeVoices.response.body.voices;
+assert.equal(scenarios.listNativeVoices.response.status, 200, 'list-native-voices answers 200');
+assert.equal(Array.isArray(nativeVoices), true, 'the answer wraps an ARRAY under `voices`');
+assert.equal(nativeVoices.length, 30, 'the pinned table carries thirty voices');
+assert.equal(nativeVoices[0].name, 'Zephyr', 'the table keeps source order');
+assert.equal(nativeVoices[0].description, 'Bright', 'the first description');
+assert.equal(nativeVoices[nativeVoices.length - 1].name, 'Sulafat', 'the last voice');
+assert.equal(nativeVoices.every(voice => voice.name === voice.voice_id), true, 'every voice id mirrors its name');
+assert.equal(nativeVoices.every(voice => voice.lang === 'en-US'), true, 'every pinned voice is en-US');
+assert.equal(Object.keys(nativeVoices[0]).join(','), 'name,voice_id,lang,description', 'the member order of one entry');
+assert.equal(scenarios.listNativeVoices.outbound.length, 0, 'list-native-voices performs NO request');
+
 const fixture = {
     schemaVersion: 1,
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
     probe: 'tools/probe-google-voices.mjs',
-    implementedRoutes: ['/api/google/list-voices'],
+    implementedRoutes: ['/api/google/list-voices', '/api/google/list-native-voices'],
     notImplementedRoutes: [
         '/api/google/caption-image',
         '/api/google/generate-image',
         '/api/google/generate-native-tts',
         '/api/google/generate-video',
         '/api/google/generate-voice',
-        '/api/google/list-native-voices',
     ],
     notImplementedReasons: {
         '/api/google/generate-voice': 'The pinned handler delegates to `speak()` in the `google-translate-api-x` package, which builds a private Google `batchexecute` request (rpcids=jQ1olc, a `f.req` form body, and a non-JSON response parsed by slicing six characters and scanning `wrb.fr` rows). It IS pinnable: the package calls the global `fetch`, so a controlled peer receives the URL and form body, and a synthetic batchexecute response can be replayed. It is not ported because the protocol belongs to the package rather than to the pinned server, so GoTavern would own a copy of an undocumented private Google endpoint and track that package forever, for one route. The decision is reversible: a user requirement turns it into an explicit product decision with a stated cost. See AGENTS.md, the dependency-ownership boundary.',
-        '/api/google/list-native-voices': 'A hardcoded Gemini native-TTS voice table with no network request. Not in this increment; it is the next cheapest route in the domain.',
         '/api/google/generate-native-tts': 'The Gemini/Vertex native envelope: an API-key or OAuth-shaped auth path (including a service-account JWT with RS256 signing), then PCM audio wrapped into WAV by `createCompleteWavFile` in server code. Different transport and different envelope from the OpenAI-shaped routes; not normalised.',
         '/api/google/caption-image': 'Gemini multimodal envelope via getGoogleApiConfig; not in this increment.',
         '/api/google/generate-image': 'Gemini image generation envelope; not in this increment.',
@@ -91,12 +110,14 @@ const fixture = {
         'src/endpoints/google.js:291': 'router.post(\'/list-voices\', (_, response) => response.json(languages))',
         'node_modules/google-translate-api-x/package.json': 'the table comes from version 10.7.2, lib/languages.cjs',
     },
-    mechanism: 'list-voices performs no outbound request at all, so there is nothing to intercept: the pinned listener is booted, the route is driven, and the response bytes are compared. The peer exists only to assert ZERO outbound requests.',
+    mechanism: 'Both recorded routes perform no outbound request at all, so there is nothing to intercept: the pinned listener is booted, the route is driven, and the response bytes are compared. The peer exists only to assert ZERO outbound requests.',
     fields: [
         { path: 'scenarios.listVoices.response.status', comparison: 'compared', reason: 'the pinned handler always answers 200 for this route' },
         { path: 'scenarios.listVoices.response.headers', comparison: 'compared', reason: 'Express and the pinned middleware stack set them' },
         { path: 'scenarios.listVoices.response.body', comparison: 'compared', reason: 'the whole 251-entry table, including its ORDER and the duplicate-auto resolution' },
         { path: 'scenarios.listVoices.outbound', comparison: 'compared', reason: 'the route performs no request, so the fixture asserts an EMPTY outbound list' },
+        { path: 'scenarios.listNativeVoices.response.body', comparison: 'compared', reason: 'the 30-entry voice table in source order, including the member order of each entry' },
+        { path: 'scenarios.listNativeVoices.outbound', comparison: 'compared', reason: 'the route performs no request, so the fixture asserts an EMPTY outbound list' },
     ],
     normalizations: [
         'None. The route is deterministic and performs no request, so no value is nondeterministic.',
@@ -107,6 +128,9 @@ const fixture = {
         autoValue: voices.auto,
         tableSha256: createHash('sha256').update(scenarios.listVoices.response.bodyText).digest('hex'),
         packageVersion: '10.7.2',
+        nativeVoicesLength: nativeVoices.length,
+        nativeVoicesFirst: nativeVoices[0].name,
+        nativeVoicesSha256: createHash('sha256').update(scenarios.listNativeVoices.response.bodyText).digest('hex'),
     },
     bootOutbound,
     scenarios,

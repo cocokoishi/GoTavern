@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -24,6 +25,8 @@ type googleVoicesFixture struct {
 		FirstCode   string `json:"firstCode"`
 		AutoValue   string `json:"autoValue"`
 		TableSHA256 string `json:"tableSha256"`
+		NativeCount int    `json:"nativeVoicesLength"`
+		NativeFirst string `json:"nativeVoicesFirst"`
 		Package     string `json:"packageVersion"`
 	} `json:"inputs"`
 	ImplementedRoutes []string `json:"implementedRoutes"`
@@ -86,40 +89,78 @@ func TestGoogleVoicesTableMatchesPinnedPackage(t *testing.T) {
 	}
 }
 
-func TestGoogleListVoicesMatchesPinnedOracle(t *testing.T) {
+// TestGoogleVoiceRoutesMatchPinnedOracle replays every recorded scenario. Both recorded routes perform
+// no request, so the comparison is status, every header and the exact body bytes, and the fixture's
+// outbound list must be EMPTY: an empty recording is the observation that nothing was sent.
+func TestGoogleVoiceRoutesMatchPinnedOracle(t *testing.T) {
 	fixture := loadGoogleVoicesOracle(t)
-	scenario, present := fixture.Scenarios["listVoices"]
-	if !present {
-		t.Fatal("the fixture records no listVoices scenario")
+	names := make([]string, 0, len(fixture.Scenarios))
+	for name := range fixture.Scenarios {
+		names = append(names, name)
 	}
-	if len(scenario.Response.BodyText) < 1000 {
-		t.Fatalf("the recorded body is only %d bytes; it cannot be the whole table", len(scenario.Response.BodyText))
-	}
-	// Rule 14 in reverse: the pinned route performed no request, and this route has no client at all, so
-	// an empty recorded outbound list is the only correct state.
-	if len(scenario.Outbound) != 0 {
-		t.Fatalf("the pinned route emitted %d requests; it is supposed to emit none", len(scenario.Outbound))
+	sort.Strings(names)
+	if len(names) < 2 {
+		t.Fatalf("the fixture records %d scenarios; both list routes must be replayed", len(names))
 	}
 	dataRoot := t.TempDir()
 	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
-	response := postSecretsRoute(t, handler, scenario.Route, scenario.RequestBody)
-	if response.Code != scenario.Response.Status {
-		t.Fatalf("status = %d, want %d (body %q)", response.Code, scenario.Response.Status, response.Body.String())
-	}
-	assertPinnedHeaders(t, response.Header(), scenario.Response.Headers)
-	if got := response.Body.String(); got != scenario.Response.BodyText {
-		if len(got) != len(scenario.Response.BodyText) {
-			t.Fatalf("body length = %d, pinned %d", len(got), len(scenario.Response.BodyText))
-		}
-		for index := 0; index < len(got); index++ {
-			if got[index] != scenario.Response.BodyText[index] {
-				t.Fatalf("body differs at byte %d: got %q want %q", index, got[maxInt(0, index-40):minInt(len(got), index+40)], scenario.Response.BodyText[maxInt(0, index-40):minInt(len(scenario.Response.BodyText), index+40)])
+	for _, name := range names {
+		scenario := fixture.Scenarios[name]
+		t.Run(name, func(t *testing.T) {
+			if len(scenario.Outbound) != 0 {
+				t.Fatalf("the pinned route emitted %d requests; it is supposed to emit none", len(scenario.Outbound))
 			}
-		}
-		t.Fatal("bodies differ in length-preserving way")
+			if len(scenario.Response.BodyText) < 200 {
+				t.Fatalf("the recorded body is only %d bytes; it cannot be a whole table", len(scenario.Response.BodyText))
+			}
+			response := postSecretsRoute(t, handler, scenario.Route, scenario.RequestBody)
+			if response.Code != scenario.Response.Status {
+				t.Fatalf("status = %d, want %d (body %q)", response.Code, scenario.Response.Status, response.Body.String())
+			}
+			assertPinnedHeaders(t, response.Header(), scenario.Response.Headers)
+			got := response.Body.String()
+			wanted := scenario.Response.BodyText
+			if got == wanted {
+				return
+			}
+			if len(got) != len(wanted) {
+				t.Fatalf("body length = %d, pinned %d", len(got), len(wanted))
+			}
+			for index := 0; index < len(got); index++ {
+				if got[index] != wanted[index] {
+					t.Fatalf("body differs at byte %d:\n got %q\nwant %q",
+						index,
+						got[maxInt(0, index-40):minInt(len(got), index+40)],
+						wanted[maxInt(0, index-40):minInt(len(wanted), index+40)])
+				}
+			}
+			t.Fatal("bodies differ without a differing byte")
+		})
 	}
 }
 
+// TestGoogleNativeVoicesTableMatchesPinnedSource pins the generated native-voice table to the recorded
+// route: length, first entry, the id-mirrors-name property and the single pinned language.
+func TestGoogleNativeVoicesTableMatchesPinnedSource(t *testing.T) {
+	fixture := loadGoogleVoicesOracle(t)
+	if fixture.Inputs.NativeCount == 0 {
+		t.Fatal("the fixture records no native voice count")
+	}
+	if len(googleNativeVoices) != fixture.Inputs.NativeCount {
+		t.Fatalf("native table carries %d voices, pinned %d", len(googleNativeVoices), fixture.Inputs.NativeCount)
+	}
+	if googleNativeVoices[0].name != fixture.Inputs.NativeFirst {
+		t.Fatalf("first native voice = %q, pinned %q", googleNativeVoices[0].name, fixture.Inputs.NativeFirst)
+	}
+	for index, entry := range googleNativeVoices {
+		if entry.name != entry.voiceID {
+			t.Fatalf("voice %d has name %q and voice_id %q; the pinned table mirrors them", index, entry.name, entry.voiceID)
+		}
+		if entry.lang != "en-US" {
+			t.Fatalf("voice %d carries lang %q; every pinned native voice is en-US", index, entry.lang)
+		}
+	}
+}
 func maxInt(left, right int) int {
 	if left > right {
 		return left
