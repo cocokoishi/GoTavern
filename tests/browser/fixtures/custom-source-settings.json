@@ -1,21 +1,56 @@
 {
   "schemaVersion": 1,
   "provenance": {
-    "capturedAt": "2026-10-20T22:48:52.266Z",
-    "server": "http://127.0.0.1:8127",
+    "capturedAt": "2026-10-21T01:37:36.323Z",
+    "server": "http://127.0.0.1:<port>",
     "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
     "uiPath": [
-      "#chat_completion_source set to \"custom\" and dispatched change (the AI Response Configuration panel control)",
-      "#custom_api_url_text set and dispatched input+change",
-      "#api_key_custom set and dispatched input+change",
-      "frontend handlers then populate the dependent oai_settings fields"
+      "1. #settings_preset_openai set to the first selectable preset and change dispatched; awaited through getPresetApplicationPromise() and asserted preset_settings_openai took the option text",
+      "2. #chat_completion_source set to custom and change dispatched; asserted chat_completion_source stayed custom across a 500ms stable window",
+      "3. #custom_api_url_text set and input+change dispatched; asserted custom_url took the value",
+      "4. #custom_model_id (the control the custom_model binding actually names) set and input dispatched; asserted custom_model took the value",
+      "5. #api_key_custom set when present"
     ],
-    "note": "Captured from the frontend handlers, not hand-assembled. Refresh by re-running capture-settings.mjs against a pinned server when the baseline moves.",
+    "orderingFinding": "Selecting a prompt preset is asynchronous and, with bind_preset_to_connection, writes chat_completion_source on completion (openai.js:5063). A source set to custom before that completion is overwritten 225ms later, which is why the preset is awaited through the frontend promise and the source is validated as STABLE rather than as momentarily correct.",
+    "steps": [
+      {
+        "step": "preset",
+        "value": "Default",
+        "optionValue": "0",
+        "sourceAfterPreset": "openai",
+        "bindPresetToConnection": true
+      },
+      {
+        "step": "source",
+        "value": "custom",
+        "stableFor": "500ms",
+        "observed": [
+          "\"custom\""
+        ]
+      },
+      {
+        "step": "custom url",
+        "value": "http://127.0.0.1:1"
+      },
+      {
+        "step": "custom model",
+        "value": "probe-model",
+        "control": "#custom_model_id"
+      },
+      {
+        "step": "api key",
+        "value": "probe-synthetic-key"
+      }
+    ],
+    "note": "Captured from the frontend handlers with per-step assertions, not hand-assembled. Refresh by re-running capture-settings.mjs against a pinned server when the baseline moves.",
     "consoleErrors": []
   },
   "capture": {
     "chatCompletionSource": "custom",
     "customUrl": "http://127.0.0.1:1",
+    "customModel": "probe-model",
+    "preset": "Default",
+    "keys": 106,
     "oaiSettings": {
       "preset_settings_openai": "Default",
       "temp_openai": 1,
@@ -213,7 +248,7 @@
         }
       ],
       "send_if_empty": "",
-      "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Write 1 reply only in internet RP style. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+      "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
       "new_chat_prompt": "[Start a new Chat]",
       "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
       "new_example_chat_prompt": "[Example Chat]",
@@ -250,7 +285,7 @@
       "personality_format": "{{personality}}",
       "sort_models": "alphabetically",
       "group_models": false,
-      "openai_model": "gpt-4-turbo",
+      "openai_model": "gpt-5.6-terra",
       "claude_model": "claude-sonnet-5",
       "google_model": "gemini-3.7-flash",
       "vertexai_model": "gemini-3.7-flash",
@@ -284,7 +319,7 @@
       "azure_deployment_name": "",
       "azure_api_version": "2024-02-15-preview",
       "azure_openai_model": "",
-      "custom_model": "",
+      "custom_model": "probe-model",
       "custom_url": "http://127.0.0.1:1",
       "custom_include_body": "",
       "custom_exclude_body": "",
@@ -328,7 +363,6 @@
       "n": 1,
       "bind_preset_to_connection": true,
       "extensions": {}
-    },
-    "keys": 106
+    }
   }
 }

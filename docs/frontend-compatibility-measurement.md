@@ -512,3 +512,50 @@ send path that does not complete would have hidden this finding inside a larger 
 
 Reproduce with: `node tests/browser/generation-probe.mjs` (it builds the binary and the mock provider,
 so it needs no running services).
+
+## The capture instrument: a settings state that is real, and the trap that hid it
+
+The send leg needs a configuration that a real user could produce. `tests/browser/capture-settings.mjs`
+produces one by driving the pinned frontend's own panel controls, and
+`tests/browser/run-against-pinned.mjs` gives it a clean pinned server per run (free port, scratch data
+root, readiness from `/version`, teardown in `finally`). A fresh data root boots with no stdin
+interaction; it seeds `default/**` and compiles the frontend libraries, which costs 20-40 s.
+
+The fixture it writes, `tests/browser/fixtures/custom-source-settings.json`, now ends on
+`chat_completion_source = "custom"`, `custom_model = "probe-model"`, `custom_url = "http://127.0.0.1:1"`
+and 106 `oai_settings` keys. Two consecutive runs are byte-identical apart from the `capturedAt`
+provenance field, and the server's per-run port is normalized to `:<port>` so a re-capture does not
+differ for a reason that says nothing about the frontend.
+
+THE TRAP, MEASURED RATHER THAN REASONED ABOUT. Setting the source to `custom` appeared to work and then
+silently stopped working: a capture that checked the value once recorded `custom`, and the very next
+read of the same field in the same synchronous continuation saw `openai`. Wrapping the field in an
+accessor that records each write with a stack named the culprit instead of leaving it to speculation:
+
+```
+custom   openai.js:6970  <- HTMLSelectElement change handler (the write we made)
+openai   openai.js:5063  <- 225 ms later, from the preset-change continuation
+```
+
+`oai_preset_changed` (public/scripts/openai.js:5034) awaits `OAI_PRESET_CHANGED_BEFORE` and only then
+writes every connection setting, including `chat_completion_source`, and then re-triggers the source's
+own `change` handler (5069) when `bind_preset_to_connection` is set. So the preset is not finished when
+the setting appears; it is finished when its promise resolves, and the frontend exposes exactly that as
+`getPresetApplicationPromise()` (openai.js:5015). The capture awaits it, and then requires the source to
+be STABLE across a 500 ms window rather than momentarily correct. This is the general form of the
+lesson: for an asynchronous UI handler, "true right now" and "will stay true" are different
+propositions, and a capture that only asserts the first records a state the user never had.
+
+A second, cheaper defect in the same script: it drove `#custom_model`, which is not in the DOM at all.
+The model binding is `custom_model: ['#custom_model_id', 'custom_model', false, true]` (openai.js:349)
+and its event is `input` (openai.js:5620). The absence of the element was reported as "the custom model
+input is not present after selecting the custom source", which read like a frontend problem and was a
+script reading a plausible-sounding id instead of the binding.
+
+WHAT THIS DOES NOT PROVE: that the captured configuration sends. It is a faithful state, not a
+successful generation -- `requestArrived` remains false in the generation probe, and the two-leg
+comparison it exists for has not been run. `custom_url` points at a closed port on purpose, so the
+request that should arrive is one that fails at transport; the comparison is about the attempt.
+
+Reproduce with: `node tests/browser/run-against-pinned.mjs capture-settings.mjs`.
+
