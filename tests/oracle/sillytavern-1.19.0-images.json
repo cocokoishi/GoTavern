@@ -1,0 +1,3076 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-images.mjs",
+  "pinnedSource": {
+    "src/endpoints/images.js:39": "POST /upload: MEDIA_EXTENSIONS gate, removeFileExtension, sanitize, clientRelativePath",
+    "src/endpoints/images.js:80": "POST /list/:folder?: param/body conflict, Number(type), sanitize, getImages sort, desc reverse",
+    "src/endpoints/images.js:115": "POST /folders: readdir withFileTypes, directories only",
+    "src/endpoints/images.js:133": "POST /delete: isPathUnderParent, 404, unlink, sendStatus(200)",
+    "src/util.js:682": "getImages: mime.lookup media filter, Intl.Collator name sort, mtimeMs date sort"
+  },
+  "mechanism": "The four routes are local: the probe seeds one per-user user/images tree (fixed whole-second mtimes) and drives the real pinned listener, recording the response plus the resulting tree.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/404/500 themselves"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the response projection and the exact error text are endpoint behaviour"
+    },
+    {
+      "path": "scenarios.*.treeAfter",
+      "comparison": "compared",
+      "reason": "the written/removed files are a persistent side effect; paths, sizes and digests only"
+    },
+    {
+      "path": "scenarios.uploadUnnamed.*",
+      "comparison": "compared",
+      "reason": "the Date.now() filename is normalized to <timestamp> in both the response and the tree"
+    },
+    {
+      "path": "foldersList ordering",
+      "comparison": "shape",
+      "reason": "pinned fs.readdirSync order is filesystem-dependent, so the folder set is compared after sorting; the fixture stores the sorted list for that reason"
+    },
+    {
+      "path": "mtimes",
+      "comparison": "shape",
+      "reason": "never recorded; the date sort is pinned by seeding distinct whole-second mtimes instead"
+    }
+  ],
+  "normalizations": [
+    "An unnamed upload is named `${Date.now()}.${format}`; every 13-digit millisecond value is replaced by <timestamp> in the recorded response and tree.",
+    "Seeded files carry fixed whole-second mtimes, so the pinned mtime sort is reproducible on any host.",
+    "The folder list is recorded sorted because pinned fs.readdirSync order is filesystem-dependent, and the name sort is Intl.Collator over lowercase ASCII names only.",
+    "The images tree is recorded as relative path, size and SHA-256; never as mtimes, ctimes or directory sizes.",
+    "The seed tree is recorded with its exact bytes (base64) and whole-second mtime so the Go test replays the same initial state instead of re-deriving it.",
+    "A response whose raw body contains Date.now() records its ETag as <unstable-body>, because the ETag hashes the raw body; the Go test skips exactly that marker and nothing else."
+  ],
+  "seeds": {
+    "files": {
+      "alpha.png": {
+        "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77",
+        "bytes": 70,
+        "mtimeMs": 1700000001000,
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      },
+      "beta.jpg": {
+        "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268",
+        "bytes": 22,
+        "mtimeMs": 1700000002000,
+        "base64": "SkZJRi1nb3RhdmVybi1iZXRhLmpwZw=="
+      },
+      "gamma.gif": {
+        "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143",
+        "bytes": 25,
+        "mtimeMs": 1700000003000,
+        "base64": "R0lGODlhLWdvdGF2ZXJuLWdhbW1hLmdpZg=="
+      },
+      "delta.txt": {
+        "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82",
+        "bytes": 16,
+        "mtimeMs": 1700000004000,
+        "base64": "bm90IGEgbWVkaWEgZmlsZQ=="
+      },
+      "epsilon.mp4": {
+        "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d",
+        "bytes": 20,
+        "mtimeMs": 1700000005000,
+        "base64": "bXA0LWdvdGF2ZXJuLWVwc2lsb24="
+      },
+      "zeta.mp3": {
+        "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f",
+        "bytes": 17,
+        "mtimeMs": 1700000006000,
+        "base64": "SUQzLWdvdGF2ZXJuLXpldGE="
+      },
+      "eta.svg": {
+        "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98",
+        "bytes": 46,
+        "mtimeMs": 1700000007000,
+        "base64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=="
+      },
+      "theta.webp": {
+        "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d",
+        "bytes": 18,
+        "mtimeMs": 1700000008000,
+        "base64": "UklGRmdvdGF2ZXJuLXRoZXRh"
+      },
+      "nested/inside.png": {
+        "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77",
+        "bytes": 70,
+        "mtimeMs": 1700000009000,
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      }
+    }
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "uploadNamed": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"png\",\"filename\":\"custom.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-+xUpQGE6UVPvR9D6JGNP8LUABgY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/custom.png"
+        },
+        "bodyText": "{\"path\":\"/user/images/custom.png\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "custom.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadUnnamed": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "41",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "<unstable-body>",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/<timestamp>.png"
+        },
+        "bodyText": "{\"path\":\"/user/images/<timestamp>.png\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "<timestamp>.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadCharacterFolder": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"png\",\"filename\":\"char.png\",\"ch_name\":\"Alice / Bob\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-I8zYGqgzTiVYaK1e05fnsLgRp7c\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/Alice  Bob/char.png"
+        },
+        "bodyText": "{\"path\":\"/user/images/Alice  Bob/char.png\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "Alice  Bob/",
+          "kind": "directory"
+        },
+        {
+          "path": "Alice  Bob/char.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadFilenameExtensionReplaced": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"jpg\",\"filename\":\"picture.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "35",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-/qQB+AKzQHCHeCXw1jqJDl/HsUU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/picture.jpg"
+        },
+        "bodyText": "{\"path\":\"/user/images/picture.jpg\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "picture.jpg",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadTraversalFilename": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"png\",\"filename\":\"../evil.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "34",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-RmNqdIkivfPM6Ds3v0KCeXEZT6g\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/..evil.png"
+        },
+        "bodyText": "{\"path\":\"/user/images/..evil.png\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "..evil.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadInvalidFormat": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\",\"format\":\"exe\",\"filename\":\"x.png\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "32",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"20-vEmCQ/Y3SupNHGLHxemcuoWUIPM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Invalid image format"
+        },
+        "bodyText": "{\"error\":\"Invalid image format\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadMissingFormat": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "32",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"20-vEmCQ/Y3SupNHGLHxemcuoWUIPM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Invalid image format"
+        },
+        "bodyText": "{\"error\":\"Invalid image format\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadMissingImage": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"format\":\"png\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "34",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-wa3S68V0/5cptLhFORMe1qBZjjE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "No image data provided"
+        },
+        "bodyText": "{\"error\":\"No image data provided\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "uploadMalformedBase64": {
+      "route": "/api/images/upload",
+      "requestBody": "{\"image\":\"!!!not-base64!!!\",\"format\":\"png\",\"filename\":\"garbage.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "35",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-qQK05eviiMaRCN1lW0otpXJV6Bo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "path": "/user/images/garbage.png"
+        },
+        "bodyText": "{\"path\":\"/user/images/garbage.png\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "garbage.png",
+          "kind": "file",
+          "bytes": 7,
+          "sha256": "5252bdb7477607fc91c0d05eac041595fe3ae8d75ca0bdc04ed835886e1b4111"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listDeprecatedParam": {
+      "route": "/api/images/list/nested",
+      "requestBody": "{}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-VoBdmufV6wsG9Qgd77YLXrM6Njw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "inside.png"
+        ],
+        "bodyText": "[\"inside.png\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listParamAndBody": {
+      "route": "/api/images/list/nested",
+      "requestBody": "{\"folder\":\"nested\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-Yw6FVPvk0MSn17mdQCkXNEoU2Ds\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Folder specified in both URL and body"
+        },
+        "bodyText": "{\"error\":\"Folder specified in both URL and body\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listNoFolder": {
+      "route": "/api/images/list",
+      "requestBody": "{}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-9ncsX1JwAHMayDY8G7D8IpPb9QE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "No folder specified"
+        },
+        "bodyText": "{\"error\":\"No folder specified\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listCreatesMissing": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\"brand-new\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": "[]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "brand-new/",
+          "kind": "directory"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listEmptyFolder": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\"\",\"sortField\":\"name\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-9ncsX1JwAHMayDY8G7D8IpPb9QE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "No folder specified"
+        },
+        "bodyText": "{\"error\":\"No folder specified\"}"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listDefaultTypeSort": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-V3Fek8b7ZA5vptTpVOzOaB8Qy/k\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "gamma.gif",
+          "eta.svg",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"gamma.gif\",\"eta.svg\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listByName": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"sortField\":\"name\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-P0oWAY8l6WtLhrwLWiX4JcV9kfI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "eta.svg",
+          "gamma.gif",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"eta.svg\",\"gamma.gif\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listByNameDesc": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"sortField\":\"name\",\"sortOrder\":\"desc\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-isBjykG4Quf64Jvsr2i64tfEQPY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "theta.webp",
+          "gamma.gif",
+          "eta.svg",
+          "beta.jpg",
+          "alpha.png"
+        ],
+        "bodyText": "[\"theta.webp\",\"gamma.gif\",\"eta.svg\",\"beta.jpg\",\"alpha.png\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listByDate": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"sortField\":\"date\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-V3Fek8b7ZA5vptTpVOzOaB8Qy/k\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "gamma.gif",
+          "eta.svg",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"gamma.gif\",\"eta.svg\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listByDateDesc": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"sortField\":\"date\",\"sortOrder\":\"desc\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-D36/IVSC3nSk+Ji7HTRUPZ9RPzA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "theta.webp",
+          "eta.svg",
+          "gamma.gif",
+          "beta.jpg",
+          "alpha.png"
+        ],
+        "bodyText": "[\"theta.webp\",\"eta.svg\",\"gamma.gif\",\"beta.jpg\",\"alpha.png\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listUnknownSortField": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"sortField\":\"nope\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-P0oWAY8l6WtLhrwLWiX4JcV9kfI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "eta.svg",
+          "gamma.gif",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"eta.svg\",\"gamma.gif\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listVideoType": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"type\":2}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-eMsyJZcYxDBor4Uhr9oWQPTwtcc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "epsilon.mp4"
+        ],
+        "bodyText": "[\"epsilon.mp4\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listAudioType": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"type\":4}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "12",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-BHUWgDWxLsxQ5Q8zxGa8/f/UGjg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "zeta.mp3"
+        ],
+        "bodyText": "[\"zeta.mp3\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listAllTypes": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"type\":7}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-oXC8a6X1wrLIbcRfjbAKmOr0Ra4\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "gamma.gif",
+          "epsilon.mp4",
+          "zeta.mp3",
+          "eta.svg",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"gamma.gif\",\"epsilon.mp4\",\"zeta.mp3\",\"eta.svg\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listStringType": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\".\",\"type\":\"1\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-V3Fek8b7ZA5vptTpVOzOaB8Qy/k\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alpha.png",
+          "beta.jpg",
+          "gamma.gif",
+          "eta.svg",
+          "theta.webp"
+        ],
+        "bodyText": "[\"alpha.png\",\"beta.jpg\",\"gamma.gif\",\"eta.svg\",\"theta.webp\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "listSubfolderScope": {
+      "route": "/api/images/list",
+      "requestBody": "{\"folder\":\"nested\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-VoBdmufV6wsG9Qgd77YLXrM6Njw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "inside.png"
+        ],
+        "bodyText": "[\"inside.png\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "foldersList": {
+      "route": "/api/images/folders",
+      "requestBody": "{}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "10",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a-jU4khFgXocpzSZ3NWI/KmjyZvyI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "nested"
+        ],
+        "bodyText": "[\"nested\"]"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteMissingPath": {
+      "route": "/api/images/delete",
+      "requestBody": "{}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "17",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"11-0Ncfdkr1NzuO/GvLbDVbCRdQDhw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No path specified",
+        "bodyText": "No path specified"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteEmptyPath": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "17",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"11-0Ncfdkr1NzuO/GvLbDVbCRdQDhw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No path specified",
+        "bodyText": "No path specified"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteOutsideRoot": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"/characters/alpha.png\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "12",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-AFnk9gsF6gKP0yod0b9u056tXWg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Invalid path",
+        "bodyText": "Invalid path"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteTraversal": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"/user/images/../../characters/x.png\"}",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "12",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-AFnk9gsF6gKP0yod0b9u056tXWg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Invalid path",
+        "bodyText": "Invalid path"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteMissingFile": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"/user/images/missing.png\"}",
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-length": "14",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-oi6cO2qfXHDeT3akZIEOy6H7l8M\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "File not found",
+        "bodyText": "File not found"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteFile": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"/user/images/alpha.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "OK",
+        "bodyText": "OK"
+      },
+      "treeAfter": [
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "nested/inside.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    },
+    "deleteNestedFile": {
+      "route": "/api/images/delete",
+      "requestBody": "{\"path\":\"/user/images/nested/inside.png\"}",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "OK",
+        "bodyText": "OK"
+      },
+      "treeAfter": [
+        {
+          "path": "alpha.png",
+          "kind": "file",
+          "bytes": 70,
+          "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+        },
+        {
+          "path": "beta.jpg",
+          "kind": "file",
+          "bytes": 22,
+          "sha256": "7b29b56c7fb79b241e4aad5891fc37d432ba1c713434312c1cb25e85a9205268"
+        },
+        {
+          "path": "delta.txt",
+          "kind": "file",
+          "bytes": 16,
+          "sha256": "5996fa9bcdc6f9e74ca54ba568845b30f482b8ccb54bb4f324b3083aca81ec82"
+        },
+        {
+          "path": "epsilon.mp4",
+          "kind": "file",
+          "bytes": 20,
+          "sha256": "5568dea207eec6fc5a2b3a8c3c871c6b587bb56c92d3fb8f5f3fff9696e2891d"
+        },
+        {
+          "path": "eta.svg",
+          "kind": "file",
+          "bytes": 46,
+          "sha256": "8d9b4b794affc5daf4eafa12e0c6294ab31aaeed330886145676bd6b832e8b98"
+        },
+        {
+          "path": "gamma.gif",
+          "kind": "file",
+          "bytes": 25,
+          "sha256": "25b917edf338eefd94fa52f7ca49a7c136fa1b61cdb85157a84d022d6fc17143"
+        },
+        {
+          "path": "nested/",
+          "kind": "directory"
+        },
+        {
+          "path": "theta.webp",
+          "kind": "file",
+          "bytes": 18,
+          "sha256": "7d70a25d01cbcf3977d96565f4c4ea498354c7487b52fb4d5ccf251c3822907d"
+        },
+        {
+          "path": "zeta.mp3",
+          "kind": "file",
+          "bytes": 17,
+          "sha256": "806f52494e50d210a421243c1d30f1a96e0047cea785b0b070dbefac8b91b34f"
+        }
+      ]
+    }
+  }
+}

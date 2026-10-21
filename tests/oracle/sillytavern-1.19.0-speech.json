@@ -1,0 +1,2588 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-speech.mjs",
+  "implementedRoutes": [
+    "/api/speech/pollinations/voices",
+    "/api/speech/pollinations/generate",
+    "/api/speech/elevenlabs/voices",
+    "/api/speech/elevenlabs/voice-settings",
+    "/api/speech/elevenlabs/synthesize",
+    "/api/speech/elevenlabs/history",
+    "/api/speech/elevenlabs/history-audio",
+    "/api/speech/elevenlabs/voices/add",
+    "/api/speech/elevenlabs/recognize"
+  ],
+  "notImplementedRoutes": [
+    {
+      "route": "/api/speech/recognize",
+      "reason": "speech.js:42 calls getPipeline() from src/transformers.js, i.e. LOCAL ONNX inference whose weights are downloaded from the Hugging Face hub and whose output depends on those weights. The behaviour is not in the pinned endpoint, so a controlled peer cannot pin a transcription."
+    },
+    {
+      "route": "/api/speech/synthesize",
+      "reason": "speech.js:61 calls getPipeline() from src/transformers.js, i.e. LOCAL ONNX inference and a wavefile encode. No third-party request exists to pin and the waveform is model-dependent."
+    }
+  ],
+  "mechanism": "Every upstream here is a hardcoded literal with no configuration seam, so the probe replaces only the node-fetch module of the pinned server with a controlled peer (tools/lib/pinned-outbound.mjs).",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/500 themselves, including the 401 to 400 rewrite of forwardFetchResponse"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them, including the explicit audio/mpeg content type"
+    },
+    {
+      "path": "scenarios.*.response.bodyText",
+      "comparison": "compared",
+      "reason": "JSON responses are compared as bytes"
+    },
+    {
+      "path": "scenarios.*.response.sha256",
+      "comparison": "compared",
+      "reason": "audio responses are compared by digest because a text round trip would corrupt binary bytes"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the constructed upstream URL, including interpolated voice and history ids"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the JSON body, with the per-request random seed normalized"
+    },
+    {
+      "path": "scenarios.*.outbound[].parts",
+      "comparison": "compared",
+      "reason": "multipart bodies are compared as parsed parts: the boundary is random per request, so the raw bytes cannot be"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "shape",
+      "reason": "only the declared xi-api-key, authorization and content-type headers are asserted"
+    },
+    {
+      "path": "scenarios.*.uploadsCreated/uploadsAfter",
+      "comparison": "shape",
+      "reason": "multer's temp-file lifecycle in _uploads is recorded for the reader but NOT compared: GoTavern parses the upload in memory, so it creates no temp file. Named as a known difference in the compat row."
+    },
+    {
+      "path": "translated/synthesized third-party content",
+      "comparison": "shape",
+      "reason": "the fixture supplies the peer payload and asserts the transform, never a live answer"
+    }
+  ],
+  "normalizations": [
+    "The Pollinations seed is `Math.floor(Math.random() * 2^32)`, so it is replaced by <seed> in the recorded outbound body; it is the only nondeterministic value in this domain.",
+    "Multipart boundaries are random per request, so multipart bodies are recorded as parsed parts (name, filename, content type, content digest) rather than bytes.",
+    "Audio responses are recorded by SHA-256 and length, never as text.",
+    "Synthetic credentials only."
+  ],
+  "inputs": {
+    "pollinations": "https://gen.pollinations.ai",
+    "elevenlabs": "https://api.elevenlabs.io",
+    "elevenLabsKey": "sk-synthetic-elevenlabs-key",
+    "pollinationsKey": "sk-synthetic-pollinations-key",
+    "audioSha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+    "wavSha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "voicesDefaultModel": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"name\":\"other-model\",\"voices\":[\"should-not-appear\"]},{\"name\":\"openai-audio\",\"voices\":[\"alloy\",\"echo\"],\"aliases\":[\"tts-1\"]}]",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-2J0YdS5VRunkUOsZuuavUULbfcA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alloy",
+          "echo"
+        ],
+        "bodyText": "[\"alloy\",\"echo\"]"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesByAlias": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{\"model\":\"tts-1\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"name\":\"other-model\",\"voices\":[\"should-not-appear\"]},{\"name\":\"openai-audio\",\"voices\":[\"alloy\",\"echo\"],\"aliases\":[\"tts-1\"]}]",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-2J0YdS5VRunkUOsZuuavUULbfcA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          "alloy",
+          "echo"
+        ],
+        "bodyText": "[\"alloy\",\"echo\"]"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesUnknownModel": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{\"model\":\"nope\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"name\":\"other-model\",\"voices\":[\"should-not-appear\"]},{\"name\":\"openai-audio\",\"voices\":[\"alloy\",\"echo\"],\"aliases\":[\"tts-1\"]}]",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesNoVoices": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{\"model\":\"no-voices\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"name\":\"no-voices\"}]",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesNotArray": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"nope\":true}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesNonOk": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 503,
+          "statusText": "Service Unavailable",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "pollinations down",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesThrows": {
+      "route": "/api/speech/pollinations/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/text/models",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateNoKey": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateOk": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"audio\":{\"data\":\"SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==\"}}}]}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "46",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2e-Ld4xu/DVl2OIl1elhe2I6tWTLSk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"alloy\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateModelAndVoice": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\",\"model\":\"openai-audio-large\",\"voice\":\"nova\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"audio\":{\"data\":\"SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==\"}}}]}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "46",
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2e-Ld4xu/DVl2OIl1elhe2I6tWTLSk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio-large\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"nova\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateMissingAudio": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{}}]}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"alloy\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateNonOk": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 402,
+          "statusText": "Payment Required",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "no credits",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"alloy\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateInvalidJSON": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "not json",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"alloy\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "generateThrows": {
+      "route": "/api/speech/pollinations/generate",
+      "requestBody": "{\"text\":\"hello\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "gen.pollinations.ai",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_pollinations": [
+          {
+            "id": "sid-api_key_pollinations",
+            "value": "sk-synthetic-pollinations-key",
+            "label": "api_key_pollinations",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://gen.pollinations.ai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer sk-synthetic-pollinations-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"openai-audio\",\"stream\":false,\"modalities\":[\"text\",\"audio\"],\"seed\":\"<seed>\",\"audio\":{\"format\":\"mp3\",\"voice\":\"alloy\"},\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsVoicesNoKey": {
+      "route": "/api/speech/elevenlabs/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsVoicesOk": {
+      "route": "/api/speech/elevenlabs/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"voices\":[{\"voice_id\":\"v1\",\"name\":\"Voice One\"}]}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "49",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"31-lxR7mV5ubuh3ozgd7gZgADfgll4\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "voices": [
+            {
+              "voice_id": "v1",
+              "name": "Voice One"
+            }
+          ]
+        },
+        "bodyText": "{\"voices\":[{\"voice_id\":\"v1\",\"name\":\"Voice One\"}]}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsVoicesNonOk": {
+      "route": "/api/speech/elevenlabs/voices",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 401,
+          "statusText": "Unauthorized",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bad key",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsVoiceSettingsOk": {
+      "route": "/api/speech/elevenlabs/voice-settings",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"stability\":0.5,\"similarity_boost\":0.75}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "41",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"29-TEk3/o7J35JhJQmUmm9MQXM5B6E\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "stability": 0.5,
+          "similarity_boost": 0.75
+        },
+        "bodyText": "{\"stability\":0.5,\"similarity_boost\":0.75}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices/settings/default",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsHistoryOk": {
+      "route": "/api/speech/elevenlabs/history",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"history\":[{\"history_item_id\":\"h1\"}],\"has_more\":false}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "55",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"37-9vn3Sg0B7H0SSFu0BKjSNfJlRkw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "history": [
+            {
+              "history_item_id": "h1"
+            }
+          ],
+          "has_more": false
+        },
+        "bodyText": "{\"history\":[{\"history_item_id\":\"h1\"}],\"has_more\":false}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/history",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "elevenlabsHistoryNonOk": {
+      "route": "/api/speech/elevenlabs/history",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "boom",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/history",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeNoKey": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\",\"request\":{}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeMissingVoice": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"request\":{}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeMissingRequest": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeOk": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"voice/one\",\"request\":{\"text\":\"hello\",\"model_id\":\"eleven_multilingual_v2\",\"voice_settings\":{\"stability\":0.4}}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/mpeg"
+          },
+          "body": "SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==",
+          "binaryBody": true,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/text-to-speech/voice/one",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"model_id\":\"eleven_multilingual_v2\",\"voice_settings\":{\"stability\":0.4}}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeReserialized": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\",\"request\":{ \"text\" : \"hello\" , \"stability\" : 0.50 , \"seed\" : 1e2 }}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/mpeg"
+          },
+          "body": "SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==",
+          "binaryBody": true,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/text-to-speech/v1",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\",\"stability\":0.5,\"seed\":100}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeEmptyRequest": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\",\"request\":{}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/mpeg"
+          },
+          "body": "SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==",
+          "binaryBody": true,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/text-to-speech/v1",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "application/json"
+          },
+          "body": "{}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeNonOk": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\",\"request\":{\"text\":\"hello\"}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bad request",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/text-to-speech/v1",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\"}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "synthesizeThrows": {
+      "route": "/api/speech/elevenlabs/synthesize",
+      "requestBody": "{\"voiceId\":\"v1\",\"request\":{\"text\":\"hello\"}}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/text-to-speech/v1",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"hello\"}"
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "historyAudioNoId": {
+      "route": "/api/speech/elevenlabs/history-audio",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "historyAudioOk": {
+      "route": "/api/speech/elevenlabs/history-audio",
+      "requestBody": "{\"historyItemId\":\"item/one\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/mpeg"
+          },
+          "body": "SUQzZ290YXZlcm4tc3ludGhldGljLWF1ZGlvLXBheWxvYWQtMDEyMzQ1Njc4OQ==",
+          "binaryBody": true,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "audio/mpeg",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "sha256": "a3f9e1c433a8bd6e8d69cebfe169be507b24f63e5f93899592554e0706318c8e",
+        "bytes": 46
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/history/item/one/audio",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "historyAudioNonOk": {
+      "route": "/api/speech/elevenlabs/history-audio",
+      "requestBody": "{\"historyItemId\":\"item-one\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 404,
+          "statusText": "Not Found",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "no such item",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/history/item-one/audio",
+          "method": "GET",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key"
+          },
+          "body": null
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesAddDefaults": {
+      "route": "/api/speech/elevenlabs/voices/add",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"voice_id\":\"new-voice\"}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-/hzt1gNiwDLPmqkJGQv0mOS28g0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "voice_id": "new-voice"
+        },
+        "bodyText": "{\"voice_id\":\"new-voice\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices/add",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "name",
+              "filename": null,
+              "contentType": null,
+              "sha256": "a17d0491ef60349aaf4b8f4661fb06aefdb2742a78b9d66c18fb28c5c382748b",
+              "bytes": 12
+            },
+            {
+              "name": "description",
+              "filename": null,
+              "contentType": null,
+              "sha256": "edda7780c7d7efb5ee41359198d197be5f62d0f34bac4a41ea64065b0f3a3a35",
+              "bytes": 24
+            },
+            {
+              "name": "labels",
+              "filename": null,
+              "contentType": null,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          ],
+          "bodyBase64Bytes": 410
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesAddWithFiles": {
+      "route": "/api/speech/elevenlabs/voices/add",
+      "requestBody": "{\"name\":\"My Voice\",\"description\":\"described\",\"labels\":\"{\\\"accent\\\":\\\"british\\\"}\",\"files\":[\"data:audio/wav;base64,UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy13YXYtdXBsb2FkLXBheWxvYWQ=\"]}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"voice_id\":\"new-voice\"}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-/hzt1gNiwDLPmqkJGQv0mOS28g0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "voice_id": "new-voice"
+        },
+        "bodyText": "{\"voice_id\":\"new-voice\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices/add",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "name",
+              "filename": null,
+              "contentType": null,
+              "sha256": "588ba2b308bb06e3826bb600a31ad3c6ea0f268e1d3739c0a222c6f43f5da9ea",
+              "bytes": 8
+            },
+            {
+              "name": "description",
+              "filename": null,
+              "contentType": null,
+              "sha256": "4249a1a0ce3af7c42fd931a99da8d5ffe5eccee0cbd89a7573684fcb32f4b741",
+              "bytes": 9
+            },
+            {
+              "name": "labels",
+              "filename": null,
+              "contentType": null,
+              "sha256": "8202e058198c12ec5002c38f8b865bc0dbcc339e87fe6f1fa96fea759418c7ba",
+              "bytes": 20
+            },
+            {
+              "name": "files",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+              "bytes": 41
+            }
+          ],
+          "bodyBase64Bytes": 603
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesAddInvalidFile": {
+      "route": "/api/speech/elevenlabs/voices/add",
+      "requestBody": "{\"name\":\"X\",\"files\":[\"not-a-data-uri\",\"data:audio/mpeg;base64,!!!notbase64\"]}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"voice_id\":\"new-voice\"}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "24",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"18-/hzt1gNiwDLPmqkJGQv0mOS28g0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "voice_id": "new-voice"
+        },
+        "bodyText": "{\"voice_id\":\"new-voice\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices/add",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "name",
+              "filename": null,
+              "contentType": null,
+              "sha256": "4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015",
+              "bytes": 1
+            },
+            {
+              "name": "description",
+              "filename": null,
+              "contentType": null,
+              "sha256": "edda7780c7d7efb5ee41359198d197be5f62d0f34bac4a41ea64065b0f3a3a35",
+              "bytes": 24
+            },
+            {
+              "name": "labels",
+              "filename": null,
+              "contentType": null,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            },
+            {
+              "name": "files",
+              "filename": "audio.mpga",
+              "contentType": "audio/mpeg",
+              "sha256": "7d4d62f49c922c57ac4120ee000cd0b096515c9b3cf5a588cfc872397cf14f80",
+              "bytes": 6
+            }
+          ],
+          "bodyBase64Bytes": 558
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesAddNoKey": {
+      "route": "/api/speech/elevenlabs/voices/add",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "voicesAddNonOk": {
+      "route": "/api/speech/elevenlabs/voices/add",
+      "requestBody": "{}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "upload failed",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/voices/add",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "name",
+              "filename": null,
+              "contentType": null,
+              "sha256": "a17d0491ef60349aaf4b8f4661fb06aefdb2742a78b9d66c18fb28c5c382748b",
+              "bytes": 12
+            },
+            {
+              "name": "description",
+              "filename": null,
+              "contentType": null,
+              "sha256": "edda7780c7d7efb5ee41359198d197be5f62d0f34bac4a41ea64065b0f3a3a35",
+              "bytes": 24
+            },
+            {
+              "name": "labels",
+              "filename": null,
+              "contentType": null,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          ],
+          "bodyBase64Bytes": 410
+        }
+      ],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "recognizeNoFile": {
+      "route": "/api/speech/elevenlabs/recognize",
+      "requestBody": "{\"model\":\"scribe_v1\"}",
+      "requestUpload": null,
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [],
+      "uploadsCreated": 0
+    },
+    "recognizeNoKey": {
+      "route": "/api/speech/elevenlabs/recognize",
+      "requestBody": "{\"model\":\"scribe_v1\"}",
+      "requestUpload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy13YXYtdXBsb2FkLXBheWxvYWQ="
+      },
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": [],
+      "uploadsAfter": [
+        {
+          "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+          "bytes": 41
+        }
+      ],
+      "uploadsCreated": 1
+    },
+    "recognizeOk": {
+      "route": "/api/speech/elevenlabs/recognize",
+      "requestBody": "{\"model\":\"scribe_v1\"}",
+      "requestUpload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy13YXYtdXBsb2FkLXBheWxvYWQ="
+      },
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"transcribed words\"}",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "28",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1c-BnUjHekM8N7yJnn6xnLQxfuWk60\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "transcribed words"
+        },
+        "bodyText": "{\"text\":\"transcribed words\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/speech-to-text",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+              "bytes": 41
+            },
+            {
+              "name": "model_id",
+              "filename": null,
+              "contentType": null,
+              "sha256": "e7936812afdfba1cd6c509b46f27915ff1f06e8392ba349d733a827e872a367e",
+              "bytes": 9
+            }
+          ],
+          "bodyBase64Bytes": 363
+        }
+      ],
+      "uploadsAfter": [
+        {
+          "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+          "bytes": 41
+        }
+      ],
+      "uploadsCreated": 0
+    },
+    "recognizeNonOk": {
+      "route": "/api/speech/elevenlabs/recognize",
+      "requestBody": "{\"model\":\"scribe_v1\"}",
+      "requestUpload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy13YXYtdXBsb2FkLXBheWxvYWQ="
+      },
+      "mocks": [
+        {
+          "match": "api.elevenlabs.io",
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bad audio",
+          "binaryBody": false,
+          "throws": false
+        }
+      ],
+      "secrets": {
+        "api_key_elevenlabs": [
+          {
+            "id": "sid-api_key_elevenlabs",
+            "value": "sk-synthetic-elevenlabs-key",
+            "label": "api_key_elevenlabs",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.elevenlabs.io/v1/speech-to-text",
+          "method": "POST",
+          "headers": {
+            "xi-api-key": "sk-synthetic-elevenlabs-key",
+            "content-type": "multipart/form-data; boundary=<boundary>"
+          },
+          "parts": [
+            {
+              "name": "file",
+              "filename": "audio.wav",
+              "contentType": "audio/wav",
+              "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+              "bytes": 41
+            },
+            {
+              "name": "model_id",
+              "filename": null,
+              "contentType": null,
+              "sha256": "e7936812afdfba1cd6c509b46f27915ff1f06e8392ba349d733a827e872a367e",
+              "bytes": 9
+            }
+          ],
+          "bodyBase64Bytes": 363
+        }
+      ],
+      "uploadsAfter": [
+        {
+          "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+          "bytes": 41
+        },
+        {
+          "sha256": "9515712246704d7e7deeab87af3ff13bd9e7a163d4df8a0a64f8fc9f09f8fb96",
+          "bytes": 41
+        }
+      ],
+      "uploadsCreated": 1
+    }
+  }
+}

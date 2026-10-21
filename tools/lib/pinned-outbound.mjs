@@ -91,13 +91,14 @@ function hookProgram({ realFetchURL, rulesPath, recordPath }) {
         `const STUB = [`,
         `  'import realFetch from ' + JSON.stringify(REAL) + ';',`,
         `  "import { readFileSync, appendFileSync } from 'node:fs';",`,
+        `  "import { Readable, Writable } from 'node:stream';",`,
         `  'const RULES = ' + JSON.stringify(RULES) + ';',`,
         `  'const RECORD = ' + JSON.stringify(RECORD) + ';',`,
         `  "function readRules() { try { return JSON.parse(readFileSync(RULES, 'utf8')); } catch { return []; } }",`,
         `  "function lower(headers) { const out = {}; if (!headers) return out; for (const [name, value] of Object.entries(headers)) out[String(name).toLowerCase()] = String(value); return out; }",`,
-        `  "function bodyText(body) { if (body === undefined || body === null) return null; if (typeof body === 'string') return body; if (Buffer.isBuffer(body)) return body.toString('utf8'); return String(body); }",`,
-        `  "function makeResponse(rule) { const status = rule.status === undefined ? 200 : rule.status; const headers = rule.headers || {}; const body = rule.body === undefined ? '' : rule.body; return { ok: status >= 200 && status <= 299, status, statusText: rule.statusText === undefined ? '' : rule.statusText, headers: { get(name) { const key = String(name).toLowerCase(); const value = headers[key]; return value === undefined ? null : String(value); } }, text: async () => body, json: async () => JSON.parse(body), arrayBuffer: async () => new TextEncoder().encode(body).buffer }; }",`,
-        `  "export default function fetch(input, options = {}) { const href = typeof input === 'string' ? input : (input && input.href ? input.href : String(input)); appendFileSync(RECORD, JSON.stringify({ url: href, method: String(options.method || 'GET').toUpperCase(), headers: lower(options.headers), body: bodyText(options.body) }) + String.fromCharCode(10)); const rule = readRules().find(candidate => href.includes(candidate.match)); if (!rule) return Promise.resolve(makeResponse({ status: 500, statusText: 'Stubbed', body: 'gotavern: unstubbed outbound request ' + href })); if (rule.throws) return Promise.reject(new TypeError('fetch failed')); return Promise.resolve(makeResponse(rule)); }",`,
+        `  "async function recordBody(body) { if (body === undefined || body === null) return { body: null }; if (typeof body === 'string') return { body }; if (Buffer.isBuffer(body)) return { bodyBase64: body.toString('base64') }; if (typeof body.getBuffer === 'function') { try { const buffer = await body.getBuffer(); return { bodyBase64: buffer.toString('base64') }; } catch { /* a part is a stream */ } } if (typeof body.pipe === 'function') { const collected = await new Promise((resolve, reject) => { const chunks = []; const sink = new Writable({ write(chunk, encoding, callback) { chunks.push(Buffer.from(chunk)); callback(); } }); sink.on('finish', () => resolve(Buffer.concat(chunks))); sink.on('error', reject); body.on('error', reject); body.pipe(sink); }); return { bodyBase64: collected.toString('base64') }; } return { body: String(body) }; }",`,
+        `  "function makeResponse(rule) { const status = rule.status === undefined ? 200 : rule.status; const headers = rule.headers || {}; const buffer = rule.binaryBody ? Buffer.from(rule.body === undefined ? '' : rule.body, 'base64') : Buffer.from(rule.body === undefined ? '' : rule.body, 'utf8'); const text = buffer.toString('utf8'); return { ok: status >= 200 && status <= 299, status, statusText: rule.statusText === undefined ? '' : rule.statusText, headers: { get(name) { const key = String(name).toLowerCase(); const value = headers[key]; return value === undefined ? null : String(value); } }, text: async () => text, json: async () => JSON.parse(text), arrayBuffer: async () => buffer, body: Readable.from([buffer]) }; }",`,
+        `  "export default async function fetch(input, options = {}) { const href = typeof input === 'string' ? input : (input && input.href ? input.href : String(input)); const recorded = await recordBody(options.body); const headers = lower(options.headers); if (options.body && typeof options.body.getHeaders === 'function') { const extra = options.body.getHeaders(); for (const [name, value] of Object.entries(extra)) headers[String(name).toLowerCase()] = String(value); } appendFileSync(RECORD, JSON.stringify({ url: href, method: String(options.method || 'GET').toUpperCase(), headers, ...recorded }) + String.fromCharCode(10)); const rule = readRules().find(candidate => href.includes(candidate.match)); if (!rule) return makeResponse({ status: 500, statusText: 'Stubbed', body: 'gotavern: unstubbed outbound request ' + href }); if (rule.throws) throw new TypeError('fetch failed'); return makeResponse(rule); }",`,
         `].join(String.fromCharCode(10));`,
         ``,
     ].join('\n');
@@ -120,7 +121,8 @@ export async function rawRequest(url, method = 'GET', headers = {}, body) {
         redirect: 'manual',
         signal: AbortSignal.timeout(20000),
     });
-    const text = Buffer.from(await response.arrayBuffer()).toString('utf8');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const text = bytes.toString('utf8');
     let parsed = text;
     if (text) {
         try {
@@ -131,7 +133,7 @@ export async function rawRequest(url, method = 'GET', headers = {}, body) {
     } else {
         parsed = null;
     }
-    return { response, text, body: parsed };
+    return { response, text, body: parsed, bytes };
 }
 
 export function captureHttp(result) {
@@ -141,6 +143,60 @@ export function captureHttp(result) {
         body: result.body,
         bodyText: result.text,
     };
+}
+
+// Binary responses (audio) cannot be recorded as text: a UTF-8 round trip through a string would
+// corrupt bytes that are not valid UTF-8. The digest and length are the observation instead.
+export function captureHttpBinary(result) {
+    return {
+        status: result.response.status,
+        headers: stableHeaders(result.response),
+        sha256: createHash('sha256').update(result.bytes).digest('hex'),
+        bytes: result.bytes.length,
+    };
+}
+
+// Parses a recorded multipart/form-data body into its parts. A boundary is random per request, so
+// the raw body can never be compared; the parts (names, filenames, content types and content
+// digests) are what the upstream actually observes.
+export function parseMultipart(contentType, bodyBase64) {
+    const match = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType || '');
+    if (!match) throw new Error(`no multipart boundary in ${contentType}`);
+    const boundary = (match[1] || match[2]).trim();
+    const body = Buffer.from(bodyBase64, 'base64');
+    const delimiter = Buffer.from(`--${boundary}`);
+    const parts = [];
+    let index = body.indexOf(delimiter);
+    while (index >= 0) {
+        const start = index + delimiter.length;
+        if (body.slice(start, start + 2).toString() === '--') break;
+        const next = body.indexOf(delimiter, start);
+        if (next < 0) break;
+        let chunk = body.slice(start, next);
+        // Strip the CRLFs that frame each part.
+        if (chunk.slice(0, 2).toString() === '\r\n') chunk = chunk.slice(2);
+        if (chunk.slice(-2).toString() === '\r\n') chunk = chunk.slice(0, -2);
+        const headerEnd = chunk.indexOf('\r\n\r\n');
+        if (headerEnd >= 0) {
+            const rawHeaders = chunk.slice(0, headerEnd).toString('utf8');
+            const content = chunk.slice(headerEnd + 4);
+            const headers = Object.fromEntries(rawHeaders.split('\r\n')
+                .map(line => {
+                    const colon = line.indexOf(':');
+                    return [line.slice(0, colon).toLowerCase(), line.slice(colon + 1).trim()];
+                }));
+            const disposition = headers['content-disposition'] || '';
+            parts.push({
+                name: /name="([^"]*)"/.exec(disposition)?.[1] ?? null,
+                filename: /filename="([^"]*)"/.exec(disposition)?.[1] ?? null,
+                contentType: headers['content-type'] ?? null,
+                sha256: createHash('sha256').update(content).digest('hex'),
+                bytes: content.length,
+            });
+        }
+        index = next;
+    }
+    return parts;
 }
 
 function cookiesFrom(response) {
@@ -275,7 +331,12 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
             logs,
             bootOutbound,
             userRoot,
+            uploadsRoot: path.join(dataRoot, '_uploads'),
             post: (route, body) => rawRequest(`${origin}${route}`, 'POST', jsonHeaders, body),
+            // A multipart request must not carry the JSON content type: fetch sets its own boundary.
+            postForm: (route, form) => rawRequest(`${origin}${route}`, 'POST', {
+                Cookie: sessionCookie, 'X-CSRF-Token': token,
+            }, form),
             setMocks: rules => writeFileSync(rulesPath, JSON.stringify(rules)),
             outbound: () => {
                 const requests = readOutbound(recordPath);
@@ -286,7 +347,8 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
                 if (!existsSync(secretsPath)) return null;
                 const raw = readFileSync(secretsPath, 'utf8');
                 return raw.trim() === '' ? null : JSON.parse(raw);
-            },            writeSecrets: object => {
+            },
+            writeSecrets: object => {
                 mkdirSync(userRoot, { recursive: true });
                 writeFileSync(secretsPath, object === null ? '' : JSON.stringify(object, null, 4));
                 if (object === null) rmSync(secretsPath, { force: true });
