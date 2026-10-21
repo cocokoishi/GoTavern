@@ -98,7 +98,6 @@ func run(args []string) error {
 		if err := verifyInstalledTokenizers(); err != nil {
 			return err
 		}
-		fmt.Println("verified installed tokenizers")
 		return nil
 	default:
 		if args[0] == "start" {
@@ -122,10 +121,25 @@ func verifyInstalledTokenizers() error {
 		return fmt.Errorf("resolve executable path: %w", err)
 	}
 	installRoot := filepath.Dir(executable)
-	if _, err := os.Stat(filepath.Join(installRoot, "tokenizers")); err != nil {
-		return fmt.Errorf("tokenizers are missing from %s: the tokenizer routes would silently fall back to guesstimates: %w", installRoot, err)
+	// Two real layouts exist and both must verify. A RELEASE puts tokenizers/ beside the binary,
+	// because that is where the routes look. A REPOSITORY CHECKOUT (and CI, which builds the binary
+	// at the repo root) keeps them at upstream/tokenizers. Trying only the release path would fail
+	// CI while trying only the repository path would miss a broken release, so both are accepted and
+	// the one that matched is named.
+	for _, candidate := range []struct{ dir, tree string }{
+		{dir: installRoot, tree: "tokenizers"},
+		{dir: filepath.Join(installRoot, "upstream", "tokenizers"), tree: "."},
+	} {
+		if _, err := os.Stat(filepath.Join(candidate.dir, candidate.tree)); err != nil {
+			continue
+		}
+		if err := assetmanifest.VerifyWithManifest(os.DirFS(candidate.dir), candidate.tree, "manifests/tokenizers.sha256", manifest); err != nil {
+			return err
+		}
+		fmt.Printf("verified installed tokenizers (%s)\n", filepath.Join(candidate.dir, candidate.tree))
+		return nil
 	}
-	return assetmanifest.VerifyWithManifest(os.DirFS(installRoot), "tokenizers", "manifests/tokenizers.sha256", manifest)
+	return fmt.Errorf("tokenizers are missing from %s and %s: the tokenizer routes would silently fall back to guesstimates", installRoot, filepath.Join(installRoot, "upstream", "tokenizers"))
 }
 
 func runServer(args []string) error {
