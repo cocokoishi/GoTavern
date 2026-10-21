@@ -161,6 +161,7 @@ func newTranscribePeer(t *testing.T, mocks []googleTTSMock) *transcribePeer {
 			URL:     r.URL.RequestURI(),
 			Method:  r.Method,
 			Headers: headerMapOf(r.Header),
+			Body:    string(body),
 		}
 		contentType := r.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
@@ -211,7 +212,6 @@ func newTranscribePeer(t *testing.T, mocks []googleTTSMock) *transcribePeer {
 		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(mock.Body))
-		_ = body
 	}))
 	t.Cleanup(peer.server.Close)
 	return peer

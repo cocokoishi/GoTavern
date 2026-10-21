@@ -1,0 +1,755 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-openai-chutes-transcribe.mjs",
+  "implementedRoutes": [
+    "/api/openai/chutes/transcribe-audio"
+  ],
+  "notImplementedRoutes": [
+    "/api/openai/caption-image",
+    "/api/openai/generate-video"
+  ],
+  "notImplementedReasons": {
+    "/api/openai/generate-video": "A polling job with three fixed-host request shapes; its own wave.",
+    "/api/openai/caption-image": "A chat-completions body over a large per-api branch table; its own wave."
+  },
+  "pinnedSource": {
+    "src/endpoints/openai.js:882": "router.post('/chutes/transcribe-audio'): reads the uploaded file, base64s it, and fetches https://${request.body.model}.chutes.ai/transcribe"
+  },
+  "mechanism": "The upstream host is derived from the REQUEST, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer and asserts BOTH the captured URL (host included) and the captured request COUNT: an escaped request appears as a missing capture rather than as plausible data.",
+  "inheritedProperties": {
+    "hostInterpolation": "The model is interpolated into the HOSTNAME with no sanitising, so a model containing a dot or a slash redirects the request to another host. Reproduced verbatim and recorded here the way the content-import substring match is recorded; hardening it would be a deliberate compatibility change, not a silent improvement."
+  },
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "200, 400 for a refusal, 500 for a provider error or a non-array answer"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "json for the projection, html for the text bodies"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the joined-chunks projection and the forwarded provider text"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the HOST is compared exactly, because the model can move it (rule 15)"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the base64 audio member"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the bearer key and content type, asserted in both directions"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "exactly one request when the provider is reached and ZERO for a refusal, so an escape cannot hide"
+    }
+  ],
+  "normalizations": [
+    "None: the request and the answer are both deterministic."
+  ],
+  "inputs": {
+    "audioSha256": "91a9838da39f178e8737924998fb12d76dce125d52cf15505bd7cb04767f8b78",
+    "audioBase64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=",
+    "chunks": [
+      {
+        "text": "hello "
+      },
+      {
+        "text": "world"
+      }
+    ],
+    "joined": "hello world",
+    "chutesKey": "synthetic-chutes-key",
+    "hostileModelUrl": "https://evil.example.com/x.chutes.ai/transcribe"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "chutesOk": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesOk",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"hello \"},{\"text\":\"world\"}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "22",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"16-435FIvxQfToiwp4vhTlfISUoHuQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "hello world"
+        },
+        "bodyText": "{\"text\":\"hello world\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesHostileModel": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"evil.example.com/x\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesHostileModel",
+          "match": "evil.example.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"hello \"},{\"text\":\"world\"}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "22",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"16-435FIvxQfToiwp4vhTlfISUoHuQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "hello world"
+        },
+        "bodyText": "{\"text\":\"hello world\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://evil.example.com/x.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesSlashModel": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"a/b\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesSlashModel",
+          "match": "/b.chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"hello \"},{\"text\":\"world\"}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "22",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"16-435FIvxQfToiwp4vhTlfISUoHuQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "hello world"
+        },
+        "bodyText": "{\"text\":\"hello world\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://a/b.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesEmptyChunks": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesEmptyChunks",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"only\"},{}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "15",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-7QpfJCXZK9o39UWUqbalGOh/ZCk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "only"
+        },
+        "bodyText": "{\"text\":\"only\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesWhitespaceChunks": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesWhitespaceChunks",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"  padded  \"},{\"text\":\"\\n second \\n\"}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "28",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1c-9I1hTFbsOnq87i8XbafC/6ysuVI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "padded  \n second"
+        },
+        "bodyText": "{\"text\":\"padded  \\n second\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesInternalWhitespace": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesInternalWhitespace",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[{\"text\":\"  a  \"},{\"text\":\"  b  \"}]"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "17",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"11-aGBg4IooditY2DOdgZO3V/3vP5Y\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "text": "a    b"
+        },
+        "bodyText": "{\"text\":\"a    b\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesNullAnswer": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesNullAnswer",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "null"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesNonArray": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesNonArray",
+          "match": ".chutes.ai/transcribe",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"not an array\"}"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesNonOk": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [
+        {
+          "run": "chutesNonOk",
+          "match": ".chutes.ai/transcribe",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "chutes says no"
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "14",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-TItgK++hwwRfDCVStah1oPKUJ+s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "chutes says no",
+        "bodyText": "chutes says no"
+      },
+      "outbound": [
+        {
+          "url": "https://whisper-large-v3.chutes.ai/transcribe",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"audio_b64\":\"UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8=\"}"
+        }
+      ]
+    },
+    "chutesNoKey": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": {
+        "field": "avatar",
+        "filename": "audio.wav",
+        "contentType": "audio/wav",
+        "base64": "UklGRmdvdGF2ZXJuLXN5bnRoZXRpYy1jaHV0ZXMtYXVkaW8="
+      },
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "chutesNoFile": {
+      "route": "/api/openai/chutes/transcribe-audio",
+      "requestBody": "{\"model\":\"whisper-large-v3\"}",
+      "upload": null,
+      "mocks": [],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    }
+  }
+}
