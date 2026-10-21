@@ -46,7 +46,13 @@ if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf
 
 const COOKIE_SECRET = 'gotavern-pinned-nanogpt-cookie-secret';
 const SECRETS = { api_key_nanogpt: 'probe-nanogpt-key' };
-const SEAM_DEFAULTS = { GOTAVERN_NANOGPT_CREDITS_URL: 'https://nano-gpt.com/api' };
+const SEAM_DEFAULTS = {
+    GOTAVERN_NANOGPT_CREDITS_URL: 'https://nano-gpt.com/api',
+    // The pinned providers route interpolates into ${API_NANOGPT}/models/..., and API_NANOGPT is the same
+    // .../api base the credits route appends to. The bases are shared, but the seam is separate so
+    // the two routes can be redirected independently (the credits route needs two parallel paths).
+    GOTAVERN_NANOGPT_PROVIDERS_URL: 'https://nano-gpt.com/api',
+};
 
 function secretFile(values) {
     const secrets = {};
@@ -131,6 +137,155 @@ addScenario({
     peer: 'closed',
 });
 
+// ---- models/providers (nanogpt.js:104) --------------------------------------------------------
+// The model is interpolated into a PATH segment through encodeURIComponent, and the route sends NO
+// authorization header. The filter order is the observable that matters: `available !== false` keeps
+// an absent flag, `.provider` selects the name (not the object), then `filter(Boolean)` drops
+// missing/empty names.
+addScenario({
+    name: 'providers.filters',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: JSON.stringify({
+            supportsProviderSelection: true,
+            providers: [
+                { provider: 'openai', available: true },
+                { provider: 'anthropic' },
+                { provider: 'disabled', available: false },
+                { provider: '' },
+                { available: true },
+                { provider: null },
+                'string-entry',
+            ],
+        }),
+    }],
+});
+// A null entry survives the optional-chain filter (p?.available is undefined) but the UNGUARDED
+// `.map(p => p.provider)` then throws a TypeError, which the catch turns into sendStatus(500). This is
+// pinned behaviour, not a bug to fix: the oracle records 500 with an empty body.
+addScenario({
+    name: 'providers.nullEntryThrows',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: JSON.stringify({ supportsProviderSelection: true, providers: [null] }),
+    }],
+});
+addScenario({
+    name: 'providers.unsupported',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: JSON.stringify({ supportsProviderSelection: false }),
+    }],
+});
+addScenario({
+    name: 'providers.emptyObject',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: '{}',
+    }],
+});
+addScenario({
+    name: 'providers.providersNotArray',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: JSON.stringify({ supportsProviderSelection: true, providers: 'nope' }),
+    }],
+});
+addScenario({
+    name: 'providers.supportsTruthyString',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/probe-model/providers',
+        body: JSON.stringify({ supportsProviderSelection: 'yes', providers: [] }),
+    }],
+});
+addScenario({
+    name: 'providers.reservedModel',
+    route: 'models/providers',
+    body: { model: 'a/b?c&d=e#f g' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/a%2Fb%3Fc%26d%3De%23f%20g/providers',
+        body: JSON.stringify({ supportsProviderSelection: true, providers: [{ provider: 'reserved' }] }),
+    }],
+});
+addScenario({
+    name: 'providers.nonOk',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 500,
+        headers: { 'Content-Type': 'text/plain' },
+        path: '/models/probe-model/providers',
+        body: 'provider exploded',
+    }],
+});
+addScenario({
+    name: 'providers.notJson',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+        path: '/models/probe-model/providers',
+        body: 'not json at all',
+    }],
+});
+addScenario({
+    name: 'providers.throws',
+    route: 'models/providers',
+    body: { model: 'probe-model' },
+    upstream: [{
+        path: '/models/probe-model/providers',
+        throws: true,
+    }],
+    peer: 'closed',
+});
+addScenario({
+    name: 'providers.missingModel',
+    route: 'models/providers',
+    body: {},
+});
+addScenario({
+    name: 'providers.emptyModel',
+    route: 'models/providers',
+    body: { model: '' },
+});
+addScenario({
+    name: 'providers.numberModel',
+    route: 'models/providers',
+    body: { model: 5 },
+    upstream: [{
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        path: '/models/5/providers',
+        body: JSON.stringify({ supportsProviderSelection: true, providers: [{ provider: 'five' }] }),
+    }],
+});
 function capture(result) {
     const body = result.bytes ?? Buffer.from(result.text ?? '', 'utf8');
     return {
@@ -164,8 +319,9 @@ async function main() {
                 body: item.body,
                 throws: item.throws === true,
             })));
-            const result = await server.post('/api/nanogpt/credits', JSON.stringify(scenario.body ?? {}));
+            const result = await server.post(`/api/nanogpt/${scenario.route ?? 'credits'}`, JSON.stringify(scenario.body ?? {}));
             inputs[scenario.name] = {
+                route: scenario.route ?? 'credits',
                 body: scenario.body ?? {},
                 bodyText: JSON.stringify(scenario.body ?? {}),
                 peer: scenario.peer ?? 'mock',

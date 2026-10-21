@@ -54,10 +54,12 @@
       "password": ""
     },
     "seamDefaults": {
-      "GOTAVERN_NANOGPT_CREDITS_URL": "https://nano-gpt.com/api"
+      "GOTAVERN_NANOGPT_CREDITS_URL": "https://nano-gpt.com/api",
+      "GOTAVERN_NANOGPT_PROVIDERS_URL": "https://nano-gpt.com/api"
     },
     "scenarios": {
       "credits.ok": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -87,6 +89,7 @@
         "outboundOrder": "shape"
       },
       "credits.subscriptionInactive": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -116,6 +119,7 @@
         "outboundOrder": "shape"
       },
       "credits.subscriptionFailed": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -145,6 +149,7 @@
         "outboundOrder": "shape"
       },
       "credits.balanceFailed": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -174,6 +179,7 @@
         "outboundOrder": "shape"
       },
       "credits.invalidNumbers": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -203,6 +209,7 @@
         "outboundOrder": "shape"
       },
       "credits.noKey": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "mock",
@@ -213,6 +220,7 @@
         "outboundOrder": "shape"
       },
       "credits.closedPort": {
+        "route": "credits",
         "body": {},
         "bodyText": "{}",
         "peer": "closed",
@@ -220,6 +228,268 @@
           "api_key_nanogpt": "probe-nanogpt-key"
         },
         "upstream": [],
+        "outboundOrder": "shape"
+      },
+      "providers.filters": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{\"supportsProviderSelection\":true,\"providers\":[{\"provider\":\"openai\",\"available\":true},{\"provider\":\"anthropic\"},{\"provider\":\"disabled\",\"available\":false},{\"provider\":\"\"},{\"available\":true},{\"provider\":null},\"string-entry\"]}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.nullEntryThrows": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{\"supportsProviderSelection\":true,\"providers\":[null]}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.unsupported": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{\"supportsProviderSelection\":false}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.emptyObject": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.providersNotArray": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{\"supportsProviderSelection\":true,\"providers\":\"nope\"}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.supportsTruthyString": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "{\"supportsProviderSelection\":\"yes\",\"providers\":[]}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.reservedModel": {
+        "route": "models/providers",
+        "body": {
+          "model": "a/b?c&d=e#f g"
+        },
+        "bodyText": "{\"model\":\"a/b?c&d=e#f g\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/a%2Fb%3Fc%26d%3De%23f%20g/providers",
+            "body": "{\"supportsProviderSelection\":true,\"providers\":[{\"provider\":\"reserved\"}]}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.nonOk": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 500,
+            "headers": {
+              "Content-Type": "text/plain"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "provider exploded"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.notJson": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "text/plain"
+            },
+            "path": "/models/probe-model/providers",
+            "body": "not json at all"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.throws": {
+        "route": "models/providers",
+        "body": {
+          "model": "probe-model"
+        },
+        "bodyText": "{\"model\":\"probe-model\"}",
+        "peer": "closed",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "path": "/models/probe-model/providers",
+            "throws": true
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "providers.missingModel": {
+        "route": "models/providers",
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [],
+        "outboundOrder": "shape"
+      },
+      "providers.emptyModel": {
+        "route": "models/providers",
+        "body": {
+          "model": ""
+        },
+        "bodyText": "{\"model\":\"\"}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [],
+        "outboundOrder": "shape"
+      },
+      "providers.numberModel": {
+        "route": "models/providers",
+        "body": {
+          "model": 5
+        },
+        "bodyText": "{\"model\":5}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models/5/providers",
+            "body": "{\"supportsProviderSelection\":true,\"providers\":[{\"provider\":\"five\"}]}"
+          }
+        ],
         "outboundOrder": "shape"
       }
     }
@@ -668,6 +938,578 @@
             [
               "x-api-key",
               "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.filters": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "69",
+      "etag": "W/\"45-4GOaa1+4ZtW/8/O/KGmsF1ZFlQI\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjp0cnVlLCJwcm92aWRlcnMiOlsib3BlbmFpIiwiYW50aHJvcGljIl19",
+      "bodySha256": "c7dd8efded31e415569f8505bd2ea1374f41e7f5d866fbd82b1a9d50b7436ae7",
+      "bodyLength": 69,
+      "bodyJson": {
+        "supportsProviderSelection": true,
+        "providers": [
+          "openai",
+          "anthropic"
+        ]
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.nullEntryThrows": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.unsupported": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-28EfYNmJpHUbWKgxj/uDUcTHx7U\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjpmYWxzZSwicHJvdmlkZXJzIjpbXX0=",
+      "bodySha256": "21d5cc052060d35aa1d082fe25297c3528f0c644c7edb22d1eacae7e85030c99",
+      "bodyLength": 50,
+      "bodyJson": {
+        "supportsProviderSelection": false,
+        "providers": []
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.emptyObject": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-28EfYNmJpHUbWKgxj/uDUcTHx7U\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjpmYWxzZSwicHJvdmlkZXJzIjpbXX0=",
+      "bodySha256": "21d5cc052060d35aa1d082fe25297c3528f0c644c7edb22d1eacae7e85030c99",
+      "bodyLength": 50,
+      "bodyJson": {
+        "supportsProviderSelection": false,
+        "providers": []
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.providersNotArray": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "49",
+      "etag": "W/\"31-Vyyij+30Lilr5UPW83StGRC9l5M\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjp0cnVlLCJwcm92aWRlcnMiOltdfQ==",
+      "bodySha256": "bbd29a9895963bc8aa98f609268e8c66cd4d9691c4554eb386dcc6a97f4c0159",
+      "bodyLength": 49,
+      "bodyJson": {
+        "supportsProviderSelection": true,
+        "providers": []
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.supportsTruthyString": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "49",
+      "etag": "W/\"31-Vyyij+30Lilr5UPW83StGRC9l5M\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjp0cnVlLCJwcm92aWRlcnMiOltdfQ==",
+      "bodySha256": "bbd29a9895963bc8aa98f609268e8c66cd4d9691c4554eb386dcc6a97f4c0159",
+      "bodyLength": 49,
+      "bodyJson": {
+        "supportsProviderSelection": true,
+        "providers": []
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.reservedModel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "59",
+      "etag": "W/\"3b-nUDsEL7MMQd50yVc4u0pbMmyKfY\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjp0cnVlLCJwcm92aWRlcnMiOlsicmVzZXJ2ZWQiXX0=",
+      "bodySha256": "975c84fa12da0ff3aab966cc9a0cfe7d7f55a456c7a514e4897705dc08e5d92e",
+      "bodyLength": 59,
+      "bodyJson": {
+        "supportsProviderSelection": true,
+        "providers": [
+          "reserved"
+        ]
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/a%2Fb%3Fc%26d%3De%23f%20g/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-28EfYNmJpHUbWKgxj/uDUcTHx7U\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjpmYWxzZSwicHJvdmlkZXJzIjpbXX0=",
+      "bodySha256": "21d5cc052060d35aa1d082fe25297c3528f0c644c7edb22d1eacae7e85030c99",
+      "bodyLength": 50,
+      "bodyJson": {
+        "supportsProviderSelection": false,
+        "providers": []
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.notJson": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.throws": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/probe-model/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.missingModel": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-28EfYNmJpHUbWKgxj/uDUcTHx7U\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjpmYWxzZSwicHJvdmlkZXJzIjpbXX0=",
+      "bodySha256": "21d5cc052060d35aa1d082fe25297c3528f0c644c7edb22d1eacae7e85030c99",
+      "bodyLength": 50,
+      "bodyJson": {
+        "supportsProviderSelection": false,
+        "providers": []
+      },
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.emptyModel": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "50",
+      "etag": "W/\"32-28EfYNmJpHUbWKgxj/uDUcTHx7U\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjpmYWxzZSwicHJvdmlkZXJzIjpbXX0=",
+      "bodySha256": "21d5cc052060d35aa1d082fe25297c3528f0c644c7edb22d1eacae7e85030c99",
+      "bodyLength": 50,
+      "bodyJson": {
+        "supportsProviderSelection": false,
+        "providers": []
+      },
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "providers.numberModel": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "55",
+      "etag": "W/\"37-J6mVdWl6c2VDnvtIe0RHh33fZ54\"",
+      "bodyBase64": "eyJzdXBwb3J0c1Byb3ZpZGVyU2VsZWN0aW9uIjp0cnVlLCJwcm92aWRlcnMiOlsiZml2ZSJdfQ==",
+      "bodySha256": "641b5998c0b165363aa9fc154977905aec45ce26916088c70623235a7507a3ba",
+      "bodyLength": 55,
+      "bodyJson": {
+        "supportsProviderSelection": true,
+        "providers": [
+          "five"
+        ]
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/models/5/providers",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
             ]
           ],
           "body": ""

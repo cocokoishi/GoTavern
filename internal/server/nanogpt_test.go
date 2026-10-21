@@ -43,6 +43,7 @@ type nanogptFixture struct {
 }
 
 type nanogptScenario struct {
+	Route    string             `json:"route"`
 	BodyText string             `json:"bodyText"`
 	Peer     string             `json:"peer"`
 	Secrets  map[string]string  `json:"secrets"`
@@ -73,15 +74,21 @@ func TestNanoGPTSeamDefaults(t *testing.T) {
 	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if len(fixture.Inputs.SeamDefaults) != 1 {
-		t.Fatalf("fixture records %d seam defaults, want the NanoGPT API seam only", len(fixture.Inputs.SeamDefaults))
+	if len(fixture.Inputs.SeamDefaults) != 2 {
+		t.Fatalf("fixture records %d seam defaults, want the two NanoGPT API seams", len(fixture.Inputs.SeamDefaults))
 	}
 	for environmentName, defaultValue := range fixture.Inputs.SeamDefaults {
-		if environmentName != "GOTAVERN_NANOGPT_CREDITS_URL" {
+		t.Setenv(environmentName, "")
+		var got string
+		switch environmentName {
+		case "GOTAVERN_NANOGPT_CREDITS_URL":
+			got = nanogptCreditsAPIURL()
+		case "GOTAVERN_NANOGPT_PROVIDERS_URL":
+			got = nanogptProvidersAPIURL()
+		default:
 			t.Fatalf("fixture records unknown seam %q", environmentName)
 		}
-		t.Setenv(environmentName, "")
-		if got := nanogptCreditsAPIURL(); got != defaultValue {
+		if got != defaultValue {
 			t.Fatalf("%s default = %q, pinned literal %q", environmentName, got, defaultValue)
 		}
 	}
@@ -116,26 +123,29 @@ func TestPinnedNodeNanoGPTCredits(t *testing.T) {
 	mockOrigin := "http://" + address.String()
 	mockAuthority := address.String()
 	closedOrigin := closedLoopbackOrigin(t)
-	// The credits seam replaces the whole pinned base, including its "/api" path; fixture targets
-	// therefore have the seam default's base path removed before comparison.
-	creditsBasePath := ""
-	if parsed, err := url.Parse(fixture.Inputs.SeamDefaults["GOTAVERN_NANOGPT_CREDITS_URL"]); err == nil {
-		creditsBasePath = strings.TrimSuffix(parsed.Path, "/")
+	// Each route has its own seam, and the seam replaces the whole pinned base including the "/api"
+	// path segment; fixture targets therefore have the seam default's base path removed before
+	// comparison.
+	basePaths := map[string]string{}
+	for _, environmentName := range []string{"GOTAVERN_NANOGPT_CREDITS_URL", "GOTAVERN_NANOGPT_PROVIDERS_URL"} {
+		if parsed, err := url.Parse(fixture.Inputs.SeamDefaults[environmentName]); err == nil {
+			basePaths[environmentName] = strings.TrimSuffix(parsed.Path, "/")
+		}
+		t.Setenv(environmentName, "")
 	}
-	expectedTarget := func(rawURL string) string {
+	expectedTarget := func(environmentName, rawURL string) string {
 		target, err := parseExpectedTarget(rawURL)
 		if err != nil {
 			t.Fatalf("fixture URL %q: %v", rawURL, err)
 		}
-		if creditsBasePath != "" && strings.HasPrefix(target, creditsBasePath) {
-			target = strings.TrimPrefix(target, creditsBasePath)
+		if basePath := basePaths[environmentName]; basePath != "" && strings.HasPrefix(target, basePath) {
+			target = strings.TrimPrefix(target, basePath)
 			if target == "" {
 				target = "/"
 			}
 		}
 		return target
 	}
-	t.Setenv("GOTAVERN_NANOGPT_CREDITS_URL", "")
 
 	for _, name := range sortedKeys(fixture.Inputs.Scenarios) {
 		scenario := fixture.Inputs.Scenarios[name]
@@ -143,14 +153,24 @@ func TestPinnedNodeNanoGPTCredits(t *testing.T) {
 		if !exists {
 			t.Fatalf("%s: no recorded observation", name)
 		}
+		route := scenario.Route
+		if route == "" {
+			route = "credits"
+		}
+		seam := "GOTAVERN_NANOGPT_CREDITS_URL"
+		if route == "models/providers" {
+			seam = "GOTAVERN_NANOGPT_PROVIDERS_URL"
+		} else if route != "credits" {
+			t.Fatalf("%s: unknown route %q", name, route)
+		}
 		targetOrigin := mockOrigin
 		if scenario.Peer == "closed" {
 			targetOrigin = closedOrigin
 		}
-		t.Setenv("GOTAVERN_NANOGPT_CREDITS_URL", targetOrigin)
+		t.Setenv(seam, targetOrigin)
 		peer.Reset(nanogptPeerScript(t, name, scenario, observation, mockOrigin))
 		writeSDSecrets(t, dataRoot, fixture.Inputs.Account.Handle, scenario.Secrets)
-		request := httptest.NewRequest(http.MethodPost, "/api/nanogpt/credits", strings.NewReader(scenario.BodyText))
+		request := httptest.NewRequest(http.MethodPost, "/api/nanogpt/"+route, strings.NewReader(scenario.BodyText))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("Cookie", sessionCookie)
 		request.Header.Set("X-CSRF-Token", token)
@@ -165,7 +185,9 @@ func TestPinnedNodeNanoGPTCredits(t *testing.T) {
 			}
 			continue
 		}
-		compareNanoGPTOutboundSet(t, name, fixture, observation, recorded, mockOrigin, mockAuthority, expectedTarget)
+		compareNanoGPTOutboundSet(t, name, fixture, observation, recorded, mockOrigin, mockAuthority, func(rawURL string) string {
+			return expectedTarget(seam, rawURL)
+		})
 		if unused := peer.Unused(); len(unused) > 0 {
 			t.Fatalf("%s: peer script not fully consumed; unused %v", name, unused)
 		}

@@ -39,6 +39,14 @@ func nanogptCreditsAPIURL() string {
 	return sdSeamURL("GOTAVERN_NANOGPT_CREDITS_URL", "https://nano-gpt.com/api")
 }
 
+// nanogptProvidersAPIURL shares the pinned `.../api` base with credits (the pinned constant is
+// API_NANOGPT = https://nano-gpt.com/api and the providers path is appended to it, exactly as
+// check-balance is), but it is a separate seam so the two routes can be redirected independently:
+// credits issues two parallel requests, providers one.
+func nanogptProvidersAPIURL() string {
+	return sdSeamURL("GOTAVERN_NANOGPT_PROVIDERS_URL", "https://nano-gpt.com/api")
+}
+
 func init() {
 	domainRouteRegistrars = append(domainRouteRegistrars, registerNanoGPTRoutes)
 }
@@ -50,6 +58,13 @@ func registerNanoGPTRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoun
 			return
 		}
 		accounts.serveNanoGPTCredits(w, r)
+	})
+	mux.HandleFunc("/api/nanogpt/models/providers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			serveStatic(w, r, notFoundPage, options)
+			return
+		}
+		accounts.serveNanoGPTProviders(w, r)
 	})
 }
 
@@ -212,6 +227,88 @@ func (runtime *accountRuntime) serveNanoGPTCredits(w http.ResponseWriter, reques
 }
 
 // nanogptJSStringOrEmpty is `String(value || ”)` for a member of a possibly missing object.
+// serveNanoGPTProviders is nanogpt.js:104. The route sends NO authorization header, and the model
+// goes into a PATH segment through encodeURIComponent. The provider filter order is significant:
+// `p?.available !== false` keeps an ABSENT available flag, `.map(p => p.provider)` selects the name
+// and THROWS on a null entry (the catch turns that into 500), and `.filter(Boolean)` then drops
+// missing/empty names.
+func (runtime *accountRuntime) serveNanoGPTProviders(w http.ResponseWriter, request *http.Request) {
+	if _, _, ok := runtime.sdUser(w, request); !ok {
+		return
+	}
+	body, ok := runtime.sdRequestBody(w, request)
+	if !ok {
+		return
+	}
+	model := sdBodyMember(body, "model")
+	if !pinnedJSTruthy(model) {
+		respondOrderedNodeJSON(w, http.StatusBadRequest, nanogptProvidersEnvelope(false, nodeArray()))
+		return
+	}
+	modelText, err := pinnedJSStringValue(model)
+	if err != nil {
+		backendsStatus(w, http.StatusInternalServerError)
+		return
+	}
+	response, requestErr := searchFetch(request.Context(), searchRequest{
+		Method: http.MethodGet,
+		URL:    nanogptProvidersAPIURL() + "/models/" + sdEncodeURIComponent(modelText) + "/providers",
+		Headers: map[string]string{
+			"accept": "application/json",
+		},
+	})
+	if requestErr != nil || response == nil {
+		backendsStatus(w, http.StatusInternalServerError)
+		return
+	}
+	if !sdResponseOK(response) {
+		respondOrderedNodeJSON(w, http.StatusOK, nanogptProvidersEnvelope(false, nodeArray()))
+		return
+	}
+	data, parsed := sdReadJSON(response)
+	if !parsed {
+		backendsStatus(w, http.StatusInternalServerError)
+		return
+	}
+	providers := nodeArray()
+	if data.kind == 'o' {
+		if list, exists := data.member("providers"); exists && list.kind == 'a' {
+			for _, entry := range list.array {
+				if entry.kind == 'o' {
+					if available, hasAvailable := entry.member("available"); hasAvailable && pinnedJSStrictEqual(available, nodeBool(false)) {
+						continue
+					}
+				}
+				// `p?.available` tolerates null, but `.map(p => p.provider)` does not: a null entry
+				// throws a TypeError on the pinned route, which the catch answers with 500.
+				if entry.kind == 'n' {
+					backendsStatus(w, http.StatusInternalServerError)
+					return
+				}
+				name := nodeUndefined()
+				if entry.kind == 'o' {
+					name = sdBodyMember(entry, "provider")
+				}
+				if pinnedJSTruthy(name) {
+					providers.array = append(providers.array, name)
+				}
+			}
+		}
+	}
+	supports := false
+	if data.kind == 'o' {
+		supports = pinnedJSTruthy(sdBodyMember(data, "supportsProviderSelection"))
+	}
+	respondOrderedNodeJSON(w, http.StatusOK, nanogptProvidersEnvelope(supports, providers))
+}
+
+func nanogptProvidersEnvelope(supports bool, providers orderedNodeJSON) orderedNodeJSON {
+	envelope := nodeObject()
+	envelope.setMember("supportsProviderSelection", nodeBool(supports))
+	envelope.setMember("providers", providers)
+	return envelope
+}
+
 func nanogptJSStringOrEmpty(container orderedNodeJSON, key string) string {
 	value := backendsOptionalMember(container, key)
 	if !pinnedJSTruthy(value) {
