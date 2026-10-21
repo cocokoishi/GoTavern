@@ -82,7 +82,17 @@ domain.
 7. **Never let a step that appears to have happened stand unverified.** Assertions that cannot
    fail, reverts that silently no-op, cached test results and probes that never ran are all the
    same failure: evidence that reads as proof but cannot fail. Where a fixture cannot
-   discriminate, make the test refuse to run rather than pass vacuously.
+   discriminate, make the test refuse to run rather than pass vacuously. THE SAME APPLIES TO A
+   CAPABILITY: an additive change can be verified as harmless and still be the WRONG capability. The
+   probe library gained writeConfig/restoreConfig for a config-driven branch, and it passed every
+   additive test -- byte-clean, host-side only, two probes re-recording byte-identically, no fixture
+   moved -- and was still insufficient, because the pinned server parses config.yaml at STARTUP and a
+   running process never re-reads it. The assertion failed with the pinned value named ("actual: 1,
+   expected: 2" messages), which is what caught it: additivity answers "does this break anything?" and
+   not "does this achieve the purpose?". Prove a capability REACHES the behaviour it was built for
+   before building anything on it, and prefer the design that REMOVES a hazard over one that manages it
+   -- the boot-time override that replaced the file write also removed the restore, the isolation
+   assertion and the ordering constraint, because there was no shared mutable state left to isolate.
 8. **A non-zero exit in a PowerShell pipeline may be manufactured by stderr.** When a native
    command writes to stderr and its output is piped or redirected, PowerShell can raise
    `NativeCommandError` and surface a non-zero status even though the command succeeded. Confirm
