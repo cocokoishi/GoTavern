@@ -136,6 +136,17 @@ domain.
    treat a *changing* PID as proof the match is the query itself rather than a stable long-lived
    process. The same reasoning applies to log and repository searches for a term that appears in the
    command you are running.
+14. **A probe must not be able to reach the live network, and "I replaced the HTTP client"
+   is not the same claim as "no request left this process."** The Horde probe replaced the
+   pinned server's `node-fetch` module and still reached the REAL `aihorde.net`, because the
+   `@zeldafan0225/ai_horde` SDK calls the GLOBAL `fetch`. The run did not fail: it recorded
+   live third-party data into a fixture that would have been committed and replayed as
+   evidence, and only the `sd-models` passthrough assertion exposed it because the "recorded"
+   payload turned out to be the live model list. Replace EVERY egress path — the module, the
+   global `fetch`, and any SDK client — and make the assertion say the peer received exactly
+   the requests the fixture claims, so a request that escapes is visible as a missing request
+   rather than as plausible data. Prefer a probe that would error without the peer over one
+   that would silently succeed without it.
 
 ## Where verification runs
 
