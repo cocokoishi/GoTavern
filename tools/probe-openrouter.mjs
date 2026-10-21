@@ -144,6 +144,47 @@ try {
     await record('creditsMissingData', '/api/openrouter/credits', '{}', rules({ data: {} }));
     await record('creditsNonOk', '/api/openrouter/credits', '{}', failing(500));
     await record('creditsThrows', '/api/openrouter/credits', '{}', throwing());
+
+    // ── /image/generate ──────────────────────────────────────────────────────────────────────────
+    // FIVE error paths plus the forward and the aspect-ratio pair. The two 400 guards answer a JSON
+    // body (NOT sendStatus) and make ZERO outbound requests; the 500 paths answer a bare status.
+    const IMAGE_DATA_URI = 'data:image/png;base64,QUJD';
+    const imageAnswer = url => ({ choices: [{ message: { images: [{ image_url: { url } }] } }] });
+    server.writeSecrets({});
+    await record('imageNoKey', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', rules(imageAnswer(IMAGE_DATA_URI)));
+    server.writeSecrets({
+        api_key_openrouter: [{ id: 'sid-openrouter-1', value: OPENROUTER_KEY, label: 'or', active: true }],
+    });
+    await record('imageNoModelOrPrompt', '/api/openrouter/image/generate', '{"model":"m"}', rules(imageAnswer(IMAGE_DATA_URI)));
+    await record('imageNonOk', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', failing(500));
+    await record('imageNoImageUrl', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', rules({ choices: [{ message: { images: [] } }] }));
+    await record('imageBadDataUri', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', rules(imageAnswer('https://example.test/x.png')));
+    await record('imageOk', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', rules(imageAnswer(IMAGE_DATA_URI)));
+    await record('imageAspectGiven', '/api/openrouter/image/generate', '{"model":"m","prompt":"p","aspect_ratio":"16:9"}', rules(imageAnswer(IMAGE_DATA_URI)));
+    await record('imageThrows', '/api/openrouter/image/generate', '{"model":"m","prompt":"p"}', throwing());
+
+    assert.equal(scenarios.imageNoKey.response.status, 400, 'a missing key answers 400');
+    assert.deepEqual(scenarios.imageNoKey.response.body, { error: 'OpenRouter API key not found' },
+        'the key refusal answers a JSON body, not sendStatus');
+    assert.equal(scenarios.imageNoKey.outbound.length, 0, 'the key refusal makes zero outbound requests');
+    assert.deepEqual(scenarios.imageNoModelOrPrompt.response.body, { error: 'Model and prompt are required' },
+        'the second guard has its own distinct JSON body, which a two-scenario plan would leave unasserted');
+    assert.equal(scenarios.imageNoModelOrPrompt.outbound.length, 0, 'the second guard makes zero outbound requests');
+    assert.equal(scenarios.imageNonOk.response.status, 500, 'a non-ok provider answer is 500');
+    assert.equal(scenarios.imageNoImageUrl.response.status, 500, 'a response carrying no image URL is 500');
+    assert.equal(scenarios.imageBadDataUri.response.status, 500, 'an image URL that is not a data URI is 500');
+    // The BODY observables, which the capture change in this file's previous commit made assertable.
+    const imageBody = JSON.parse(requireOutbound('imageOk', 0).body);
+    assert.deepEqual(imageBody.messages, [{ role: 'user', content: 'p' }],
+        'content is the RAW PROMPT STRING, not a content-part array -- the detail distinguishing this route from caption-image');
+    assert.deepEqual(imageBody.modalities, ['image'], 'modalities is ["image"]');
+    assert.deepEqual(imageBody.image_config, { aspect_ratio: '1:1' }, 'aspect_ratio defaults to 1:1 when absent');
+    assert.deepEqual(JSON.parse(requireOutbound('imageAspectGiven', 0).body).image_config, { aspect_ratio: '16:9' },
+        'a supplied aspect_ratio is forwarded rather than replaced by the default');
+    assert.equal(requireOutbound('imageOk', 0).url, `${OPENROUTER_API}/chat/completions`,
+        'the forward goes to /chat/completions on the fixed API host, so the replay needs the existing GOTAVERN_OPENROUTER_API_URL seam');
+    assert.deepEqual(Object.keys(imageBody), ['model', 'messages', 'modalities', 'image_config'],
+        'the body member ORDER is contract');
 } finally {
     await server.stop();
 }

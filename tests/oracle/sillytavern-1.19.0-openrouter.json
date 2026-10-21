@@ -939,8 +939,8 @@
       ]
     },
     "imageNonOk": {
-      "route": "/api/openrouter/models/image",
-      "requestBody": "{}",
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
       "mocks": [
         {
           "match": "https://openrouter.ai/api/v1",
@@ -952,15 +952,24 @@
           "body": "peer says no"
         }
       ],
-      "secrets": null,
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
       "response": {
-        "status": 200,
+        "status": 500,
         "headers": {
-          "content-length": "2",
-          "content-type": "application/json; charset=utf-8",
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "etag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\"",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
           "origin-agent-cluster": "?1",
           "referrer-policy": "no-referrer",
           "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -972,17 +981,20 @@
           "x-permitted-cross-domain-policies": "none",
           "x-xss-protection": "0"
         },
-        "body": [],
-        "bodyText": "[]"
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
       },
       "outbound": [
         {
-          "url": "https://openrouter.ai/api/v1/models?output_modalities=image",
-          "method": "GET",
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
           "headers": {
-            "accept": "application/json"
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
           },
-          "body": null
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"1:1\"}}"
         }
       ]
     },
@@ -1319,6 +1331,398 @@
             "authorization": "Bearer sk-or-synthetic-openrouter-key"
           },
           "body": null
+        }
+      ]
+    },
+    "imageNoKey": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[{\"image_url\":{\"url\":\"data:image/png;base64,QUJD\"}}]}}]}"
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "40",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-2uhXJuURaxSZh5MkGegoF2ilDSM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "OpenRouter API key not found"
+        },
+        "bodyText": "{\"error\":\"OpenRouter API key not found\"}"
+      },
+      "outbound": []
+    },
+    "imageNoModelOrPrompt": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[{\"image_url\":{\"url\":\"data:image/png;base64,QUJD\"}}]}}]}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "41",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"29-vvhZNwp3W5ySH33txBYxWkdoXoI\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": "Model and prompt are required"
+        },
+        "bodyText": "{\"error\":\"Model and prompt are required\"}"
+      },
+      "outbound": []
+    },
+    "imageNoImageUrl": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[]}}]}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"1:1\"}}"
+        }
+      ]
+    },
+    "imageBadDataUri": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[{\"image_url\":{\"url\":\"https://example.test/x.png\"}}]}}]}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"1:1\"}}"
+        }
+      ]
+    },
+    "imageOk": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[{\"image_url\":{\"url\":\"data:image/png;base64,QUJD\"}}]}}]}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"1:1\"}}"
+        }
+      ]
+    },
+    "imageAspectGiven": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"images\":[{\"image_url\":{\"url\":\"data:image/png;base64,QUJD\"}}]}}]}"
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-a/57sIWWPU1+a9HCgzv9THZJZNc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "image": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"16:9\"}}"
+        }
+      ]
+    },
+    "imageThrows": {
+      "route": "/api/openrouter/image/generate",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "match": "https://openrouter.ai/api/v1",
+          "throws": true
+        }
+      ],
+      "secrets": {
+        "api_key_openrouter": [
+          {
+            "id": "sid-openrouter-1",
+            "value": "sk-or-synthetic-openrouter-key",
+            "label": "or",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-or-synthetic-openrouter-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"p\"}],\"modalities\":[\"image\"],\"image_config\":{\"aspect_ratio\":\"1:1\"}}"
         }
       ]
     }
