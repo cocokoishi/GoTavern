@@ -161,13 +161,23 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 		return
 	}
 
-	created, err := outbound.Send(request.Context(), outbound.Request{
+	// The pinned route does NOT pass the disconnect signal to its fetches: it checks the controller only
+	// between attempts. The outbound work therefore gets its own context, so a caller that vanishes cannot
+	// turn the create or a poll into a generic failure -- the explicit callerGone checks below decide the
+	// answer, deterministically, on every host.
+	callerGone := func() bool { return request.Context().Err() != nil }
+	outboundContext := context.Background()
+	created, err := outbound.Send(outboundContext, outbound.Request{
 		URL:     config.url,
 		Method:  http.MethodPost,
 		Headers: googleRequestHeaders(config.url, config.headers, len(body)),
 		Body:    body,
 	}, 120*time.Second)
 	if err != nil {
+		if callerGone() {
+			googleTextFailure(w, "Video generation aborted by client")
+			return
+		}
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
@@ -190,11 +200,17 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 	}
 
 	for attempt := 0; attempt < googleVideoMaxAttempts; attempt++ {
-		if request.Context().Err() != nil {
+		if callerGone() {
 			googleTextFailure(w, "Video generation aborted by client")
 			return
 		}
 		if !googleVideoSleep(request.Context(), time.Duration(5000+attempt*1000)*time.Millisecond) {
+			googleTextFailure(w, "Video generation aborted by client")
+			return
+		}
+		if callerGone() {
+			// Checked again AFTER the sleep: the sleep can return true while the caller has already gone,
+			// so the answer must not depend on which of the two observed it first.
 			googleTextFailure(w, "Video generation aborted by client")
 			return
 		}
@@ -226,14 +242,22 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 		}
 
 		headers := googleRequestHeaders(pollURL, pollHeaders, len(pollBody))
-		pollResponse, err := outbound.Send(request.Context(), outbound.Request{
+		pollResponse, err := outbound.Send(outboundContext, outbound.Request{
 			URL:     pollURL,
 			Method:  pollMethod,
 			Headers: headers,
 			Body:    pollBody,
 		}, 120*time.Second)
 		if err != nil {
+			if callerGone() {
+				googleTextFailure(w, "Video generation aborted by client")
+				return
+			}
 			serveStatusText(w, http.StatusInternalServerError)
+			return
+		}
+		if callerGone() {
+			googleTextFailure(w, "Video generation aborted by client")
 			return
 		}
 		if !outboundOK(pollResponse) {
@@ -286,7 +310,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 			googleTextFailure(w, "No video URI found in response")
 			return
 		}
-		fetched, err := outbound.Send(request.Context(), outbound.Request{
+		fetched, err := outbound.Send(outboundContext, outbound.Request{
 			URL:     videoURI,
 			Method:  http.MethodGet,
 			Headers: googleRequestHeaders(videoURI, config.headers, 0),

@@ -268,39 +268,70 @@ func TestGoogleVideoCancellationIsAnImplementationTest(t *testing.T) {
 		t.Fatalf("body = %q, pinned %q", recorder.Body.String(), "Video generation aborted by client")
 	}
 
-	// The SECOND abort site is the loop's entry check, which fires when the client vanished during the
-	// create: the peer cancels the request as it answers the create, and the loop then finds the context
-	// already done before it sleeps. Both sites carry the same message, and both must be reachable, or a
-	// mutation that changes only one of them would survive.
-	googleVideoSleep = func(ctx context.Context, duration time.Duration) bool { return true }
-	var cancelOnCreate context.CancelFunc
-	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if strings.Contains(r.URL.Path, "predictLongRunning") {
-			if cancelOnCreate != nil {
-				cancelOnCreate()
-			}
-			_, _ = w.Write([]byte(`{"name":"operations/never-finishes"}`))
-			return
-		}
-		_, _ = w.Write([]byte(`{"done":false}`))
-	}))
-	t.Cleanup(second.Close)
-	t.Setenv("GOTAVERN_GOOGLE_MAKERSUITE_URL", second.URL)
-	t.Setenv("GOTAVERN_GOOGLE_VERTEX_URL", second.URL)
-	t.Setenv("GOTAVERN_GOOGLE_VERTEX_GLOBAL_URL", second.URL)
-
+	// The SECOND abort site is the loop's entry check, and this case is DETERMINISTIC: the caller is
+	// cancelled BEFORE the handler runs, so the create happens with a caller that is already gone. That is
+	// the sequence CI exposed; on this host it was hidden because the cancellation happened to land after
+	// the create had completed. The pinned route does NOT bind its create to the disconnect signal -- it
+	// checks the controller only inside the loop -- so the create completes and the loop answers the abort
+	// message. An implementation that lets the disconnect abort the create answers the generic catch message
+	// instead, which is the defect this case catches on EVERY host.
 	secondRecorder := httptest.NewRecorder()
 	secondRequest := httptest.NewRequest(http.MethodPost, "/api/google/generate-video", strings.NewReader(`{"prompt":"a cat"}`))
 	secondRequest.Header.Set("Content-Type", "application/json")
 	secondCtx, secondCancel := context.WithCancel(secondRequest.Context())
-	cancelOnCreate = secondCancel
-	defer secondCancel()
+	secondCancel()
 	handler.ServeHTTP(secondRecorder, secondRequest.WithContext(secondCtx))
 	if secondRecorder.Code != http.StatusInternalServerError {
 		t.Fatalf("second status = %d, want 500", secondRecorder.Code)
 	}
 	if secondRecorder.Body.String() != "Video generation aborted by client" {
 		t.Fatalf("second body = %q, pinned %q", secondRecorder.Body.String(), "Video generation aborted by client")
+	}
+
+	// The THIRD site is the create's own error path: the caller is gone AND the create fails, so the abort
+	// answer must win over the generic catch message. The caller is gone either way, so this is deliberately
+	// the abort answer rather than the generic one -- a caller that has vanished cannot read either, and
+	// making it explicit is what removes the timing window.
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":{"message":"create failed"}}`))
+	}))
+	t.Cleanup(failing.Close)
+	t.Setenv("GOTAVERN_GOOGLE_MAKERSUITE_URL", failing.URL)
+	t.Setenv("GOTAVERN_GOOGLE_VERTEX_URL", failing.URL)
+	t.Setenv("GOTAVERN_GOOGLE_VERTEX_GLOBAL_URL", failing.URL)
+	thirdRecorder := httptest.NewRecorder()
+	thirdRequest := httptest.NewRequest(http.MethodPost, "/api/google/generate-video", strings.NewReader(`{"prompt":"a cat"}`))
+	thirdRequest.Header.Set("Content-Type", "application/json")
+	thirdCtx, thirdCancel := context.WithCancel(thirdRequest.Context())
+	thirdCancel()
+	handler.ServeHTTP(thirdRecorder, thirdRequest.WithContext(thirdCtx))
+	if thirdRecorder.Code != http.StatusInternalServerError {
+		t.Fatalf("third status = %d, want 500", thirdRecorder.Code)
+	}
+	// A provider-STATUS failure answers the provider message even with the caller gone, because the pinned
+	// controller is only consulted inside the poll loop. Asserting the abort message here would have been a
+	// stronger-than-pinned expectation, which is a test defect rather than a product one.
+	if thirdRecorder.Body.String() != "Video generation request failed" {
+		t.Fatalf("third body = %q, pinned %q", thirdRecorder.Body.String(), "Video generation request failed")
+	}
+
+	// The FOURTH site is the create TRANSPORT error path, which the pinned catch would answer generically
+	// but which must answer the abort message when the caller has gone. A port with no listener produces the
+	// transport failure deterministically, so this needs no timing at all.
+	t.Setenv("GOTAVERN_GOOGLE_MAKERSUITE_URL", "http://127.0.0.1:1")
+	t.Setenv("GOTAVERN_GOOGLE_VERTEX_URL", "http://127.0.0.1:1")
+	t.Setenv("GOTAVERN_GOOGLE_VERTEX_GLOBAL_URL", "http://127.0.0.1:1")
+	fourthRecorder := httptest.NewRecorder()
+	fourthRequest := httptest.NewRequest(http.MethodPost, "/api/google/generate-video", strings.NewReader(`{"prompt":"a cat"}`))
+	fourthRequest.Header.Set("Content-Type", "application/json")
+	fourthCtx, fourthCancel := context.WithCancel(fourthRequest.Context())
+	fourthCancel()
+	handler.ServeHTTP(fourthRecorder, fourthRequest.WithContext(fourthCtx))
+	if fourthRecorder.Code != http.StatusInternalServerError {
+		t.Fatalf("fourth status = %d, want 500", fourthRecorder.Code)
+	}
+	if fourthRecorder.Body.String() != "Video generation aborted by client" {
+		t.Fatalf("fourth body = %q, pinned %q", fourthRecorder.Body.String(), "Video generation aborted by client")
 	}
 }
