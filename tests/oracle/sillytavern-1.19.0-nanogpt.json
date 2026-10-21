@@ -1,0 +1,713 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/nanogpt/credits route (two parallel provider requests)",
+  "oracle": {
+    "file": "src/endpoints/nanogpt.js"
+  },
+  "conventions": {
+    "mock": "the two provider URLs are hardcoded literals and are replaced by a seam in the replay; the fixture records the pinned literals",
+    "parallel": "outbound order is a shape field because the pinned route uses Promise.allSettled"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound[] as a set"
+    ],
+    "shape": [
+      "observations.*.outbound order",
+      "observations.*.outbound[].transportConnection"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-nanogpt-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "NanoGPT Probe",
+      "admin": true,
+      "password": ""
+    },
+    "seamDefaults": {
+      "GOTAVERN_NANOGPT_CREDITS_URL": "https://nano-gpt.com/api"
+    },
+    "scenarios": {
+      "credits.ok": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/check-balance",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"usd_balance\":12.5,\"nano_balance\":\"42\"}"
+          },
+          {
+            "method": "GET",
+            "path": "/subscription/v1/usage",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"active\":true,\"state\":\"active\",\"allowOverage\":false,\"period\":{\"currentPeriodEnd\":\"2026-01-01T00:00:00.000Z\"},\"limits\":{\"weeklyInputTokens\":100000,\"dailyInputTokens\":10000,\"dailyImages\":20},\"weeklyInputTokens\":{\"used\":100,\"remaining\":99900,\"percentUsed\":0.1,\"resetAt\":1767225600000},\"dailyInputTokens\":{\"used\":5,\"remaining\":9995,\"percentUsed\":0.05,\"resetAt\":1767225600000},\"dailyImages\":{\"used\":2,\"remaining\":18,\"percentUsed\":10,\"resetAt\":1767225600000}}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "credits.subscriptionInactive": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/check-balance",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"usd_balance\":0,\"nano_balance\":null}"
+          },
+          {
+            "method": "GET",
+            "path": "/subscription/v1/usage",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"active\":false}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "credits.subscriptionFailed": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/check-balance",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"usd_balance\":3.25,\"nano_balance\":\"7\"}"
+          },
+          {
+            "method": "GET",
+            "path": "/subscription/v1/usage",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "usage failed"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "credits.balanceFailed": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/check-balance",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "balance failed"
+          },
+          {
+            "method": "GET",
+            "path": "/subscription/v1/usage",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"active\":true}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "credits.invalidNumbers": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [
+          {
+            "method": "POST",
+            "path": "/check-balance",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"usd_balance\":\"not-a-number\",\"nano_balance\":{}}"
+          },
+          {
+            "method": "GET",
+            "path": "/subscription/v1/usage",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"active\":true,\"state\":\"\",\"allowOverage\":true,\"period\":{},\"limits\":{},\"weeklyInputTokens\":{\"used\":\"x\",\"remaining\":null,\"percentUsed\":true,\"resetAt\":{}},\"dailyInputTokens\":null,\"dailyImages\":\"nope\"}"
+          }
+        ],
+        "outboundOrder": "shape"
+      },
+      "credits.noKey": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "mock",
+        "secrets": {
+          "api_key_nanogpt": ""
+        },
+        "upstream": [],
+        "outboundOrder": "shape"
+      },
+      "credits.closedPort": {
+        "body": {},
+        "bodyText": "{}",
+        "peer": "closed",
+        "secrets": {
+          "api_key_nanogpt": "probe-nanogpt-key"
+        },
+        "upstream": [],
+        "outboundOrder": "shape"
+      }
+    }
+  },
+  "observations": {
+    "credits.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "501",
+      "etag": "W/\"1f5-LRnKJ59f3fHsYM0ylH7yHQDKTJU\"",
+      "bodyBase64": "eyJ1c2RfYmFsYW5jZSI6MTIuNSwibmFub19iYWxhbmNlIjo0Miwic3Vic2NyaXB0aW9uIjp7ImFjdGl2ZSI6dHJ1ZSwic3RhdGUiOiJhY3RpdmUiLCJhbGxvd092ZXJhZ2UiOmZhbHNlLCJwZXJpb2QiOnsiY3VycmVudFBlcmlvZEVuZCI6IjIwMjYtMDEtMDFUMDA6MDA6MDAuMDAwWiJ9LCJsaW1pdHMiOnsid2Vla2x5SW5wdXRUb2tlbnMiOjEwMDAwMCwiZGFpbHlJbnB1dFRva2VucyI6MTAwMDAsImRhaWx5SW1hZ2VzIjoyMH0sIndlZWtseV90b2tlbnMiOnsidXNlZCI6MTAwLCJyZW1haW5pbmciOjk5OTAwLCJwZXJjZW50VXNlZCI6MC4xLCJyZXNldEF0IjoxNzY3MjI1NjAwMDAwfSwiZGFpbHlfdG9rZW5zIjp7InVzZWQiOjUsInJlbWFpbmluZyI6OTk5NSwicGVyY2VudFVzZWQiOjAuMDUsInJlc2V0QXQiOjE3NjcyMjU2MDAwMDB9LCJkYWlseV9pbWFnZXMiOnsidXNlZCI6MiwicmVtYWluaW5nIjoxOCwicGVyY2VudFVzZWQiOjEwLCJyZXNldEF0IjoxNzY3MjI1NjAwMDAwfX19",
+      "bodySha256": "141fd8eaccf839b4b41972f8bc47600b0e0aa41ac4818f6e0e5e671960cc3f40",
+      "bodyLength": 501,
+      "bodyJson": {
+        "usd_balance": 12.5,
+        "nano_balance": 42,
+        "subscription": {
+          "active": true,
+          "state": "active",
+          "allowOverage": false,
+          "period": {
+            "currentPeriodEnd": "2026-01-01T00:00:00.000Z"
+          },
+          "limits": {
+            "weeklyInputTokens": 100000,
+            "dailyInputTokens": 10000,
+            "dailyImages": 20
+          },
+          "weekly_tokens": {
+            "used": 100,
+            "remaining": 99900,
+            "percentUsed": 0.1,
+            "resetAt": 1767225600000
+          },
+          "daily_tokens": {
+            "used": 5,
+            "remaining": 9995,
+            "percentUsed": 0.05,
+            "resetAt": 1767225600000
+          },
+          "daily_images": {
+            "used": 2,
+            "remaining": 18,
+            "percentUsed": 10,
+            "resetAt": 1767225600000
+          }
+        }
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.subscriptionInactive": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "54",
+      "etag": "W/\"36-EjVj/HJ/PyoRmOUMXhiRVG9VTsM\"",
+      "bodyBase64": "eyJ1c2RfYmFsYW5jZSI6MCwibmFub19iYWxhbmNlIjowLCJzdWJzY3JpcHRpb24iOm51bGx9",
+      "bodySha256": "6e94335409314ab1707165bd8ec899f33ffda9f358f0d4aa0eb442dde3bfe26f",
+      "bodyLength": 54,
+      "bodyJson": {
+        "usd_balance": 0,
+        "nano_balance": 0,
+        "subscription": null
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.subscriptionFailed": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "57",
+      "etag": "W/\"39-0ZEQZoAwyDCalhNvKCR6BLD6Zug\"",
+      "bodyBase64": "eyJ1c2RfYmFsYW5jZSI6My4yNSwibmFub19iYWxhbmNlIjo3LCJzdWJzY3JpcHRpb24iOm51bGx9",
+      "bodySha256": "4cfc68b09d555254c7c5d070f7477ea5c428f4a7d592b17704c6e79275790bb6",
+      "bodyLength": 57,
+      "bodyJson": {
+        "usd_balance": 3.25,
+        "nano_balance": 7,
+        "subscription": null
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.balanceFailed": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.invalidNumbers": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "308",
+      "etag": "W/\"134-knWmQbDwXk489nRVfjMgewCy/Ow\"",
+      "bodyBase64": "eyJ1c2RfYmFsYW5jZSI6MCwibmFub19iYWxhbmNlIjowLCJzdWJzY3JpcHRpb24iOnsiYWN0aXZlIjp0cnVlLCJzdGF0ZSI6IiIsImFsbG93T3ZlcmFnZSI6dHJ1ZSwicGVyaW9kIjp7ImN1cnJlbnRQZXJpb2RFbmQiOiIifSwibGltaXRzIjp7IndlZWtseUlucHV0VG9rZW5zIjowLCJkYWlseUlucHV0VG9rZW5zIjowLCJkYWlseUltYWdlcyI6MH0sIndlZWtseV90b2tlbnMiOnsidXNlZCI6MCwicmVtYWluaW5nIjowLCJwZXJjZW50VXNlZCI6MSwicmVzZXRBdCI6MH0sImRhaWx5X3Rva2VucyI6bnVsbCwiZGFpbHlfaW1hZ2VzIjpudWxsfX0=",
+      "bodySha256": "8eb86480357ba9ee48e15bda2be797f1db1e50e79b8841970ecdd31b75a4d5de",
+      "bodyLength": 308,
+      "bodyJson": {
+        "usd_balance": 0,
+        "nano_balance": 0,
+        "subscription": {
+          "active": true,
+          "state": "",
+          "allowOverage": true,
+          "period": {
+            "currentPeriodEnd": ""
+          },
+          "limits": {
+            "weeklyInputTokens": 0,
+            "dailyInputTokens": 0,
+            "dailyImages": 0
+          },
+          "weekly_tokens": {
+            "used": 0,
+            "remaining": 0,
+            "percentUsed": 1,
+            "resetAt": 0
+          },
+          "daily_tokens": null,
+          "daily_images": null
+        }
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.noKey": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "bodyJson": null,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    },
+    "credits.closedPort": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "bodyJson": null,
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/check-balance",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        },
+        {
+          "url": "https://nano-gpt.com/api/subscription/v1/usage",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "accept",
+              "application/json"
+            ],
+            [
+              "x-api-key",
+              "probe-nanogpt-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound"
+        ],
+        "shape": [
+          "outbound order",
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound order": "the two requests are issued with Promise.allSettled and their recording order is not deterministic; the fixture stores the set and the replay compares the set",
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node appends; only presence is asserted"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/sprites/upload",
+        "/api/sprites/upload-zip",
+        "/api/data-maid/report",
+        "/api/data-maid/finalize",
+        "GET /api/data-maid/view",
+        "/api/data-maid/delete",
+        "/api/avatars/upload"
+      ],
+      "status": "not implemented",
+      "reason": "avatars/upload re-encodes through Jimp (crop/cover/PNG), so byte parity needs a Jimp-compatible codec decision; sprites/upload-zip and the data-maid routes need multipart part recording plus the DataMaidService token flow (report mints tokens view/finalize/delete consume). sprites/upload itself (a plain byte copy with a sanitized label) is implementable but was not reached this round; it is left not implemented rather than claimed."
+    }
+  ]
+}
