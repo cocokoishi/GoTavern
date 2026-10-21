@@ -5,35 +5,61 @@
     "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
   },
   "probe": "tools/probe-sd-generate.mjs",
-  "wave": 1,
+  "waves": {
+    "1": [
+      "/api/sd/pollinations/generate",
+      "/api/sd/together/generate"
+    ],
+    "2": [
+      "/api/sd/huggingface/generate",
+      "/api/sd/electronhub/generate",
+      "/api/sd/chutes/generate",
+      "/api/sd/nanogpt/generate",
+      "/api/sd/xai/generate",
+      "/api/sd/aimlapi/generate-image"
+    ]
+  },
   "implementedRoutes": [
     "/api/sd/pollinations/generate",
-    "/api/sd/together/generate"
+    "/api/sd/together/generate",
+    "/api/sd/huggingface/generate",
+    "/api/sd/electronhub/generate",
+    "/api/sd/chutes/generate",
+    "/api/sd/nanogpt/generate",
+    "/api/sd/xai/generate",
+    "/api/sd/aimlapi/generate-image"
   ],
   "notImplementedRoutes": [
     "/api/sd/generate",
-    "/api/sd/aimlapi/generate-image",
     "/api/sd/bfl/generate",
-    "/api/sd/chutes/generate",
     "/api/sd/comfy/generate",
     "/api/sd/comfyrunpod/generate",
     "/api/sd/drawthings/generate",
-    "/api/sd/electronhub/generate",
     "/api/sd/falai/generate",
-    "/api/sd/huggingface/generate",
-    "/api/sd/nanogpt/generate",
     "/api/sd/sdcpp/generate",
-    "/api/sd/stability/generate",
-    "/api/sd/workersai/generate",
-    "/api/sd/xai/generate",
     "/api/sd/zai/generate",
-    "/api/sd/zai/generate-video"
+    "/api/sd/zai/generate-video",
+    "/api/sd/stability/generate",
+    "/api/sd/workersai/generate"
   ],
-  "pinnedSource": {
-    "src/endpoints/stable-diffusion.js:1038": "pollinations generate: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query in fixed order and a content-type-derived format",
-    "src/endpoints/stable-diffusion.js:778": "together generate: POST /v1/images/generations with the pinned body order, then a URL fallback fetch when b64_json is absent"
+  "notImplementedReasons": {
+    "/api/sd/zai/generate": "The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour.",
+    "/api/sd/stability/generate": "The pinned route builds NATIVE FormData (stable-diffusion.js imports no form-data package, so it uses the global implementation), whose parts are not observable through the probe peer today. Pinning it needs a coordinated tools/lib capability that captures native FormData entries.",
+    "/api/sd/workersai/generate": "Its flux-2 branch also sends NATIVE FormData, so the same tools/lib capability is required before the whole route can be pinned; the JSON branch alone would leave half the route unverified."
   },
-  "mechanism": "Both upstreams are hardcoded literals, so the probe replaces only the pinned server node-fetch module (and the global fetch) with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side uses the existing sd seams (sdPollinationsURL / sdTogetherURL) and replays the same peer through a real local listener.",
+  "pinnedSource": {
+    "src/endpoints/stable-diffusion.js:1038": "pollinations: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query",
+    "src/endpoints/stable-diffusion.js:778": "together: POST /v1/images/generations with the pinned body order and a URL fallback",
+    "src/endpoints/stable-diffusion.js:1145": "huggingface: POST /models/<model> with the model interpolated RAW, body {inputs}",
+    "src/endpoints/stable-diffusion.js:1224": "electronhub: body order model,prompt,response_format then optional size/quality",
+    "src/endpoints/stable-diffusion.js:1343": "chutes: POST image.chutes.ai/generate with || defaults and a raw byte answer",
+    "src/endpoints/stable-diffusion.js:1430": "nanogpt: POST /api/generate-image with the WHOLE request body re-serialized",
+    "src/endpoints/stable-diffusion.js:1738": "xai: b64_json or a data URL, format from the mime type",
+    "src/endpoints/stable-diffusion.js:1837": "aimlapi: whole body forwarded, AIMLAPI_HEADERS, images[0] or data[0], url fallback",
+    "src/endpoints/stable-diffusion.js:1085": "stability: multipart from payload entries in object order, endpoint by model, raw base64 answer",
+    "src/endpoints/stable-diffusion.js:2108": "workersai: account id encodeURIComponent into the path, flux-2 multipart branch, JSON or binary answer"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side reuses the sd seams and replays the same peer through a real local listener.",
   "fields": [
     {
       "path": "scenarios.*.response.status",
@@ -43,49 +69,60 @@
     {
       "path": "scenarios.*.response.headers",
       "comparison": "compared",
-      "reason": "Express and the pinned middleware stack set them"
+      "reason": "Express and the pinned middleware stack set them; a string body is html-typed"
     },
     {
-      "path": "scenarios.*.response.body",
+      "path": "scenarios.*.response.body/bodyText",
       "comparison": "compared",
-      "reason": "the projection, including the base64 image and the content-type-derived format"
+      "reason": "the projection, including base64 image payloads and the raw stability base64 body"
     },
     {
       "path": "scenarios.*.outbound[].url",
       "comparison": "compared",
-      "reason": "path encoding and the query order/values are endpoint behaviour; the random seed is normalized"
-    },
-    {
-      "path": "scenarios.*.outbound[].method",
-      "comparison": "compared",
-      "reason": "pollinations GET versus together POST"
+      "reason": "path encoding and interpolation are endpoint behaviour; seeds are normalized"
     },
     {
       "path": "scenarios.*.outbound[].body",
       "comparison": "compared",
-      "reason": "the together body member order and omitted undefined members"
+      "reason": "JSON member order, omitted undefined members and whole-body passthrough"
+    },
+    {
+      "path": "scenarios.*.outbound[].parts",
+      "comparison": "compared",
+      "reason": "multipart bodies as parsed parts: the boundary is random per request"
     },
     {
       "path": "scenarios.*.outbound[].headers",
-      "comparison": "shape",
-      "reason": "only the declared content-type and authorization headers are asserted"
+      "comparison": "compared",
+      "reason": "the declared provider headers, asserted in BOTH directions by the test"
     },
     {
       "path": "image bytes",
       "comparison": "compared",
-      "reason": "the pinned image bytes are synthetic and known; a real provider answer would be `shape` only"
+      "reason": "synthetic peer answers with known digests; live provider content would be shape only"
     }
   ],
   "normalizations": [
-    "The Pollinations and Together seeds are `Math.floor(Math.random() * 10_000_000)` when the request seed is negative or absent, so they are replaced by <seed> in the recorded URL/body. They are the only nondeterministic values.",
+    "The Pollinations and Together seeds are randomized when absent or negative, so they are replaced by a marker in the recorded URL/body.",
+    "Multipart boundaries are random per request, so multipart bodies are recorded as parsed parts.",
     "Synthetic credentials and synthetic image bytes only."
   ],
   "inputs": {
-    "pollinations": "https://gen.pollinations.ai",
-    "together": "https://api.together.xyz",
-    "pollinationsKey": "synthetic-pollinations-key",
-    "togetherKey": "synthetic-together-key",
-    "imageSha256": "8c4d0a59e755358ce2e5c8a92d5f1274e53143337a52a60b56ee608eca99837c"
+    "imageSha256": "8c4d0a59e755358ce2e5c8a92d5f1274e53143337a52a60b56ee608eca99837c",
+    "jpegSha256": "5eb9705d01b311f5772497435c379d0e9017d735bd8466ca77197fcf74b4a774",
+    "fetchedSha256": "ca85e0aad9fc89258ec641cb4366eb53d8a52077f2eecf95c56ba1c9204fe1f8",
+    "keys": {
+      "pollinations": "synthetic-pollinations-key",
+      "together": "synthetic-together-key",
+      "huggingface": "synthetic-huggingface-key",
+      "electronhub": "synthetic-electronhub-key",
+      "chutes": "synthetic-chutes-key",
+      "nanogpt": "synthetic-nanogpt-key",
+      "xai": "synthetic-xai-key",
+      "aimlapi": "synthetic-aimlapi-key",
+      "stability": "synthetic-stability-key",
+      "workersai": "synthetic-workers-ai-key"
+    }
   },
   "bootOutbound": [],
   "scenarios": {
@@ -837,6 +874,1376 @@
             "authorization": "Bearer synthetic-together-key"
           },
           "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"n\":1,\"seed\":\"<seed>\"}"
+        }
+      ]
+    },
+    "huggingfaceNoKey": {
+      "route": "/api/sd/huggingface/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"m\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "huggingfaceOk": {
+      "route": "/api/sd/huggingface/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"black-forest-labs/FLUX.1-schnell\"}",
+      "mocks": [
+        {
+          "run": "huggingfaceOk",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_huggingface": [
+          {
+            "id": "sid-api_key_huggingface",
+            "value": "synthetic-huggingface-key",
+            "label": "api_key_huggingface",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "64",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"40-xAAfeseeBwkWjftEOT5jDO/Y/Ts\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-huggingface-key"
+          },
+          "body": "{\"inputs\":\"a tree\"}"
+        }
+      ]
+    },
+    "huggingfaceReservedModel": {
+      "route": "/api/sd/huggingface/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"org/model v1?x=1\"}",
+      "mocks": [
+        {
+          "run": "huggingfaceReservedModel",
+          "match": "/models/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_huggingface": [
+          {
+            "id": "sid-api_key_huggingface",
+            "value": "synthetic-huggingface-key",
+            "label": "api_key_huggingface",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "64",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"40-xAAfeseeBwkWjftEOT5jDO/Y/Ts\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api-inference.huggingface.co/models/org/model v1?x=1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-huggingface-key"
+          },
+          "body": "{\"inputs\":\"a tree\"}"
+        }
+      ]
+    },
+    "huggingfaceNonOk": {
+      "route": "/api/sd/huggingface/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"m\"}",
+      "mocks": [
+        {
+          "run": "huggingfaceNonOk",
+          "match": "/models/",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "hf says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_huggingface": [
+          {
+            "id": "sid-api_key_huggingface",
+            "value": "synthetic-huggingface-key",
+            "label": "api_key_huggingface",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api-inference.huggingface.co/models/m",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-huggingface-key"
+          },
+          "body": "{\"inputs\":\"a tree\"}"
+        }
+      ]
+    },
+    "electronhubNoKey": {
+      "route": "/api/sd/electronhub/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "electronhubOk": {
+      "route": "/api/sd/electronhub/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"size\":\"1024x1024\",\"quality\":\"high\"}",
+      "mocks": [
+        {
+          "run": "electronhubOk",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "synthetic-electronhub-key",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-lnpaDTNeOhcUSRw4lFMG2FvHxNo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "QUJD"
+        },
+        "bodyText": "{\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-electronhub-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"response_format\":\"b64_json\",\"size\":\"1024x1024\",\"quality\":\"high\"}"
+        }
+      ]
+    },
+    "electronhubOptionalFields": {
+      "route": "/api/sd/electronhub/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"size\":\"\",\"quality\":\"\"}",
+      "mocks": [
+        {
+          "run": "electronhubOptionalFields",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "synthetic-electronhub-key",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-lnpaDTNeOhcUSRw4lFMG2FvHxNo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "QUJD"
+        },
+        "bodyText": "{\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-electronhub-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"response_format\":\"b64_json\"}"
+        }
+      ]
+    },
+    "electronhubNoImage": {
+      "route": "/api/sd/electronhub/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "electronhubNoImage",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_electronhub": [
+          {
+            "id": "sid-api_key_electronhub",
+            "value": "synthetic-electronhub-key",
+            "label": "api_key_electronhub",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-electronhub-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"response_format\":\"b64_json\"}"
+        }
+      ]
+    },
+    "chutesNoKey": {
+      "route": "/api/sd/chutes/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "chutesDefaults": {
+      "route": "/api/sd/chutes/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"negative_prompt\":\"ugly\"}",
+      "mocks": [
+        {
+          "run": "chutesDefaults",
+          "match": "/generate",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "64",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"40-xAAfeseeBwkWjftEOT5jDO/Y/Ts\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://image.chutes.ai/generate",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"guidance_scale\":7,\"width\":1024,\"height\":1024,\"num_inference_steps\":10}"
+        }
+      ]
+    },
+    "chutesExplicit": {
+      "route": "/api/sd/chutes/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"negative_prompt\":\"ugly\",\"guidance_scale\":3.5,\"width\":256,\"height\":384,\"steps\":4}",
+      "mocks": [
+        {
+          "run": "chutesExplicit",
+          "match": "/generate",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "64",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"40-xAAfeseeBwkWjftEOT5jDO/Y/Ts\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"image\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://image.chutes.ai/generate",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"negative_prompt\":\"ugly\",\"guidance_scale\":3.5,\"width\":256,\"height\":384,\"num_inference_steps\":4}"
+        }
+      ]
+    },
+    "chutesNonOk": {
+      "route": "/api/sd/chutes/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\"}",
+      "mocks": [
+        {
+          "run": "chutesNonOk",
+          "match": "/generate",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "chutes says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_chutes": [
+          {
+            "id": "sid-api_key_chutes",
+            "value": "synthetic-chutes-key",
+            "label": "api_key_chutes",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://image.chutes.ai/generate",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-chutes-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"flux\",\"prompt\":\"a tree\",\"guidance_scale\":7,\"width\":1024,\"height\":1024,\"num_inference_steps\":10}"
+        }
+      ]
+    },
+    "nanogptNoKey": {
+      "route": "/api/sd/nanogpt/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "nanogptBodyPassthrough": {
+      "route": "/api/sd/nanogpt/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"params\":{ \"width\" : 256 , \"scale\" : 0.70 }}",
+      "mocks": [
+        {
+          "run": "nanogptBodyPassthrough",
+          "match": "/api/generate-image",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "synthetic-nanogpt-key",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-lnpaDTNeOhcUSRw4lFMG2FvHxNo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "QUJD"
+        },
+        "bodyText": "{\"image\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/generate-image",
+          "method": "POST",
+          "headers": {
+            "x-api-key": "synthetic-nanogpt-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"params\":{\"width\":256,\"scale\":0.7}}"
+        }
+      ]
+    },
+    "nanogptNoImage": {
+      "route": "/api/sd/nanogpt/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "nanogptNoImage",
+          "match": "/api/generate-image",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_nanogpt": [
+          {
+            "id": "sid-api_key_nanogpt",
+            "value": "synthetic-nanogpt-key",
+            "label": "api_key_nanogpt",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://nano-gpt.com/api/generate-image",
+          "method": "POST",
+          "headers": {
+            "x-api-key": "synthetic-nanogpt-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "xaiNoKey": {
+      "route": "/api/sd/xai/generate",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "xaiPlainBase64": {
+      "route": "/api/sd/xai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\",\"aspect_ratio\":\"16:9\",\"resolution\":\"1k\"}",
+      "mocks": [
+        {
+          "run": "xaiPlainBase64",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_xai": [
+          {
+            "id": "sid-api_key_xai",
+            "value": "synthetic-xai-key",
+            "label": "api_key_xai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-zUmmA2KPm8kJdo2zMjsT4zx9y7E\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "QUJD",
+          "format": "jpg"
+        },
+        "bodyText": "{\"image\":\"QUJD\",\"format\":\"jpg\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-xai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\",\"aspect_ratio\":\"16:9\",\"resolution\":\"1k\",\"response_format\":\"b64_json\"}"
+        }
+      ]
+    },
+    "xaiDataUrl": {
+      "route": "/api/sd/xai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\"}",
+      "mocks": [
+        {
+          "run": "xaiDataUrl",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"b64_json\":\"data:image/png;base64,QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_xai": [
+          {
+            "id": "sid-api_key_xai",
+            "value": "synthetic-xai-key",
+            "label": "api_key_xai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "31",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1f-Lp8oaH7q506iHXzhotHVS1t3jho\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "QUJD",
+          "format": "png"
+        },
+        "bodyText": "{\"image\":\"QUJD\",\"format\":\"png\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-xai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\",\"response_format\":\"b64_json\"}"
+        }
+      ]
+    },
+    "xaiEmptyImage": {
+      "route": "/api/sd/xai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\"}",
+      "mocks": [
+        {
+          "run": "xaiEmptyImage",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_xai": [
+          {
+            "id": "sid-api_key_xai",
+            "value": "synthetic-xai-key",
+            "label": "api_key_xai",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.x.ai/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-xai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"grok-2-image\",\"response_format\":\"b64_json\"}"
+        }
+      ]
+    },
+    "aimlapiNoKey": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "aimlapiB64": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"image_size\":\"square\"}",
+      "mocks": [
+        {
+          "run": "aimlapiB64",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[{\"b64_json\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"flux\",\"image_size\":\"square\"}"
+        }
+      ]
+    },
+    "aimlapiBase64Field": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "aimlapiBase64Field",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"base64\":\"QUJD\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "aimlapiUrlFallback": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "aimlapiUrlFallback",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://img.example.test/two.png\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "aimlapiUrlFallback",
+          "match": "img.example.test/two.png",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "70",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"46-qLFWkZPdP8BMP2/z0NykoOwol6w\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ=="
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDctZ290YXZlcm4tZmV0Y2hlZC1pbWFnZQ==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        },
+        {
+          "url": "https://img.example.test/two.png",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "aimlapiNoImage": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "aimlapiNoImage",
+          "match": "/v1/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "17",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"11-7oARVGKT+2Lz56BZNHPM8+ijCKE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No image returned",
+        "bodyText": "No image returned"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
+        }
+      ]
+    },
+    "aimlapiNonOk": {
+      "route": "/api/sd/aimlapi/generate-image",
+      "requestBody": "{\"prompt\":\"a tree\"}",
+      "mocks": [
+        {
+          "run": "aimlapiNonOk",
+          "match": "/v1/images/generations",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "aimlapi says no",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_aimlapi": [
+          {
+            "id": "sid-api_key_aimlapi",
+            "value": "synthetic-aimlapi-key",
+            "label": "api_key_aimlapi",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "15",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"f-49N5vGeKXr+mDZQVYRQ+/thZFBk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "aimlapi says no",
+        "bodyText": "aimlapi says no"
+      },
+      "outbound": [
+        {
+          "url": "https://api.aimlapi.com/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-aimlapi-key",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"prompt\":\"a tree\"}"
         }
       ]
     }

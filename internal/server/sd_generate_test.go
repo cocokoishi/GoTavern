@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -173,14 +174,30 @@ func newSDGeneratePeer(t *testing.T, scenario sdGenerateScenario) *sdGeneratePee
 	return peer
 }
 
-// sdSeamPath trims the pinned provider base from a recorded URL, keeping path and query. A URL that came
-// from a provider response (the together fallback) is not under a seam and its host is not reproducible,
-// so the observation is that the second GET happened at the rewritten path.
+// sdSeamPath trims the pinned provider base from a recorded URL and normalizes the remainder through the
+// URL parser, so the comparison is the WIRE form: the pinned code can interpolate a raw space into a path
+// (huggingface does exactly that) and the transport escapes it, so the raw string and the wire target are
+// not the same text. A URL that came from a provider response is not under a seam and its host is not
+// reproducible, so the observation is that the second GET happened at the rewritten path.
 func sdSeamPath(recorded string) string {
-	for _, base := range []string{sdPollinationsDefaultURL, sdTogetherDefaultURL} {
-		if strings.HasPrefix(recorded, base) {
-			return strings.TrimPrefix(recorded, base)
+	for _, base := range []string{
+		sdPollinationsDefaultURL, sdTogetherDefaultURL,
+		sdHuggingFaceDefaultURL, sdElectronHubDefaultURL, sdChutesImageDefaultURL,
+		sdNanoGPTGenerateDefaultURL, sdXaiDefaultURL, sdAimlapiDefaultURL,
+	} {
+		if !strings.HasPrefix(recorded, base) {
+			continue
 		}
+		remainder := strings.TrimPrefix(recorded, base)
+		parsed, err := url.Parse(remainder)
+		if err != nil {
+			return remainder
+		}
+		target := parsed.EscapedPath()
+		if parsed.RawQuery != "" {
+			target += "?" + parsed.RawQuery
+		}
+		return target
 	}
 	if strings.Contains(recorded, "://") {
 		return "/fetched-image.png"
@@ -206,6 +223,27 @@ func peerSummary(seen []sdSeenRequest) []string {
 	return result
 }
 
+// TestSDGenerateWave2SeamDefaults pins each wave-2 seam default to the pinned base. A seam whose default
+// drifts silently changes production while the tests keep passing against the override.
+func TestSDGenerateWave2SeamDefaults(t *testing.T) {
+	for _, seam := range []struct {
+		environment string
+		accessor    func() string
+		pinned      string
+	}{
+		{"GOTAVERN_SD_HUGGINGFACE_URL", sdHuggingFaceURL, sdHuggingFaceDefaultURL},
+		{"GOTAVERN_SD_XAI_URL", sdXaiURL, sdXaiDefaultURL},
+		{"GOTAVERN_SD_CHUTES_IMAGE_URL", sdChutesImageURL, sdChutesImageDefaultURL},
+		{"GOTAVERN_SD_NANOGPT_GENERATE_URL", sdNanoGPTGenerateURL, sdNanoGPTGenerateDefaultURL},
+		{"GOTAVERN_SD_ELECTRONHUB_URL", sdElectronHubURL, sdElectronHubDefaultURL},
+		{"GOTAVERN_SD_AIMLAPI_URL", sdAimlapiURL, sdAimlapiDefaultURL},
+	} {
+		t.Setenv(seam.environment, "")
+		if got := seam.accessor(); got != seam.pinned {
+			t.Fatalf("%s seam default = %q, pinned %q", seam.environment, got, seam.pinned)
+		}
+	}
+}
 func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 	fixture := loadSDGenerateOracle(t)
 	if len(fixture.Scenarios) < 10 {
@@ -235,6 +273,12 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 			peer := newSDGeneratePeer(t, scenario)
 			t.Setenv("GOTAVERN_SD_POLLINATIONS_URL", peer.server.URL)
 			t.Setenv("GOTAVERN_SD_TOGETHER_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_HUGGINGFACE_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_XAI_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_CHUTES_IMAGE_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_NANOGPT_GENERATE_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_ELECTRONHUB_URL", peer.server.URL)
+			t.Setenv("GOTAVERN_SD_AIMLAPI_URL", peer.server.URL)
 			handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
 			response := postSecretsRoute(t, handler, scenario.Route, scenario.RequestBody)
 			statuses[response.Code]++
@@ -268,7 +312,7 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 					}
 				}
 				// A header the pinned call does NOT send must not appear either.
-				for _, name := range []string{"authorization", "content-type"} {
+				for _, name := range []string{"authorization", "content-type", "x-api-key", "accept", "http-referer", "x-title"} {
 					present := len(seen.Header[http.CanonicalHeaderKey(name)]) > 0
 					recordedPresent := recorded.Headers[name] != ""
 					if present && !recordedPresent {
