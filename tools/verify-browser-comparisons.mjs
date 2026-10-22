@@ -81,6 +81,43 @@ if (startup) {
     }
 }
 
+// ---- generation-openrouter-comparison.json ----------------------------------------------------
+//
+// The SECOND source measured end to end. It is a separate artifact because the two sources reach the
+// recording peer differently (custom_url in the request body for `custom`, a pinned literal plus a seam
+// for `openrouter`), and one artifact carrying both would have to say which mechanism produced which
+// bytes. The checks are the same ones, deliberately, so neither source can be held to a weaker standard.
+const openrouterGeneration = read('generation-openrouter-comparison.json');
+if (openrouterGeneration) {
+    if (openrouterGeneration.providerRequestEqual !== true) {
+        fail('generation-openrouter-comparison.json', 'providerRequestEqual is not true, so the openrouter provider-wire claim is unsupported');
+    }
+    if (openrouterGeneration.requestArrived?.gotavern !== true || openrouterGeneration.requestArrived?.pinned !== true) {
+        fail('generation-openrouter-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (openrouterGeneration.milestoneEqual !== true) {
+        fail('generation-openrouter-comparison.json', 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(openrouterGeneration.guards ?? {})) {
+        if (value !== true) fail('generation-openrouter-comparison.json', `guard ${name} is not true`);
+    }
+    // The guard's MEANING must be recorded with it, or the next reader assumes the old window rule.
+    const meaning = openrouterGeneration.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof meaning !== 'string' || !meaning.includes('non-dry invocation')) {
+        fail('generation-openrouter-comparison.json', 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    // Every invocation trail must be present, so a reader can see the counting invocations that were
+    // recorded and deliberately not attributed.
+    if (!Array.isArray(openrouterGeneration.wholeDriveInvocations?.gotavern) || !Array.isArray(openrouterGeneration.wholeDriveInvocations?.pinned)) {
+        fail('generation-openrouter-comparison.json', 'wholeDriveInvocations is missing a leg, so the counting invocations were not recorded');
+    }
+    // Say what was checked. A gate that reads an artifact silently gives a reader no way to tell a
+    // passing check from an artifact the gate never opened.
+    const openrouterPost = (openrouterGeneration.providerRequests?.gotavern ?? []).find((entry) => entry.method === 'POST');
+    const openrouterBytes = openrouterPost?.bodyLength ?? 'unknown';
+    const openrouterDiffs = Array.isArray(openrouterGeneration.bodyDifferences) ? openrouterGeneration.bodyDifferences.length : 0;
+    console.log(`  generation-openrouter-comparison.json providerRequestEqual true, ${openrouterDiffs} documented body difference(s), ${openrouterBytes} B per leg`);
+}
 // ---- generation-comparison.json --------------------------------------------------------------
 const generation = read('generation-comparison.json');
 if (generation) {

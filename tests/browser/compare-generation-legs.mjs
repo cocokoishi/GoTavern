@@ -145,6 +145,45 @@ const windowIntegrity = report => {
     };
 };
 
+// THE INVOCATION TRAIL. Every GENERATION_STARTED inside the window opens an invocation, and every
+// GENERATE_AFTER_DATA is attributed to the nearest preceding one, so a dry pass that merely OVERLAPS the
+// send in time is a separate invocation rather than a phantom assembly of the send. Recorded in full in
+// the artifact: a reader must be able to see that the extra counting invocation exists and why it is not
+// the defect.
+const invocationTrail = report => {
+    const events = sendWindow(report).window;
+    const invocations = [];
+    let current = null;
+    for (const event of events) {
+        if (event.name === 'GENERATION_STARTED') {
+            current = { dryRun: isDry(event), t: event.t ?? null, afterData: [] };
+            invocations.push(current);
+            continue;
+        }
+        if (event.name === 'GENERATE_AFTER_DATA' && current) {
+            current.afterData.push(isDry(event));
+        }
+    }
+    return invocations;
+};
+
+// The milestones two legs must AGREE on. The independent counting invocations are excluded -- their
+// number is a race (measured 1, 1 and 0 across three drives that all returned the same count), so
+// comparing it would make the artifact flaky rather than faithful (rule 18). They stay recorded in
+// `generationInvocations` as context a reader can inspect.
+const comparableMilestones = report => {
+    const invocations = invocationTrail(report);
+    const real = invocations.filter(invocation => !invocation.dryRun);
+    const counters = milestones(report);
+    return {
+        realInvocations: real.length,
+        realAfterDataInRealInvocation: real.length === 1 ? real[0].afterData.filter(isDryValue => isDryValue === false).length : -1,
+        dryAfterDataInRealInvocation: real.length === 1 ? real[0].afterData.filter(isDryValue => isDryValue === true).length : -1,
+        chatCompletionSettingsReady: counters.chatCompletionSettingsReady,
+        generationEnded: counters.generationEnded,
+    };
+};
+
 // The guards that say the differential was FAITHFUL. A send issued while the frontend was already
 // assembling a prompt interleaves two assemblies and compares a state no user can act from, and a
 // window that holds half a generation cannot be compared at all.
@@ -152,14 +191,29 @@ const guards = (gotavern, pinned) => {
     const quiesced = report => report.quiescence?.quiesced === true;
     const settled = report => report.settle?.settledIdle === true;
     const complete = report => windowIntegrity(report).complete === true;
-    // Exactly one real send inside the window, and NO dry assembly inside it: a dry one there would
-    // mean the send forked into a second prompt assembly while it was running.
+    // EXACTLY ONE NON-DRY INVOCATION IN THE WINDOW, WITH EXACTLY ONE NON-DRY AFTER_DATA AND NONE DRY;
+    // INDEPENDENT COUNTING INVOCATIONS ARE RECORDED BUT NOT ATTRIBUTED.
+    //
+    // This used to be a WINDOW-level rule -- "no dry assembly anywhere between the click and
+    // GENERATION_ENDED" -- and that was right while a token count came back instantly from the
+    // guesstimate fallback. Once counts are real the frontend's counting pass takes time and can
+    // interleave with the send: on three consecutive GoTavern drives that all returned the SAME correct
+    // count, its invocation began 11 ms AFTER the real send started, then 401 ms BEFORE it, then not at
+    // all. A window rule therefore flags whichever run happens to interleave, which is a race and not a
+    // contract (rule 18), while the defect it exists for is a dry pass belonging to the REAL send -- which
+    // a window cannot tell apart from a separate invocation.
+    //
+    // So every GENERATE_AFTER_DATA is attributed to the nearest preceding GENERATION_STARTED and the REAL
+    // invocation is judged alone. The old defect still fails: a dry AFTER_DATA attributed to the real
+    // invocation is precisely what `afterData` counts, and a second real invocation still fails the
+    // count. The only assumption dropped is that a dry invocation cannot overlap the send in time.
     const sendOnly = report => {
-        const counters = milestones(report);
-        return counters.realGenerationStarted === 1
-            && counters.realAfterData === 1
-            && counters.dryGenerationStarted === 0
-            && counters.dryAfterData === 0;
+        const invocations = invocationTrail(report);
+        const real = invocations.filter(invocation => !invocation.dryRun);
+        if (real.length !== 1) return false;
+        const afterData = real[0].afterData;
+        if (afterData.length !== 1) return false;
+        return afterData[0] === false;
     };
     return {
         bothLegsQuiescedBeforeSend: quiesced(gotavern) && quiesced(pinned),
@@ -221,7 +275,7 @@ const main = async () => {
         requestArrived: { gotavern: gotavern.requestArrived, pinned: pinned.requestArrived },
         providerRequests: { gotavern: providerRequests(gotavern), pinned: providerRequests(pinned) },
         milestones: { gotavern: milestones(gotavern), pinned: milestones(pinned) },
-        milestoneEqual: JSON.stringify(milestones(gotavern)) === JSON.stringify(milestones(pinned)),
+        milestoneEqual: JSON.stringify(comparableMilestones(gotavern)) === JSON.stringify(comparableMilestones(pinned)),
         // Everything the window deliberately excludes, so a reader can see it was recorded and why.
         surrounding: { gotavern: surrounding(gotavern), pinned: surrounding(pinned) },
         eventWindow: {
@@ -229,6 +283,23 @@ const main = async () => {
             pinned: { eventsBeforeClick: pinned.eventsBeforeClick?.count ?? null, quiescence: pinned.quiescence ?? null, settle: pinned.settle ?? null },
         },
         guards: guards(gotavern, pinned),
+        // One line, in the artifact itself, so the next reader does not assume this is the old window
+        // rule: it is an INVOCATION-level assertion, and independent counting invocations are recorded
+        // rather than attributed.
+        guardMeaning: {
+            sendWindowHoldsExactlyOneRealSendAndNoDryAssembly:
+                'exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed',
+        },
+        generationInvocations: { gotavern: invocationTrail(gotavern), pinned: invocationTrail(pinned) },
+        // THE WHOLE-DRIVE TRAIL, including the counting invocations outside the send window. They are
+        // recorded so a reader can see that an independent counting invocation exists and that it is not
+        // attributed to the send; they are NOT compared, because how many coalesce out of the debounce is
+        // a race (measured 0, 1 and 1 across three drives that all returned the same count).
+        wholeDriveInvocations: {
+            gotavern: gotavern.generateLifecycle?.invocations ?? null,
+            pinned: pinned.generateLifecycle?.invocations ?? null,
+        },
+        comparableMilestones: { gotavern: comparableMilestones(gotavern), pinned: comparableMilestones(pinned) },
         postSend: { gotavern: gotavern.postSend ?? null, pinned: pinned.postSend ?? null },
         bodyDifferences: bodyDiff(postBody(gotavern), postBody(pinned)),
     };
@@ -241,6 +312,14 @@ const main = async () => {
     const failed = Object.entries(comparison.guards).filter(([, value]) => value !== true).map(([name]) => name);
     if (failed.length > 0) {
         console.error(`unfaithful generation differential, ${failed.length} guard(s) failed: ${failed.join(', ')}`);
+        for (const [leg, trail] of Object.entries(comparison.generationInvocations)) {
+            const real = trail.filter(invocation => !invocation.dryRun);
+            if (real.length !== 1 || real[0].afterData.length !== 1 || real[0].afterData[0] !== false) {
+                console.error(`  ${leg} real invocation: ${real.length} non-dry invocation(s) in the window, ` +
+                    `afterData of the real one = [${real.map(invocation => invocation.afterData.join(',')).join(' | ')}] ` +
+                    `(a dry AFTER_DATA attributed to the REAL invocation is the defect this guard exists for)`);
+            }
+        }
         for (const [leg, integrity] of Object.entries(comparison.windowIntegrity)) {
             if (integrity.complete !== true) {
                 console.error(`  ${leg} window holds half a generation: dry STARTED ${integrity.dryGenerationStarted} vs dry AFTER_DATA ${integrity.dryAfterData}, ` +

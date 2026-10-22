@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
+  "bases": {
+    "gotavern": "http://127.0.0.1:53234",
+    "pinned": "http://127.0.0.1:52867"
+  },
+  "requestArrived": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "providerRequests": {
+    "gotavern": [
+      {
+        "method": "GET",
+        "path": "/models",
+        "bodyLength": 0,
+        "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "method": "POST",
+        "path": "/chat/completions",
+        "bodyLength": 7525,
+        "bodySha256": "ff6906de394cd7425ae4161be9d91562e633d7442aa39d324721488659422b20"
+      }
+    ],
+    "pinned": [
+      {
+        "method": "GET",
+        "path": "/models",
+        "bodyLength": 0,
+        "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "method": "POST",
+        "path": "/chat/completions",
+        "bodyLength": 7525,
+        "bodySha256": "ff6906de394cd7425ae4161be9d91562e633d7442aa39d324721488659422b20"
+      }
+    ]
+  },
+  "milestones": {
+    "gotavern": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "milestoneEqual": true,
+  "surrounding": {
+    "gotavern": {
+      "beforeClick": {
+        "events": 5
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 4,
+        "dryStarted": 3,
+        "realStarted": 1,
+        "dryAfterData": 3,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 12146
+          },
+          {
+            "dryRun": false,
+            "t": 14391
+          },
+          {
+            "dryRun": true,
+            "t": 15257
+          },
+          {
+            "dryRun": true,
+            "t": 16122
+          }
+        ]
+      }
+    },
+    "pinned": {
+      "beforeClick": {
+        "events": 5
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 4,
+        "dryStarted": 3,
+        "realStarted": 1,
+        "dryAfterData": 3,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 15012
+          },
+          {
+            "dryRun": false,
+            "t": 17234
+          },
+          {
+            "dryRun": true,
+            "t": 18341
+          },
+          {
+            "dryRun": true,
+            "t": 19152
+          }
+        ]
+      }
+    }
+  },
+  "eventWindow": {
+    "gotavern": {
+      "eventsBeforeClick": 5,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 848,
+        "inFlightMaxBeforeSend": 1,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 1
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1538,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    },
+    "pinned": {
+      "eventsBeforeClick": 5,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 852,
+        "inFlightMaxBeforeSend": 1,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 1
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1540,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    }
+  },
+  "guards": {
+    "bothLegsQuiescedBeforeSend": true,
+    "bothLegsSettledAfterSend": true,
+    "bothWindowsHoldCompleteGenerations": true,
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": true
+  },
+  "guardMeaning": {
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": "exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed"
+  },
+  "generationInvocations": {
+    "gotavern": [
+      {
+        "dryRun": false,
+        "t": 14392,
+        "afterData": [
+          false
+        ]
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": false,
+        "t": 17235,
+        "afterData": [
+          false
+        ]
+      }
+    ]
+  },
+  "wholeDriveInvocations": {
+    "gotavern": [
+      {
+        "dryRun": true,
+        "t": 12146
+      },
+      {
+        "dryRun": false,
+        "t": 14391
+      },
+      {
+        "dryRun": true,
+        "t": 15257
+      },
+      {
+        "dryRun": true,
+        "t": 16122
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": true,
+        "t": 15012
+      },
+      {
+        "dryRun": false,
+        "t": 17234
+      },
+      {
+        "dryRun": true,
+        "t": 18341
+      },
+      {
+        "dryRun": true,
+        "t": 19152
+      }
+    ]
+  },
+  "comparableMilestones": {
+    "gotavern": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "postSend": {
+    "gotavern": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 14614,
+          "text": "probe user marker"
+        },
+        {
+          "t": 15038,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "pinned": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 17463,
+          "text": "probe user marker"
+        },
+        {
+          "t": 18076,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    }
+  },
+  "bodyDifferences": [],
+  "providerRequestEqual": true,
+  "windowIntegrity": {
+    "gotavern": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    },
+    "pinned": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    }
+  }
+}
