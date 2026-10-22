@@ -177,3 +177,4 @@ console.log('browser comparison artifacts are coherent with their claims');
 console.log(`  startup-comparison.json    ${startup.rows.length} rows, unexpectedCount 0, guards faithful`);
 console.log(`  generation-comparison.json providerRequestEqual true, ${generation.bodyDifferences?.length ?? 0} documented body difference(s)`);
 console.log('  streaming-comparison.json  compatibleReady true, three surface blocks present');
+console.log(`  data-domain-comparison.json ${dataDomain.rows.length} rows, ${Array.isArray(dataDomain.promotable) ? dataDomain.promotable.length : 0} promoted domain(s), ${dataDomain.unexpectedCount} unexpected`);

@@ -108,11 +108,16 @@ Ordered by missing work, not by route count:
    legs today), and quick replies needs a drive that can initialise the extension in a
    fresh-install page.
 
-**The data-domain comparison is not yet covered by the gate.** `tools/verify-browser-comparisons.mjs`
-checks each artifact with a hand-written block per file, and it has none for
-`data-domain-comparison.json`, so nothing in CI would notice if that artifact were hand-edited or
-refreshed without re-driving. The artifact carries the same `guards` shape the other comparisons use
-(`faithful`, `gotavernReachedUserState`, `pinnedReachedUserState`, plus
-`bothLegsCompletedDrive` and `observedStableAcrossTwoRunsPerLeg`) so a block can be added; the
-tool is outside this task's write scope. Its per-run legs stay gitignored like the others, per the
-reason in `tests/browser/.gitignore`.
+**The data-domain comparison IS covered by the gate**, and this paragraph used to say it was not.
+`a1fc22a` added the comparison artifact and the artifact's own hand-written block in
+`tools/verify-browser-comparisons.mjs` in the SAME commit, so the earlier note ("it has none for
+`data-domain-comparison.json`") was stale from the moment it was written and would have pushed the
+next reader into rebuilding a check that already ran. What the block enforces, over and above the
+shared coherence rules: `unexpectedCount` must be 0 with an empty `unexpected[]`; all five guards
+(`faithful`, `gotavernReachedUserState`, `pinnedReachedUserState`, `bothLegsCompletedDrive`,
+`observedStableAcrossTwoRunsPerLeg`) must be true; every row marked `promotable` must ALSO carry
+`writeDemonstrated: true`, so a read-only drive cannot move a cell on the strength of "nothing went
+wrong"; and the number of domains named in `promotable[]` must equal the number of promotable rows,
+so a claim of promotion cannot outlive its evidence. A hand-edited or refreshed-without-re-driving
+artifact fails these before a reviewer sees it. Its per-run legs stay gitignored like the others, per
+the reason in `tests/browser/.gitignore`.
