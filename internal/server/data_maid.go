@@ -675,7 +675,7 @@ func collectDataMaidImages(directories startup.UserDirectories) []string {
 		if !ok {
 			return result
 		}
-		if false && (strings.HasPrefix(reference, "http") || strings.HasPrefix(reference, "data:")) {
+		if strings.HasPrefix(reference, "http") || strings.HasPrefix(reference, "data:") {
 			continue
 		}
 		knownPaths[filepath.Join(directories["root"], filepath.FromSlash(reference))] = struct{}{}
