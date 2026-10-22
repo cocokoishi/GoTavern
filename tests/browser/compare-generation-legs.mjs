@@ -216,6 +216,10 @@ const guards = (gotavern, pinned) => {
         return afterData[0] === false;
     };
     return {
+        // EQUAL AND EMPTY IS NOT A PASS. A final text that is empty on both legs compares equal and would
+        // record a vacuous success -- the same class of defect as asserting a racy tick alignment.
+        finalTextNonEmpty: typeof gotavern.postSend?.finalAssistantText === 'string' && gotavern.postSend.finalAssistantText.length > 0
+            && typeof pinned.postSend?.finalAssistantText === 'string' && pinned.postSend.finalAssistantText.length > 0,
         bothLegsQuiescedBeforeSend: quiesced(gotavern) && quiesced(pinned),
         bothLegsSettledAfterSend: settled(gotavern) && settled(pinned),
         bothWindowsHoldCompleteGenerations: complete(gotavern) && complete(pinned),
@@ -291,6 +295,9 @@ const main = async () => {
             gotavern: (gotavern.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
             pinned: (pinned.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
         },
+        // WHICH DRIVE PRODUCED THIS: non-stream mode paces nothing, so the frame count is not applicable here
+        // and saying so is stronger than omitting the field.
+        driveParameters: { mode: 'nonstream', frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)' },
         guards: guards(gotavern, pinned),
         // One line, in the artifact itself, so the next reader does not assume this is the old window
         // rule: it is an INVOCATION-level assertion, and independent counting invocations are recorded

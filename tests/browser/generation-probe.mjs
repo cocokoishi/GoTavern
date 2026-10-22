@@ -80,23 +80,51 @@ async function waitFor(url, label, deadlineMs = 30000) {
 
 // The mock's response script: one non-streaming chat completion, enough for the frontend to
 // finish a turn.
+// WHICH SOURCE THIS DRIVE SELECTS, decided ONCE and used by the mock script, the peer and the page. The
+// captured fixture is a custom-source setup, so the source is assigned after it in the page; here it decides
+// the provider protocol as well, so a claude drive is served an ANTHROPIC response and every other source an
+// OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
+// than as an equal empty one.
+const probeSource = process.env.PROBE_SOURCE ?? 'custom';
+if (!['custom', 'openrouter', 'claude', 'mistralai'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude or mistralai, got ${probeSource}`);
+}
+const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
     // The Connect step asks the chat-completions status route for GET {custom_url}/models, which the
     // server proxies to this peer. The scripted responses are SEQUENTIAL, so the models answer must
     // come first: with a single completion answer the models request consumed it and the completion
     // request got the mock's default 500 on BOTH legs (a probe-shape defect, not a product gap).
     responses: [
-        {
+        // CLAUDE IS A NO-VALIDATE SOURCE (openai.js:4459): it never calls /models, so a models entry at index 0
+        // is consumed by NOTHING and the completion request receives the MODELS body -- which has no `content`
+        // member, so the claude rewrap yields content[0].text === '' and the page renders an empty message with
+        // status 200 and no error. Measured exactly that before this fix. The script is therefore built from the
+        // SOURCE'S OWN CALL SEQUENCE rather than assuming two calls.
+        ...(peerProtocol === 'anthropic' ? [] : [{
             status: 200,
             headers: [{ name: 'Content-Type', value: 'application/json' }],
             body: JSON.stringify({ data: [{ id: 'probe-model' }] }),
-        },
+        }]),
+
         {
             status: 200,
             headers: [{ name: 'Content-Type', value: 'application/json' }],
             body: JSON.stringify({
-                id: 'probe-completion',
-                choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }],
+                // SHAPED BY THE SAME PROTOCOL PARAMETER as the streaming peer. The claude branch rewraps
+                // `content[0].text` into `choices[0].message.content` (internal/server/claude_chat.go:900-920), so
+                // the text must be non-empty AND distinct from the OpenAI text: an empty or identical final text
+                // would let a leg that fell back to the wrong script compare equal.
+                ...(peerProtocol === 'anthropic'
+                    ? {
+                        id: 'msg_probe', type: 'message', role: 'assistant', model: 'probe-model',
+                        content: [{ type: 'text', text: 'probe reply from anthropic' }],
+                        stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 2 },
+                    }
+                    : {
+                        id: 'probe-completion',
+                        choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }],
+                    }),
             }),
         },
     ],
@@ -169,16 +197,7 @@ const probeMode = process.env.PROBE_MODE ?? 'nonstream';
 // in `custom_url` (a request member), while openrouter's URL is a pinned LITERAL with no request member at
 // all, so the GoTavern leg is aimed through its seam and the pinned leg through a transport redirect that
 // tools/run-against-pinned.mjs installs.
-const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude or mistralai, got ${probeSource}`);
-}
-
-// THE PEER SPEAKS ONE PROTOCOL, CHOSEN BY SOURCE: Anthropic (POST /messages, x-api-key, message_start /
-// content_block_delta / message_stop) for claude, OpenAI (POST /chat/completions, [DONE]) for everything
-// else including mistralai. It is a PARAMETER and not a second peer, so pacing, clientDisconnected
-// bookkeeping and the path log are identical for both protocols.
-const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
+// (source and protocol are derived above, before the mock script, so one place decides both)
 
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 

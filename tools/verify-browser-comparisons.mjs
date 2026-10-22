@@ -118,6 +118,28 @@ if (openrouterGeneration) {
     const openrouterDiffs = Array.isArray(openrouterGeneration.bodyDifferences) ? openrouterGeneration.bodyDifferences.length : 0;
     console.log(`  generation-openrouter-comparison.json providerRequestEqual true, ${openrouterDiffs} documented body difference(s), ${openrouterBytes} B per leg`);
 }
+// ---- generation-claude-comparison.json --------------------------------------------------------
+//
+// The CLAUDE source measured end to end. Same checks as mistralai, plus the one this lane earned twice:
+// EQUAL AND EMPTY IS NOT A PASS, so the final text must be non-empty on both legs. Claude is a no-validate
+// source, so its script carries no /models entry, and the Anthropic body's text is deliberately distinct
+// from the OpenAI one -- a mis-ordered script then shows as a DIFFERENT final text rather than an equal empty.
+const claudeGeneration = read('generation-claude-comparison.json');
+if (claudeGeneration) {
+    if (claudeGeneration.providerRequestEqual !== true) fail('generation-claude-comparison.json', 'providerRequestEqual is not true');
+    if (claudeGeneration.requestArrived?.gotavern !== true || claudeGeneration.requestArrived?.pinned !== true) fail('generation-claude-comparison.json', 'requestArrived is not true on both legs');
+    if (claudeGeneration.milestoneEqual !== true) fail('generation-claude-comparison.json', 'milestoneEqual is not true');
+    for (const [name, value] of Object.entries(claudeGeneration.guards ?? {})) {
+        if (value !== true) fail('generation-claude-comparison.json', `guard ${name} is not true`);
+    }
+    if (claudeGeneration.guards?.finalTextNonEmpty !== true) fail('generation-claude-comparison.json', 'the finalTextNonEmpty guard is missing, so an empty-equals-empty artifact could pass');
+    if (claudeGeneration.proxyPasswordPresent?.gotavern !== true || claudeGeneration.proxyPasswordPresent?.pinned !== true) fail('generation-claude-comparison.json', 'proxyPasswordPresent is not true on both legs');
+    for (const leg of ['gotavern', 'pinned']) {
+        const text = claudeGeneration.postSend?.[leg]?.finalAssistantText;
+        if (typeof text !== 'string' || text.trim() === '') fail('generation-claude-comparison.json', `${leg}.finalAssistantText is empty, so the send rendered nothing`);
+    }
+    if (typeof claudeGeneration.driveParameters?.mode !== 'string') fail('generation-claude-comparison.json', 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+}
 // ---- generation-mistral-comparison.json -------------------------------------------------------
 //
 // The MISTRALAI source measured end to end in the browser. Same checks as the OpenRouter generation

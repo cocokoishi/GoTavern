@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
+  "bases": {
+    "gotavern": "http://127.0.0.1:52995",
+    "pinned": "http://127.0.0.1:51509"
+  },
+  "requestArrived": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "providerRequests": {
+    "gotavern": [
+      {
+        "method": "POST",
+        "path": "//messages",
+        "bodyLength": 7446,
+        "bodySha256": "dba5171f53f84949e909fad2904270b5551e672deb5cfb21cc16a8ee0555e18e"
+      }
+    ],
+    "pinned": [
+      {
+        "method": "POST",
+        "path": "//messages",
+        "bodyLength": 7446,
+        "bodySha256": "dba5171f53f84949e909fad2904270b5551e672deb5cfb21cc16a8ee0555e18e"
+      }
+    ]
+  },
+  "milestones": {
+    "gotavern": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "milestoneEqual": true,
+  "surrounding": {
+    "gotavern": {
+      "beforeClick": {
+        "events": 5
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
+      },
+      "wholeDrive": {
+        "started": 3,
+        "dryStarted": 2,
+        "realStarted": 1,
+        "dryAfterData": 2,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 13110
+          },
+          {
+            "dryRun": false,
+            "t": 15585
+          },
+          {
+            "dryRun": true,
+            "t": 17721
+          }
+        ]
+      }
+    },
+    "pinned": {
+      "beforeClick": {
+        "events": 5
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 4,
+        "dryStarted": 3,
+        "realStarted": 1,
+        "dryAfterData": 3,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 16026
+          },
+          {
+            "dryRun": false,
+            "t": 18835
+          },
+          {
+            "dryRun": true,
+            "t": 21332
+          },
+          {
+            "dryRun": true,
+            "t": 21766
+          }
+        ]
+      }
+    }
+  },
+  "eventWindow": {
+    "gotavern": {
+      "eventsBeforeClick": 5,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 1272,
+        "inFlightMaxBeforeSend": 1,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 1
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1536,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    },
+    "pinned": {
+      "eventsBeforeClick": 5,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 1283,
+        "inFlightMaxBeforeSend": 1,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 1
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1563,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    }
+  },
+  "proxyPasswordPresent": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "driveParameters": {
+    "mode": "nonstream",
+    "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)"
+  },
+  "guards": {
+    "finalTextNonEmpty": true,
+    "bothLegsQuiescedBeforeSend": true,
+    "bothLegsSettledAfterSend": true,
+    "bothWindowsHoldCompleteGenerations": true,
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": true
+  },
+  "guardMeaning": {
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": "exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed"
+  },
+  "generationInvocations": {
+    "gotavern": [
+      {
+        "dryRun": false,
+        "t": 15586,
+        "afterData": [
+          false
+        ]
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": false,
+        "t": 18836,
+        "afterData": [
+          false
+        ]
+      }
+    ]
+  },
+  "wholeDriveInvocations": {
+    "gotavern": [
+      {
+        "dryRun": true,
+        "t": 13110
+      },
+      {
+        "dryRun": false,
+        "t": 15585
+      },
+      {
+        "dryRun": true,
+        "t": 17721
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": true,
+        "t": 16026
+      },
+      {
+        "dryRun": false,
+        "t": 18835
+      },
+      {
+        "dryRun": true,
+        "t": 21332
+      },
+      {
+        "dryRun": true,
+        "t": 21766
+      }
+    ]
+  },
+  "comparableMilestones": {
+    "gotavern": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "postSend": {
+    "gotavern": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:3",
+      "popupClicks": 3,
+      "popupSeen": [
+        {
+          "id": "",
+          "className": "popup popup--animation-fast",
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"24e636f1-115c-40b7-9fec-f34e690cf12f\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://127.0.0.1:52996</var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+        }
+      ],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 15875,
+          "text": "probe user marker"
+        },
+        {
+          "t": 16628,
+          "text": "probe reply from anthropic"
+        }
+      ],
+      "finalAssistantText": "probe reply from anthropic",
+      "streamState": null
+    },
+    "pinned": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:3",
+      "popupClicks": 3,
+      "popupSeen": [
+        {
+          "id": "",
+          "className": "popup popup--animation-fast",
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"65960957-713d-45c2-b2ec-5c97ad89dceb\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://127.0.0.1:51628</var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+        }
+      ],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 19205,
+          "text": "probe user marker"
+        },
+        {
+          "t": 20644,
+          "text": "probe reply from anthropic"
+        }
+      ],
+      "finalAssistantText": "probe reply from anthropic",
+      "streamState": null
+    }
+  },
+  "bodyDifferences": [],
+  "providerRequestEqual": true,
+  "windowIntegrity": {
+    "gotavern": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    },
+    "pinned": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    }
+  }
+}
