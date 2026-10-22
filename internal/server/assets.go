@@ -42,11 +42,12 @@ func init() {
 }
 
 func registerAssetsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
-	for _, route := range []string{"/api/assets/get", "/api/assets/delete", "/api/assets/character"} {
+	for _, route := range []string{"/api/assets/get", "/api/assets/delete", "/api/assets/character", "/api/assets/download"} {
 		handler := map[string]func(http.ResponseWriter, *http.Request){
 			"/api/assets/get":       accounts.serveAssetsGet,
 			"/api/assets/delete":    accounts.serveAssetsDelete,
 			"/api/assets/character": accounts.serveAssetsCharacter,
+			"/api/assets/download":  accounts.serveAssetsDownload,
 		}[route]
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {

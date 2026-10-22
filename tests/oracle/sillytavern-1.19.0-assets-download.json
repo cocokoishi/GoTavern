@@ -1,0 +1,1053 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/assets/download: four guards, the filename-message branch, and the forwarding branches",
+  "oracle": {
+    "file": "src/endpoints/assets.js",
+    "lines": {
+      "download": 190
+    }
+  },
+  "conventions": {
+    "steps": "steps are an ordered ARRAY: every step snapshots the assets tree the next step starts from",
+    "mock": "the peer authority 127.0.0.1:18080 is stored as <mock> in inputs and outbound URLs; the replay substitutes its own peer",
+    "refusals": "a refusal records ZERO outbound requests; a forwarding step records exactly one, so a guard that fetched early cannot look correct",
+    "filename": "the filename guard answers status(400).send(message), so its body is TEXT and is compared as text; sendStatus branches answer the status phrase as text/plain",
+    "mime": "the character branch content type comes from mime.lookup of the temp filename"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.contentType",
+      "observations.*.contentLength",
+      "observations.*.etag",
+      "observations.*.bodyText",
+      "observations.*.bodyBase64",
+      "observations.*.bodySha256",
+      "observations.*.bodyLength",
+      "observations.*.outbound",
+      "observations.*.tree",
+      "state.before"
+    ],
+    "shape": [],
+    "shapeReason": {}
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-assets-download-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Assets Download Probe",
+      "admin": true,
+      "password": ""
+    },
+    "whitelistImportDomains": [
+      "127.0.0.1"
+    ],
+    "steps": [
+      {
+        "name": "download.invalidUrl",
+        "bodyText": "{\"url\":\"not a url\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.hostNotWhitelisted",
+        "bodyText": "{\"url\":\"http://blocked.invalid/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.badCategory",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"nope\",\"filename\":\"one.mp3\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.invalidFilename",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"bad?name.mp3\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.unsafeExtension",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"evil.php\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.leadingDot",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\".hidden.mp3\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.missingFilename",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\"}",
+        "upstream": [],
+        "seed": {}
+      },
+      {
+        "name": "download.upstreamNotOk",
+        "bodyText": "{\"url\":\"http://<mock>/audio/missing.mp3\",\"category\":\"bgm\",\"filename\":\"missing.mp3\"}",
+        "upstream": [
+          {
+            "match": "/audio/missing.mp3",
+            "status": 404,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "no such asset"
+          }
+        ],
+        "seed": {}
+      },
+      {
+        "name": "download.fetchRejected",
+        "bodyText": "{\"url\":\"http://<mock>/audio/rejected.mp3\",\"category\":\"bgm\",\"filename\":\"rejected.mp3\"}",
+        "upstream": [
+          {
+            "match": "/audio/rejected.mp3",
+            "throws": true
+          }
+        ],
+        "seed": {}
+      },
+      {
+        "name": "download.ok.bgm",
+        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
+        "upstream": [
+          {
+            "match": "/audio/one.mp3",
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "body": "BGM-DL"
+          }
+        ],
+        "seed": {}
+      },
+      {
+        "name": "download.ok.characterPng",
+        "bodyText": "{\"url\":\"http://<mock>/img/hero.png\",\"category\":\"character\",\"filename\":\"hero.png\"}",
+        "upstream": [
+          {
+            "match": "/img/hero.png",
+            "status": 200,
+            "headers": {
+              "content-type": "image/png"
+            },
+            "body": "PNG-DL"
+          }
+        ],
+        "seed": {}
+      },
+      {
+        "name": "download.ok.characterTxt",
+        "bodyText": "{\"url\":\"http://<mock>/img/note.txt\",\"category\":\"character\",\"filename\":\"note.txt\"}",
+        "upstream": [
+          {
+            "match": "/img/note.txt",
+            "status": 200,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "NOTE-DL"
+          }
+        ],
+        "seed": {}
+      },
+      {
+        "name": "download.tempReplaced",
+        "bodyText": "{\"url\":\"http://<mock>/audio/replace.mp3\",\"category\":\"bgm\",\"filename\":\"replace.mp3\"}",
+        "upstream": [
+          {
+            "match": "/audio/replace.mp3",
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "body": "REPLACED"
+          }
+        ],
+        "seed": {
+          "assets/temp/replace.mp3": "STALE-TEMP"
+        }
+      }
+    ]
+  },
+  "state": {
+    "before": []
+  },
+  "observations": {
+    "download.invalidUrl": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyText": "Bad Request",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "tree": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.hostNotWhitelisted": {
+      "status": 404,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "9",
+      "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+      "bodyText": "Not Found",
+      "bodyBase64": "Tm90IEZvdW5k",
+      "bodySha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
+      "bodyLength": 9,
+      "outbound": [],
+      "tree": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.badCategory": {
+      "status": 400,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+      "bodyText": "Bad Request",
+      "bodyBase64": "QmFkIFJlcXVlc3Q=",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "bodyLength": 11,
+      "outbound": [],
+      "tree": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.invalidFilename": {
+      "status": 400,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "72",
+      "etag": "W/\"48-raHjTGO3FG4zfexw1tjnW1dBfDs\"",
+      "bodyText": "Illegal character in filename; only alphanumeric, '_', '-' are accepted.",
+      "bodyBase64": "SWxsZWdhbCBjaGFyYWN0ZXIgaW4gZmlsZW5hbWU7IG9ubHkgYWxwaGFudW1lcmljLCAnXycsICctJyBhcmUgYWNjZXB0ZWQu",
+      "bodySha256": "ed2cef5becaf32d6ba909beaf725d057ee5011015109e735662bab6c579a644d",
+      "bodyLength": 72,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.unsafeExtension": {
+      "status": 400,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "25",
+      "etag": "W/\"19-vU61o1YtDgJmpQxpjMHGMxPEF9g\"",
+      "bodyText": "Forbidden file extension.",
+      "bodyBase64": "Rm9yYmlkZGVuIGZpbGUgZXh0ZW5zaW9uLg==",
+      "bodySha256": "5ab6ade626ddbabaebb55e970f3d15aab56709bba38f11ec85e16b35c4e8872e",
+      "bodyLength": 25,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.leadingDot": {
+      "status": 400,
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "30",
+      "etag": "W/\"1e-+rezTBmMAZSw1bajB3wWrYb5Y+A\"",
+      "bodyText": "Filename cannot start with '.'",
+      "bodyBase64": "RmlsZW5hbWUgY2Fubm90IHN0YXJ0IHdpdGggJy4n",
+      "bodySha256": "7815d2db34aebf8c80c4e9aba9a7bbfd67a7ea1a161fef78c529b7f6ee2bdba0",
+      "bodyLength": 30,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.missingFilename": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyText": "Internal Server Error",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.upstreamNotOk": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyText": "Internal Server Error",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "http://<mock>/audio/missing.mp3",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.fetchRejected": {
+      "status": 500,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+      "bodyText": "Internal Server Error",
+      "bodyBase64": "SW50ZXJuYWwgU2VydmVyIEVycm9y",
+      "bodySha256": "e41656eb2ba6c6293bf6dd928e5a88cdbc50535cab661c1969e0f598e497ed62",
+      "bodyLength": 21,
+      "outbound": [
+        {
+          "url": "http://<mock>/audio/rejected.mp3",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.ok.bgm": {
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+      "bodyText": "OK",
+      "bodyBase64": "T0s=",
+      "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+      "bodyLength": 2,
+      "outbound": [
+        {
+          "url": "http://<mock>/audio/one.mp3",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 6,
+          "sha256": "010ba7c5b7096d8504223b6c7c35139ad9dd32f1110e724b2c8315c0e0231e61"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.ok.characterPng": {
+      "status": 200,
+      "contentType": "image/png",
+      "contentLength": "6",
+      "etag": "W/\"6-H5WKEjeuMNMb1k6JZp/1kTGSEFE\"",
+      "bodyText": "PNG-DL",
+      "bodyBase64": "UE5HLURM",
+      "bodySha256": "17c212c7c4a132f39e1d1be329c2514511c986f63fc125da75042a8a193ff21d",
+      "bodyLength": 6,
+      "outbound": [
+        {
+          "url": "http://<mock>/img/hero.png",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 6,
+          "sha256": "010ba7c5b7096d8504223b6c7c35139ad9dd32f1110e724b2c8315c0e0231e61"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.ok.characterTxt": {
+      "status": 200,
+      "contentType": "text/plain",
+      "contentLength": "7",
+      "etag": "W/\"7-Yx2NoPwPuddqyav6SFfHZLnvaWo\"",
+      "bodyText": "NOTE-DL",
+      "bodyBase64": "Tk9URS1ETA==",
+      "bodySha256": "83e82f6d3d14795823a9e8f0ebb9d1e9bbd7339aacc9e92296931dda5a94f30b",
+      "bodyLength": 7,
+      "outbound": [
+        {
+          "url": "http://<mock>/img/note.txt",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 6,
+          "sha256": "010ba7c5b7096d8504223b6c7c35139ad9dd32f1110e724b2c8315c0e0231e61"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "download.tempReplaced": {
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentLength": "2",
+      "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+      "bodyText": "OK",
+      "bodyBase64": "T0s=",
+      "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+      "bodyLength": 2,
+      "outbound": [
+        {
+          "url": "http://<mock>/audio/replace.mp3",
+          "method": "GET"
+        }
+      ],
+      "tree": [
+        {
+          "path": "ambient",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "bgm/one.mp3",
+          "kind": "file",
+          "size": 6,
+          "sha256": "010ba7c5b7096d8504223b6c7c35139ad9dd32f1110e724b2c8315c0e0231e61"
+        },
+        {
+          "path": "bgm/replace.mp3",
+          "kind": "file",
+          "size": 8,
+          "sha256": "8b8edc2a2539d8a0f49556c9e066af896a4f2257f2afd268336b0dfd20cd4d1d"
+        },
+        {
+          "path": "blip",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "character",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "live2d",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "temp",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        },
+        {
+          "path": "vrm",
+          "kind": "directory",
+          "size": 0,
+          "sha256": null
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "bodyBase64",
+          "bodySha256",
+          "bodyLength",
+          "outbound",
+          "tree"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "/api/assets/download"
+      ],
+      "branches": [
+        "a download that fails MID-STREAM"
+      ],
+      "status": "partial",
+      "reason": "pinned streams the response body into assets/temp/<name> with the exclusive flag and only then copies it into the category; a failure after the headers leaves the partial temp file behind. GoTavern reads the body and writes the destination atomically under the user content lock, so a mid-stream failure leaves no partial file. The observable end state for every branch the fixture records is identical; the partial-temp artifact is not reproduced."
+    }
+  ]
+}
