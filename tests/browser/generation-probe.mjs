@@ -170,12 +170,19 @@ const probeMode = process.env.PROBE_MODE ?? 'nonstream';
 // all, so the GoTavern leg is aimed through its seam and the pinned leg through a transport redirect that
 // tools/run-against-pinned.mjs installs.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (probeSource !== 'custom' && probeSource !== 'openrouter') {
-    throw new Error(`PROBE_SOURCE must be custom or openrouter, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude or mistralai, got ${probeSource}`);
 }
+
+// THE PEER SPEAKS ONE PROTOCOL, CHOSEN BY SOURCE: Anthropic (POST /messages, x-api-key, message_start /
+// content_block_delta / message_stop) for claude, OpenAI (POST /chat/completions, [DONE]) for everything
+// else including mistralai. It is a PARAMETER and not a second peer, so pacing, clientDisconnected
+// bookkeeping and the path log are identical for both protocols.
+const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
+
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 
-function startStreamingPeer(mode) {
+function startStreamingPeer(mode, protocol) {
     // EVERY request the peer answered, with the status it gave: without this a drive that never
     // reaches a connected status cannot be told apart from one whose status call the peer answered, and
     // that indistinguishability has produced phantom defects on this project twice.
@@ -204,7 +211,8 @@ function startStreamingPeer(mode) {
             }));
             return;
         }
-        if (request.method !== 'POST' || !request.url.startsWith('/chat/completions')) {
+        const completionPath = protocol === 'anthropic' ? '/messages' : '/chat/completions';
+        if (request.method !== 'POST' || !request.url.startsWith(completionPath)) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
             response.end('not found');
@@ -245,6 +253,14 @@ function startStreamingPeer(mode) {
                 state.heldClosed = true;
             });
             const writeFrame = (content, isLast) => {
+                if (protocol === 'anthropic') {
+                    const anthropicPayload = isLast
+                        ? { type: 'content_block_stop', index: 0 }
+                        : { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: content } };
+                    response.write('event: ' + anthropicPayload.type + '\ndata: ' + JSON.stringify(anthropicPayload) + '\n\n');
+                    entry.framesWritten += 1;
+                    return;
+                }
                 const payload = {
                     id: 'chatcmpl-probe',
                     object: 'chat.completion.chunk',
@@ -255,6 +271,12 @@ function startStreamingPeer(mode) {
                 response.write(`data: ${JSON.stringify(payload)}\n\n`);
                 entry.framesWritten += 1;
             };
+            if (protocol === 'anthropic') {
+                const messageStart = { type: 'message_start', message: { id: 'msg_probe', type: 'message', role: 'assistant', model: 'probe-model', content: [], stop_reason: null } };
+                response.write('event: message_start\ndata: ' + JSON.stringify(messageStart) + '\n\n');
+                const blockStart = { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } };
+                response.write('event: content_block_start\ndata: ' + JSON.stringify(blockStart) + '\n\n');
+            }
             let index = 0;
             const timer = setInterval(() => {
                 if (index < frames.length) {
@@ -270,7 +292,12 @@ function startStreamingPeer(mode) {
                 }
                 writeFrame('', true);
                 finished = true;
-                response.write('data: [DONE]\n\n');
+                if (protocol === 'anthropic') {
+                    response.write('event: message_delta\ndata: ' + JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 0 } }) + '\n\n');
+                    response.write('event: message_stop\ndata: ' + JSON.stringify({ type: 'message_stop' }) + '\n\n');
+                } else {
+                    response.write('data: [DONE]\n\n');
+                }
                 response.end();
             }, frameDelay);
         });
@@ -293,7 +320,7 @@ let mock = null;
 let streamingPeer = null;
 let mockAddress = '';
 if (streamingMode) {
-    streamingPeer = await startStreamingPeer(probeMode);
+    streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
     mock = spawn(mockProviderBinary, ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });

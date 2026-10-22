@@ -817,3 +817,37 @@ unexplained. It is now measured and closed, and the answer was the observation w
   candidate -- a release-shaped GoTavern stages built-in extensions by hand because
   `/api/extensions/discover` lists none. The pre-send dry-run count also varies 1-2 across runs on one
   leg (debounce coalescing), so it is recorded and never compared.
+
+## Frontend connect/send contract, as read from the pinned source
+
+Four facts govern whether a browser drive can reach a chat-completion send for a given source. Every one was
+learned by a driver failing at it, and none is guessable from the server side. All line numbers are
+`public/scripts/openai.js` at the pinned commit.
+
+1. **Six sources never validate a connection.** `getStatusOpen()` (:4459) opens with
+   `noValidateSources = [CLAUDE, AI21, VERTEXAI, PERPLEXITY, ZAI, MINIMAX]` and, for those, sets the online
+   status to the message "Key saved; press \"Test Message\" to verify." and RETURNS before any status request.
+   A drive that waits for a `connected` state before sending will hang forever on these sources, and an empty
+   provider log on their status call is CORRECT rather than a misaimed peer.
+
+2. **A reverse proxy needs a one-time confirmation dialog.** `proxySupportedSources` (:2838) does include
+   CLAUDE and MISTRALAI, so `generate_data.reverse_proxy` is set whenever the setting is populated -- but
+   `await validateReverseProxy()` runs first (:2849), and it (:537-563) shows `Popup.show.confirm("Connecting
+   To Proxy")` unless `accountStorage` holds `Proxy_SkipConfirm_<getStringHash(url)>`. An unclicked dialog
+   blocks the send BEFORE the fetch: the prompt assembles fully, no generate request is issued, and the drive
+   times out with "the send did not complete and settle". That is the dialog, not a product hang.
+
+3. **There are exactly three connect buttons.** `public/index.html` defines `api_button_novel`,
+   `api_button_openai` and `api_button_textgenerationwebui`; the chat-completion sources all share
+   `#api_button_openai`, so a missing status call for a per-source panel is never a wrong-button problem.
+
+4. **The connect handler gates on a STALE secret map.** `onConnectButtonClick` (:6036) reads the key out of
+   the source field, writes it, and then returns early unless `secret_state[<key>]` is truthy OR the proxy path
+   applies (:6089). `secret_state` is filled ONCE at page load (`secrets.js:419`), so a secret written through
+   `/api/secrets/write` AFTER load leaves the page believing nothing is saved. The user path -- type the key
+   into `#api_key_<source>` and click Connect -- is the one that works, and it is also the faithful one.
+
+Consequence for the harness: a per-source drive must type credentials through the field, handle the proxy
+confirmation, accept the no-validate connect state for the six sources that have one, and drive the modal file
+list. Any of those skipped produces a failure that looks like a product defect on BOTH legs -- which is the
+signature to look for before suspecting the server.
