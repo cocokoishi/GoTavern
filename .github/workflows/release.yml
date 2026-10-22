@@ -1,0 +1,179 @@
+name: GoTavern Release
+
+# ARCHITECTURE.md §0 makes the release artefact the unit of success, and §5.1 says end users consume
+# releases rather than source builds. Until this workflow existed, every canonical asset name in
+# docs/INSTALLATION.md was a promise with no producer, and install.sh / install.ps1 both point at
+# `releases/latest/download/...`, which returned nothing.
+#
+# Triggered by a version tag or manually. It is deliberately separate from ci.yml: CI answers "is HEAD
+# correct", this answers "may this artefact be published", and conflating them would let a release be
+# cut from a commit whose gates never ran.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit, branch or tag to build (default: the triggering ref)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # CHECKSUM PROVENANCE: the six canonical names in docs/INSTALLATION.md are what install.sh and
+  # install.ps1 request, and both verify against `checksums.txt` in sha256sum format. A duplicated or
+  # renamed asset breaks the installer at the user's machine rather than here, so the names are
+  # derived from one matrix and never typed twice.
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            archive: gotavern-linux-amd64.tar.gz
+            kind: tar
+            launcher: start.sh
+          - goos: linux
+            goarch: arm64
+            archive: gotavern-linux-arm64.tar.gz
+            kind: tar
+            launcher: start.sh
+          - goos: darwin
+            goarch: amd64
+            archive: gotavern-darwin-amd64.tar.gz
+            kind: tar
+            launcher: start.sh
+          - goos: darwin
+            goarch: arm64
+            archive: gotavern-darwin-arm64.tar.gz
+            kind: tar
+            launcher: start.sh
+          - goos: windows
+            goarch: amd64
+            archive: gotavern-windows-amd64.zip
+            kind: zip
+            launcher: Start.cmd
+          - goos: windows
+            goarch: arm64
+            archive: gotavern-windows-arm64.zip
+            kind: zip
+            launcher: Start.cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build the release binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -eu
+          suffix=''
+          if [ "$GOOS" = windows ]; then suffix='.exe'; fi
+          # -X main.version is what makes BUILD-INFO.txt name the release instead of 0.0.0-dev.
+          go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
+            -o "stage/gotavern${suffix}" ./cmd/gotavern
+
+      - name: Assemble the archive contents
+        env:
+          GOOS: ${{ matrix.goos }}
+          LAUNCHER: ${{ matrix.launcher }}
+        shell: bash
+        run: |
+          set -eu
+          cp LICENSE THIRD_PARTY_NOTICES.txt "stage/"
+          cp "$LAUNCHER" "stage/"
+          # TOKENIZERS ARE NOT EMBEDDED and this is the trap the archive must not fall into:
+          # upstream/assets.go embeds public/default/generated/manifests only, and the runtime resolves
+          # tokenizer data from <InstallRoot>/tokenizers or <InstallRoot>/upstream/tokenizers on DISK.
+          # A previous browser capture measured the silent FALLBACK path for exactly this reason.
+          cp -R upstream/tokenizers "stage/tokenizers"
+          {
+            echo "GoTavern release ${GITHUB_REF_NAME}"
+            echo "target ${GOOS}"
+            echo
+            ./stage/gotavern* version || true
+          } > "stage/BUILD-INFO.txt"
+          # The archive must not carry live state: no config.yaml, no data/, no extensions.
+          test ! -e stage/config.yaml
+          test ! -e stage/data
+
+      - name: Create the canonical archive
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+          KIND: ${{ matrix.kind }}
+        shell: bash
+        run: |
+          set -eu
+          cd stage
+          if [ "$KIND" = tar ]; then
+            chmod +x gotavern start.sh
+            tar -czf "../${ARCHIVE}" .
+          else
+            zip -qr "../${ARCHIVE}" .
+          fi
+          cd ..
+          test -s "${ARCHIVE}"
+          ls -l "${ARCHIVE}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums.txt in sha256sum format
+        working-directory: dist
+        run: |
+          set -eu
+          # install.sh and install.ps1 both parse "<hash>  <asset>" from this file, so the format is
+          # part of the installer contract rather than a convenience.
+          sha256sum ./*.tar.gz ./*.zip > checksums.txt
+          cat checksums.txt
+
+      - name: Fail if a canonical asset name is missing
+        working-directory: dist
+        run: |
+          set -eu
+          for asset in \
+            gotavern-linux-amd64.tar.gz gotavern-linux-arm64.tar.gz \
+            gotavern-darwin-amd64.tar.gz gotavern-darwin-arm64.tar.gz \
+            gotavern-windows-amd64.zip gotavern-windows-arm64.zip
+          do
+            test -s "$asset" || { echo "missing canonical asset: $asset" >&2; exit 1; }
+            grep -q " $asset$" checksums.txt || { echo "checksums.txt has no entry for $asset" >&2; exit 1; }
+          done
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "GoTavern ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            dist/*.tar.gz dist/*.zip dist/checksums.txt

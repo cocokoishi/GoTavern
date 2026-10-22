@@ -1,0 +1,46 @@
+GoTavern third-party notices
+============================
+
+GoTavern is a server-side replacement for the SillyTavern server/backend. It embeds, byte-for-byte,
+immutable assets from the pinned upstream SillyTavern release, and it redistributes those assets in
+every published archive. This file records that fact and the licence it carries, because the release
+archives are the artefact end users download and the obligation attaches to the redistribution, not to
+the build.
+
+1. SillyTavern (baseline of this product)
+-----------------------------------------
+Upstream project: https://github.com/SillyTavern/SillyTavern
+Version:          1.19.0
+Commit:           06bde939fb1e9c4c8d8641d810f0a916b5bce127
+Licence:          AGPL-3.0
+
+Embedded and redistributed unmodified:
+  upstream/public/**      the frontend served to the browser
+  upstream/default/**     the fresh-install contract (content, scaffold, configuration inputs)
+  upstream/generated/**   frontend assets produced by the pinned upstream build process
+  upstream/tokenizers/    tokenizer data files
+
+These directories are not edited by GoTavern. Their integrity is recorded in
+upstream/manifests/*.sha256 and enforced by `gotavern assets verify`, which runs in CI on every push.
+
+The complete corresponding source of the embedded upstream material is the pinned commit above. The
+GoTavern source that accompanies it is this repository. Anyone who receives a GoTavern archive may
+obtain both from the URLs above.
+
+2. Go source dependencies
+-------------------------
+Go module dependencies and their licences are recorded in go.mod / go.sum. They are compiled into the
+binary and are not vendored as source in this repository. Run `go list -m -json all` in a checkout to
+enumerate them for a given build.
+
+3. JavaScript build-time dependencies
+-------------------------------------
+Node packages used to reproduce the upstream build and to run the reference probes are development and
+CI dependencies only. They are not shipped in any release archive and are not required on a machine
+that runs GoTavern.
+
+4. Runtime requirements on the target machine
+---------------------------------------------
+A release archive contains a statically linked Go binary. It requires no Go toolchain, no Node.js and
+no npm on the target machine. Tokenizer data ships beside the binary because tokenization must be exact
+wherever the compatibility matrix marks it compatible.
