@@ -176,15 +176,23 @@ jobs:
           boot "$PWD/data-root" boot1.log
           cat version.json
           stop
-          snapshot data-root | normalise > snapshot-1.txt
-          test -s snapshot-1.txt || { echo "the fresh boot seeded nothing; the snapshot is empty" >&2; exit 1; }
-          echo "seeded files: $(wc -l < snapshot-1.txt)"
 
-          # A USER FILE that must survive an update and a rollback. Written directly so the assertion
-          # is about file preservation, not about any route this job does not exercise.
+          # A USER FILE that must survive an update and a rollback. Written directly so the assertion is
+          # about file preservation, not about any route this job does not exercise.
+          #
+          # IT IS WRITTEN BEFORE THE FIRST SNAPSHOT, and that ordering is the point: the first run of
+          # this job wrote it between the two snapshots and the idempotence comparison then failed on
+          # its own marker file, which is a harness defect reporting itself as a product one. The
+          # snapshot must be taken after the state under test exists.
           mkdir -p data-root/default-user/user/files
           printf 'gotavern release qualification marker\n' > data-root/default-user/user/files/qualification.txt
           CONFIG_BEFORE="$(sha256sum install-root/config.yaml | cut -d' ' -f1)"
+
+          snapshot data-root | normalise > snapshot-1.txt
+          test -s snapshot-1.txt || { echo "the fresh boot seeded nothing; the snapshot is empty" >&2; exit 1; }
+          grep -q 'qualification\.txt$' snapshot-1.txt \
+            || { echo "the user file is missing from the first snapshot; the comparison would be about nothing" >&2; exit 1; }
+          echo "seeded files (including the user marker): $(wc -l < snapshot-1.txt)"
 
           echo "--- boot 2 (idempotence, same immutable files) ---"
           boot "$PWD/data-root" boot2.log
