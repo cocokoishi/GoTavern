@@ -706,6 +706,13 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
     }
 }
 
+// A FIXTURE CHANGE IS ONLY VERIFIED BY THE LINUX RE-RECORD. This probe recorded a scenario set on the
+// Windows development host, the oracle job's re-record of it was CANCELLED by a later push to main (the
+// workflow cancels in progress), and the result is a fixture whose bytes no gate had confirmed -- the
+// changes job re-runs the oracle whenever anything under tests/oracle/ changes, so the next provider
+// scenario commit re-records ALL of these scenarios and closes that gap. If you are adding a scenario,
+// check that the oracle job for your push RAN TO COMPLETION rather than reading the lane's green as
+// evidence for the fixture.
 // Build the mock provider once: spawning a binary keeps the probe's process
 // tree simple, so no grandchild can outlive the run.
 //
