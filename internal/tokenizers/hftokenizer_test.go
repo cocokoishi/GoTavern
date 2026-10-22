@@ -22,7 +22,7 @@ const hfDataPath = "../../upstream/tokenizers"
 const (
 	wantHFDirectEncodeCases = 122 // 115 + one new input across the seven families (already excludes the 8 unpaired-surrogate inputs, measured separately)
 	wantHFDirectDecodeCases = 49  // 7 models x 7 id cases
-	wantHFOpenAIEncodeCases = 56  // 7 models x 8 inputs
+	wantHFOpenAIEncodeCases = 63  // 7 models x 9 inputs (the corpus gained `probe user marker`)
 	wantHFOpenAIDecodeCases = 12  // claude, llama3, qwen2, deepseek x 3 id cases
 	wantHFOpenAICountCases  = 51  // claude, llama3, deepseek x 17 bodies
 	// The two downloads-disabled runs answer the five external tokenizers from llama3.json.

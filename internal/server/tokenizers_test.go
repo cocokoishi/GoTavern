@@ -38,7 +38,7 @@ const (
 	// Decode and openai route replay counts, measured from the fixture.
 	wantTokenizerDecodeRouteCases   = 105
 	wantTokenizerDecodeSkippedCases = 6
-	wantTokenizerOpenAIEncodeCases  = 144
+	wantTokenizerOpenAIEncodeCases  = 171
 	wantTokenizerOpenAIDecodeCases  = 30
 	// 170 before the corpus gained the ROLE-LESS count bodies the frontend actually sends, one new
 	// message body, and gpt-3.5-turbo as a model. Measured from the 1022-case corpus, not derived.

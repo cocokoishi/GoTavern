@@ -18,7 +18,7 @@ const sentencePieceDataPath = "../../upstream/tokenizers"
 const (
 	wantSentencePieceEncodeCases  = 238 // 7 models x 34 inputs (the corpus gained `probe user marker`)
 	wantSentencePieceDecodeCases  = 49  // 7 models x 7 id cases
-	wantOpenAISentencePieceEncode = 40  // llama, mistral, yi, gemma, jamba x 8 inputs
+	wantOpenAISentencePieceEncode = 45  // llama, mistral, yi, gemma, jamba x 9 inputs (the corpus gained `probe user marker`)
 	wantOpenAISentencePieceDecode = 6   // llama, gemma x 3 id cases
 	wantOpenAISentencePieceCount  = 34  // llama, gemma x 17 bodies
 	// Request-shape cases recorded under a tokenizer route whose body is not a text
