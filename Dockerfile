@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1
+
+# Build stage. The Go toolchain is a BUILD-TIME dependency only: the runtime
+# image contains no Go, no Node and no npm, per the distribution rules in
+# ARCHITECTURE.md section 5.
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# CGO_ENABLED=0 keeps the binary statically linked, so a minimal production
+# machine needs no extra runtime.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/gotavern ./cmd/gotavern
+
+# Runtime stage: minimal, non-root.
+FROM alpine:3.20
+# CA certificates are needed for outbound provider TLS, and busybox wget backs
+# the healthcheck. Nothing else is installed; there is no compiler and no Node.
+RUN apk add --no-cache ca-certificates \
+    && addgroup -S gotavern \
+    && adduser -S -G gotavern -h /data gotavern
+
+# The install root is the directory holding the binary: the runtime resolves
+# <InstallRoot>/tokenizers from there, and `gotavern assets verify` hashes the
+# same tree.
+WORKDIR /app
+COPY --from=build /out/gotavern /app/gotavern
+# tokenizers is a DIRECTORY BESIDE THE BINARY, not embedded. upstream/assets.go
+# embeds public, default, generated and manifests only, and only the tokenizer
+# MANIFEST is embedded; the routes read <InstallRoot>/tokenizers from disk.
+# Without this tree the tokenizer routes take the pinned FALLBACK path and count
+# prompts wrong while still answering, which is why `gotavern assets verify`
+# fails when it is absent and why this COPY is load-bearing rather than an
+# optimisation.
+COPY upstream/tokenizers /app/tokenizers
+COPY LICENSE THIRD_PARTY_NOTICES.txt /app/
+
+# Pinned startup creates the PUBLIC_DIRECTORIES tree UNDER THE INSTALL ROOT:
+# public/img, public/sounds, public/scripts/extensions,
+# public/scripts/extensions/third-party and backups. In a release layout the
+# install root is the binary's directory, so those paths must exist and be
+# writable by the runtime user or the container cannot start as non-root. They
+# are pre-created and owned by the runtime user; the binary itself stays
+# root-owned so the process cannot replace it.
+RUN mkdir -p /app/public/img /app/public/sounds \
+        /app/public/scripts/extensions/third-party /app/backups \
+    && chown -R gotavern:gotavern /app/public /app/backups
+
+# The runtime root is the working directory: the binary creates config.yaml and
+# data/ here from its embedded pinned defaults. No config.yaml, no data/ and no
+# extension repository is baked in, so extraction can never overwrite a live
+# installation.
+WORKDIR /data
+RUN chown -R gotavern:gotavern /data
+VOLUME ["/data"]
+
+USER gotavern
+EXPOSE 8000
+
+# --listen true binds the container interface. The pinned default config keeps
+# whitelistMode on, which is what satisfies the startup security gate for a
+# non-localhost listener; the default whitelist already allows 127.0.0.1, so the
+# healthcheck below is permitted.
+ENTRYPOINT ["/app/gotavern"]
+CMD ["start", "--listen", "true", "--port", "8000"]
+
+# /version is a pinned public compatibility route: no session and no CSRF, so it
+# is a valid liveness probe rather than an invented endpoint.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+    CMD wget -q -O - http://127.0.0.1:8000/version > /dev/null || exit 1

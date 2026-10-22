@@ -195,3 +195,46 @@ jobs:
           mkdir -p dist
           go build ./...
           go build -trimpath -ldflags='-s -w' -o "dist/gotavern-${GOOS}-${GOARCH}${suffix}" ./cmd/gotavern
+
+  # The Docker path is a documented release path (ARCHITECTURE.md section 5.4),
+  # so the image is built and asserted here rather than assumed. The assertion
+  # that matters most is `assets verify` INSIDE the container: tokenizers is a
+  # directory beside the binary rather than an embedded asset, and without it the
+  # tokenizer routes silently take the pinned fallback path and count every
+  # prompt wrong while still answering. A build that forgot to copy the tree
+  # would otherwise produce a container that looks healthy and tokenizes badly.
+  #
+  # Deliberately not part of the release workflow: this is a build-and-smoke
+  # check, and the release workflow should not depend on a Docker daemon.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the release image
+        run: docker build --tag gotavern:ci .
+      - name: Verify embedded assets and the installed tokenizers tree
+        run: docker run --rm gotavern:ci assets verify
+      - name: Start the container and assert it serves a pinned route
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name gotavern-docker-smoke --publish 8000:8000 gotavern:ci
+          # /version is a pinned public compatibility route: no session, no CSRF,
+          # and it is in the pinned route set rather than invented for the probe.
+          for attempt in $(seq 1 30); do
+            if docker exec gotavern-docker-smoke wget -q -O - http://127.0.0.1:8000/version > /tmp/gotavern-version.json 2>/dev/null; then
+              echo "GET /version inside the container:"
+              cat /tmp/gotavern-version.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "the container never answered /version within 60 seconds"
+          echo "--- container state ---"
+          docker inspect --format '{{json .State}}' gotavern-docker-smoke || true
+          echo "--- container logs ---"
+          docker logs gotavern-docker-smoke || true
+          exit 1
+      - name: Stop the container
+        if: always()
+        run: docker rm --force gotavern-docker-smoke || true

@@ -1,0 +1,32 @@
+# Docker path for GoTavern, required by ARCHITECTURE.md section 5.4.
+#
+# The image carries no live state: config.yaml and data/ are created inside the
+# volume by the binary from its embedded pinned defaults, so replacing the
+# container never overwrites an installation's characters, chats, worlds,
+# settings or secrets.
+services:
+  gotavern:
+    build:
+      context: .
+    image: gotavern:local
+    # --listen true binds the container interface; the pinned default config
+    # keeps whitelistMode on, which satisfies the startup security gate.
+    command: ["start", "--listen", "true", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      # The whole runtime root, not just data/: config.yaml lives here too, so a
+      # container replacement preserves the operator's configuration as well as
+      # their content.
+      - gotavern-data:/data
+    restart: unless-stopped
+    healthcheck:
+      # /version is a pinned public compatibility route: no session and no CSRF.
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8000/version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+volumes:
+  gotavern-data:

@@ -1,0 +1,14 @@
+# Keep the build context small and keep live runtime state out of the image.
+# upstream/** is deliberately NOT excluded: public, default, generated and
+# manifests are embedded into the binary, and upstream/tokenizers is copied
+# beside it.
+.git
+.github
+data
+dist
+tests
+docs
+config.yaml
+*.exe
+gotavern
+gotavern-*
