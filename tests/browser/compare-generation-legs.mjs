@@ -150,21 +150,35 @@ const windowIntegrity = report => {
 // send in time is a separate invocation rather than a phantom assembly of the send. Recorded in full in
 // the artifact: a reader must be able to see that the extra counting invocation exists and why it is not
 // the defect.
+// PAIR BY KIND, NOT BY ADJACENCY. An earlier version attributed every GENERATE_AFTER_DATA to the
+// NEAREST PRECEDING GENERATION_STARTED. The groq drive proved that wrong: its counting pass starts
+// between the real send's STARTED and the real send's AFTER_DATA, so the real assembly was attributed
+// to the DRY invocation and the real invocation was left with NONE -- the send-window guard then
+// refused a perfectly faithful drive, and the same trail read differently on the other leg purely
+// because the ordering of two independent events differed. Both events carry their own dryRun flag, so
+// the honest pairing is by KIND: a non-dry AFTER_DATA belongs to the last non-dry STARTED, a dry one to
+// the last dry STARTED. Anything left unpaired is reported rather than dropped, so a genuinely
+// unattributable assembly still fails the guard instead of disappearing.
 const invocationTrail = report => {
     const events = sendWindow(report).window;
     const invocations = [];
-    let current = null;
+    const unmatchedAfterData = [];
     for (const event of events) {
         if (event.name === 'GENERATION_STARTED') {
-            current = { dryRun: isDry(event), t: event.t ?? null, afterData: [] };
-            invocations.push(current);
+            invocations.push({ dryRun: isDry(event), t: event.t ?? null, afterData: [] });
             continue;
         }
-        if (event.name === 'GENERATE_AFTER_DATA' && current) {
-            current.afterData.push(isDry(event));
+        if (event.name === 'GENERATE_AFTER_DATA') {
+            const dry = isDry(event);
+            const target = [...invocations].reverse().find(invocation => invocation.dryRun === dry);
+            if (target) {
+                target.afterData.push(dry);
+            } else {
+                unmatchedAfterData.push(dry);
+            }
         }
     }
-    return invocations;
+    return { invocations, unmatchedAfterData };
 };
 
 // The milestones two legs must AGREE on. The independent counting invocations are excluded -- their
@@ -172,7 +186,7 @@ const invocationTrail = report => {
 // comparing it would make the artifact flaky rather than faithful (rule 18). They stay recorded in
 // `generationInvocations` as context a reader can inspect.
 const comparableMilestones = report => {
-    const invocations = invocationTrail(report);
+    const { invocations } = invocationTrail(report);
     const real = invocations.filter(invocation => !invocation.dryRun);
     const counters = milestones(report);
     return {
@@ -208,7 +222,15 @@ const guards = (gotavern, pinned) => {
     // invocation is precisely what `afterData` counts, and a second real invocation still fails the
     // count. The only assumption dropped is that a dry invocation cannot overlap the send in time.
     const sendOnly = report => {
-        const invocations = invocationTrail(report);
+        const { invocations, unmatchedAfterData } = invocationTrail(report);
+        if (unmatchedAfterData.length > 0) return false;
+        // NO INVOCATION MAY OWN TWO ASSEMBLIES. Pairing by kind removes the adjacency artefact, and
+        // this keeps the defect that guard exists for: if the REAL send assembled dry, its dry
+        // AFTER_DATA pairs with a dry invocation that already had one, so the double emission shows up
+        // here instead of silently joining a counting pass. Measured both ways -- the faithful groq
+        // trail (real, then a dry pass that emits its own) gives every invocation exactly one, and a
+        // leg with its dry GENERATION_STARTED removed fails on `unmatchedAfterData` alone.
+        if (invocations.some(invocation => invocation.afterData.length > 1)) return false;
         const real = invocations.filter(invocation => !invocation.dryRun);
         if (real.length !== 1) return false;
         const afterData = real[0].afterData;
@@ -300,7 +322,17 @@ const main = async () => {
         },
         // WHICH DRIVE PRODUCED THIS: non-stream mode paces nothing, so the frame count is not applicable here
         // and saying so is stronger than omitting the field.
-        driveParameters: { mode: 'nonstream', frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)' },
+        driveParameters: {
+            mode: 'nonstream',
+            frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)',
+            // THE RULE, IN ONE LINE, because the next reader will otherwise assume nearest-preceding and
+            // reintroduce exactly the bug this lane fixed.
+            invocationPairing: 'a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails',
+            ...(process.env.PROBE_SOURCE === 'groq' ? {
+                pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
+                peerKeying: 'the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
+            } : {}),
+        },
         guards: guards(gotavern, pinned),
         // One line, in the artifact itself, so the next reader does not assume this is the old window
         // rule: it is an INVOCATION-level assertion, and independent counting invocations are recorded
@@ -309,7 +341,8 @@ const main = async () => {
             sendWindowHoldsExactlyOneRealSendAndNoDryAssembly:
                 'exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed',
         },
-        generationInvocations: { gotavern: invocationTrail(gotavern), pinned: invocationTrail(pinned) },
+        generationInvocations: { gotavern: invocationTrail(gotavern).invocations, pinned: invocationTrail(pinned).invocations },
+        generationUnmatchedAfterData: { gotavern: invocationTrail(gotavern).unmatchedAfterData, pinned: invocationTrail(pinned).unmatchedAfterData },
         // THE WHOLE-DRIVE TRAIL, including the counting invocations outside the send window. They are
         // recorded so a reader can see that an independent counting invocation exists and that it is not
         // attributed to the send; they are NOT compared, because how many coalesce out of the debounce is

@@ -410,7 +410,110 @@ if (extensionComparison) {
 
     console.log('  ' + extensionArtifact + ' ' + extensionComparison.rows.length + ' rows, ' + (extensionComparison.pathDifferences ?? []).length + ' non-row path difference(s), guards faithful');
 }
-// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
+// ---- generation-groq-comparison.json ----------------------------------------------------------
+
+//
+
+// The GROQ source measured end to end, and the one fact that makes its row different from every other
+
+// generation row: groq is `proxy: false` in apiSourceConfig (openai.js:6050), so the frontend cannot be
+
+// aimed at a recording peer through reverse_proxy AT ALL -- claude and mistralai carry the peer in that
+
+// setting and their drive therefore submits a proxy_password. groq cannot, and the seam
+
+// (GOTAVERN_GROQ_CHAT_URL) plus the pinned transport redirect are the ONLY way both legs reach one peer.
+
+// `proxyPasswordPresent` is therefore recorded FALSE on both legs and ASSERTED here: the false is the
+
+// evidence for the row's shape, not an absence of evidence.
+
+const groqGeneration = read('generation-groq-comparison.json');
+
+if (groqGeneration) {
+
+    if (groqGeneration.providerRequestEqual !== true) {
+
+        fail('generation-groq-comparison.json', 'providerRequestEqual is not true, so the groq provider-wire claim is unsupported');
+
+    }
+
+    if (groqGeneration.requestArrived?.gotavern !== true || groqGeneration.requestArrived?.pinned !== true) {
+
+        fail('generation-groq-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
+
+    }
+
+    if (groqGeneration.milestoneEqual !== true) {
+
+        fail('generation-groq-comparison.json', 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+
+    }
+
+    for (const [name, value] of Object.entries(groqGeneration.guards ?? {})) {
+
+        if (value !== true) fail('generation-groq-comparison.json', `guard ${name} is not true`);
+
+    }
+
+    const groqGuardMeaning = groqGeneration.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof groqGuardMeaning !== 'string' || !groqGuardMeaning.includes('non-dry invocation')) {
+
+        fail('generation-groq-comparison.json', 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+
+    }
+
+    if (!Array.isArray(groqGeneration.wholeDriveInvocations?.gotavern) || groqGeneration.wholeDriveInvocations.gotavern.length === 0
+
+        || !Array.isArray(groqGeneration.wholeDriveInvocations?.pinned) || groqGeneration.wholeDriveInvocations.pinned.length === 0) {
+
+        fail('generation-groq-comparison.json', 'wholeDriveInvocations is missing a leg or is empty, so the send window was judged on a trail nobody recorded');
+
+    }
+
+    // THE PAIRING RULE MUST BE IN THE ARTIFACT, and no assembly may be left unattributed.
+
+    if (typeof groqGeneration.driveParameters?.invocationPairing !== 'string' || !groqGeneration.driveParameters.invocationPairing.includes('last non-dry STARTED')) {
+
+        fail('generation-groq-comparison.json', 'driveParameters.invocationPairing does not state the kind-based rule, so a reader would assume nearest-preceding again');
+
+    }
+
+    for (const leg of ['gotavern', 'pinned']) {
+
+        if (!Array.isArray(groqGeneration.generationUnmatchedAfterData?.[leg]) || groqGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+
+            fail('generation-groq-comparison.json', `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+
+        }
+
+        if (groqGeneration.proxyPasswordPresent?.[leg] !== false) {
+
+            fail('generation-groq-comparison.json', `proxyPasswordPresent.${leg} is ${JSON.stringify(groqGeneration.proxyPasswordPresent?.[leg])}, but groq is proxy:false and the drive must reach the peer by seam and redirect, never by a reverse-proxy credential`);
+
+        }
+
+        const requests = groqGeneration.providerRequests?.[leg] ?? [];
+
+        // The model-list call lives in the leg captures; the streaming artifact proves the two-call sequence.
+
+        const hasCompletion = requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'));
+
+        if (!hasCompletion) {
+
+            fail('generation-groq-comparison.json', `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; groq's drive must show its status call (GET /models) and the completion (POST /chat/completions)`);
+
+        }
+
+    }
+
+    const groqPost = (groqGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+
+    const groqDiffs = Array.isArray(groqGeneration.bodyDifferences) ? groqGeneration.bodyDifferences.length : 0;
+
+    console.log(`  generation-groq-comparison.json providerRequestEqual true, ${groqDiffs} documented body difference(s), ${groqPost?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs (proxy:false source: seam + redirect only)`);
+
+}// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
 // own: a missing surface, a surface that is not proven, a leg that never reached the provider, or a

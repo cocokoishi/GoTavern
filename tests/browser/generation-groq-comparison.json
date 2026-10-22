@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
+  "bases": {
+    "gotavern": "loopback",
+    "pinned": "loopback"
+  },
+  "requestArrived": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "providerRequests": {
+    "gotavern": [
+      {
+        "method": "POST",
+        "path": "/chat/completions",
+        "bodyLength": 7401,
+        "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61"
+      }
+    ],
+    "pinned": [
+      {
+        "method": "POST",
+        "path": "/chat/completions",
+        "bodyLength": 7401,
+        "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61"
+      }
+    ]
+  },
+  "milestones": {
+    "gotavern": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "milestoneEqual": true,
+  "surrounding": {
+    "gotavern": {
+      "beforeClick": {
+        "events": 10
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 5,
+        "dryStarted": 4,
+        "realStarted": 1,
+        "dryAfterData": 4,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 13320
+          },
+          {
+            "dryRun": true,
+            "t": 15523
+          },
+          {
+            "dryRun": false,
+            "t": 16843
+          },
+          {
+            "dryRun": true,
+            "t": 17869
+          },
+          {
+            "dryRun": true,
+            "t": 18674
+          }
+        ]
+      }
+    },
+    "pinned": {
+      "beforeClick": {
+        "events": 0
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 3,
+        "dryStarted": 2,
+        "realStarted": 1,
+        "dryAfterData": 2,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": false,
+            "t": 18445
+          },
+          {
+            "dryRun": true,
+            "t": 19609
+          },
+          {
+            "dryRun": true,
+            "t": 20426
+          }
+        ]
+      }
+    }
+  },
+  "eventWindow": {
+    "gotavern": {
+      "eventsBeforeClick": 10,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 2311,
+        "inFlightMaxBeforeSend": 2,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 2
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1576,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    },
+    "pinned": {
+      "eventsBeforeClick": 0,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 526,
+        "inFlightMaxBeforeSend": 0,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 0
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1560,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    }
+  },
+  "proxyPasswordPresent": {
+    "gotavern": false,
+    "pinned": false
+  },
+  "driveParameters": {
+    "mode": "nonstream",
+    "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
+    "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls."
+  },
+  "guards": {
+    "finalTextNonEmpty": true,
+    "bothLegsQuiescedBeforeSend": true,
+    "bothLegsSettledAfterSend": true,
+    "bothWindowsHoldCompleteGenerations": true,
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": true
+  },
+  "guardMeaning": {
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": "exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed"
+  },
+  "generationInvocations": {
+    "gotavern": [
+      {
+        "dryRun": false,
+        "t": 16844,
+        "afterData": [
+          false
+        ]
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": false,
+        "t": 18447,
+        "afterData": [
+          false
+        ]
+      }
+    ]
+  },
+  "generationUnmatchedAfterData": {
+    "gotavern": [],
+    "pinned": []
+  },
+  "wholeDriveInvocations": {
+    "gotavern": [
+      {
+        "dryRun": true,
+        "t": 13320
+      },
+      {
+        "dryRun": true,
+        "t": 15523
+      },
+      {
+        "dryRun": false,
+        "t": 16843
+      },
+      {
+        "dryRun": true,
+        "t": 17869
+      },
+      {
+        "dryRun": true,
+        "t": 18674
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": false,
+        "t": 18445
+      },
+      {
+        "dryRun": true,
+        "t": 19609
+      },
+      {
+        "dryRun": true,
+        "t": 20426
+      }
+    ]
+  },
+  "comparableMilestones": {
+    "gotavern": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "postSend": {
+    "gotavern": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "popupClicks": 0,
+      "popupSeen": [],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 17121,
+          "text": "probe user marker"
+        },
+        {
+          "t": 17585,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "pinned": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "popupClicks": 0,
+      "popupSeen": [],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 18675,
+          "text": "probe user marker"
+        },
+        {
+          "t": 19342,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    }
+  },
+  "bodyDifferences": [],
+  "providerRequestEqual": true,
+  "windowIntegrity": {
+    "gotavern": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    },
+    "pinned": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    }
+  }
+}
