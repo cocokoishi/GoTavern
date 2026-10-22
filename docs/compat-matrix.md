@@ -149,5 +149,5 @@ two are Jimp image re-encoding (`/api/avatars/upload`, `/thumbnail/<computed>` -
 three run a protocol owned by an imported package (`/api/translate/{google,bing}`,
 `/api/google/generate-voice` -- boundary 4). That leaves 34 routes that are real work, of which 11
 are `/api/sd/*`, 7 are `/api/openai/*` media, 4 are `/api/data-maid/*`, 3 are `/api/backends/*`, 2 are
-`/api/novelai/*` and 7 are scattered. The reachable ceiling is therefore 339 - 10 = 328 routes, and
+`/api/novelai/*` and 7 are scattered. The reachable ceiling is therefore 339 - 11 = 328 routes, and
 it is reported this way so that "339 routes" is never read as an attainable target.
