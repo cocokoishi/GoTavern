@@ -131,24 +131,32 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 
 ## 6. Next actions, in the order the evidence supports
 
-1. **OPENROUTER E/C**, then **CLAUDE provider-wire**: the third and fourth chat-completion sources.
-   OpenRouter has B/P/F and a committed provider-wire differential; E and C are what the browser drive
-   adds, and it needs the generation probe to select a non-custom source (real work, not a config flip).
-   CLAUDE is the largest remaining source: `sendClaudeRequest` is NOT on the generic plan path, and its
-   spec is line-cited in the session record (beta headers non-empty by default, `stop_sequences` always
-   present, Anthropic `message_stop` framing, caching off on the default path).
-2. **`install.ps1` is executed by nothing.** `scripts/qualify-install.sh` DOES run in
-   release-qualification (first execution run 39731988707, green after it found two real installer
-   defects and one harness defect), but the PowerShell installer has no execution anywhere and the
-   ubuntu runners ship `pwsh`, so most of it can be covered.
-3. **Docs/INSTALLATION.md section 11**: the release acceptance checklist maps to two bullets with real
-   evidence; the rest are DOC-CLAIM-only (1,2,3,4,6,7,13 and 10/11). Mark them or make them gates.
-4. **E/C for the other chat-completion sources** and the remaining `partial` rows, in whatever order the
-   matrix's Remaining-work column supports. The cheap promotions are the ones where a browser drive only
-   needs a per-source Connect/settings step.
-5. **The oracle for this batch**: main push `941f3c4` runs it. Do not push main again until it finishes,
-   or it is cancelled and the batch is unverified.
+1. **C for OPENROUTER** (streamed + abort): the last surface that source is missing. The paced SSE peer
+   exists for the custom source and the seam pair exists from the OpenRouter work; the drive must assert
+   on BOTH legs that the client disconnect reached the provider, because "the page stopped rendering" is
+   not cancellation.
 
+2. **The next source transports.** FOUR of 25 chat-completion sources are real (openai, custom, openrouter,
+   claude); every other answers 501 so an unimplemented branch stays distinguishable from a refused one.
+   Each source needs its own provider-wire scenarios, and the first question for each is which KIND it is:
+   a base-URL variant, a shared-helper variant, or a branch with its own body AND response transform. Both
+   source lanes so far had that answer wrong in the brief (OpenRouter was assumed to be "OpenAI with a
+   different URL"; Claude was assumed to be reachable through the generic plan path).
+
+3. **`docs/compat-matrix.md` row by row** is being audited because a docs audit of two OTHER files found
+   seven false claims, two of which would have cost a user real time. The matrix is the file that tells a
+   reader what is compatible, and a stale row is indistinguishable from a verified one at a glance.
+
+4. **The named gaps inside the two new sources**, each recorded rather than implied: OpenRouter media
+   embedding, reasoning signatures, the config-gated prompt-cache transforms and the gemini
+   `isOpenRouterModelCacheable()` `/models` probe (deliberately deferred because it changes the request
+   COUNT); Claude's caching helpers and `promptPlaceholder`; Mistral's `mistral.enablePrefix`.
+
+5. **The Windows-only installer behaviours** that no runner can execute -- replacing a RUNNING
+   `gotavern.exe` (the branch Windows users actually hit on update), path separators, registry/shortcuts,
+   `cmd.exe` -- remain named in three places and unverified everywhere.
+
+6. **A cross-baseline upgrade** is still unexecuted, and so is a running-server replacement test.
 ## 7. Working agreements
 
 - Teammates own their lane branch and push it; the Lead merges and pushes main in batches.
