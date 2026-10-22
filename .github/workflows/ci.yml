@@ -168,6 +168,34 @@ jobs:
         env:
           GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
+      - name: Capture the Linux re-record for retrieval
+        # WHY THIS EXISTS. Some fixtures CANNOT be recorded faithfully on the Windows development host.
+        # Re-recording the tokenizer corpus there altered 326 pre-existing anchors by decoding UTF-8 as
+        # Latin-1 (`chunks` became mojibake while `ids` and the recorded content-length stayed
+        # identical), reproduced twice, from the worktree root with absolute paths -- so it is the
+        # recorder's own encoding, not a copy mistake. A Windows re-record of such a fixture is
+        # therefore NOT evidence, and the change can only be finished with Linux-recorded bytes.
+        #
+        # The project has no Linux developer host on purpose (the working machine is weak; CI is the
+        # recording authority), so those bytes are published as a patch the author can apply and commit.
+        # The zero-diff gate below still decides whether the commit is right: this step adds a way to
+        # RETRIEVE the authority's answer, not a way to skip it.
+        #
+        # It runs BEFORE the gate because the gate fails the job, and a diagnostic that appears only
+        # when nothing is wrong is not a diagnostic.
+        if: always()
+        run: |
+          set -eu
+          git diff --binary -- tests/oracle docs/api-inventory.md docs/config-inventory.md upstream > .oracle-rerecord.patch
+          echo "re-record patch bytes: $(wc -c < .oracle-rerecord.patch)"
+          git diff --stat -- tests/oracle docs/api-inventory.md docs/config-inventory.md upstream
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oracle-linux-rerecord
+          path: .oracle-rerecord.patch
+          retention-days: 14
+          if-no-files-found: warn
       - name: Verify generated results are committed
         run: |
           git diff --exit-code -- \
