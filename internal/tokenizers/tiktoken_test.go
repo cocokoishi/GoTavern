@@ -26,7 +26,7 @@ const (
 const (
 	wantGpt2EncodeCases        = 33 // the full corpus, including the two tie-break inputs
 	wantGpt2DecodeCases        = 7
-	wantOpenAIEncodeCases      = 48 // 6 tiktoken models x 8 inputs, including the two extra special-token inputs
+	wantOpenAIEncodeCases      = 63 // 7 tiktoken models x 9 inputs (gpt-3.5-turbo and `probe user marker` are new), including the two extra special-token inputs
 	wantOpenAIDecodeCases      = 12 // 4 tiktoken models x 3 id cases
 	wantOpenAICountCases       = 85 // 5 tiktoken models x 17 bodies; string_body is an error page, not a response
 	wantOtherFamilyCountModels = 5  // claude, llama3, llama, gemma, deepseek

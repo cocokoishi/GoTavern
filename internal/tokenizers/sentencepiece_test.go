@@ -16,7 +16,7 @@ const sentencePieceDataPath = "../../upstream/tokenizers"
 
 // Explicit replay counts, so a probe that stops recording a family fails the build.
 const (
-	wantSentencePieceEncodeCases  = 231 // 7 models x 33 inputs
+	wantSentencePieceEncodeCases  = 238 // 7 models x 34 inputs (the corpus gained `probe user marker`)
 	wantSentencePieceDecodeCases  = 49  // 7 models x 7 id cases
 	wantOpenAISentencePieceEncode = 40  // llama, mistral, yi, gemma, jamba x 8 inputs
 	wantOpenAISentencePieceDecode = 6   // llama, gemma x 3 id cases

@@ -20,7 +20,7 @@ const hfDataPath = "../../upstream/tokenizers"
 
 // Explicit replay counts, so a probe that stops recording a family fails the build.
 const (
-	wantHFDirectEncodeCases = 115 // claude x 33 + six models x 15, less the 8 unpaired-surrogate inputs measured separately
+	wantHFDirectEncodeCases = 122 // 115 + one new input across the seven families (already excludes the 8 unpaired-surrogate inputs, measured separately)
 	wantHFDirectDecodeCases = 49  // 7 models x 7 id cases
 	wantHFOpenAIEncodeCases = 56  // 7 models x 8 inputs
 	wantHFOpenAIDecodeCases = 12  // claude, llama3, qwen2, deepseek x 3 id cases

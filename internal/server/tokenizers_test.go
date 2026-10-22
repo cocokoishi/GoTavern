@@ -28,7 +28,9 @@ const tokenizerRouteOracleFile = "sillytavern-1.19.0-tokenizers.json"
 // Expected route-level replay counts. The exclusions are explicit so a shrinking fixture
 // fails the build rather than quietly reducing coverage.
 const (
-	wantTokenizerEncodeRouteCases   = 382
+	// 382 before the corpus gained one encode input (`probe user marker`) and the explicit gpt-3.5-turbo
+	// model; every family gained the input, so the route cases move together.
+	wantTokenizerEncodeRouteCases   = 397
 	wantTokenizerEncodeSkippedCases = 46 // 45 fallback-scenario captures (covered by the downloads-disabled test) plus the GET-on-a-POST-route case
 	// The HF unpaired-surrogate class is partial (see plan §9.1), so its 8 cases are skipped
 	// and counted rather than replayed against an engine that does not reproduce them.
@@ -38,7 +40,9 @@ const (
 	wantTokenizerDecodeSkippedCases      = 6
 	wantTokenizerOpenAIEncodeCases       = 144
 	wantTokenizerOpenAIDecodeCases       = 30
-	wantTokenizerOpenAICountCases        = 170
+	// 170 before the corpus gained the ROLE-LESS count bodies the frontend actually sends, one new
+	// message body, and gpt-3.5-turbo as a model. Measured from the 1022-case corpus, not derived.
+	wantTokenizerOpenAICountCases        = 242
 	wantTokenizerColdScenarioEncodeCases = 30
 	wantTokenizerColdScenarioDecodeCases = 6
 	wantTokenizerGzScenarioEncodeCases   = 15
