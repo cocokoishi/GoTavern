@@ -1,0 +1,2042 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-sd-generate-wave5.mjs",
+  "waves": {
+    "5": [
+      "/api/sd/bfl/generate",
+      "/api/sd/falai/generate"
+    ]
+  },
+  "implementedRoutes": [
+    "/api/sd/bfl/generate",
+    "/api/sd/falai/generate"
+  ],
+  "notImplementedRoutes": [],
+  "pinnedSource": {
+    "src/endpoints/stable-diffusion.js:1473": "bfl: POST https://api.bfl.ai/v1/<model> with a fixed projection, then up to 100 polls of the provider polling_url or https://api.bfl.ai/v1/get_result?id=<id> after delay(2500), each poll carrying x-key, then a bare fetch of result.sample",
+    "src/endpoints/stable-diffusion.js:1641": "falai: POST queue.fal.run/fal-ai/<model>, then up to 100 status polls after delay(2500), then the response_url from the STATUS answer, then images[0].url, all with \"Key <key>\" auth; the catch answers error.cause || error.message"
+  },
+  "mechanism": "Every upstream is a hardcoded literal, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer (tools/lib/pinned-outbound.mjs); the Go side uses its own seams for the two provider bases and replays the recorded rules through a real local listener, rewriting the provider-supplied follow-up URLs onto it.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/500 themselves"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express and the pinned middleware stack set them; a string body is html-typed and an object cause is json-typed"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the projection, including the base64 image payload and the fal.ai cause text/JSON"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the first hop is the seam plus the RAW model interpolation; the follow-up hops are the URLs the provider handed back, compared as path+query because the host is the provider's choice"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "JSON member order and the omitted-undefined members of the projection; seeds are NOT masked because both routes forward the caller seed"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the declared provider headers, asserted in BOTH directions by the test (x-key versus Authorization, and the key carried to the image host)"
+    },
+    {
+      "path": "scenarios.*.outbound[].count",
+      "comparison": "compared",
+      "reason": "the poll COUNT is fixture data, produced by `times`-bounded rules; the replay refuses a different count"
+    },
+    {
+      "path": "scenarios.*.elapsedBucket",
+      "comparison": "recorded-not-replayed",
+      "reason": "a two-way bucket (under 2s / at least one 2500ms delay). A duration would be host-derived; the bucket only proves the loop waited. The Go replay collapses the interval through a test seam, so this is evidence about the PINNED run; separate Go tests pin the interval and the attempt count."
+    },
+    {
+      "path": "scenarios.*.mocks",
+      "comparison": "recorded-not-compared",
+      "reason": "the timed rule list the peer served, so a scenario can be re-driven from the fixture alone"
+    },
+    {
+      "path": "scenarios.*.secrets",
+      "comparison": "recorded-not-compared",
+      "reason": "the secrets file the probe wrote, so a reader can see which key each branch used"
+    }
+  ],
+  "normalizations": [
+    "Synthetic credentials and synthetic image bytes only.",
+    "The provider-supplied follow-up hosts are synthetic (bfl-poll/bfl-media/fal-status/fal-result/fal-media.example.test), so no recording can be mistaken for live provider data.",
+    "The seed is recorded EXACTLY, not masked: these two routes forward the caller seed, so masking it would let an implementation that defaulted it pass."
+  ],
+  "inputs": {
+    "imageSha256": "5eb9705d01b311f5772497435c379d0e9017d735bd8466ca77197fcf74b4a774",
+    "keys": {
+      "bfl": "synthetic-bfl-key",
+      "falai": "synthetic-falai-key"
+    }
+  },
+  "notCovered": {
+    "bfl timeout": "The 100-attempt exhaustion branch needs 100 polls of delay(2500), about four minutes of wall clock, so it is NOT recorded; shortening the delay in the probe would record a behaviour the product does not have. It is covered by a LABELLED Go implementation test (TestSDBFLTimeoutIsAnImplementationTest), and the pinned observable is that the handler answers NOTHING after the loop runs out.",
+    "falai timeout": "Same branch on the same reasoning; see TestSDFalaiTimeoutIsAnImplementationTest.",
+    "reserved-character job id in the bfl fallback query": "The fallback template interpolates the task id into a QUERY (`?id=<id>`). A recorded id containing a space would be re-encoded by the pinned URL parser and re-sent verbatim by the Go transport, which is an unresolved divergence rather than a covered behaviour, so only a plain token id is recorded. Real BFL task ids are opaque tokens.",
+    "falai non-JSON result document": "The pinned catch would answer the JS SyntaxError message, which is a V8 version string rather than a product decision, so no scenario records it; the Go side answers a plain 500 there and the difference is a KNOWN, UNPINNED gap.",
+    "bfl Ready status without result.sample": "The pinned code fetches `undefined`, which node-fetch rejects, so the pinned server answers 500. It is NOT recordable through the controlled peer: the peer records the request for the string \"undefined\", finds no rule and synthesises a 500 RESPONSE, and because the sample fetch has no ok check the route turns that synthesised answer into a 200 image of the stub text. Recording it would be a probe artefact presented as an oracle, so the branch is covered by the LABELLED Go implementation test TestSDBFLMissingSampleIsAnImplementationTest instead."
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "bflNoKey": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [],
+      "secrets": {},
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "bflPro11ReadyFirstPoll": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\",\"steps\":40,\"guidance\":2.5,\"width\":512,\"height\":768,\"prompt_upsampling\":true,\"seed\":42}",
+      "mocks": [
+        {
+          "run": "bflPro11ReadyFirstPoll",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll?task=gotavern-bfl-task-one\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflPro11ReadyFirstPoll",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflPro11ReadyFirstPoll",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"width\":512,\"height\":768,\"prompt_upsampling\":true,\"seed\":42,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll?task=gotavern-bfl-task-one",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflPendingThenReady": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\",\"seed\":7}",
+      "mocks": [
+        {
+          "run": "bflPendingThenReady",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll?task=gotavern-bfl-task-one\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflPendingThenReady",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Pending\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflPendingThenReady",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflPendingThenReady",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":7,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll?task=gotavern-bfl-task-one",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll?task=gotavern-bfl-task-one",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflFallbackPollingUrl": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\",\"seed\":0}",
+      "mocks": [
+        {
+          "run": "bflFallbackPollingUrl",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflFallbackPollingUrl",
+          "match": "/v1/get_result",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflFallbackPollingUrl",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":0,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://api.bfl.ai/v1/get_result?id=gotavern-bfl-task-one",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflUltraSimplifiedRatio": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1-ultra\",\"steps\":40,\"guidance\":2.5,\"width\":512,\"height\":768,\"prompt_upsampling\":true,\"seed\":42}",
+      "mocks": [
+        {
+          "run": "bflUltraSimplifiedRatio",
+          "match": "/v1/flux-pro-1.1-ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflUltraSimplifiedRatio",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflUltraSimplifiedRatio",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1-ultra",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":42,\"safety_tolerance\":6,\"output_format\":\"jpeg\",\"aspect_ratio\":\"2:3\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflUltraMaxAspect": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1-ultra\",\"width\":1000,\"height\":100}",
+      "mocks": [
+        {
+          "run": "bflUltraMaxAspect",
+          "match": "/v1/flux-pro-1.1-ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflUltraMaxAspect",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflUltraMaxAspect",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1-ultra",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\",\"aspect_ratio\":\"233:100\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflUltraMinAspect": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1-ultra\",\"width\":100,\"height\":1000}",
+      "mocks": [
+        {
+          "run": "bflUltraMinAspect",
+          "match": "/v1/flux-pro-1.1-ultra",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflUltraMinAspect",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflUltraMinAspect",
+          "match": "bfl-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1-ultra",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\",\"aspect_ratio\":\"100:233\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflUltraMissingDimensions": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1-ultra\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": []
+    },
+    "bflSubmitNonOk": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [
+        {
+          "run": "bflSubmitNonOk",
+          "match": "/v1/flux-pro-1.1",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bfl says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        }
+      ]
+    },
+    "bflPlainModelKeepsSteps": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-dev\",\"steps\":40,\"guidance\":2.5,\"width\":512,\"height\":768,\"prompt_upsampling\":true,\"seed\":42}",
+      "mocks": [
+        {
+          "run": "bflPlainModelKeepsSteps",
+          "match": "/v1/flux-dev",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bfl says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-dev",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"steps\":40,\"guidance\":2.5,\"width\":512,\"height\":768,\"prompt_upsampling\":true,\"seed\":42,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        }
+      ]
+    },
+    "bflPollNonOk": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [
+        {
+          "run": "bflPollNonOk",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflPollNonOk",
+          "match": "bfl-poll.example.test",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "bflUnexpectedStatus": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [
+        {
+          "run": "bflUnexpectedStatus",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflUnexpectedStatus",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Error\",\"detail\":\"moderation\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "bflSampleFetchNonOk": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [
+        {
+          "run": "bflSampleFetchNonOk",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-bfl-task-one\",\"polling_url\":\"https://bfl-poll.example.test/v1/poll\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "bflSampleFetchNonOk",
+          "match": "bfl-poll.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"Ready\",\"result\":{\"sample\":\"https://bfl-media.example.test/sample.jpeg\"}}",
+          "binaryBody": false
+        },
+        {
+          "run": "bflSampleFetchNonOk",
+          "match": "bfl-media.example.test",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "sample exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "32",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"20-oR8HDuzuVwXMu6fuuH437KcMGJc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "c2FtcGxlIGV4cGxvZGVk"
+        },
+        "bodyText": "{\"image\":\"c2FtcGxlIGV4cGxvZGVk\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        },
+        {
+          "url": "https://bfl-poll.example.test/v1/poll",
+          "method": "GET",
+          "headers": {
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://bfl-media.example.test/sample.jpeg",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "bflSubmitThrows": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1\"}",
+      "mocks": [
+        {
+          "run": "bflSubmitThrows",
+          "match": "/v1/flux-pro-1.1",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        }
+      ]
+    },
+    "bflReservedModelRaw": {
+      "route": "/api/sd/bfl/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro-1.1/x y?z=1\"}",
+      "mocks": [
+        {
+          "run": "bflReservedModelRaw",
+          "match": "/v1/flux-pro-1.1/x",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "bfl says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_bfl": [
+          {
+            "id": "sid-api_key_bfl",
+            "value": "synthetic-bfl-key",
+            "label": "api_key_bfl",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.bfl.ai/v1/flux-pro-1.1/x y?z=1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "x-key": "synthetic-bfl-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"seed\":null,\"safety_tolerance\":6,\"output_format\":\"jpeg\"}"
+        }
+      ]
+    },
+    "falaiNoKey": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [],
+      "secrets": {},
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "falaiCompletedFirstPoll": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\",\"steps\":20,\"width\":512,\"height\":768,\"seed\":42,\"guidance\":3.5}",
+      "mocks": [
+        {
+          "run": "falaiCompletedFirstPoll",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"request_id\":\"req-one\",\"status_url\":\"https://fal-status.example.test/fal-ai/flux/requests/req-one/status\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiCompletedFirstPoll",
+          "match": "fal-status.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"COMPLETED\",\"response_url\":\"https://fal-result.example.test/fal-ai/flux/requests/req-one\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "falaiCompletedFirstPoll",
+          "match": "fal-result.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[{\"url\":\"https://fal-media.example.test/files/one.jpeg\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "falaiCompletedFirstPoll",
+          "match": "fal-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{\"width\":512,\"height\":768},\"num_inference_steps\":20,\"seed\":42,\"guidance_scale\":3.5,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-result.example.test/fal-ai/flux/requests/req-one",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-media.example.test/files/one.jpeg",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falaiInQueueThenCompleted": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\",\"seed\":0}",
+      "mocks": [
+        {
+          "run": "falaiInQueueThenCompleted",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"request_id\":\"req-one\",\"status_url\":\"https://fal-status.example.test/fal-ai/flux/requests/req-one/status\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiInQueueThenCompleted",
+          "match": "fal-status.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"IN_QUEUE\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiInQueueThenCompleted",
+          "match": "fal-status.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"COMPLETED\",\"response_url\":\"https://fal-result.example.test/fal-ai/flux/requests/req-one\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "falaiInQueueThenCompleted",
+          "match": "fal-result.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"images\":[{\"url\":\"https://fal-media.example.test/files/one.jpeg\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "falaiInQueueThenCompleted",
+          "match": "fal-media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/jpeg"
+          },
+          "body": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "56",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"38-ln29PiAyXCo0wUBso33Rm2jskdY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "image": "ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc="
+        },
+        "bodyText": "{\"image\":\"ZmZkOGZmZTAtZ290YXZlcm4tc3ludGhldGljLWpwZWc=\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":0,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-result.example.test/fal-ai/flux/requests/req-one",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-media.example.test/files/one.jpeg",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falaiSubmitNonOk": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [
+        {
+          "run": "falaiSubmitNonOk",
+          "match": "/fal-ai/flux-pro",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "fal says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        }
+      ]
+    },
+    "falaiUnexpectedStatus": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [
+        {
+          "run": "falaiUnexpectedStatus",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"request_id\":\"req-one\",\"status_url\":\"https://fal-status.example.test/fal-ai/flux/requests/req-one/status\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiUnexpectedStatus",
+          "match": "fal-status.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"ERROR\",\"detail\":\"boom\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "34",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"22-IpoFHobBFrOWrJpkCA0oIaUXG3g\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "status": "ERROR",
+          "detail": "boom"
+        },
+        "bodyText": "{\"status\":\"ERROR\",\"detail\":\"boom\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falaiResultDetail": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [
+        {
+          "run": "falaiResultDetail",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"request_id\":\"req-one\",\"status_url\":\"https://fal-status.example.test/fal-ai/flux/requests/req-one/status\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiResultDetail",
+          "match": "fal-status.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"status\":\"COMPLETED\",\"response_url\":\"https://fal-result.example.test/fal-ai/flux/requests/req-one\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "falaiResultDetail",
+          "match": "fal-result.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"detail\":[{\"loc\":[\"body\",\"prompt\"],\"msg\":\"field required\"}]}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "22",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"16-AkGqieZxjfb5iZhiqh9FksVf860\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "prompt: field required",
+        "bodyText": "prompt: field required"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://fal-result.example.test/fal-ai/flux/requests/req-one",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falaiPollNonOk": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [
+        {
+          "run": "falaiPollNonOk",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"request_id\":\"req-one\",\"status_url\":\"https://fal-status.example.test/fal-ai/flux/requests/req-one/status\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "falaiPollNonOk",
+          "match": "fal-status.example.test",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "status exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "waited-for-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        },
+        {
+          "url": "https://fal-status.example.test/fal-ai/flux/requests/req-one/status",
+          "method": "GET",
+          "headers": {
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "falaiSubmitThrows": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux-pro\"}",
+      "mocks": [
+        {
+          "run": "falaiSubmitThrows",
+          "match": "/fal-ai/flux-pro",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "12",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-WO5eZzuxb1snxNd5JbMXa/SEeSw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "fetch failed",
+        "bodyText": "fetch failed"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux-pro",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        }
+      ]
+    },
+    "falaiReservedModelRaw": {
+      "route": "/api/sd/falai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"flux/pro v1?x=1\"}",
+      "mocks": [
+        {
+          "run": "falaiReservedModelRaw",
+          "match": "/fal-ai/flux/pro",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "fal says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_falai": [
+          {
+            "id": "sid-api_key_falai",
+            "value": "synthetic-falai-key",
+            "label": "api_key_falai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-2s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://queue.fal.run/fal-ai/flux/pro v1?x=1",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Key synthetic-falai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"image_size\":{},\"seed\":null,\"enable_safety_checker\":false,\"safety_tolerance\":6}"
+        }
+      ]
+    }
+  }
+}
