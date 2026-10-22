@@ -176,7 +176,13 @@ const main = async () => {
     // and 12 for a cancel), and the OpenRouter legs below were driven at 14.
     driveParameters: {
         streamFrameCount: process.env.PROBE_FRAME_COUNT ?? 'peer default (5 stream / 12 cancel)',
-        customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
+        customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
+        ...(process.env.PROBE_SOURCE === 'groq' ? {
+            // THE TWO FACTS A READER CANNOT RECONSTRUCT FROM THESE NUMBERS. Both were measured the hard
+            // way in this lane, and they belong in the artifact rather than in a message about it.
+            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
+            peerKeying: 'the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
+        } : {}),
     },
     question: 'do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?',
         captures: { streamGotavern: streamGotavernPath, streamPinned: streamPinnedPath, cancelGotavern: cancelGotavernPath, cancelPinned: cancelPinnedPath, nonstreamGotavern: nonstreamGotavernPath, nonstreamPinned: nonstreamPinnedPath },

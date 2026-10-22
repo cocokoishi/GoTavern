@@ -272,6 +272,16 @@ function startStreamingPeer(mode, protocol) {
             };
             state.requests.push(entry);
             pathEntry.status = 200;
+            if (mode === 'nonstream') {
+                // A NON-STREAM COMPLETION, in the source's own protocol shape: the same body the scripted
+                // provider would have returned, chosen by the REQUEST rather than by arrival order.
+                const completion = protocol === 'anthropic'
+                    ? { id: 'msg_probe', type: 'message', role: 'assistant', model: 'probe-model', content: [{ type: 'text', text: 'probe reply from anthropic' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 2 } }
+                    : { id: 'probe-completion', object: 'chat.completion', created: 1, model: 'probe-model', choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }] };
+                response.writeHead(200, { 'Content-Type': 'application/json' });
+                response.end(JSON.stringify(completion));
+                return;
+            }
             response.writeHead(200, {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
@@ -358,7 +368,12 @@ function startStreamingPeer(mode, protocol) {
 let mock = null;
 let streamingPeer = null;
 let mockAddress = '';
-if (streamingMode) {
+// GROQ USES THE IN-PROCESS PEER IN EVERY MODE. Its page asks for the model list a source-dependent
+// number of times, and the Go mock script is POSITIONAL: with one models answer the second status call
+// receives the completion body, and with three the completion receives a models body -- measured both,
+// and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
+// shape that needs no per-source count at all, so groq is served by it even when not streaming.
+if (streamingMode || probeSource === 'groq') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -1292,6 +1307,34 @@ try {
             report.failure = report.failure ?? 'streaming peer received no POST /chat/completions';
         }
     } else {
+        // A REQUEST-KEYED PEER HAS NO /__mock/recording ENDPOINT, and polling it made a working drive
+        // report `Unexpected token 'o', "not found" is not valid JSON`: the 404 body of the peer, read
+        // as the recorder's answer. Its own `state` is the recording, so read that instead and keep the
+        // same report shape (paths = what the peer was asked, with the status it answered).
+        if (streamingPeer) {
+            report.requestArrived = streamingPeer.state.requests.some(request => request.method === 'POST');
+            report.streamingPeerPaths = streamingPeer.state.paths;
+            report.recording = streamingPeer.state.requests.map(request => {
+                let parsedBody = null;
+                try {
+                    parsedBody = request.body ? JSON.parse(request.body) : null;
+                } catch {
+                    parsedBody = null;
+                }
+                return {
+                    method: request.method,
+                    path: request.path,
+                    bodyLength: request.bodyLength,
+                    body: request.body,
+                    bodySha256: request.bodySha256,
+                    model: parsedBody?.model ?? null,
+                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
+                    clientDisconnected: request.clientDisconnected,
+                    framesWritten: request.framesWritten,
+                };
+            });
+            report.peer = { kind: 'request-keyed', seam: { env: 'GOTAVERN_GROQ_CHAT_URL', value: process.env.GOTAVERN_GROQ_CHAT_URL ?? null } };
+        } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.
         for (let attempt = 0; attempt < 300; attempt++) {
@@ -1322,6 +1365,7 @@ try {
         }
         if (!report.requestArrived) {
             report.failure = report.failure ?? 'no provider request arrived within 20s';
+        }
         }
     }
 } catch (error) {

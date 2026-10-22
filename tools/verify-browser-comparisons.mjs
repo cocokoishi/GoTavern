@@ -423,11 +423,15 @@ if (extensionComparison) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
-    const completionSuffix = isMistral ? '/chat/completions' : '/messages';
+    const isGroq = artifactName.includes('groq');
+    // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
+    // is the Anthropic one and must never ask for a model list.
+    const isOpenAI = isMistral || isGroq;
+    const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];
         if (!block || typeof block !== 'object') {
@@ -449,13 +453,13 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
                 const requestPath = String(request.path ?? '');
                 // mistralai is OpenAI-shaped, so its NON-STREAM control legitimately asks for the model
                 // list first (GET /models) and then posts the completion; claude never asks at all.
-                const isStatusCall = isMistral && request.method === 'GET' && requestPath.endsWith('/models');
+                const isStatusCall = isOpenAI && request.method === 'GET' && requestPath.endsWith('/models');
                 if (!isStatusCall && !requestPath.endsWith(completionSuffix)) {
                     fail(artifactName, `${surface}.${leg} records ${request.method} ${request.path}, which is neither this source's completion route (${completionSuffix}) nor, for mistralai, its model-list call`);
                 }
             }
             const statusCalls = requests.filter(request => String(request.path ?? '').includes('/models'));
-            if (isMistral) {
+            if (isOpenAI) {
                 // OpenAI-shaped: the non-stream control asks for the model list first; the streamed and
                 // cancelled drives go straight to the completion route after the frontend's own status
                 // call. Either way the completion route is reached.
@@ -489,7 +493,8 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     if (!abortState || abortState.gotavern?.framesWritten === undefined || abortState.pinned?.framesWritten === undefined || typeof abortState.note !== 'string') {
         fail(artifactName, 'cancellation.abortRenderState does not record both legs and its reason');
     }
-    console.log('  ' + artifactName + ' ' + (isMistral
+    const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
+    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
