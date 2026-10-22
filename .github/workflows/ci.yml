@@ -144,6 +144,23 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Verify Go formatting
+        # AGENTS.md requires gofmt on every change, and until this step nothing in CI enforced it:
+        # `go build` and `go vet` both accept an unformatted file, so a formatting defect could land
+        # and only surface as reviewer noise in the next lane's diff.
+        #
+        # This checks the COMMITTED bytes, because the checkout here is Linux/LF. Local `gofmt -l` in
+        # a Windows work tree lists files with nothing wrong with them: core.autocrlf checks them out
+        # as CRLF and gofmt then rewrites the whole file. Measured: `gofmt -l` over an LF checkout of
+        # HEAD reports ZERO offenders while the same command in the CRLF work tree reported 308.
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would rewrite these files:"
+            echo "$unformatted"
+            exit 1
+          fi
+          echo "all Go files are gofmt-clean"
       - name: Verify upstream asset manifests
         run: |
           go run ./tools/assetmanifest -root upstream/public -output upstream/manifests/public.sha256 -check
