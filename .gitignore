@@ -18,3 +18,4 @@
 
 # Serialisation lock for concurrent pinned-probe boots (tools/pinned-boot-lock.mjs)
 /.pinned-boot-lock/
+oracle-rerecord.patch

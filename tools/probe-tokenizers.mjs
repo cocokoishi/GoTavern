@@ -53,6 +53,19 @@ const LOCAL_TOKENIZER_FILES = [
     'claude.json', 'gemma.model', 'jamba.model', 'llama.model', 'llama3.json',
     'mistral.model', 'nerdstash.model', 'nerdstash_v2.model', 'yi.model',
 ];
+// WHAT THIS CORPUS MUST CONTAIN, and why the replay case counts move with it.
+//
+// The count corpus carries BOTH message shapes: with a role, and WITHOUT one. The role-less
+// `[{ content }]` is not a synthetic case -- it is what `counterWrapperOpenAIAsync` in the pinned
+// frontend builds and posts with `full = true`, so it is the shape every browser token count uses. For
+// a long time the corpus held only role-ful bodies, so the per-property iteration was never exercised
+// on the shape a real caller sends, and a browser differential could disagree with a 908-case fixture
+// while neither side was wrong about the cases it had.
+//
+// Consequence for a change here: adding an input or a model moves the replay's expected case counts
+// (asserted on purpose, so a silently-shrunk corpus cannot pass). Update them in the SAME commit as the
+// fixture, and let the LINUX oracle record that fixture -- a Windows re-record of this corpus alters
+// pre-existing `chunks` by decoding UTF-8 as Latin-1, measured twice from the worktree root.
 const TIKTOKEN_FILES = [
     'cl100k_base.json', 'gpt2.json', 'model_to_encoding.json', 'o200k_base.json',
     'p50k_base.json', 'p50k_edit.json', 'r50k_base.json', 'registry.json',

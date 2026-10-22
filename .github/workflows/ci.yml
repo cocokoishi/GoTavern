@@ -186,14 +186,14 @@ jobs:
         if: always()
         run: |
           set -eu
-          git diff --binary -- tests/oracle docs/api-inventory.md docs/config-inventory.md upstream > .oracle-rerecord.patch
-          echo "re-record patch bytes: $(wc -c < .oracle-rerecord.patch)"
+          git diff --binary -- tests/oracle docs/api-inventory.md docs/config-inventory.md upstream > oracle-rerecord.patch
+          echo "re-record patch bytes: $(wc -c < oracle-rerecord.patch)"
           git diff --stat -- tests/oracle docs/api-inventory.md docs/config-inventory.md upstream
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: oracle-linux-rerecord
-          path: .oracle-rerecord.patch
+          path: oracle-rerecord.patch
           retention-days: 14
           if-no-files-found: warn
       - name: Verify generated results are committed
