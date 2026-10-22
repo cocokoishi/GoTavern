@@ -141,7 +141,14 @@ for (const [command, args] of buildSteps) {
 // production code to make a probe work.
 if (!external) {
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
-    const tokenizerTarget = path.join(dataRoot, 'tokenizers');
+    // BESIDE THE BINARY THAT ACTUALLY RUNS, which is not always the one this probe builds. When
+    // GOTAVERN_BINARY supplies a lane artifact, `dataRoot` is NOT its install root, so staging there left
+    // the server with no `tokenizers/` and every count route answered the GUESSTIMATE fallback
+    // (ceil(bytes/3.35)) instead of tokenizing: `[{content:'probe user marker'}]` came back as 10 and the
+    // role-ful body as 15, which are exactly those byte-lengths divided by 3.35, while pinned answered
+    // 9 and 10. That is the failure this comment block already describes, one level down: the probe
+    // staged the release layout faithfully for a binary it had just built and not for one it was handed.
+    const tokenizerTarget = path.join(path.dirname(binary), 'tokenizers');
     if (await fs.stat(tokenizerSource).then(() => true, () => false)) {
         await fs.cp(tokenizerSource, tokenizerTarget, { recursive: true });
     } else {
@@ -344,6 +351,30 @@ try {
         const entry = pendingRequests.get(response.request());
         if (entry) {
             entry.status = response.status();
+        }
+    });
+    // THE BROWSER'S OWN TOKENIZER CALL, AS BYTES. A count the page computed is a number that two
+    // different causes can produce: the server answering differently, or the page asking a different
+    // question (another model, another body). The differential needs the REQUEST (method, path, exact
+    // POST body) and the RESPONSE body for every /api/tokenizers call, on both legs, so a 10-vs-9 can be
+    // attributed to one leg and not guessed at.
+    report.tokenizerCalls = [];
+    const tokenizerEntries = new Map();
+    page.on('request', request => {
+        const url = new URL(request.url());
+        if (!url.pathname.includes('/api/tokenizers')) return;
+        const entry = { method: request.method(), path: url.pathname + url.search, postData: request.postData() ?? null, status: null, responseBody: null };
+        report.tokenizerCalls.push(entry);
+        tokenizerEntries.set(request, entry);
+    });
+    page.on('response', async response => {
+        const entry = tokenizerEntries.get(response.request());
+        if (!entry) return;
+        entry.status = response.status();
+        try {
+            entry.responseBody = (await response.text()).slice(0, 4000);
+        } catch (error) {
+            entry.responseBody = `unreadable: ${String(error.message ?? error)}`;
         }
     });
     // Which calls the frontend makes, and which of them the server answers with an error: the
