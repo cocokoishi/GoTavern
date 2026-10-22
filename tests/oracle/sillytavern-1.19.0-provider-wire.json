@@ -7,11 +7,2603 @@
   "probe": "pinned backend -> provider transformation captured from a recording mock provider, per scenario",
   "stage1Boundary": "Validates the backend to provider transformation only. Browser-side prompt assembly is not covered.",
   "seams": {
+    "GOTAVERN_CLAUDE_CHAT_URL": {
+      "pinnedLiteral": "https://api.anthropic.com/v1"
+    },
     "GOTAVERN_OPENROUTER_CHAT_URL": {
       "pinnedLiteral": "https://openrouter.ai/api/v1"
     }
   },
   "scenarios": {
+    "claude-error-status": {
+      "scenario": "claude-error-status.json",
+      "purpose": "CLAUDE non-2xx answer: 500 {\"error\":true} with the provider body dropped, distinct from the generic path error envelope.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "fde4eb04df563909fa87f29fce8cb28aec44a77141e3644bcb59d9ea83871022"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "185"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":64,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS0zLTUtc29ubmV0LTIwMjQwNjIwIiwibWF4X3Rva2VucyI6NjQsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 185,
+            "bodySha256": "cd5539b5e669e0128920ead0f51160837f2f6f6a4db4d44b69cfd2dfb1cb3975",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "error": true
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-limited-sampling": {
+      "scenario": "claude-limited-sampling.json",
+      "purpose": "CLAUDE limited sampling: with top_p < 1 the pinned rule deletes temperature and keeps top_p, and reasoning_effort auto keeps the thinking branch out of the way so the two rules cannot mask each other.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.7,
+              "top_p": 0.9,
+              "top_k": 40,
+              "reasoning_effort": "auto",
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "fc51130fb3f56b952b871cb23a8bce861a41013d1480be7bf0cfe79e79614c4c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "208"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":64,\"stop_sequences\":[],\"top_p\":0.9,\"top_k\":40,\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS1zb25uZXQtNC01LTIwMjUwOTI5IiwibWF4X3Rva2VucyI6NjQsInN0b3Bfc2VxdWVuY2VzIjpbXSwidG9wX3AiOjAuOSwidG9wX2siOjQwLCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 208,
+            "bodySha256": "d574b9a4fd0ca1f620c3731507a0ce52f538d6f1bd5a4e71da8038ed8d572724",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-merge-roles": {
+      "scenario": "claude-merge-roles.json",
+      "purpose": "CLAUDE consecutive-role merging: user,user,assistant,assistant,user reaches the provider as user,assistant,user with the content blocks concatenated in order.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "merged user one"
+                },
+                {
+                  "role": "user",
+                  "content": "merged user two"
+                },
+                {
+                  "role": "assistant",
+                  "content": "merged assistant one"
+                },
+                {
+                  "role": "assistant",
+                  "content": "merged assistant two"
+                },
+                {
+                  "role": "user",
+                  "content": "tail user"
+                }
+              ],
+              "max_tokens": 128,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "de83f2f39fb5ab8bcea05bc548ee9a683df56afe318bf768d9b228b04e07d392"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "413"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"merged user one\"},{\"type\":\"text\",\"text\":\"merged user two\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"merged assistant one\"},{\"type\":\"text\",\"text\":\"merged assistant two\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"tail user\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":128,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJtZXJnZWQgdXNlciBvbmUifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Im1lcmdlZCB1c2VyIHR3byJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoibWVyZ2VkIGFzc2lzdGFudCBvbmUifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Im1lcmdlZCBhc3Npc3RhbnQgdHdvIn1dfSx7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoidGFpbCB1c2VyIn1dfV0sIm1vZGVsIjoiY2xhdWRlLTMtNS1zb25uZXQtMjAyNDA2MjAiLCJtYXhfdG9rZW5zIjoxMjgsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 413,
+            "bodySha256": "339914765d2ee2e353355795a0495c8275faf17530be3f14d9bda4edf23039a6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-no-sysprompt": {
+      "scenario": "claude-no-sysprompt.json",
+      "purpose": "CLAUDE with use_sysprompt false: the system member is deleted from the body and the leading system message is converted to a user turn.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system one"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 128,
+              "use_sysprompt": false,
+              "stream": false
+            },
+            "bodySha256": "9836e0c411ba90abd18e632a7148d77f502a6ec32cfcd829be66f31012e1324b"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "216"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe system one\"},{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":128,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSBzeXN0ZW0gb25lIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS0zLTUtc29ubmV0LTIwMjQwNjIwIiwibWF4X3Rva2VucyI6MTI4LCJzdG9wX3NlcXVlbmNlcyI6W10sInN0cmVhbSI6ZmFsc2V9",
+            "bodyLength": 216,
+            "bodySha256": "f6490fec1db8d7df038c578ad579cff466bbefd4491c388b69cf20e0b667af46",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-nonstream": {
+      "scenario": "claude-nonstream.json",
+      "purpose": "CLAUDE source, NON-STREAMING default request: the pinned body member order, the always-present empty stop_sequences, the two unconditional anthropic-beta values, and the thinking member an absent reasoning_effort produces (with the sampling members removed and max_tokens raised).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "assistant",
+                  "content": "probe assistant marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe follow-up marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.7,
+              "top_p": 0.9,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "9155181eb434cff9b4c0db629555587c47f9f9c90c582fdb3fab08dcac4529eb"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "395"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"probe assistant marker\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe follow-up marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":1088,\"stop_sequences\":[],\"stream\":false,\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024}}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoicHJvYmUgYXNzaXN0YW50IG1hcmtlciJ9XX0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6InByb2JlIGZvbGxvdy11cCBtYXJrZXIifV19XSwibW9kZWwiOiJjbGF1ZGUtc29ubmV0LTQtNS0yMDI1MDkyOSIsIm1heF90b2tlbnMiOjEwODgsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjpmYWxzZSwidGhpbmtpbmciOnsidHlwZSI6ImVuYWJsZWQiLCJidWRnZXRfdG9rZW5zIjoxMDI0fX0=",
+            "bodyLength": 395,
+            "bodySha256": "a51e5058b2b9a247aa271bb54df78669eec7ff905e6da71943989edf873dd23e",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-nonthinking-model": {
+      "scenario": "claude-nonthinking-model.json",
+      "purpose": "CLAUDE source with a model outside the thinking and limited-sampling predicates: temperature/top_p/top_k survive and NO thinking member is sent, which is the control for claude-nonstream.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 256,
+              "temperature": 0.7,
+              "top_p": 0.9,
+              "top_k": 40,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "f9429fd3ad7aa6b08dbc76a61db72324fe569cb704135e25cb0b0e69ae3c9d36"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "227"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":256,\"stop_sequences\":[],\"temperature\":0.7,\"top_p\":0.9,\"top_k\":40,\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS0zLTUtc29ubmV0LTIwMjQwNjIwIiwibWF4X3Rva2VucyI6MjU2LCJzdG9wX3NlcXVlbmNlcyI6W10sInRlbXBlcmF0dXJlIjowLjcsInRvcF9wIjowLjksInRvcF9rIjo0MCwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 227,
+            "bodySha256": "58972b98379fa3f0ac990d2dd685d75ab635144542d5c4bf1150e13c780f774e",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-prefill": {
+      "scenario": "claude-prefill.json",
+      "purpose": "CLAUDE assistant_prefill: a trailing assistant turn carrying prefill.trimEnd(), with trailing whitespace removed, on a model where the prefill role is NOT flipped.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "assistant_prefill": "  Probe prefill line \n\n",
+              "max_tokens": 128,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "7d8bbc4a283b80e3b94860fbc8e5bfa43298839c89f899a5beae01f5ee2f3cbd"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "265"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"  Probe prefill line\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":128,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiICBQcm9iZSBwcmVmaWxsIGxpbmUifV19XSwibW9kZWwiOiJjbGF1ZGUtMy01LXNvbm5ldC0yMDI0MDYyMCIsIm1heF90b2tlbnMiOjEyOCwic3RvcF9zZXF1ZW5jZXMiOltdLCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 265,
+            "bodySha256": "9515f59d4f6d598c35d4179a15106cd91e45b57b87cff63827095a236a0e6c7a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-reverse-proxy": {
+      "scenario": "claude-reverse-proxy.json",
+      "purpose": "CLAUDE reverse_proxy: the URL is new URL(reverse_proxy).toString() + /messages (a bare origin gains a trailing slash, so the target has a doubled slash) and proxy_password is used as x-api-key instead of the stored secret.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "use_sysprompt": true,
+              "stream": false,
+              "reverse_proxy": "http://<mock>",
+              "proxy_password": "synthetic-claude-proxy-password"
+            },
+            "bodySha256": "bece453717601e26014d971c81a599e74b143202763111c12fe8494a9f2058e8"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "//messages",
+            "rawPath": "//messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "185"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":64,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS0zLTUtc29ubmV0LTIwMjQwNjIwIiwibWF4X3Rva2VucyI6NjQsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 185,
+            "bodySha256": "cd5539b5e669e0128920ead0f51160837f2f6f6a4db4d44b69cfd2dfb1cb3975",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true
+    },
+    "claude-stream-control-nonstream": {
+      "scenario": "claude-stream-control-nonstream.json",
+      "purpose": "The NON-STREAM CONTROL for claude-stream: the same answer text through the buffered path, so the stream capture cannot be produced by a backend that simply buffers. Also pins the OAI-format rewrap plus the retained provider content array.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "reasoning_effort": "auto",
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "a51e153a8ad333c0e377a9d632a8ed6c966e10e85f530647142d4b58324bab50"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "185"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":64,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS1zb25uZXQtNC01LTIwMjUwOTI5IiwibWF4X3Rva2VucyI6NjQsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 185,
+            "bodySha256": "c188f1314adfdb2b2080c7eb99256cca182bdd8172a6a2a679f4450ef2eca679",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-stream": {
+      "scenario": "claude-stream.json",
+      "purpose": "CLAUDE streaming: the provider frames are forwarded VERBATIM (Anthropic event names, terminating in message_stop, never a [DONE] sentinel) and the backend response carries no content type of its own.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "reasoning_effort": "auto",
+              "use_sysprompt": true,
+              "stream": true
+            },
+            "bodySha256": "a85a8320fcdd92e1156b95017d20ebd0848a9179489ffbf4d7d2dada1c9bb3b2"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "184"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":64,\"stop_sequences\":[],\"stream\":true}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS1zb25uZXQtNC01LTIwMjUwOTI5IiwibWF4X3Rva2VucyI6NjQsInN0b3Bfc2VxdWVuY2VzIjpbXSwic3RyZWFtIjp0cnVlfQ==",
+            "bodyLength": 184,
+            "bodySha256": "0f4097c5aac0b51292cc64cfa4eb6dcf33b69c62195eccef024c4e855eb921f6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": [
+          {
+            "event": "message_start",
+            "data": "{\"type\":\"message_start\",\"message\":{\"id\":\"msg_probe\",\"role\":\"assistant\",\"content\":[]}}"
+          },
+          {
+            "event": "content_block_start",
+            "data": "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}"
+          },
+          {
+            "event": "content_block_delta",
+            "data": "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"mock claude reply\"}}"
+          },
+          {
+            "event": "content_block_stop",
+            "data": "{\"type\":\"content_block_stop\",\"index\":0}"
+          },
+          {
+            "event": "message_stop",
+            "data": "{\"type\":\"message_stop\"}"
+          }
+        ]
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-system-multiple": {
+      "scenario": "claude-system-multiple.json",
+      "purpose": "CLAUDE system extraction: three leading system messages become three system text blocks, example_user/example_assistant gain their speaker prefix, and the remaining turns keep their order.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-3-5-sonnet-20240620",
+              "user_name": "Probe User",
+              "char_name": "Probe Char",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system one"
+                },
+                {
+                  "role": "system",
+                  "name": "example_user",
+                  "content": "example line"
+                },
+                {
+                  "role": "system",
+                  "name": "example_assistant",
+                  "content": "example reply"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 128,
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "4217d79d8c11116550e112973aa7941d072179181dbffbd2ed00d271a614b033"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "328"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[{\"type\":\"text\",\"text\":\"probe system one\"},{\"type\":\"text\",\"text\":\"Probe User: example line\"},{\"type\":\"text\",\"text\":\"Probe Char: example reply\"}],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-3-5-sonnet-20240620\",\"max_tokens\":128,\"stop_sequences\":[],\"stream\":false}",
+            "bodyBase64": "eyJzeXN0ZW0iOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6InByb2JlIHN5c3RlbSBvbmUifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlByb2JlIFVzZXI6IGV4YW1wbGUgbGluZSJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiUHJvYmUgQ2hhcjogZXhhbXBsZSByZXBseSJ9XSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoicHJvYmUgdXNlciBtYXJrZXIifV19XSwibW9kZWwiOiJjbGF1ZGUtMy01LXNvbm5ldC0yMDI0MDYyMCIsIm1heF90b2tlbnMiOjEyOCwic3RvcF9zZXF1ZW5jZXMiOltdLCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 328,
+            "bodySha256": "eedd096042427de5cedfd32a0d83d25107af82f4ea8b0f2b9dda93dc40072a6e",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-thinking": {
+      "scenario": "claude-thinking.json",
+      "purpose": "CLAUDE traditional thinking via reasoning_effort medium: thinking{type:enabled,budget_tokens:1024}, max_tokens raised to 1088 because 64 <= 1024, and temperature/top_p/top_k deleted.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.7,
+              "top_p": 0.9,
+              "top_k": 40,
+              "reasoning_effort": "medium",
+              "use_sysprompt": true,
+              "stream": false
+            },
+            "bodySha256": "04f10abafff1b0697019522f3a36202e151fd06e38fc3fcd8e52317b5224786f"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "238"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe user marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":1088,\"stop_sequences\":[],\"stream\":false,\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024}}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XX1dLCJtb2RlbCI6ImNsYXVkZS1zb25uZXQtNC01LTIwMjUwOTI5IiwibWF4X3Rva2VucyI6MTA4OCwic3RvcF9zZXF1ZW5jZXMiOltdLCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZW5hYmxlZCIsImJ1ZGdldF90b2tlbnMiOjEwMjR9fQ==",
+            "bodyLength": 238,
+            "bodySha256": "50b60ff69acd3a3a2b25a1eec9d4cc4e81b0c8409138f9b157f2aa414e2ccd4e",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
+    "claude-tools": {
+      "scenario": "claude-tools.json",
+      "purpose": "CLAUDE tools: tool_choice {type:auto}, the tools array mapped through .function with input_schema from parameters, non-function entries dropped, and the tools-2024-05-16 beta value appended.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "claude",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "claude",
+              "model": "claude-sonnet-4-5-20250929",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe tool user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "reasoning_effort": "auto",
+              "use_sysprompt": true,
+              "stream": false,
+              "tool_choice": "auto",
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "probe_tool",
+                    "description": "probe tool description",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "probe_arg": {
+                          "type": "string",
+                          "description": "probe arg"
+                        }
+                      },
+                      "required": [
+                        "probe_arg"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "probe-not-a-function",
+                  "function": {
+                    "name": "dropped_tool"
+                  }
+                }
+              ]
+            },
+            "bodySha256": "6fdc5d260b778edc95feabc08d677c3dee5bcae261c79b7b9b9240817f448817"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/messages",
+            "rawPath": "/messages",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "anthropic-beta",
+                "value": "output-128k-2025-02-19,context-1m-2025-08-07,tools-2024-05-16"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-length",
+                "value": "420"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "x-api-key",
+                "value": "<redacted>"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"system\":[],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"probe tool user marker\"}]}],\"model\":\"claude-sonnet-4-5-20250929\",\"max_tokens\":64,\"stop_sequences\":[],\"stream\":false,\"tool_choice\":{\"type\":\"auto\"},\"tools\":[{\"name\":\"probe_tool\",\"description\":\"probe tool description\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"probe_arg\":{\"type\":\"string\",\"description\":\"probe arg\"}},\"required\":[\"probe_arg\"]}}]}",
+            "bodyBase64": "eyJzeXN0ZW0iOltdLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJwcm9iZSB0b29sIHVzZXIgbWFya2VyIn1dfV0sIm1vZGVsIjoiY2xhdWRlLXNvbm5ldC00LTUtMjAyNTA5MjkiLCJtYXhfdG9rZW5zIjo2NCwic3RvcF9zZXF1ZW5jZXMiOltdLCJzdHJlYW0iOmZhbHNlLCJ0b29sX2Nob2ljZSI6eyJ0eXBlIjoiYXV0byJ9LCJ0b29scyI6W3sibmFtZSI6InByb2JlX3Rvb2wiLCJkZXNjcmlwdGlvbiI6InByb2JlIHRvb2wgZGVzY3JpcHRpb24iLCJpbnB1dF9zY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsicHJvYmVfYXJnIjp7InR5cGUiOiJzdHJpbmciLCJkZXNjcmlwdGlvbiI6InByb2JlIGFyZyJ9fSwicmVxdWlyZWQiOlsicHJvYmVfYXJnIl19fV19",
+            "bodyLength": 420,
+            "bodySha256": "4d613388a1ee71fa52747d69fbea528d05f498700ab1f8f9420da4ab5b84c543",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"70-zkHIc6ocEbc8FmmlMzRiukKeYbU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock claude reply"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "text",
+              "text": "mock claude reply"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[x-api-key]",
+            "rule": "value replaced with <redacted>, presence and name preserved",
+            "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "anthropic-beta",
+          "anthropic-version",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "x-api-key"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": true,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+        "pinnedLiteral": "https://api.anthropic.com/v1"
+      }
+    },
     "custom-source-nonstream": {
       "scenario": "custom-source-nonstream.json",
       "purpose": "Custom OpenAI-compatible source using custom_url and the CUSTOM secret, non-streaming. Different URL, key and header assembly from the native source.",
@@ -197,7 +2789,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": true
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
     },
     "openai-reverse-proxy-abort": {
       "scenario": "openai-reverse-proxy-abort.json",
@@ -370,7 +2963,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": false
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false
     },
     "openai-reverse-proxy-error-status": {
       "scenario": "openai-reverse-proxy-error-status.json",
@@ -545,7 +3139,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": false
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false
     },
     "openai-reverse-proxy-midstream-truncation": {
       "scenario": "openai-reverse-proxy-midstream-truncation.json",
@@ -722,7 +3317,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": false
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false
     },
     "openai-reverse-proxy-nonstream": {
       "scenario": "openai-reverse-proxy-nonstream.json",
@@ -904,7 +3500,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": true
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
     },
     "openai-reverse-proxy-stream": {
       "scenario": "openai-reverse-proxy-stream.json",
@@ -1089,7 +3686,8 @@
           "x-response-time"
         ]
       },
-      "authorizationKeyVerified": false
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false
     },
     "openrouter-abort": {
       "scenario": "openrouter-abort.json",
@@ -1271,6 +3869,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -1458,6 +4057,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -1647,6 +4247,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -1842,6 +4443,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -2071,6 +4673,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -2240,6 +4843,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -2437,6 +5041,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"
@@ -2635,6 +5240,7 @@
         ]
       },
       "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
       "goSeam": {
         "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
         "pinnedLiteral": "https://openrouter.ai/api/v1"

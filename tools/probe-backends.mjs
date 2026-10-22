@@ -714,6 +714,27 @@ addScenario({
     route: 'chat-completions/status',
     body: { chat_completion_source: 'custom' },
 });
+// ---- CLAUDE has NO ARM in the status matrix ---------------------------------------------------
+//
+// chat-completions.js:1787-2065 is the chain of `chat_completion_source === ...` branches, and
+// CHAT_COMPLETION_SOURCES.CLAUDE is not one of them (it appears only in the GENERATE dispatch at
+// :2260). So `apiUrl` and `apiKey` keep their `''` initialisers and the shared guard at :2067 fires
+// first -- 400 {"error":true} with NO outbound request. Both observables are recorded because a Go
+// implementation that answered 501 (as it did before this wave) and one that invented a branch are
+// different from the pinned answer in different ways.
+addScenario({
+    name: 'status.claude.noBranch',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'claude' },
+});
+// With a reverse_proxy present the :2067 guard is skipped, and the next statement is
+// `new URL(urlJoin('', '/models'))`, i.e. the RELATIVE URL '/models', which throws; the pinned catch
+// answers 200 {"error":true} -- still with no outbound request.
+addScenario({
+    name: 'status.claude.reverseProxy',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'claude', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
+});
 // ---- deferred wave: kobold/generate (streaming) and kobold/transcribe-audio (multipart) ------
 //
 // WHY THIS WAVE OBSERVES OVER A RAW SOCKET. Every other scenario in this probe captures through

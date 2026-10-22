@@ -42,6 +42,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveOpenRouterChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceClaude {
+		runtime.serveClaudeChatCompletionStatus(w, body)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return
@@ -107,6 +111,25 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		return
 	}
 	searchJSON(w, parsed)
+}
+
+// serveClaudeChatCompletionStatus is the CLAUDE case of the pinned status matrix, and its whole
+// content is that THERE IS NO CLAUDE BRANCH in it. chat-completions.js:1787-2065 is a chain of
+// `chat_completion_source === ...` arms and CLAUDE is not one of them (it appears only in the
+// GENERATE dispatch at :2260), so the chain falls through to its final else:
+//
+//	:2062-2065  console.warn('This chat completion source is not supported yet.');
+//	            return statusResponse.status(400).send({ error: true });
+//
+// which answers 400 {"error":true} and NEVER reaches the shared :2067 key guard or the :2072 fetch, so
+// there is no outbound request either. The first reading of this file expected the :2067 guard to be
+// what fires; the recorded pinned capture answered 400 for a request WITH a reverse_proxy as well,
+// which is what located the final else. Both cases are recorded in the backends fixture and the replay
+// asserts the outbound COUNT is zero for each.
+func (runtime *accountRuntime) serveClaudeChatCompletionStatus(w http.ResponseWriter, body orderedNodeJSON) {
+	errorOnly := nodeObject()
+	errorOnly.setMember("error", nodeBool(true))
+	respondOrderedNodeJSON(w, http.StatusBadRequest, errorOnly)
 }
 
 // serveOpenRouterChatCompletionStatus is the OPENROUTER branch of chat-completions.js:1778-2156:

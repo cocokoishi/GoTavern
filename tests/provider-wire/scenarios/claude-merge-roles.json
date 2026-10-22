@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "claude",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_claude": [
+      {
+        "id": "probe-id-api_key_claude",
+        "value": "synthetic-claude-key",
+        "label": "api_key_claude",
+        "active": true
+      }
+    ]
+  },
+  "expectedApiKey": {
+    "header": "x-api-key",
+    "value": "synthetic-claude-key"
+  },
+  "transportRedirect": [
+    {
+      "from": "https://api.anthropic.com/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.anthropic.com/v1"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[x-api-key]",
+        "rule": "value replaced with <redacted>, presence and name preserved",
+        "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "claude-merge-roles",
+  "purpose": "CLAUDE consecutive-role merging: user,user,assistant,assistant,user reaches the provider as user,assistant,user with the content blocks concatenated in order.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "claude",
+      "model": "claude-3-5-sonnet-20240620",
+      "messages": [
+        {
+          "role": "user",
+          "content": "merged user one"
+        },
+        {
+          "role": "user",
+          "content": "merged user two"
+        },
+        {
+          "role": "assistant",
+          "content": "merged assistant one"
+        },
+        {
+          "role": "assistant",
+          "content": "merged assistant two"
+        },
+        {
+          "role": "user",
+          "content": "tail user"
+        }
+      ],
+      "max_tokens": 128,
+      "use_sysprompt": true,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"msg_probe\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5-20250929\",\"content\":[{\"type\":\"text\",\"text\":\"mock claude reply\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":11,\"output_tokens\":7}}"
+      }
+    ]
+  }
+}

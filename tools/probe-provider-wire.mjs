@@ -436,6 +436,15 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 
 // Applies only the normalizations the scenario declares, each of which carries
 // a pinned or harness source. Anything not declared is compared exactly.
+// Headers whose VALUE is a credential rather than a contract. Each is redacted to a fixed marker so the
+// header's PRESENCE, name AND (for bearer schemes) the scheme stay compared while the value does not.
+// `x-api-key` is here because the CLAUDE source authenticates with it instead of an Authorization header
+// (chat-completions.js:417); a source that needs a new credential header adds it here, and the tier-2
+// declarations in its scenarios name the pinned line that puts the value on the wire.
+const REDACTED_PROVIDER_HEADERS = new Map([
+    ['x-api-key', '<redacted>'],
+]);
+
 function normalizeProvider(recording, mockAddress) {
     const provider = JSON.parse(JSON.stringify(recording));
     for (const request of provider.requests) {
@@ -443,6 +452,9 @@ function normalizeProvider(recording, mockAddress) {
             if (header.name === 'Host') return { name: header.name, value: '<mock-authority>' };
             if (header.name === 'authorization' && /^Bearer\s/i.test(header.value)) {
                 return { name: header.name, value: 'Bearer <redacted>' };
+            }
+            if (REDACTED_PROVIDER_HEADERS.has(header.name)) {
+                return { name: header.name, value: REDACTED_PROVIDER_HEADERS.get(header.name) };
             }
             return header;
         });
@@ -523,6 +535,19 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         // secret or proxy-password reading. Without this an empty key would be
         // redacted to the same placeholder and the scenario would prove nothing
         // about the pinned settings shape.
+        // A NON-BEARER credential header is verified the same way the bearer one is: the declared value
+        // must reach the provider, or the scenario proves nothing about the pinned settings shape.
+        let apiKeyVerified = false;
+        if (definition.expectedApiKey) {
+            const { header, value } = definition.expectedApiKey;
+            const observed = (recorded.body.requests ?? [])
+                .flatMap(entry => entry.headers)
+                .find(candidate => candidate.name === header);
+            if (!observed || observed.value !== value) {
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+            }
+            apiKeyVerified = true;
+        }
         let authorizationKeyVerified = false;
         if (definition.expectedAuthorizationKey) {
             const observed = (recorded.body.requests ?? [])
@@ -585,6 +610,7 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             normalization: definition.normalization,
             headerCoverage,
             authorizationKeyVerified,
+            apiKeyVerified,
             // A HARDCODED-URL SOURCE HAS NO REQUEST MEMBER to redirect, so the Go side needs a seam and the
             // pinned side needs a transport redirect. The seam's DEFAULT is asserted against `pinnedLiteral`
             // by the Go test, so the default cannot drift into "whatever makes the replay pass" while the
@@ -665,6 +691,9 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
         }
         if (reference.authorizationKeyVerified && !candidate.authorizationKeyVerified) {
             throw new Error(`${name}: the pinned capture verified the declared authorization key but the GoTavern capture did not`);
+        }
+        if (reference.apiKeyVerified && !candidate.apiKeyVerified) {
+            throw new Error(`${name}: the pinned capture verified the declared credential header but the GoTavern capture did not`);
         }
 
         const result = compareObservations(reference, candidate);

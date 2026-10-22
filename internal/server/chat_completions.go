@@ -205,8 +205,20 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	// outbound client watches this request's context.
 	response, err := outbound.SendStreaming(request.Context(), *plan, 0)
 	if err != nil {
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
+			// :441-446: the CLAUDE route's own catch answers 500 {"error":true} while the headers have
+			// not been sent, NOT the generic 502 {"error":{message}}.
+			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
+	}
+
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
+		// :424-439: the shared forwarder for a stream, the pinned rewrap for a buffered answer.
+		serveClaudeChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -329,9 +341,12 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 // pinnedChatCompletionPlan resolves the pinned target selection and request
 // body for the sources this route implements.
 func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
-	sourceName := ""
-	if source, exists := body.member("chat_completion_source"); exists {
-		sourceName, _ = source.stringValue()
+	sourceName := pinnedChatCompletionSourceName(body)
+	if sourceName == chatCompletionSourceClaude {
+		// chat-completions.js:230 is NOT on the generic path: it builds its own body, URL and header
+		// set, and has its own response mapping, so it delegates here and the response side branches
+		// on the same source name. See claude_chat.go.
+		return pinnedClaudePlan(body, directories)
 	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 
@@ -710,6 +725,18 @@ func pinnedSecretID(body orderedNodeJSON) orderedNodeJSON {
 		return id
 	}
 	return nodeUndefined()
+}
+
+// pinnedChatCompletionSourceName is `String(request.body.chat_completion_source)`. It is resolved once
+// per request and reused by the plan and by the response side, so the two cannot disagree about which
+// source is being served.
+func pinnedChatCompletionSourceName(body orderedNodeJSON) string {
+	source, exists := body.member("chat_completion_source")
+	if !exists {
+		return ""
+	}
+	text, _ := source.stringValue()
+	return text
 }
 
 // pinnedChatCompletionIsTextCompletion implements chat-completions.js:2279.

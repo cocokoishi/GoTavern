@@ -64,11 +64,25 @@ func TestChatCompletionGenerateRejectsSourcesItCannotServe(t *testing.T) {
 			// A pinned source whose transport is not implemented here. The
 			// status is deliberately not the pinned provider call: a fabricated
 			// success would be worse than a visible gap.
+			//
+			// CLAUDE used to be this case. It is implemented now (claude_chat.go), and with no key
+			// stored it answers the pinned 400 {"error":true} of chat-completions.js:235-238 instead,
+			// so the case moved to a source that is still unimplemented and the CLAUDE refusal has its
+			// own test (TestChatCompletionClaudeMissingKeyIsRefusedBeforeTheFetch).
 			name:       "pinned source without a transport",
-			body:       `{"chat_completion_source":"claude","model":"probe-model","messages":[]}`,
+			body:       `{"chat_completion_source":"ai21","model":"probe-model","messages":[]}`,
 			wantStatus: http.StatusNotImplemented,
 			wantBody:   "Not Implemented",
 			wantType:   "text/plain; charset=utf-8",
+		},
+		{
+			// chat-completions.js:235-238: CLAUDE checks its key BEFORE the try, so an unconfigured
+			// server answers 400 {"error":true} rather than the generic provider guard's shape.
+			name:       "claude without a key",
+			body:       `{"chat_completion_source":"claude","model":"probe-model","messages":[]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `{"error":true}`,
+			wantType:   "application/json; charset=utf-8",
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

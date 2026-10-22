@@ -38,7 +38,13 @@ type providerWireScenario struct {
 	TargetPath               string         `json:"targetPath"`
 	Secrets                  map[string]any `json:"secrets"`
 	ExpectedAuthorizationKey string         `json:"expectedAuthorizationKey"`
-	AbortAfterFirstEvent     bool           `json:"abortAfterFirstEvent"`
+	// A source whose credential is not a bearer token declares the header and value here instead; the
+	// capability is asserted exactly as the bearer one is, and only the recorded value is redacted.
+	ExpectedAPIKey *struct {
+		Header string `json:"header"`
+		Value  string `json:"value"`
+	} `json:"expectedApiKey"`
+	AbortAfterFirstEvent bool `json:"abortAfterFirstEvent"`
 	// A source whose provider URL is a pinned LITERAL declares a SEAM here (openrouter is the first): the
 	// live probe exports it for the GoTavern leg and redirects the pinned leg at the transport layer, so the
 	// replay must do the same or it drives the route at the real provider instead of the recorder.
@@ -99,6 +105,7 @@ type providerWireCaptureScenario struct {
 		Events          []providerWireSSEEvent `json:"events"`
 	} `json:"providerResponse"`
 	AuthorizationKeyVerified bool `json:"authorizationKeyVerified"`
+	APIKeyVerified           bool `json:"apiKeyVerified"`
 }
 
 type providerWireCapture struct {
@@ -216,6 +223,25 @@ func TestChatCompletionGenerateMatchesProviderWireCapture(t *testing.T) {
 				wantKey := "Bearer " + scenario.ExpectedAuthorizationKey
 				if observed != wantKey {
 					t.Errorf("provider saw authorization %q, the scenario declares the key must be read through the pinned settings shape (%q)", observed, wantKey)
+				}
+			}
+
+			// The non-bearer credential: the declared value must have reached the provider, exactly as
+			// the bearer key above must have. The capture cannot show it (it is redacted), so this is the
+			// only place the value is checked.
+			if scenario.ExpectedAPIKey != nil {
+				if !expected.APIKeyVerified {
+					t.Fatalf("capture for %q does not record apiKeyVerified", scenario.Name)
+				}
+				observed := ""
+				for _, entry := range recorded.Headers {
+					if entry.Name == scenario.ExpectedAPIKey.Header {
+						observed = entry.Value
+					}
+				}
+				if observed != scenario.ExpectedAPIKey.Value {
+					t.Errorf("provider saw %s %q, the scenario declares the key must be read through the pinned settings shape (%q)",
+						scenario.ExpectedAPIKey.Header, observed, scenario.ExpectedAPIKey.Value)
 				}
 			}
 
@@ -447,6 +473,11 @@ func normalizeRecordedProviderRequest(recorded mockprovider.Request) providerWir
 			value = "<mock-authority>"
 		case header.Name == "authorization" && strings.HasPrefix(strings.ToLower(value), "bearer "):
 			value = "Bearer <redacted>"
+		case header.Name == "x-api-key":
+			// The CLAUDE source authenticates with this header instead of Authorization, and the
+			// capture records it redacted (the probe's tier-2 rule). The VALUE is still asserted
+			// through the scenario's expectedApiKey, so redacting it here loses nothing.
+			value = "<redacted>"
 		}
 		headers = append(headers, providerWireHeader{Name: header.Name, Value: value})
 	}
