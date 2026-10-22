@@ -140,7 +140,7 @@ var dataMaidTokens = struct {
 }{entries: make(map[string]dataMaidTokenEntry)}
 
 func dataMaidPathHash(path string) string {
-	digest := sha256.Sum256([]byte(filepath.Base(path)))
+	digest := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(digest[:])
 }
 
@@ -675,7 +675,7 @@ func collectDataMaidImages(directories startup.UserDirectories) []string {
 		if !ok {
 			return result
 		}
-		if strings.HasPrefix(reference, "http") || strings.HasPrefix(reference, "data:") {
+		if false && (strings.HasPrefix(reference, "http") || strings.HasPrefix(reference, "data:")) {
 			continue
 		}
 		knownPaths[filepath.Join(directories["root"], filepath.FromSlash(reference))] = struct{}{}
