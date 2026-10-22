@@ -36,12 +36,25 @@ has to be argued per area.
 | Content import (importURL/importUUID) | ✓ | ✓ | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-content{,-uuid}.json` |
 | Providers / tokenization / streaming at the SERVER level | ✓ | ✓ | ✓ |  | ✓ | partial | `tests/oracle/sillytavern-1.19.0-provider-wire.json` (stream + abort scenarios) |
 | Startup / boot sequence | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/browser/startup-comparison.json`: 353 startup requests, 349 equal, 4 different-status ALL known (2 thumbnails are `not implemented`, `__transparent.png` and `user.css` are `cosmetic`), **0 unexpected**; final page state equal across 15 fields |
+| Characters (list, card read, create/edit/delete) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-characters-{read,write,import}.json`; **E**: `tests/browser/data-domain-comparison.json` — the drive opens the real create panel, submits the form, reads the list and the card back through `/api/characters/get`, deletes, and re-reads the list; every in-domain request, its write payload and the final browser values are equal on both legs |
+| Chats (save, get, `.jsonl` framing) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-chats-{save-get,mutations,import,search-recent}.json`; **E**: `tests/browser/data-domain-comparison.json` — `/api/chats/save` then `/api/chats/get` with the message array compared element by element, then `/api/chats/export` for the raw line framing; equal on both legs |
+| Settings (save then re-read) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-settings-{get,save}.json`; **E**: `tests/browser/data-domain-comparison.json` — the `/api/settings/save` write payload and the `/api/settings/get` re-read body are compared by digest and the final settings values by value; equal on both legs. The value the drive flips does not survive the round trip on EITHER leg (recorded as `writeReflected: false`), so this cell rests on the write payload, the re-read body and the final state, not on value reflection |
+| Backgrounds (upload then list) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-backgrounds-{all,upload,delete,rename}.json`. **E is NOT promoted**: in `tests/browser/data-domain-comparison.json` the drive reports `writeDemonstrated: false` on both legs — the upload never reached the server, so the interaction only read and cannot fail on a difference |
+| Quick replies (save then reload) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-quick-replies.json`. **E is NOT promoted**: the drive could not initialise the quick-reply extension in the fresh-install page (`status: not-driven`, reason recorded per leg), so no save was issued on either leg |
 
 `✓*` means the cell is covered for a NAMED SCENARIO only. The startup differential drives the page
 at boot, so it gives characters (`/api/characters/all`), chats (`recent`, `get`, `save`),
 backgrounds (`all`, `folders`), extensions (`discover` plus the built-in extension files), quick
 replies (`save`) and SD workflows (`comfy/workflows`) an E for that scenario and nothing more. Do
 not read it as "the area was driven end to end".
+
+The data-domain rows above replace that prose for four of those areas with a measured interaction
+(`tests/browser/data-domain-drive.mjs`, compared by `tests/browser/compare-data-domain-legs.mjs`).
+Each row's E is a WRITE followed by a RE-READ performed on both legs from the same action sequence,
+and it moves only when the comparison would fail if the Go leg differed. The comparison refuses to
+promote an interaction that was not driven on both legs, that issued no write request, or whose
+observed values were not stable across two runs of each leg — so a cell cannot move on a rerun of
+boot, on a read-only drive, or on a value that changes between two identical drives.
 
 ## What promotion actually requires
 
@@ -89,6 +102,17 @@ Ordered by missing work, not by route count:
    argued from source in one paragraph. Cheapest to close.
 2. **Chat-completions E/C for the other sources** — the harness now does this for one source; the
    cost is a per-source Connect/settings drive, not new infrastructure.
-3. **E for every data domain** — the existing browser startup-call capture already records the
-   requests these routes make at boot; turning that into a committed comparison is mostly
-   bookkeeping, and it would move several rows at once.
+3. ~~**E for every data domain**~~ — done for characters, chats and settings by
+   `tests/browser/data-domain-comparison.json` (see the rows above). What is left of it:
+   backgrounds needs the upload to actually land (the drive's `writeDemonstrated` is false on both
+   legs today), and quick replies needs a drive that can initialise the extension in a
+   fresh-install page.
+
+**The data-domain comparison is not yet covered by the gate.** `tools/verify-browser-comparisons.mjs`
+checks each artifact with a hand-written block per file, and it has none for
+`data-domain-comparison.json`, so nothing in CI would notice if that artifact were hand-edited or
+refreshed without re-driving. The artifact carries the same `guards` shape the other comparisons use
+(`faithful`, `gotavernReachedUserState`, `pinnedReachedUserState`, plus
+`bothLegsCompletedDrive` and `observedStableAcrossTwoRunsPerLeg`) so a block can be added; the
+tool is outside this task's write scope. Its per-run legs stay gitignored like the others, per the
+reason in `tests/browser/.gitignore`.

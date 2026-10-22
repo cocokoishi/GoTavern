@@ -1,0 +1,697 @@
+{
+  "schemaVersion": 1,
+  "question": "after a write-then-read interaction in each data domain, does the browser observe the same requests, responses and final values on both legs?",
+  "inputs": {
+    "gotavernFirst": "data-domain-gotavern-1.json",
+    "gotavernSecond": "data-domain-gotavern-2.json",
+    "pinnedFirst": "data-domain-pinned-1.json",
+    "pinnedSecond": "data-domain-pinned-2.json"
+  },
+  "provenance": {
+    "gotavern": {
+      "subject": "gotavern",
+      "external": false,
+      "baseURL": "http://127.0.0.1:55746",
+      "tokenizerAssetsStaged": true,
+      "frontendVersion": {
+        "pkgVersion": "1.19.0",
+        "gitRevision": "06bde939f"
+      }
+    },
+    "pinned": {
+      "subject": "pinned",
+      "external": true,
+      "baseURL": "http://127.0.0.1:53062",
+      "tokenizerAssetsStaged": false,
+      "frontendVersion": {
+        "pkgVersion": "1.19.0",
+        "gitRevision": "06bde939f"
+      }
+    }
+  },
+  "guards": {
+    "faithful": true,
+    "gotavernReachedUserState": true,
+    "pinnedReachedUserState": true,
+    "bothLegsCompletedDrive": true,
+    "observedStableAcrossTwoRunsPerLeg": true
+  },
+  "drivenOnBothLegs": [
+    "settings",
+    "characters",
+    "chats",
+    "backgrounds"
+  ],
+  "notDriven": [
+    {
+      "id": "quickReplies",
+      "reason": "the quick-reply extension is not initialised in this page (no settings instance)",
+      "gotavernStatus": "not-driven",
+      "pinnedStatus": "not-driven"
+    }
+  ],
+  "promotable": [
+    "settings",
+    "characters",
+    "chats"
+  ],
+  "notPromotable": [
+    "backgrounds",
+    "quickReplies"
+  ],
+  "unexpectedCount": 0,
+  "unexpected": [],
+  "comparisonNote": "Requests are compared within each interaction's own domain path; ambient requests the frontend issues while a drive runs (rendering, background loading, polling) are counted separately because slice attribution depends on timing. Response bodies and write payloads are compared only where TWO RUNS OF EACH LEG agree on the digest. Differences on a documented boundary (the thumbnail codec) are cited, not counted as unexpected.",
+  "rows": [
+    {
+      "id": "settings",
+      "gotavernStatus": "driven",
+      "pinnedStatus": "driven",
+      "drivenOnBothLegs": true,
+      "notDrivenReason": null,
+      "requestCount": 4,
+      "ambientRequestCount": 3,
+      "differences": [],
+      "citedDifferences": [
+        {
+          "key": "GET /thumbnail?type=avatar&file=default_Seraphina.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=persona&file=user-default.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        }
+      ],
+      "observedClassification": "equal",
+      "observed": {
+        "gotavern": {
+          "key": "enable_extensions_auto_update",
+          "beforeValue": true,
+          "flippedValue": false,
+          "rereadStatus": 200,
+          "rereadValue": true,
+          "writeReflected": false,
+          "rereadSettingKeys": 21
+        },
+        "pinned": {
+          "key": "enable_extensions_auto_update",
+          "beforeValue": true,
+          "flippedValue": false,
+          "rereadStatus": 200,
+          "rereadValue": true,
+          "writeReflected": false,
+          "rereadSettingKeys": 21
+        }
+      },
+      "observedStablePerLeg": {
+        "gotavern": true,
+        "pinned": true
+      },
+      "writeDemonstrated": true,
+      "writeRequests": {
+        "gotavern": [
+          "POST /api/settings/save"
+        ],
+        "pinned": [
+          "POST /api/settings/save"
+        ]
+      },
+      "requests": [
+        {
+          "key": "GET /thumbnail?type=avatar&file=default_Seraphina.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": null,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 0
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=persona&file=user-default.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": null,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/settings/get",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 2
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 2
+          }
+        },
+        {
+          "key": "POST /api/settings/save",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "1aad36b0fb02621b951649811957ba7ad67d4838c2932d02088f7d6e8db74313",
+            "bodyNondeterministic": false,
+            "postDataSha256": "d24ab32e443897bef3ab31969b5fa1bb74f39e1cae1b8909e51787977eb967cb",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "1aad36b0fb02621b951649811957ba7ad67d4838c2932d02088f7d6e8db74313",
+            "bodyNondeterministic": false,
+            "postDataSha256": "d24ab32e443897bef3ab31969b5fa1bb74f39e1cae1b8909e51787977eb967cb",
+            "postDataNondeterministic": false,
+            "occurrences": 2
+          }
+        }
+      ],
+      "promotable": true
+    },
+    {
+      "id": "characters",
+      "gotavernStatus": "driven",
+      "pinnedStatus": "driven",
+      "drivenOnBothLegs": true,
+      "notDrivenReason": null,
+      "requestCount": 7,
+      "ambientRequestCount": 4,
+      "differences": [],
+      "citedDifferences": [
+        {
+          "key": "GET /thumbnail?type=avatar&file=Probe%20Character.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        }
+      ],
+      "observedClassification": "equal",
+      "observed": {
+        "gotavern": {
+          "createdName": "Probe Character",
+          "createdAvatarExtension": "png",
+          "cardName": "Probe Character",
+          "cardDescription": "probe description",
+          "cardAvatar": "Probe Character.png",
+          "deleteReturned": "true",
+          "stillListedAfterDelete": false,
+          "listCountAfterDelete": 1
+        },
+        "pinned": {
+          "createdName": "Probe Character",
+          "createdAvatarExtension": "png",
+          "cardName": "Probe Character",
+          "cardDescription": "probe description",
+          "cardAvatar": "Probe Character.png",
+          "deleteReturned": "true",
+          "stillListedAfterDelete": false,
+          "listCountAfterDelete": 1
+        }
+      },
+      "observedStablePerLeg": {
+        "gotavern": true,
+        "pinned": true
+      },
+      "writeDemonstrated": true,
+      "writeRequests": {
+        "gotavern": [
+          "POST /api/characters/create",
+          "POST /api/characters/delete"
+        ],
+        "pinned": [
+          "POST /api/characters/create",
+          "POST /api/characters/delete"
+        ]
+      },
+      "requests": [
+        {
+          "key": "GET /thumbnail?type=avatar&file=Probe%20Character.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 3
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=avatar&file=default_Seraphina.png",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": null,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 5
+          },
+          "pinned": {
+            "status": null,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/characters/all",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "postDataNondeterministic": false,
+            "occurrences": 5
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "be319e1347fcc5ef9aa552c9c601971e23710ee7ca7e2172ce93dcdef4d2a443",
+            "bodyNondeterministic": false,
+            "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "postDataNondeterministic": false,
+            "occurrences": 5
+          }
+        },
+        {
+          "key": "POST /api/characters/chats",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "bodyNondeterministic": false,
+            "postDataSha256": "4ee65ac76cb8429ecd03d409f849d680f5bd796dcfc54786ccce31592deb3a39",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "bodyNondeterministic": false,
+            "postDataSha256": "4ee65ac76cb8429ecd03d409f849d680f5bd796dcfc54786ccce31592deb3a39",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/characters/create",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "f6057491d59a7b5f8f112ed931fa36b20d5934e9dd39b1e7dbc2e4809a3c516a",
+            "bodyNondeterministic": false,
+            "postDataSha256": "f1388f5cb631a3fe4a4636b73adecf992c79cbb73f4d4549e51773fd0428ae76",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "f6057491d59a7b5f8f112ed931fa36b20d5934e9dd39b1e7dbc2e4809a3c516a",
+            "bodyNondeterministic": false,
+            "postDataSha256": "f1388f5cb631a3fe4a4636b73adecf992c79cbb73f4d4549e51773fd0428ae76",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/characters/delete",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+            "bodyNondeterministic": false,
+            "postDataSha256": "50973441d0a7f07a71a2375cd47ebf036580132a8dd124f1a9a2e1b718b2dae5",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+            "bodyNondeterministic": false,
+            "postDataSha256": "50973441d0a7f07a71a2375cd47ebf036580132a8dd124f1a9a2e1b718b2dae5",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/characters/get",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": "4ee65ac76cb8429ecd03d409f849d680f5bd796dcfc54786ccce31592deb3a39",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": "4ee65ac76cb8429ecd03d409f849d680f5bd796dcfc54786ccce31592deb3a39",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        }
+      ],
+      "promotable": true
+    },
+    {
+      "id": "chats",
+      "gotavernStatus": "driven",
+      "pinnedStatus": "driven",
+      "drivenOnBothLegs": true,
+      "notDrivenReason": null,
+      "requestCount": 3,
+      "ambientRequestCount": 0,
+      "differences": [],
+      "citedDifferences": [],
+      "observedClassification": "equal",
+      "observed": {
+        "gotavern": {
+          "saveStatus": 200,
+          "getStatus": 200,
+          "messageCount": 3,
+          "messages": [
+            {
+              "name": null,
+              "is_user": null,
+              "mes": null,
+              "send_date": null
+            },
+            {
+              "name": "Probe User",
+              "is_user": true,
+              "mes": "probe message one",
+              "send_date": "2024-08-01T00:00:00.000Z"
+            },
+            {
+              "name": "Probe Character",
+              "is_user": false,
+              "mes": "probe message two",
+              "send_date": "2024-08-01T00:00:01.000Z"
+            }
+          ],
+          "exportStatus": 200,
+          "exportLineCount": 1,
+          "exportEndsWithNewline": false,
+          "exportMatchesSentFraming": false,
+          "sentBodyLineCount": 3,
+          "sentBodyEndsWithNewline": false
+        },
+        "pinned": {
+          "saveStatus": 200,
+          "getStatus": 200,
+          "messageCount": 3,
+          "messages": [
+            {
+              "name": null,
+              "is_user": null,
+              "mes": null,
+              "send_date": null
+            },
+            {
+              "name": "Probe User",
+              "is_user": true,
+              "mes": "probe message one",
+              "send_date": "2024-08-01T00:00:00.000Z"
+            },
+            {
+              "name": "Probe Character",
+              "is_user": false,
+              "mes": "probe message two",
+              "send_date": "2024-08-01T00:00:01.000Z"
+            }
+          ],
+          "exportStatus": 200,
+          "exportLineCount": 1,
+          "exportEndsWithNewline": false,
+          "exportMatchesSentFraming": false,
+          "sentBodyLineCount": 3,
+          "sentBodyEndsWithNewline": false
+        }
+      },
+      "observedStablePerLeg": {
+        "gotavern": true,
+        "pinned": true
+      },
+      "writeDemonstrated": true,
+      "writeRequests": {
+        "gotavern": [
+          "POST /api/chats/save"
+        ],
+        "pinned": [
+          "POST /api/chats/save"
+        ]
+      },
+      "requests": [
+        {
+          "key": "POST /api/chats/export",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "9eb592a51437b26f6a80e7160fc94647653d453a22523d1f7bedb4b0f3b099ca",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "9eb592a51437b26f6a80e7160fc94647653d453a22523d1f7bedb4b0f3b099ca",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/chats/get",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "f09c08d979ba993adddcaba4b3d07035172a4626f576e4f4f89ef0b9876ed703",
+            "bodyNondeterministic": false,
+            "postDataSha256": "a3422c4a06644cad07a965cb645689499ef44966f6bd95f2ff5c3fbeba52ca85",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "f09c08d979ba993adddcaba4b3d07035172a4626f576e4f4f89ef0b9876ed703",
+            "bodyNondeterministic": false,
+            "postDataSha256": "a3422c4a06644cad07a965cb645689499ef44966f6bd95f2ff5c3fbeba52ca85",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "POST /api/chats/save",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "8d59748e2c6eaf9411e28f2affe1e3ddfbd391eab210af33ccbf48ce6006900f",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "8d59748e2c6eaf9411e28f2affe1e3ddfbd391eab210af33ccbf48ce6006900f",
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        }
+      ],
+      "promotable": true
+    },
+    {
+      "id": "backgrounds",
+      "gotavernStatus": "driven",
+      "pinnedStatus": "driven",
+      "drivenOnBothLegs": true,
+      "notDrivenReason": null,
+      "requestCount": 2,
+      "ambientRequestCount": 3,
+      "differences": [],
+      "citedDifferences": [],
+      "observedClassification": "equal",
+      "observed": {
+        "gotavern": {
+          "listedContainsUpload": false,
+          "listCount": 0,
+          "serverListStatus": 200,
+          "serverListContainsUpload": false,
+          "serverListCount": null,
+          "folders": []
+        },
+        "pinned": {
+          "listedContainsUpload": false,
+          "listCount": 0,
+          "serverListStatus": 200,
+          "serverListContainsUpload": false,
+          "serverListCount": null,
+          "folders": []
+        }
+      },
+      "observedStablePerLeg": {
+        "gotavern": true,
+        "pinned": true
+      },
+      "writeDemonstrated": false,
+      "writeRequests": {
+        "gotavern": [],
+        "pinned": []
+      },
+      "requests": [
+        {
+          "key": "POST /api/backgrounds/all",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 48
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 21
+          }
+        },
+        {
+          "key": "POST /api/backgrounds/folders",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "6eb2a61d95c5807075ca77f5b705bbd5732eea5805790152d696622cb573e95e",
+            "bodyNondeterministic": false,
+            "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "postDataNondeterministic": false,
+            "occurrences": 48
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "6eb2a61d95c5807075ca77f5b705bbd5732eea5805790152d696622cb573e95e",
+            "bodyNondeterministic": false,
+            "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "postDataNondeterministic": false,
+            "occurrences": 21
+          }
+        }
+      ],
+      "promotable": false
+    },
+    {
+      "id": "quickReplies",
+      "gotavernStatus": "not-driven",
+      "pinnedStatus": "not-driven",
+      "drivenOnBothLegs": false,
+      "notDrivenReason": "the quick-reply extension is not initialised in this page (no settings instance)",
+      "requestCount": 0,
+      "ambientRequestCount": 0,
+      "differences": [],
+      "citedDifferences": [],
+      "observedClassification": "not-driven",
+      "observed": {
+        "gotavern": null,
+        "pinned": null
+      },
+      "observedStablePerLeg": {
+        "gotavern": true,
+        "pinned": true
+      },
+      "writeDemonstrated": false,
+      "writeRequests": {
+        "gotavern": [],
+        "pinned": []
+      },
+      "requests": [],
+      "promotable": false
+    }
+  ]
+}

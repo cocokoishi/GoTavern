@@ -29,3 +29,8 @@ extension-tavern-helper-gotavern.json
 extension-tavern-helper-pinned.json
 extension-littlewhitebox-gotavern.json
 extension-littlewhitebox-pinned.json
+# Per-run legs of the data-domain drive (characters, chats, settings, backgrounds, quick replies).
+# Same reasoning: the committed artifact is data-domain-comparison.json, which records the interactions,
+# the write evidence and the guards. A committed leg is one run's evidence, not an expectation.
+data-domain-gotavern-*.json
+data-domain-pinned-*.json

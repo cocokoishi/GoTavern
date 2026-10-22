@@ -124,6 +124,46 @@ if (streaming) {
     }
 }
 
+// ---- data-domain-comparison.json -------------------------------------------------------------
+// Carries the same guard shape as the others, so it gets the same treatment. The extra rule here is
+// the one that makes an E promotion honest: a promoted cell must have demonstrated a WRITE in its own
+// domain on both legs, because a drive that only reads cannot fail on a difference and would move a
+// cell on the strength of "nothing went wrong".
+const dataDomain = read('data-domain-comparison.json');
+if (dataDomain) {
+    if (dataDomain.unexpectedCount !== 0) {
+        fail('data-domain-comparison.json', `unexpectedCount is ${dataDomain.unexpectedCount}, must be 0`);
+    }
+    if (Array.isArray(dataDomain.unexpected) && dataDomain.unexpected.length !== 0) {
+        fail('data-domain-comparison.json', `unexpected[] holds ${dataDomain.unexpected.length} entr(ies)`);
+    }
+    for (const guard of ['faithful', 'gotavernReachedUserState', 'pinnedReachedUserState', 'bothLegsCompletedDrive', 'observedStableAcrossTwoRunsPerLeg']) {
+        if (dataDomain.guards?.[guard] !== true) {
+            fail('data-domain-comparison.json', `guards.${guard} is ${JSON.stringify(dataDomain.guards?.[guard])}, must be true`);
+        }
+    }
+    const rows = Array.isArray(dataDomain.rows) ? dataDomain.rows : [];
+    if (rows.length === 0) {
+        fail('data-domain-comparison.json', 'rows[] is empty, so no domain was compared');
+    }
+    let promoted = 0;
+    for (const row of rows) {
+        if (row.promotable !== true) {
+            continue;
+        }
+        promoted += 1;
+        if (row.writeDemonstrated !== true) {
+            fail('data-domain-comparison.json', `${row.domain}: promotable without writeDemonstrated -- a read-only drive cannot fail on a difference`);
+        }
+    }
+    // A promotion count of zero is legitimate (nothing measured yet) but a claim of promotions with no
+    // promotable row is not, so the two numbers are cross-checked instead of trusted separately.
+    const claimed = Array.isArray(dataDomain.promotable) ? dataDomain.promotable.length : 0;
+    if (claimed !== promoted) {
+        fail('data-domain-comparison.json', `promotable[] lists ${claimed} domains but ${promoted} row(s) are promotable`);
+    }
+}
+
 if (findings.length > 0) {
     console.error('browser comparison artifacts do not support their claims:');
     for (const finding of findings) {
