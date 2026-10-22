@@ -198,6 +198,41 @@ func TestPinnedNodeAssetsDownload(t *testing.T) {
 	}
 }
 
+// TestAssetsDownloadTreatsANullBodyStatusAsAFailure is a LABELLED DERIVATION (AGENTS.md rule 4), not
+// an oracle. node-fetch gives `res.body === null` for 101/204/205/304, and the pinned route turns
+// that into a thrown error (assets.js:229), so a 204 from the asset host answers 500 rather than
+// writing an empty asset. The shared peer stub always attaches a readable body to its response
+// object, so it cannot express a null body and NO fixture can record this branch; the decision is
+// asserted here instead, and the fixture's knownDifferences records that limitation.
+func TestAssetsDownloadTreatsANullBodyStatusAsAFailure(t *testing.T) {
+	dataRoot := t.TempDir()
+	account := sdFixtureAccount{Handle: "default-user", Name: "Assets Download Probe", Admin: true}
+	handler, sessionCookie, token := contentRouteHandler(t, dataRoot, "gotavern-assets-download-nullbody-secret", account, []string{"127.0.0.1"})
+	peer := newAssetsDownloadPeer(t)
+	t.Cleanup(peer.close)
+
+	for _, status := range []int{http.StatusNoContent, http.StatusResetContent} {
+		peer.setRule([]assetsDownloadUpstream{{Match: "/nobody.mp3", Status: status}})
+		body := `{"url":"http://` + peer.authority() + `/nobody.mp3","category":"bgm","filename":"nobody.mp3"}`
+		request := httptest.NewRequest(http.MethodPost, "/api/assets/download", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Cookie", sessionCookie)
+		request.Header.Set("X-CSRF-Token", token)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+
+		if recorder.Code != http.StatusInternalServerError {
+			t.Fatalf("upstream %d: status = %d, want 500 (body %q)", status, recorder.Code, recorder.Body.String())
+		}
+		if calls := peer.takeCalls(); len(calls) != 1 {
+			t.Fatalf("upstream %d: %d outbound request(s), want 1", status, len(calls))
+		}
+		if _, err := os.Stat(filepath.Join(userRootPath(dataRoot), "assets", "bgm", "nobody.mp3")); err == nil {
+			t.Fatalf("upstream %d: the route wrote an asset file for a null-body response", status)
+		}
+	}
+}
+
 // verifyAssetsDownloadFixture fails closed when the fixture stops covering what it claims: the four
 // guards, the forwarding steps, and a status that is actually compared for every step.
 func verifyAssetsDownloadFixture(t *testing.T, fixture assetsDownloadFixture) {
@@ -322,11 +357,10 @@ func (peer *assetsDownloadPeer) setRule(upstream []assetsDownloadUpstream) {
 func (peer *assetsDownloadPeer) takeCalls() []assetsDownloadCall {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-	authority := peer.authority()
 	calls := make([]assetsDownloadCall, 0, len(peer.requests))
 	for _, request := range peer.requests {
 		calls = append(calls, assetsDownloadCall{
-			URL:    "http://" + authority + request.URL,
+			URL:    "http://<mock>" + request.URL,
 			Method: request.Method,
 		})
 	}

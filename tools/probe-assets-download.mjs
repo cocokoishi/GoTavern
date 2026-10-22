@@ -267,6 +267,11 @@ async function main() {
                 branches: ['a download that fails MID-STREAM'],
                 status: 'partial',
                 reason: 'pinned streams the response body into assets/temp/<name> with the exclusive flag and only then copies it into the category; a failure after the headers leaves the partial temp file behind. GoTavern reads the body and writes the destination atomically under the user content lock, so a mid-stream failure leaves no partial file. The observable end state for every branch the fixture records is identical; the partial-temp artifact is not reproduced.',
+            }, {
+                routes: ['/api/assets/download'],
+                branches: ['a 2xx response with no body object (101/204/205/304)'],
+                status: 'derivation',
+                reason: 'node-fetch gives res.body === null for these statuses and the pinned route throws (assets.js:229), so a 204 from the asset host answers 500 rather than writing an empty asset. The shared peer stub always attaches a readable body to its response object, so it cannot express a null body and NO fixture can record the branch. The Go decision is asserted by the labelled derivation test TestAssetsDownloadTreatsANullBodyStatusAsAFailure, not by a recorded response.',
             }],
         });
         console.log('Wrote tests/oracle/sillytavern-1.19.0-assets-download.json from pinned download behaviour');

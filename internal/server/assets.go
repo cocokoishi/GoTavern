@@ -215,20 +215,27 @@ func (runtime *accountRuntime) serveAssetsGet(w http.ResponseWriter, request *ht
 }
 
 // assetsValidateFileName is validateAssetFileName (assets.js:21).
+//
+// The pinned order matters and each branch has its own message: the regex FIRST (which allows a
+// leading dot), then the unsafe-extension check, then the leading-dot check, then sanitize. An
+// earlier version of this port folded the leading-dot case into the illegal-character branch, so
+// `.hidden.mp3` answered the wrong message; the assets-download fixture's `download.leadingDot` step
+// is what exposed it.
 func assetsValidateFileName(filename string) (string, bool) {
-	valid := filename != "" && !strings.HasPrefix(filename, ".")
+	const illegalCharacter = "Illegal character in filename; only alphanumeric, '_', '-' are accepted."
+	if filename == "" {
+		return illegalCharacter, false
+	}
 	for _, character := range filename {
-		if character == '/' || character == '\\' || character == '?' || character == '<' ||
-			character == '>' || character == ':' || character == '*' || character == '|' ||
-			character == '"' || character <= 0x1f || (character >= 0x80 && character <= 0x9f) {
-			valid = false
-			break
+		allowed := character == '_' || character == '-' || character == '.' ||
+			(character >= 'a' && character <= 'z') ||
+			(character >= 'A' && character <= 'Z') ||
+			(character >= '0' && character <= '9')
+		if !allowed {
+			return illegalCharacter, false
 		}
 	}
-	if !valid {
-		return "Illegal character in filename; only alphanumeric, '_', '-' are accepted.", false
-	}
-	extension := strings.ToLower(filepath.Ext(filename))
+	extension := strings.ToLower(assetsJSExtname(filename))
 	for _, unsafe := range assetsUnsafeExtensions {
 		if unsafe == extension {
 			return "Forbidden file extension.", false
@@ -241,6 +248,20 @@ func assetsValidateFileName(filename string) (string, bool) {
 		return "Reserved or long filename.", false
 	}
 	return "", true
+}
+
+// assetsJSExtname is node's path.extname for a name the filename guard has already accepted: the
+// suffix from the last '.', and ” when the only '.' is the leading one ('.bashrc' has no extension
+// in JavaScript, while Go's filepath.Ext reports the whole name).
+func assetsJSExtname(name string) string {
+	if base := name; strings.ContainsRune(base, '/') {
+		base = base[strings.LastIndexByte(base, '/')+1:]
+	}
+	dot := strings.LastIndexByte(name, '.')
+	if dot <= 0 {
+		return ""
+	}
+	return name[dot:]
 }
 
 // serveAssetsDelete is assets.js:269.

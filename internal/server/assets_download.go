@@ -20,7 +20,6 @@ package server
 // the fixture records is identical; the transient temp artifact is not reproduced.
 
 import (
-	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -66,6 +65,29 @@ var assetsDownloadMimeTypes = map[string]string{
 	".gltf": "model/gltf+json",
 	".vrm":  "model/gltf-binary",
 	".bin":  "application/octet-stream",
+}
+
+// assetsDownloadRemoveTemp reproduces the temp-file lifecycle of assets.js:232-253 without writing
+// the transient file: a stale assets/temp/<name> is removed, so the end state matches pinned (the
+// temp path is gone) while no partial download can ever be left behind. The removal is under the
+// shared user content lock.
+func (runtime *accountRuntime) assetsDownloadRemoveTemp(account *storedAccount, directories startup.UserDirectories, filename string) error {
+	relative, ok := sdUserRelativePath(directories, filepath.Join(directories["assets"], "temp", filename))
+	if !ok {
+		return errAssetsLockEscapes
+	}
+	_, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), relative)
+	return err
+}
+
+// assetsNullBodyStatus is node-fetch's nullBodyStatus: the statuses whose response carries no body
+// object at all, which the pinned route turns into a thrown error.
+func assetsNullBodyStatus(status int) bool {
+	switch status {
+	case http.StatusSwitchingProtocols, http.StatusNoContent, http.StatusResetContent, http.StatusNotModified:
+		return true
+	}
+	return false
 }
 
 // assetsDownloadMimeType is `mime.lookup(path) || 'application/octet-stream'`.
@@ -187,13 +209,20 @@ func (runtime *accountRuntime) serveAssetsDownload(w http.ResponseWriter, reques
 		backendsStatus(w, http.StatusInternalServerError)
 		return
 	}
-	defer response.Stream.Close()
-	if response.Status < 200 || response.Status > 299 {
+	// `!res.ok || res.body === null`: node-fetch gives a NULL body for 101/204/205/304, so a 204 from
+	// the asset host throws into the catch and answers 500 rather than writing an empty file.
+	if !sdResponseOK(response) || assetsNullBodyStatus(response.Status) {
 		backendsStatus(w, http.StatusInternalServerError)
 		return
 	}
-	downloaded, readErr := io.ReadAll(response.Stream)
-	if readErr != nil {
+	downloaded := response.Body
+
+	// 232-239: pinned writes the bytes to assets/temp/<name> with the exclusive flag — unlinking a
+	// stale file of that name first — and removes the temp file once the download is in place. The
+	// observable end state is that the temp path does not exist, whether or not it existed before.
+	// This runs only AFTER the ok check, so a failed fetch leaves a stale temp file untouched exactly
+	// as pinned leaves it.
+	if err := runtime.assetsDownloadRemoveTemp(account, directories, filename); err != nil {
 		backendsStatus(w, http.StatusInternalServerError)
 		return
 	}
