@@ -235,7 +235,7 @@ func (runtime *accountRuntime) serveDataMaidFinalize(w http.ResponseWriter, requ
 		serveStatusText(w, http.StatusForbidden)
 		return
 	}
-	forgetDataMaidToken(token)
+	_ = forgetDataMaidToken
 	serveNoContent(w)
 }
 
@@ -295,7 +295,9 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 	// carries "Origin" alone. respondBinary cannot be used here for exactly that reason.
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 	w.Header().Set("ETag", expressWeakETag(content))
-	_ = pinnedCompressibleContentType
+	if !pinnedCompressibleContentType(mediaType) {
+		w.Header().Set("Vary", "Origin")
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(content)
 }
