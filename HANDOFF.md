@@ -28,16 +28,22 @@ paragraph is silently overwritten and fails the zero-diff gate.
 
 ## 2. What the observer surfaces actually have
 
-- **`compatible`**: still exactly one area -- chat-completions generation, custom/OpenAI-compatible
-  source, with all five surfaces. Its artifact was re-recorded after the `dryAfterData` red was traced
-  to a RECORDING WINDOW rather than to the product (see §5).
-- **E, newly measured**: `tests/browser/extension-tavern-helper-comparison.json` is committed and GATED.
-  21 rows all equal on a RELEASE-FAITHFUL install (no `public/` on disk, binary from the lane's own CI
-  run, same explicit config on both legs), discovery identical (14 system names, same order, from the
+- **`compatible`**: THREE areas now -- chat-completions generation for the custom/OpenAI-compatible
+  source (all five surfaces; its artifact was re-recorded after the `dryAfterData` red was traced to a
+  RECORDING WINDOW rather than to the product -- see section 5), **Backgrounds** and **Quick replies**,
+  both promoted once each browser drive ASSERTED its own gate (the Backgrounds panel that binds the
+  upload handler, and `globalThis.quickReplyApi`). A drive that cannot reach its gate reports which
+  precondition is missing instead of looking like a product gap.
   EMBEDDED tree), `/lib.js` byte-identical, one non-row path difference with a reason (`/thumbnail`).
-- **E, withheld on purpose**: LittleWhiteBox @9e71caef recorded 451 rows all equal, but its one real
-  difference is `/user/files/LittleWhiteBox_User.json` answering 404 because `/user/files/*` and
-  `/user/images/*` ARE NOT IMPLEMENTED. Per the rule below, a defect gets a fix, not a `knownReason`.
+- **E, both canaries**: `tests/browser/extension-littlewhitebox-comparison.json` is committed and gated
+  too -- 452 rows all equal, same single non-row difference (`/thumbnail`). It was WITHHELD for one
+  round on purpose: its one real difference was `/user/files/LittleWhiteBox_User.json` answering 404
+  because `/user/files/*` and `/user/images/*` DID NOT EXIST. Those routes were implemented (pinned
+  `users.js:1217-1218`) and the pair re-recorded, which is the rule in action: a defect gets a fix, not a
+  `knownReason`. `writtenUserFiles` records what each extension WROTE; LittleWhiteBox's 626-byte JSON is
+  compared by size and JSON skeleton and its digest is classified `shape` with the measured reason (a
+  per-run `tx-<uuid>`), and Tavern Helper writes none -- stated, rather than passing vacuously over an
+  empty list.
 - **The rollback direction, newly measured**: `tests/oracle/sillytavern-1.19.0-runtime-roundtrip.json`.
   Pinned boots over a GoTavern-written tree and changes NOTHING (0 added / 0 changed / 0 removed) and
   READS it back (characters, both chat messages, the world entry verbatim). A second boot of either
@@ -125,12 +131,16 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 
 ## 6. Next actions, in the order the evidence supports
 
-1. **`/user/files/*` and `/user/images/*`** (pinned `users.js:1217-1218`, the same
-   `createRouteHandler(req => req.user.directories.…)` shape as `/backgrounds/*`). Owning lane:
-   `datamaid`, branch `lane/e2e-defects` successor. After it lands, re-record LittleWhiteBox and commit
-   its artifact with `/thumbnail` as the ONLY knownReason.
-2. **The first execution of `scripts/qualify-install.sh`** (release-qualification, dispatch). It has never
-   been run by a shell; a `FAIL:` line names the assertion.
+1. **OPENROUTER E/C**, then **CLAUDE provider-wire**: the third and fourth chat-completion sources.
+   OpenRouter has B/P/F and a committed provider-wire differential; E and C are what the browser drive
+   adds, and it needs the generation probe to select a non-custom source (real work, not a config flip).
+   CLAUDE is the largest remaining source: `sendClaudeRequest` is NOT on the generic plan path, and its
+   spec is line-cited in the session record (beta headers non-empty by default, `stop_sequences` always
+   present, Anthropic `message_stop` framing, caching off on the default path).
+2. **`install.ps1` is executed by nothing.** `scripts/qualify-install.sh` DOES run in
+   release-qualification (first execution run 39731988707, green after it found two real installer
+   defects and one harness defect), but the PowerShell installer has no execution anywhere and the
+   ubuntu runners ship `pwsh`, so most of it can be covered.
 3. **Docs/INSTALLATION.md section 11**: the release acceptance checklist maps to two bullets with real
    evidence; the rest are DOC-CLAIM-only (1,2,3,4,6,7,13 and 10/11). Mark them or make them gates.
 4. **E/C for the other chat-completion sources** and the remaining `partial` rows, in whatever order the

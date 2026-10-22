@@ -114,11 +114,16 @@ requests on GoTavern against 6,791 ms / 359 on pinned), discovery identical (14 
 order, from the embedded tree), `/lib.js` byte-identical, and exactly one non-row path difference with
 a recorded reason (`/thumbnail`, the Jimp codec boundary).
 
-LittleWhiteBox @9e71caef recorded 451 rows ALL equal, and its artifact is WITHHELD on purpose: the one
-real difference is `/user/files/LittleWhiteBox_User.json` answering 404 on GoTavern against 200 on
-pinned, because `/user/files/*` and `/user/images/*` were not implemented at all. That is a product
-defect, so it gets a fix rather than a `knownReason`. Its legs are on disk as evidence only.
-
+LittleWhiteBox @9e71caef is COMMITTED AND GATED too: `tests/browser/extension-littlewhitebox-comparison.json`,
+452 rows ALL equal, same single non-row difference (`/thumbnail`, the Jimp boundary). It was withheld for
+one round ON PURPOSE, and the reason is the rule: its one real difference was
+`/user/files/LittleWhiteBox_User.json` answering 404 on GoTavern against 200 on pinned, because
+`/user/files/*` and `/user/images/*` DID NOT EXIST (pinned `users.js:1217-1218`). Writing that as a
+`knownReason` would have recorded a product defect as the expected value; instead the routes were
+implemented, the pair re-recorded, and the artifact committed. What the extension WROTE is compared too:
+`writtenUserFiles` records size and JSON skeleton and classifies the digest `shape` with the measured
+reason (the file carries a per-run `tx-<uuid>`, so two runs of the SAME server differ at the same 626
+bytes), while Tavern Helper writes nothing and its artifact says so rather than passing vacuously.
 Two harness hazards were found by recording rather than by review, and both would have invalidated the
 artifact silently: `/api/extensions/update` really runs `git fetch` and once MOVED the checkout off the
 pinned revision (seeded installs now point `origin` at the local seed and the revision is asserted

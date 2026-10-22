@@ -10,7 +10,7 @@ Stable releases provide three first-class paths:
 
 1. **One-line installer** (`install.sh` / `install.ps1`): downloads a prebuilt GitHub Release asset and verifies its checksum.
 2. **Manual GitHub Release download**: download the archive for the operating system/architecture, extract it, run `start.sh` / `Start.cmd` or the binary directly.
-3. **Container image**: pull a published multi-architecture GHCR image and mount persistent runtime data.
+3. **Container image**: NOT PUBLISHED YET. `docker.yml` builds and smoke-tests a local single-platform image; nothing pushes to a registry, so today the container path means building it yourself from the `Dockerfile` and mounting persistent runtime data.
 
 Building from source is a developer workflow and must never be required as an implicit fallback when a release asset is missing.
 
@@ -390,7 +390,7 @@ Do not promise safe arbitrary downgrade across upstream migrations that SillyTav
 
 ## 10. Docker
 
-Stable release CI publishes a multi-arch image. Runtime requirements are intentionally small:
+Stable release CI does NOT yet publish a multi-arch image (see section 1, path 3); the `Dockerfile` builds locally and `docker.yml` smoke-tests it. Runtime requirements are intentionally small:
 
 - GoTavern binary;
 - CA certificates/timezone data where needed;

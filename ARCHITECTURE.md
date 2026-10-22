@@ -308,7 +308,7 @@ They resolve their own directory and execute the adjacent `gotavern` binary with
 
 ### 5.4 Docker
 
-Stable releases also publish a multi-architecture image, e.g. `ghcr.io/cocokoishi/gotavern:<version>` and a stable/latest channel according to release policy.
+Stable releases are PLANNED to publish a multi-architecture image, e.g. `ghcr.io/cocokoishi/gotavern:<version>`, and a stable/latest channel according to release policy. **STATUS: nothing publishes one.** No workflow contains `ghcr`, `buildx`, `docker login` or `platforms`; `docker.yml` builds a local single-platform `gotavern:ci` tag for a smoke test and pushes nothing. A user following the container path therefore has to build the image themselves today, and this sentence is the tracked gap rather than a description.
 
 The runtime image must not contain Node.js. Prefer a pure-Go built-in Git implementation so it does not require system `git` either. CA certificates and timezone data may be included as needed.
 
@@ -1053,7 +1053,7 @@ A release workflow must:
 7. run pinned Tavern Helper and standard-API LittleWhiteBox probes;
 8. build all native release archives;
 9. smoke-run each native binary where CI runners permit;
-10. build multi-arch Docker image;
+10. build multi-arch Docker image (NOT IMPLEMENTED -- see 5.4: no workflow pushes an image);
 11. generate `checksums.txt` from the final bytes;
 12. attach archives/checksums/reports to one GitHub Release.
 
