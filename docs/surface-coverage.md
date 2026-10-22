@@ -105,6 +105,24 @@ now EXITS 1 on a false window guard, and this gate checks those guards in the CO
 without that second half a false guard could be committed and CI would stay green, which is the same
 "an artifact that cannot fail" shape as the finding itself.
 
+## Extension E2E (both pinned canaries)
+
+`tests/browser/extension-tavern-helper-comparison.json` is committed and gated. On a RELEASE-FAITHFUL
+install (no `public/` on disk, binary from the lane's own CI run, both legs given the same explicit
+config): 21 rows ALL equal, both drives ended on the page's own network-quiet signal (5,886 ms / 359
+requests on GoTavern against 6,791 ms / 359 on pinned), discovery identical (14 system names, same
+order, from the embedded tree), `/lib.js` byte-identical, and exactly one non-row path difference with
+a recorded reason (`/thumbnail`, the Jimp codec boundary).
+
+LittleWhiteBox @9e71caef recorded 451 rows ALL equal, and its artifact is WITHHELD on purpose: the one
+real difference is `/user/files/LittleWhiteBox_User.json` answering 404 on GoTavern against 200 on
+pinned, because `/user/files/*` and `/user/images/*` were not implemented at all. That is a product
+defect, so it gets a fix rather than a `knownReason`. Its legs are on disk as evidence only.
+
+Two harness hazards were found by recording rather than by review, and both would have invalidated the
+artifact silently: `/api/extensions/update` really runs `git fetch` and once MOVED the checkout off the
+pinned revision (seeded installs now point `origin` at the local seed and the revision is asserted
+afterwards), and the comparison was writing absolute leg paths into a committed file.
 ## The cheapest next promotions
 
 Ordered by missing work, not by route count:

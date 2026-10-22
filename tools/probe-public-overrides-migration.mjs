@@ -106,10 +106,33 @@ if (!process.argv[2] || !process.argv[3]) {
 
 assertTemporarySourceRoot(sourceRoot);
 
-for (const relative of SOURCE_PATHS) {
-    assert.equal(existsSync(path.join(sourceRoot, relative)), false, `pinned source unexpectedly contains ${relative}`);
+// THE SOURCE OVERRIDES ARE RESET, NOT ASSUMED.
+//
+// This probe writes public/error/* and public/css/user.css into the SHARED build root and the pinned
+// migration MOVES them away, so its starting state is part of its own input. It used to ASSERT that
+// state ("pinned source unexpectedly contains ...") and leave the cleanup to whichever probe ran
+// earlier, which made the recording depend on the probe pool rather than on the pinned code: on
+// 2026-10-22 the oracle job failed with "oracle changed across identical pinned Node runs at
+// $.scenarios.mixed.tree.length" after new probes changed the pool, and the diff was the source
+// overrides surviving from a previous invocation.
+//
+// A probe that consumes state another probe produced is not an oracle for this code; it is an oracle
+// for the schedule. So the state is now ESTABLISHED here -- deterministically, before any scenario runs
+// and between the two runs the harness compares -- and the same reset runs in the finally blocks.
+function resetSourceOverrides() {
+    for (const relative of SOURCE_PATHS) {
+        const target = path.join(sourceRoot, relative);
+        if (existsSync(target)) chmodSync(target, 0o600);
+        rmSync(target, { force: true });
+    }
+    rmSync(path.join(sourceRoot, 'public', 'error'), { recursive: true, force: true });
 }
-assert.equal(existsSync(path.join(sourceRoot, 'public', 'error')), false, 'pinned source unexpectedly contains public/error');
+
+resetSourceOverrides();
+for (const relative of SOURCE_PATHS) {
+    assert.equal(existsSync(path.join(sourceRoot, relative)), false, `source reset did not remove ${relative}`);
+}
+assert.equal(existsSync(path.join(sourceRoot, 'public', 'error')), false, 'source reset did not remove public/error');
 
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-public-overrides-oracle-'));
 
@@ -162,6 +185,9 @@ function runScenario(name, sources, destinations, readOnlySources = [], readOnly
     for (const relative of readOnlyDestinations) chmodSync(path.join(runtimeRoot, relative), 0o444);
 
     try {
+        // Same reset before the scenario's own sources: the previous scenario's leftovers must not be
+        // part of this one's input (see the comment at the top-level reset).
+        resetSourceOverrides();
         for (const [relative, body] of Object.entries(sources)) {
             const target = path.join(sourceRoot, relative);
             mkdirSync(path.dirname(target), { recursive: true });

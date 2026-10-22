@@ -32,6 +32,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { seedLegConfig } from './seed-leg-config.mjs';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 
@@ -106,7 +108,12 @@ console.log(`[pinned] checkout   ${reference}`);
 console.log(`[pinned] dataRoot   ${dataRoot}`);
 console.log(`[pinned] baseURL    ${baseURL}`);
 
-const server = spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], {
+// The SAME pinned default config the GoTavern leg is given, as its own copy: the pinned server
+// rewrites config.yaml at startup (it adds missing keys), so one shared file would make the second
+// leg read state the first leg wrote.
+const legConfig = await seedLegConfig(dataRoot);
+console.log('[pinned] config     ' + legConfig.path + ' sha256=' + legConfig.sha256);
+const server = spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], {
     cwd: reference,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -157,7 +164,7 @@ try {
     const child = spawn(process.execPath, [scriptPath, '--base-url', baseURL, ...forwarded], {
         cwd: here,
         stdio: 'inherit',
-        env: { ...process.env, PROBE_BASE_URL: baseURL, CAPTURE_BASE_URL: baseURL },
+        env: { ...process.env, PROBE_BASE_URL: baseURL, CAPTURE_BASE_URL: baseURL, PROBE_LEG_CONFIG_JSON: JSON.stringify(legConfig) },
     });
     exitCode = (await new Promise(resolve => child.on('exit', resolve))) ?? 1;
     console.log(`[pinned] child exited ${exitCode}`);

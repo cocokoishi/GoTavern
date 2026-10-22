@@ -199,8 +199,77 @@ if (dataDomain) {
     }
 }
 
-if (findings.length > 0) {
-    console.error('browser comparison artifacts do not support their claims:');
+// ---- extension-tavern-helper-comparison.json -------------------------------------------------
+// The extension pair is the only artifact whose CLAIM is about a frontend extension loading on a
+// release-shaped install: the pinned Tavern Helper revision loads, discovers the same built-ins in
+// the same order, and makes the same backend calls. What makes that checkable rather than asserted
+// is the row set, the guards, and the two reasons a reader needs: one per divergent row, and one per
+// DIVERGENT PATH THAT IS NOT A ROW (those are otherwise invisible to the row comparison).
+for (const extensionArtifact of ['extension-tavern-helper-comparison.json', 'extension-littlewhitebox-comparison.json']) {
+const extensionComparison = read(extensionArtifact);
+if (extensionComparison) {
+    const label = extensionArtifact;
+    for (const guard of ['faithful', 'gotavernReachedUserState', 'pinnedReachedUserState', 'gotavernExtensionLoaded', 'pinnedExtensionLoaded', 'extensionRevisionMatches', 'startingStateMatches', 'configMatches']) {
+        if (extensionComparison.guards?.[guard] !== true) {
+            fail(label, `guards.${guard} is ${JSON.stringify(extensionComparison.guards?.[guard])}, so the pair does not support a claim`);
+        }
+    }
+    if (!Array.isArray(extensionComparison.rows) || extensionComparison.rows.length === 0) {
+        fail(label, 'has no rows');
+    }
+    for (const row of extensionComparison.rows ?? []) {
+        if (row.classification !== 'equal') requireReason(`${label} ${row.method} ${row.path}`, row);
+    }
+    // A path difference without a reason is the reason-less divergence this gate exists to reject,
+    // and a reason that does not name a mechanism is the same shape. The mechanism here is one of two
+    // decided things: the Jimp codec boundary, or a page-load difference where the reason states which
+    // leg issued the request and how both drives ended.
+    for (const difference of extensionComparison.pathDifferences ?? []) {
+        requireReason(`${label} pathDifferences ${difference.path}`, difference);
+        const reason = difference.knownReason ?? '';
+        const namesMechanism = reason.includes('Jimp') || (reason.includes('drive') && reason.includes('network-quiet'));
+        if (!namesMechanism) {
+            fail(label, `pathDifferences ${difference.path} has a reason that names no mechanism: ${JSON.stringify(reason)}`);
+        }
+    }
+    // Both drives must have ended on the page's own quiet signal: a difference between two page loads
+    // is only interpretable if neither leg was cut off mid-request.
+    for (const leg of ['gotavern', 'pinned']) {
+        if (extensionComparison.captureQuiet?.[leg]?.quiet !== true) {
+            fail(label, `captureQuiet.${leg} is ${JSON.stringify(extensionComparison.captureQuiet?.[leg])}; a drive that ended without network quiet cannot be compared`);
+        }
+        if (Array.isArray(extensionComparison.captureQuiet?.[leg]?.unresolved) && extensionComparison.captureQuiet[leg].unresolved.length > 0) {
+            fail(label, `captureQuiet.${leg} ended with unresolved requests: ${JSON.stringify(extensionComparison.captureQuiet[leg].unresolved)}`);
+        }
+    }
+    // The extension's written user data: a `shape` field must not be recorded without a reason, and a
+    // size or skeleton that does not match the other leg is a product difference, not a note.
+    if (extensionComparison.userFiles?.shape?.length) {
+        for (const key of extensionComparison.userFiles.shape) {
+            const reason = extensionComparison.userFiles.shapeReason?.[key];
+            if (typeof reason !== 'string' || reason.trim() === '') {
+                fail(label, `userFiles.shape.${key} is classified shape with no reason`);
+            }
+        }
+        if (extensionComparison.userFiles.matches !== true) {
+            fail(label, 'userFiles entries differ in presence, size or JSON skeleton between the legs');
+        }
+    } else if (!Array.isArray(extensionComparison.userFiles?.entries) || extensionComparison.userFiles.entries.length === 0) {
+        if (typeof extensionComparison.userFiles?.note !== 'string' || extensionComparison.userFiles.note.trim() === '') {
+            fail(label, 'userFiles records no entries and no note saying so');
+        }
+    }
+
+    // A committed artifact carries no host paths.
+    const serialized = JSON.stringify(extensionComparison);
+    for (const needle of ['C:\\', 'AppData', '/home/', '/Users/', '127.0.0.1', '/tmp/']) {
+        if (serialized.includes(needle)) fail(label, `records host-derived value ${JSON.stringify(needle)}`);
+    }
+}
+
+    console.log('  ' + extensionArtifact + ' ' + extensionComparison.rows.length + ' rows, ' + (extensionComparison.pathDifferences ?? []).length + ' non-row path difference(s), guards faithful');
+}
+if (findings.length > 0) {    console.error('browser comparison artifacts do not support their claims:');
     for (const finding of findings) {
         console.error('  - ' + finding);
     }

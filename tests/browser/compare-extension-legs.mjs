@@ -24,6 +24,7 @@
 //   would turn render state into a compatibility finding.
 
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 
 const [gotavernPath, pinnedPath] = process.argv.slice(2);
@@ -69,6 +70,39 @@ const summarize = report => {
     }
     return groups;
 };
+
+// A reason per non-row path difference, naming what actually differs. `/thumbnail` is the one
+// EXPECTED divergence and the only one this project has decided: GoTavern does not re-encode images
+// with a Jimp-compatible codec (AGENTS.md, architecture boundary 3), so it answers 404 where pinned
+// builds a thumbnail. Everything else is a page-load difference between two separate loads of the
+// same document; the reason names which leg issued the request and how each drive ended.
+const NON_ROW_PATH_REASONS = {
+    '/thumbnail': 'the documented Jimp codec boundary (AGENTS.md architecture boundary 3): GoTavern answers 404 where pinned re-encodes the image with Jimp; recorded, not asserted',
+};
+
+function nonRowPathReason(path, gotavernStatuses, pinnedStatuses) {
+    if (NON_ROW_PATH_REASONS[path]) return NON_ROW_PATH_REASONS[path];
+    // A status set that differs on BOTH legs is a SERVER RESPONSE difference, not a page-load one:
+    // the same request was issued by both drives and answered differently. Writing that as "timing"
+    // is how a defect becomes a baseline, so it gets a reason the gate refuses (verify-browser-
+    // comparisons.mjs requires a reason naming a decided mechanism) and the artifact cannot be
+    // committed until the difference is fixed or explicitly decided.
+    if (gotavernStatuses.length > 0 && pinnedStatuses.length > 0) {
+        return 'SERVER RESPONSE DIFFERENCE, not decided: both drives issued this request (GoTavern answered '
+            + JSON.stringify(gotavernStatuses) + ', pinned answered ' + JSON.stringify(pinnedStatuses)
+            + '); this is a product difference to be fixed, and an artifact recording it cannot pass the gate';
+    }
+    const parts = [];
+    if (gotavernStatuses.length === 0) parts.push('the GoTavern drive never issued this request');
+    else if (gotavernStatuses.includes(null)) parts.push('the GoTavern drive left it unresolved');
+    else parts.push('GoTavern answered ' + JSON.stringify(gotavernStatuses));
+    if (pinnedStatuses.length === 0) parts.push('the pinned drive never issued it');
+    else if (pinnedStatuses.includes(null)) parts.push('the pinned drive left it unresolved');
+    else parts.push('pinned answered ' + JSON.stringify(pinnedStatuses));
+    return 'frontend asset fetched by only one of the two page loads (' + parts.join('; ') + '); '
+        + 'both drives ended on the page\'s own network-quiet signal, recorded in captureQuiet, so this is a '
+        + 'difference between two independent loads of the same document rather than a server response difference';
+}
 
 const rowsFor = (gotavernReport, pinnedReport, name) => {
     const gotavern = summarize(gotavernReport);
@@ -162,6 +196,11 @@ const main = async () => {
     // second leg's server then served it. Reporting that as a product finding is
     // the shared-state hazard, so it is a guard rather than a row.
     const startingStateMatches = JSON.stringify(gotavern.provenance?.startingState ?? null) === JSON.stringify(pinned.provenance?.startingState ?? null);
+    // Both legs must also have been given the SAME config file. Until this was recorded, each server
+    // resolved config.yaml against its own checkout, so accounts on/off — and therefore the anonymity
+    // of every request the pair measures — was a property of two different files.
+    const configSha256 = { gotavern: gotavern.provenance?.configFile?.sha256 ?? null, pinned: pinned.provenance?.configFile?.sha256 ?? null };
+    const configMatches = configSha256.gotavern !== null && configSha256.gotavern === configSha256.pinned;
     const guards = {
         // A leg that never reached a state a user can act from, or never loaded the
         // extension, measured nothing: saying so is the difference between a
@@ -174,17 +213,102 @@ const main = async () => {
         pinnedExtensionLoaded: Boolean(pinned.extensionLoaded),
         extensionRevisionMatches,
         startingStateMatches,
+        configMatches,
+        configFile: configSha256,
         startingState: { gotavern: gotavern.provenance?.startingState ?? null, pinned: pinned.provenance?.startingState ?? null },
     };
     guards.faithful = !guards.gotavernFailure && !guards.pinnedFailure
         && guards.gotavernReachedUserState && guards.pinnedReachedUserState
         && guards.gotavernExtensionLoaded && guards.pinnedExtensionLoaded
-        && guards.extensionRevisionMatches && guards.startingStateMatches;
+        && guards.extensionRevisionMatches && guards.startingStateMatches && guards.configMatches;
+
+    // WHAT THE EXTENSION WROTE, and how it is compared. Presence and size are asserted; the JSON
+    // SKELETON is asserted for a JSON file; the SHA-256 is classified, because the content carries a
+    // per-run random transaction id (measured on LittleWhiteBox: two runs of the same server produced
+    // different digests at the same size). Stating this in the artifact is the point: "the extension
+    // wrote a file" is only evidence if the artifact says what about it was compared.
+    const userFiles = (leg, other) => {
+        const mine = leg.writtenUserFiles ?? [];
+        const theirs = other.writtenUserFiles ?? [];
+        const entries = [];
+        const byPath = new Map(theirs.map(entry => [entry.path, entry]));
+        for (const entry of mine) {
+            const matched = byPath.get(entry.path) ?? null;
+            entries.push({
+                path: entry.path,
+                gotavern: { size: entry.size, sha256: entry.sha256, bodyShape: entry.bodyShape },
+                pinned: matched ? { size: matched.size, sha256: matched.sha256, bodyShape: matched.bodyShape } : null,
+                presenceMatches: matched !== null,
+                sizeMatches: matched !== null && matched.size === entry.size,
+                bodyShapeMatches: matched !== null && JSON.stringify(matched.bodyShape) === JSON.stringify(entry.bodyShape),
+            });
+            byPath.delete(entry.path);
+        }
+        for (const extra of byPath.values()) {
+            entries.push({ path: extra.path, gotavern: null, pinned: { size: extra.size, sha256: extra.sha256, bodyShape: extra.bodyShape }, presenceMatches: false, sizeMatches: false, bodyShapeMatches: false });
+        }
+        return entries;
+    };
+    const userFileEntries = userFiles(gotavern, pinned);
+    const userFilesBlock = {
+        compared: ['path', 'size', 'bodyShape'],
+        shape: ['sha256'],
+        shapeReason: {
+            sha256: 'the file the extension writes carries a per-run random transaction id (LittleWhiteBox writes one into every recorded transaction), so two runs of the SAME server differ; size, presence and the JSON skeleton are what this pair asserts',
+        },
+        matches: userFileEntries.every(entry => entry.presenceMatches && entry.sizeMatches && entry.bodyShapeMatches),
+        // An empty list must SAY it is empty: "matches: true" over nothing is the vacuous pass this
+        // project keeps finding, and a reader must not conclude that bytes were compared.
+        note: userFileEntries.length === 0
+            ? 'the extension wrote no files under <dataRoot>/<handle>/user/files during this drive, so nothing about them is asserted'
+            : null,
+        entries: userFileEntries,
+    };
+
+    // NON-ROW PATH DIFFERENCES. The row set is /api/* plus the installed extension's prefix, which is
+    // where a server difference would show. Every other path the page fetched is compared here instead
+    // of being dropped, because "not a row" is not the same as "we did not look": two frontend assets
+    // that only one leg fetched are a fact about this pair, and an artifact that stayed silent about
+    // them would be the reason-less divergence this project's gate exists to reject.
+    //
+    // Every entry carries a reason that names the MECHANISM, and the mechanism available to the harness
+    // is stated exactly: which leg issued the request, which leg left it unresolved, and how each
+    // drive ended (captureQuiet: the page's own network-quiet signal with its wait time).
+    const pathStatusSets = report => {
+        const map = new Map();
+        for (const entry of report.requests ?? []) {
+            const path = entry.path.split('?')[0];
+            if (!map.has(path)) map.set(path, new Set());
+            map.get(path).add(entry.status);
+        }
+        return map;
+    };
+    const isRowPath = path => path.startsWith('/api/') || (extensionPrefix !== null && path.startsWith(extensionPrefix));
+    const extensionPrefix = extensionName !== null ? '/scripts/extensions/third-party/' + extensionName + '/' : null;
+    const gotavernPaths = pathStatusSets(gotavern);
+    const pinnedPaths = pathStatusSets(pinned);
+    const allPaths = new Set([...gotavernPaths.keys(), ...pinnedPaths.keys()]);
+    const sortStatuses = statuses => [...(statuses ?? [])].sort((left, right) => (left ?? -1) - (right ?? -1));
+    const pathDifferences = [];
+    for (const path of [...allPaths].sort()) {
+        if (isRowPath(path)) continue;
+        const gotavernStatuses = sortStatuses(gotavernPaths.get(path));
+        const pinnedStatuses = sortStatuses(pinnedPaths.get(path));
+        if (JSON.stringify(gotavernStatuses) === JSON.stringify(pinnedStatuses)) continue;
+        pathDifferences.push({
+            path,
+            gotavern: gotavernStatuses,
+            pinned: pinnedStatuses,
+            knownReason: nonRowPathReason(path, gotavernStatuses, pinnedStatuses),
+        });
+    }
 
     const comparison = {
         schemaVersion: 1,
         question: gotavern.question ?? pinned.question,
-        captures: { gotavern: gotavernPath, pinned: pinnedPath },
+        // The leg FILE NAMES, not their paths: this artifact is committed, and an absolute path
+        // carries the developer's home directory into the repository.
+        captures: { gotavern: path.basename(gotavernPath), pinned: path.basename(pinnedPath) },
         provenance: {
             extension: {
                 name: extensionName,
@@ -193,10 +317,20 @@ const main = async () => {
                 pinnedInstalledRevision: pinned.provenance?.extension?.installedRevision ?? null,
                 gotavernManifestVersion: gotavern.provenance?.extension?.manifestVersion ?? null,
                 pinnedManifestVersion: pinned.provenance?.extension?.manifestVersion ?? null,
+                // How the extension tree got there, and whether its remote is the local seed: a
+                // github origin would make /api/extensions/update depend on the network (and one run
+                // PULLED the checkout off its pinned revision), so the artifact states it.
+                gotavernInstallSource: gotavern.provenance?.extension?.installSource ?? null,
+                pinnedInstallSource: pinned.provenance?.extension?.installSource ?? null,
+                gotavernRemoteKind: gotavern.provenance?.extension?.remoteKind ?? null,
+                pinnedRemoteKind: pinned.provenance?.extension?.remoteKind ?? null,
             },
         },
         guards,
         summary,
+        pathDifferences,
+        userFiles: userFilesBlock,
+        captureQuiet: { gotavern: gotavern.settle ?? null, pinned: pinned.settle ?? null },
         differenceCount: differences.length,
         // The leg that differs is named per row, so a failure says which side moved
         // rather than only that the two disagree.

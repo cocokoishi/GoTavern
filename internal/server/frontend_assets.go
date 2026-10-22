@@ -1,6 +1,6 @@
 package server
 
-// Two pinned frontend-asset routes that GoTavern did not serve at all. The extension E2E pair found
+// Three pinned user-data asset routes (and one data-root override) that GoTavern did not serve at all. The extension E2E pair found
 // both as 404s where pinned answered 200, and neither is an extension problem: they are the pinned
 // frontend's own asset contract.
 //
@@ -55,18 +55,37 @@ func registerFrontendAssetRoutes(mux *http.ServeMux, accounts *accountRuntime, n
 	// router.use matches every method, so neither pattern names one. The patterns need the trailing
 	// slash for the same reason the pinned mount does: `/backgrounds` alone is not this route.
 
-	mux.HandleFunc("/backgrounds/{rest...}", func(w http.ResponseWriter, r *http.Request) {
-		accounts.serveBackgroundsStatic(w, r, notFoundPage)
-	})
+	// The same createRouteHandler shape serves the three user-data asset trees; the two below are
+	// src/users.js:1217-1218, and /backgrounds/* is :1213:
+	//
+	//	router.use('/user/images/*', createRouteHandler(req => req.user.directories.userImages));
+	//	router.use('/user/files/*',  createRouteHandler(req => req.user.directories.files));
+	//
+	// They are the URLs the frontend fetches chat images and uploaded files from, with a `?v=`
+	// cache-buster the route ignores (it decodes only the wildcard capture). The extension E2E found
+	// them missing: LittleWhiteBox uploads its user data through /api/files/upload and then reads it
+	// back through /user/files/<name>?v=..., which answered 404 on GoTavern on every attempt while
+	// pinned answered 200 -- the extension could store state it could never load.
+	for _, userDataRoute := range []struct{ pattern, directoryKey string }{
+		{"/user/images/{rest...}", "userImages"},
+		{"/user/files/{rest...}", "files"},
+		{"/backgrounds/{rest...}", "backgrounds"},
+	} {
+		directoryKey := userDataRoute.directoryKey
+		mux.HandleFunc(userDataRoute.pattern, func(w http.ResponseWriter, r *http.Request) {
+			accounts.serveUserDataStatic(w, r, directoryKey, notFoundPage)
+		})
+	}
 	mux.HandleFunc("/css/user.css", func(w http.ResponseWriter, r *http.Request) {
 		accounts.serveUserCSS(w, r, notFoundPage)
 	})
 }
 
-// serveBackgroundsStatic is createRouteHandler over the requesting user's backgrounds directory.
-func (runtime *accountRuntime) serveBackgroundsStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte) {
-	// The pinned static middleware is mounted before the private routers, so an embedded file wins.
-	// There is no embedded public/backgrounds today, but the ordering is part of the contract.
+// serveUserDataStatic is createRouteHandler over one of the user's data directories. It is
+// /backgrounds/*, /user/images/* and /user/files/*, kept as ONE implementation so there is one copy of the semantics: static wins when the embedded
+// tree has the path, a capture that escapes the directory is 403, a missing file is res.sendStatus's
+// 404 (text/plain, not the application page), and the transfer is send()'s.
+func (runtime *accountRuntime) serveUserDataStatic(w http.ResponseWriter, r *http.Request, directoryKey string, notFoundPage []byte) {
 	if pinnedFrontendStaticServes(runtime.options, r) {
 		servePinnedFrontendStatic(w, r, notFoundPage, runtime.options)
 		return
@@ -81,9 +100,7 @@ func (runtime *accountRuntime) serveBackgroundsStatic(w http.ResponseWriter, r *
 		return
 	}
 	filePath := r.PathValue("rest")
-	// createRouteHandler has no second root to fall back to: a miss is its own 404 (res.sendStatus,
-	// which is text/plain), not the application's 404 page.
-	if servePinnedExtensionRoot(w, r, directories["backgrounds"], filePath, notFoundPage) {
+	if servePinnedExtensionRoot(w, r, directories[directoryKey], filePath, notFoundPage) {
 		return
 	}
 	serveStatusText(w, http.StatusNotFound)
