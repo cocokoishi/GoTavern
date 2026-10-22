@@ -410,7 +410,91 @@ if (extensionComparison) {
 
     console.log('  ' + extensionArtifact + ' ' + extensionComparison.rows.length + ' rows, ' + (extensionComparison.pathDifferences ?? []).length + ' non-row path difference(s), guards faithful');
 }
-if (findings.length > 0) {    console.error('browser comparison artifacts do not support their claims:');
+// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
+//
+// The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
+// own: a missing surface, a surface that is not proven, a leg that never reached the provider, or a
+// cancellation that did not reach the provider is a FAILURE, never a vacuous pass. Beyond that, each
+// artifact's own recorded provider paths are ASSERTED against the protocol its source uses, so the
+// prose printed below is a statement about measured data rather than a caption:
+//   - mistralai is OpenAI-shaped: a status call (GET /models) then POST /chat/completions, `data:`
+//     chunks and a `[DONE]` sentinel. It needed NO new machinery -- the same peer that drove the
+//     custom and openrouter sources drove it, and every leg wrote the same 15 paced frames.
+//   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
+//     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
+//     call at all (it is a no-validate source: openai.js never asks for /models).
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json']) {
+    const streamingArtifact = read(artifactName);
+    if (!streamingArtifact) continue;
+    const isMistral = artifactName.includes('mistral');
+    const completionSuffix = isMistral ? '/chat/completions' : '/messages';
+    for (const surface of ['streaming', 'cancellation', 'nonstream']) {
+        const block = streamingArtifact[surface];
+        if (!block || typeof block !== 'object') {
+            fail(artifactName, `the ${surface} block is missing, so that surface was never compared`);
+            continue;
+        }
+        if (block.proven !== true) {
+            const falseChecks = Object.entries(block.checks ?? {}).filter(([, value]) => value !== true).map(([name]) => name);
+            fail(artifactName, `${surface}.proven is not true; failing checks: ${falseChecks.join(', ') || '(none isolated)'}`);
+        }
+        for (const leg of ['gotavern', 'pinned']) {
+            const requests = block[leg]?.providerRequests;
+            if (!Array.isArray(requests) || requests.length === 0) {
+                fail(artifactName, `${surface}.${leg} records no provider request, so that leg was never driven`);
+                continue;
+            }
+            // THE SOURCE'S OWN WIRE SHAPE, read back from the recording.
+            for (const request of requests) {
+                const requestPath = String(request.path ?? '');
+                // mistralai is OpenAI-shaped, so its NON-STREAM control legitimately asks for the model
+                // list first (GET /models) and then posts the completion; claude never asks at all.
+                const isStatusCall = isMistral && request.method === 'GET' && requestPath.endsWith('/models');
+                if (!isStatusCall && !requestPath.endsWith(completionSuffix)) {
+                    fail(artifactName, `${surface}.${leg} records ${request.method} ${request.path}, which is neither this source's completion route (${completionSuffix}) nor, for mistralai, its model-list call`);
+                }
+            }
+            const statusCalls = requests.filter(request => String(request.path ?? '').includes('/models'));
+            if (isMistral) {
+                // OpenAI-shaped: the non-stream control asks for the model list first; the streamed and
+                // cancelled drives go straight to the completion route after the frontend's own status
+                // call. Either way the completion route is reached.
+                if (!requests.some(request => request.method === 'POST')) {
+                    fail(artifactName, `${surface}.${leg} never issued the completion POST`);
+                }
+            } else if (statusCalls.length !== 0) {
+                fail(artifactName, `${surface}.${leg} issued ${statusCalls.length} /models request(s); claude is a no-validate source and must reach the provider with POST /messages only`);
+            }
+        }
+    }
+    if (streamingArtifact.compatibleReady !== true) {
+        fail(artifactName, 'compatibleReady is not true, so no `compatible` claim may rest on it');
+    }
+    // CANCELLATION MUST HAVE REACHED THE PROVIDER ON BOTH LEGS: that is the surface's whole point.
+    for (const leg of ['gotavern', 'pinned']) {
+        const requests = streamingArtifact.cancellation?.[leg]?.providerRequests ?? [];
+        if (!requests.length || requests.some(request => request.clientDisconnected !== true)) {
+            fail(artifactName, `cancellation.${leg} does not record clientDisconnected true, so the teardown never reached the provider on that leg`);
+        }
+    }
+    // THE PACED FRAME COUNT IS DETERMINISTIC FOR A COMPLETED STREAM (the peer writes every frame and
+    // then closes), so it is asserted; the CANCELLED count is timing and stays recorded only.
+    for (const leg of ['gotavern', 'pinned']) {
+        const frames = (streamingArtifact.streaming?.[leg]?.providerRequests ?? []).map(request => request.framesWritten);
+        if (JSON.stringify(frames) !== '[15]') {
+            fail(artifactName, `streaming.${leg} wrote ${JSON.stringify(frames)} frames, not the 15 the peer paced`);
+        }
+    }
+    const abortState = streamingArtifact.cancellation?.abortRenderState;
+    if (!abortState || abortState.gotavern?.framesWritten === undefined || abortState.pinned?.framesWritten === undefined || typeof abortState.note !== 'string') {
+        fail(artifactName, 'cancellation.abortRenderState does not record both legs and its reason');
+    }
+    console.log('  ' + artifactName + ' ' + (isMistral
+        ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
+        : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
+}
+if (findings.length > 0) {
+    console.error('browser comparison artifacts do not support their claims:');
     for (const finding of findings) {
         console.error('  - ' + finding);
     }

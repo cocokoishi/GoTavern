@@ -235,6 +235,11 @@ function startStreamingPeer(mode, protocol) {
         // already documented for the openai reverse proxy -- and a startsWith check answers 404 to a request
         // that is exactly right. Measured: `GET /models -> 200` then `POST //chat/completions -> 404`.
         const completionPath = protocol === 'anthropic' ? '/messages' : '/chat/completions';
+
+        // `includes`, NOT `startsWith`: a reverse_proxy caller (how claude and mistralai reach the peer)
+        // builds its target from a scheme-less base, so the request line arrives as `//chat/completions`
+        // and a prefix test 404s a completely correct request -- which then looks like a product defect
+        // on both legs and a missing surface in the artifact.
         if (request.method !== 'POST' || !request.url.includes(completionPath)) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });

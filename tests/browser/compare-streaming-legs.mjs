@@ -59,6 +59,11 @@ const compareMode = (gotavern, pinned, { expectClientDisconnected, expectStreamF
         providerRequestMethodsAndPathsEqual: JSON.stringify(gotavernRequests.map(request => `${request.method} ${request.path}`)) === JSON.stringify(pinnedRequests.map(request => `${request.method} ${request.path}`)),
         providerBodyEqual: JSON.stringify(gotavernRequests.map(request => [request.bodyLength, request.bodySha256])) === JSON.stringify(pinnedRequests.map(request => [request.bodyLength, request.bodySha256])),
         finalTextEqual: (gotavern.postSend?.finalAssistantText ?? null) === (pinned.postSend?.finalAssistantText ?? null),
+        // EQUAL IS NOT ENOUGH WHEN BOTH ARE EMPTY. A stream neither leg can parse renders nothing, and
+        // `finalTextEqual` alone calls that agreement: two servers that BOTH fail to decode the framing
+        // would compare EQUAL and the drive would look proven while the surface rendered nothing. This
+        // check is what makes "the leg streamed" mean text, not merely parity.
+        finalTextNonEmpty: String(gotavern.postSend?.finalAssistantText ?? '').trim().length > 0 && String(pinned.postSend?.finalAssistantText ?? '').trim().length > 0,
         // TICK ALIGNMENT IS RECORDED, NOT ASSERTED. Measured twice with the SAME build: GoTavern's third
         // render tick was "Hello from" in one run and "Hello from the" in the next, while pinned produced
         // "Hello from the" both times. A boundary that moves on ONE leg across repeats is a coalescing
@@ -131,7 +136,31 @@ const main = async () => {
         cancelGotavern.streamState?.snapshotsAtStopPlus1200 === cancelGotavern.streamState?.snapshotsLater &&
         cancelPinned.streamState?.snapshotsAtStopPlus1200 === cancelPinned.streamState?.snapshotsLater;
     cancellation.checks.abortControlUsed = cancelGotavern.streamState?.stopPresent === true && cancelPinned.streamState?.stopPresent === true;
-    cancellation.checks.finalTextEqualsAfterAbortState = (cancelGotavern.postSend?.finalAssistantText ?? null) === (cancelPinned.postSend?.finalAssistantText ?? null);
+    // THE ABORT LANDS ON A RENDER TICK, AND THE TICK MOVES ACROSS REPEATS ON THE SAME LEG.
+    //
+    // Measured for mistralai, three runs per leg, every one with framesWritten 14 and
+    // clientDisconnected true: GoTavern rendered "Hello from", "Hello from the stream", "Hello from the
+    // stream?"; pinned rendered "Hello from the", "Hello from", "Hello from". A quantity that moves on ONE
+    // leg across repeats is a coalescing race, not a contract (rule 18) -- the same reasoning this file
+    // already applies to framesWritten ("it is timing, not behaviour") and to renderTickAlignment.
+    // Comparing the post-abort TEXT across legs is that same racing quantity by another name, so it is
+    // RECORDED below and replaced in the proof by two stable contract assertions:
+    //   - the aborted text is a non-empty PREFIX of the reply both legs stream when not aborted (an abort
+    //     mid-stream must leave a prefix of the reply, never garbage and never nothing);
+    //   - each leg's final text equals ITS OWN after-abort state, so nothing is rewritten once stopped.
+    delete cancellation.checks.finalTextEqual;
+    const streamedReply = String(streamGotavern.postSend?.finalAssistantText ?? '');
+    const abortedText = report => String(report.postSend?.finalAssistantText ?? '');
+    const abortedIsPrefix = report => abortedText(report).trim().length > 0 && streamedReply.startsWith(abortedText(report));
+    cancellation.checks.abortTextIsPrefixOfStreamedReply = streamedReply.length > 0 && abortedIsPrefix(cancelGotavern) && abortedIsPrefix(cancelPinned);
+    cancellation.checks.finalTextEqualsAfterAbortState =
+        (cancelGotavern.postSend?.finalAssistantText ?? null) === (cancelGotavern.streamState?.textLater ?? null) &&
+        (cancelPinned.postSend?.finalAssistantText ?? null) === (cancelPinned.streamState?.textLater ?? null);
+    cancellation.abortRenderState = {
+        gotavern: { text: abortedText(cancelGotavern), framesWritten: providerRequests(cancelGotavern).map(request => request.framesWritten) },
+        pinned: { text: abortedText(cancelPinned), framesWritten: providerRequests(cancelPinned).map(request => request.framesWritten) },
+        note: 'recorded, not asserted: the abort lands on a render tick that moves on a single leg across repeats (measured: three runs per leg, 14 frames each, three different prefixes on GoTavern and two on pinned), so cross-leg equality of this text is timing rather than behaviour',
+    };
     cancellation.proven = Object.values(cancellation.checks).every(Boolean);
 
     const nonstream = compareMode(nonstreamGotavern, nonstreamPinned, { expectStreamFlag: false });
