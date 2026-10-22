@@ -57,6 +57,18 @@ measurement overturned three earlier conclusions:
 - a sequential mock script starves the real request once an extra call (Connect's `GET /models`)
   is added to the flow. Script per-endpoint, not per-order.
 
+## What CI now reproduces
+
+The `browser-evidence` job recomputes `startup-comparison.json`, `generation-comparison.json` and
+`streaming-comparison.json` from their committed leg files and requires a zero diff. Before it existed,
+every E and C cell in the table above rested on an artifact CI never touched: a comparison could be
+hand-edited, or a leg refreshed without regenerating the comparison above it, and nothing would notice.
+
+The job is honest about its own limit and the limit is worth stating here too: it proves the committed
+comparison is the one the committed legs produce. It does NOT re-drive a browser, so it cannot detect
+that the legs are stale relative to the product. A stale-leg defect needs a re-capture, and the
+procedure for that is unchanged. Do not read this gate as "E and C are re-measured on every push".
+
 ## The cheapest next promotions
 
 Ordered by missing work, not by route count:
