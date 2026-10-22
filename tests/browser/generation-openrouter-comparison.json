@@ -1,9 +1,17 @@
 {
   "schemaVersion": 1,
+  "normalizations": [
+    {
+      "field": "bases.gotavern and bases.pinned",
+      "replaced": 2,
+      "to": "loopback",
+      "reason": "these were the EPHEMERAL loopback ports of the run that produced this capture (whichever port each leg happened to listen on for that drive); they carry no product meaning, and they are recorded as the literal \"loopback\" from this commit onward because the comparator that produces this artifact now normalises them. The old values are deliberately not repeated here"
+    }
+  ],
   "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
   "bases": {
-    "gotavern": "http://127.0.0.1:53234",
-    "pinned": "http://127.0.0.1:52867"
+    "gotavern": "loopback",
+    "pinned": "loopback"
   },
   "requestArrived": {
     "gotavern": true,

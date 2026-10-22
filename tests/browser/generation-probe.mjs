@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude or mistralai, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai or groq, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -101,11 +101,22 @@ const mockScript = {
         // member, so the claude rewrap yields content[0].text === '' and the page renders an empty message with
         // status 200 and no error. Measured exactly that before this fix. The script is therefore built from the
         // SOURCE'S OWN CALL SEQUENCE rather than assuming two calls.
-        ...(peerProtocol === 'anthropic' ? [] : [{
+        // HOW MANY STATUS CALLS THE DRIVE MAKES IS THE SOURCE'S OWN BUSINESS, and a fresh pinned page
+        // asks for the model list more than once (openai.js:6097 at settings load and :6963 after
+        // connect). The script is SEQUENTIAL, so ONE models entry is consumed by the first call and the
+        // second receives the COMPLETION body, which no model renderer can read: measured on the groq
+        // pinned leg, onlineStatus ended "no_connection", the peer was never asked for a completion, and
+        // the send was silently refused -- while the GoTavern leg, which asks once, sent fine. Three
+        // models entries keep every status call answerable and leave the completion request's body
+        // unchanged.
+        // SCOPE MATTERS: the script is sequential, so an extra entry shifts every LATER response. Only
+        // groq gets the extra model-list answers; every other source keeps exactly the two responses it
+        // has always had, so their completion body cannot move.
+        ...(peerProtocol === 'anthropic' ? [] : [1, ...(probeSource === 'groq' ? [2, 3] : [])].map(() => ({
             status: 200,
             headers: [{ name: 'Content-Type', value: 'application/json' }],
             body: JSON.stringify({ data: [{ id: 'probe-model' }] }),
-        }]),
+        }))),
 
         {
             status: 200,
@@ -379,12 +390,23 @@ if (streamingMode) {
     if (probeSource === 'openrouter' && !external) {
         process.env.GOTAVERN_OPENROUTER_CHAT_URL = `http://${mockAddress}`;
     }
+    // GROQ IS THE SAME SHAPE AND THE STRONGER CASE: apiSourceConfig marks it 'proxy: false'
+    // (openai.js:6050), so the frontend cannot be pointed at a peer through reverse_proxy AT ALL. The
+    // seam below and the pinned transport redirect are the ONLY way both legs reach one peer, which is
+    // also why the submitted settings record proxyPasswordPresent false on both legs here and true for
+    // claude/mistralai, whose drives carry the peer in reverse_proxy.
+    if (probeSource === 'groq' && !external) {
+        process.env.GOTAVERN_GROQ_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
     const redirectFile = process.env.PROBE_PINNED_REDIRECT_FILE;
     if (probeSource === 'openrouter' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://openrouter.ai/api/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'groq' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.groq.com/openai/v1', to: `http://${mockAddress}` }]));
     }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -723,6 +745,7 @@ try {
             openrouter: secretsModule.SECRET_KEYS.OPENROUTER,
             claude: secretsModule.SECRET_KEYS.CLAUDE,
             mistralai: secretsModule.SECRET_KEYS.MISTRALAI,
+            groq: secretsModule.SECRET_KEYS.GROQ,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
         }[probeSource];
         await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
@@ -768,6 +791,10 @@ try {
         } else if (probeSource === 'claude') {
             oai_settings.claude_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;
+        } else if (probeSource === 'groq') {
+            // NO reverse_proxy: groq is proxy:false, so setting one would be driving something a user
+            // cannot, and the leg would reach the peer by a path the product does not offer.
+            oai_settings.groq_model = 'probe-model';
         } else if (probeSource === 'mistralai') {
             oai_settings.mistralai_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;

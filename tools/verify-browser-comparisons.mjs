@@ -21,7 +21,7 @@
 // Exit code 1 with a named finding, never a bare failure: "which claim is unsupported" is the only
 // useful output of a gate like this.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -493,6 +493,21 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
+// EVERY COMMITTED ARTIFACT IS SWEPT FOR HOST-DERIVED VALUES, not only the fields this file knows about.
+// A loopback port was found in five artifacts while only the comparison fields were being checked, and two
+// more carried it INSIDE a recorded popup HTML -- a field nobody compares, which is exactly where a
+// host-derived value survives review. Only `*-comparison.json` is swept: the per-run leg captures beside them
+// are gitignored by design and legitimately carry the ports of their own run.
+const hostDerivedPatterns = [/127\.0\.0\.1/, /localhost:\d+/, /\[::1\]/];
+for (const artifactFile of readdirSync(browserDir).filter((name) => name.endsWith("-comparison.json"))) {
+    const artifactText = readFileSync(path.join(browserDir, artifactFile), "utf8");
+    for (const hostDerivedPattern of hostDerivedPatterns) {
+        if (hostDerivedPattern.test(artifactText)) {
+            fail(artifactFile, `records a host-derived address matching ${hostDerivedPattern}; a committed artifact must normalise it to a marker such as <peer-origin> or loopback, because the port belongs to the run that produced it and not to the product`);
+        }
+    }
+}
+
 if (findings.length > 0) {
     console.error('browser comparison artifacts do not support their claims:');
     for (const finding of findings) {

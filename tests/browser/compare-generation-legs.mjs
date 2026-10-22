@@ -275,7 +275,10 @@ const main = async () => {
     const comparison = {
         schemaVersion: 1,
         question: 'does the same frontend drive produce the same provider request on GoTavern and pinned?',
-        bases: { gotavern: gotavern.gotavern, pinned: pinned.gotavern },
+        // LOOPBACK, NOT THE PORTS. The legs listen on ephemeral ports, and this artifact is COMMITTED: a
+    // port differs on every run and says nothing about compatibility (rule 18). What a reader needs is
+    // that each leg answered on a local server, which is what this records.
+    bases: { gotavern: 'loopback', pinned: 'loopback' },
         requestArrived: { gotavern: gotavern.requestArrived, pinned: pinned.requestArrived },
         providerRequests: { gotavern: providerRequests(gotavern), pinned: providerRequests(pinned) },
         milestones: { gotavern: milestones(gotavern), pinned: milestones(pinned) },

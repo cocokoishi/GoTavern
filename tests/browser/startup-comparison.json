@@ -1,5 +1,13 @@
 {
   "schemaVersion": 1,
+  "normalizations": [
+    {
+      "field": "provenance.gotavern.baseURL and provenance.pinned.baseURL",
+      "replaced": 2,
+      "to": "loopback",
+      "reason": "these were the EPHEMERAL loopback ports of the run that produced this capture (whichever port each leg happened to listen on for that drive); they carry no product meaning, and they are recorded as the literal \"loopback\" from this commit onward because the comparator that produces this artifact now normalises them. The old values are deliberately not repeated here"
+    }
+  ],
   "question": "does the pinned frontend make the same startup requests and reach the same final page state on GoTavern and pinned?",
   "captures": {
     "gotavernFirst": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\startup-gotavern-1.json",
@@ -11,12 +19,12 @@
     "gotavern": {
       "subject": "gotavern",
       "external": false,
-      "baseURL": "http://127.0.0.1:49714"
+      "baseURL": "loopback"
     },
     "pinned": {
       "subject": "pinned",
       "external": true,
-      "baseURL": "http://127.0.0.1:51364"
+      "baseURL": "loopback"
     }
   },
   "guards": {
