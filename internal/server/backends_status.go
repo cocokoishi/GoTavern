@@ -130,6 +130,13 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 // what fires; the recorded pinned capture answered 400 for a request WITH a reverse_proxy as well,
 // which is what located the final else. Both cases are recorded in the backends fixture and the replay
 // asserts the outbound COUNT is zero for each.
+// serveClaudeChatCompletionStatus reproduces the PINNED FALL-THROUGH for this source, and the name says
+// otherwise on purpose: pinned has NO claude arm in the status chain -- CHAT_COMPLETION_SOURCES.CLAUDE
+// appears exactly once in that file, in the GENERATE switch at :2260 -- so a claude status request reaches
+// the chain final else and answers 400 {error:true} with ZERO outbound, even when a reverse_proxy is
+// supplied. Two lanes have now flagged the dispatch as a suspected divergence, so the evidence is recorded
+// here: tests/oracle/sillytavern-1.19.0-provider-wire.json carries status.claude.noBranch and
+// status.claude.reverseProxy, both recorded from the pinned server.
 func (runtime *accountRuntime) serveClaudeChatCompletionStatus(w http.ResponseWriter, body orderedNodeJSON) {
 	errorOnly := nodeObject()
 	errorOnly.setMember("error", nodeBool(true))
