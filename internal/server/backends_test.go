@@ -100,6 +100,8 @@ func TestBackendsSeamDefaults(t *testing.T) {
 		"GOTAVERN_BACKENDS_XAI_URL":          backendsXaiURL,
 		"GOTAVERN_BACKENDS_MOONSHOT_URL":     backendsMoonshotURL,
 		"GOTAVERN_BACKENDS_WORKERSAI_URL":    backendsWorkersAIURL,
+		// The MISTRALAI status route builds its URL from the CHAT literal, not from a backends one.
+		"GOTAVERN_MISTRAL_CHAT_URL": pinnedMistralBaseURL,
 	}
 	if len(fixture.Inputs.SeamDefaults) != len(accessors) {
 		t.Fatalf("fixture records %d seam defaults, implementation has %d", len(fixture.Inputs.SeamDefaults), len(accessors))
@@ -171,7 +173,7 @@ func TestPinnedNodeBackendsRoutes(t *testing.T) {
 			if _, known := fixture.Inputs.SeamDefaults[*scenario.Seam]; !known {
 				t.Fatalf("%s: unknown seam %q", name, *scenario.Seam)
 			}
-			t.Setenv(*scenario.Seam, targetOrigin)
+			t.Setenv(*scenario.Seam, targetOrigin+backendsSeamBasePath(t, fixture.Inputs.SeamDefaults[*scenario.Seam]))
 		}
 		writeSDSecrets(t, dataRoot, fixture.Inputs.Account.Handle, scenario.Secrets)
 		bodyOrigin := mockOrigin
@@ -411,6 +413,18 @@ func compareBackendsOutbound(t *testing.T, name string, fixture backendsFixture,
 	}
 }
 
+// backendsSeamBasePath is a seam default's path component without a trailing slash, so a seam whose
+// literal is ".../v1" keeps its prefix when the replay points it at a local origin. Replacing the
+// whole literal with a bare origin dropped that prefix and made the Go leg request /models where the
+// pinned leg requested /v1/models: a harness defect that reports itself as a route divergence.
+func backendsSeamBasePath(t *testing.T, literal string) string {
+	t.Helper()
+	parsed, err := url.Parse(literal)
+	if err != nil {
+		t.Fatalf("seam literal %q: %v", literal, err)
+	}
+	return strings.TrimSuffix(parsed.Path, "/")
+}
 func backendsHostname(t *testing.T, hostport string) string {
 	t.Helper()
 	if hostport == "" {

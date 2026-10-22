@@ -10,6 +10,9 @@
     "GOTAVERN_CLAUDE_CHAT_URL": {
       "pinnedLiteral": "https://api.anthropic.com/v1"
     },
+    "GOTAVERN_MISTRAL_CHAT_URL": {
+      "pinnedLiteral": "https://api.mistral.ai/v1"
+    },
     "GOTAVERN_OPENROUTER_CHAT_URL": {
       "pinnedLiteral": "https://openrouter.ai/api/v1"
     }
@@ -2791,6 +2794,2323 @@
       },
       "authorizationKeyVerified": true,
       "apiKeyVerified": false
+    },
+    "mistral-error-status-nonjson": {
+      "scenario": "mistral-error-status-nonjson.json",
+      "purpose": "MISTRAL non-2xx with a NON-JSON body: tryParse(errorText) fails, so the answer is 500 {\"error\":true}. The control for mistral-error-status, which must not be satisfied by always answering {error:true}.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false
+            },
+            "bodySha256": "6982ca4d168e40b8bc1444a16de7656c261aabd225efbe55c6eb851cc203715c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "119"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 119,
+            "bodySha256": "08e30cc84d0decfb9e9e0f7b4a8f34476a33a32ac73bb51ca9e3cdffc57b7eee",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "error": true
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-error-status": {
+      "scenario": "mistral-error-status.json",
+      "purpose": "MISTRAL non-2xx with a JSON body: status 500 carrying the provider body verbatim, which is a different observable from both CLAUDE and the generic path.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false
+            },
+            "bodySha256": "6982ca4d168e40b8bc1444a16de7656c261aabd225efbe55c6eb851cc203715c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "119"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 119,
+            "bodySha256": "08e30cc84d0decfb9e9e0f7b4a8f34476a33a32ac73bb51ca9e3cdffc57b7eee",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4b-qZnkrWNYMhE4JSwY81e0zLlb0YU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "object": "error",
+          "message": "probe rate limited",
+          "type": "rate_limit_error"
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-json-schema-nonstrict": {
+      "scenario": "mistral-json-schema-nonstrict.json",
+      "purpose": "MISTRAL json_schema with strict false: the supplied value survives instead of the true default.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe schema user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false,
+              "json_schema": {
+                "name": "probe_schema",
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "probe_field": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "strict": false
+              }
+            },
+            "bodySha256": "afa9d342f80abaae5baa08df4d36a0e6b585714be10886ecaf0a12c296c18728"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "294"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe schema user marker\"}],\"max_tokens\":96,\"stream\":false,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"probe_schema\",\"schema\":{\"type\":\"object\",\"properties\":{\"probe_field\":{\"type\":\"string\"}}},\"strict\":false}}}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHNjaGVtYSB1c2VyIG1hcmtlciJ9XSwibWF4X3Rva2VucyI6OTYsInN0cmVhbSI6ZmFsc2UsInJlc3BvbnNlX2Zvcm1hdCI6eyJ0eXBlIjoianNvbl9zY2hlbWEiLCJqc29uX3NjaGVtYSI6eyJuYW1lIjoicHJvYmVfc2NoZW1hIiwic2NoZW1hIjp7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7InByb2JlX2ZpZWxkIjp7InR5cGUiOiJzdHJpbmcifX19LCJzdHJpY3QiOmZhbHNlfX19",
+            "bodyLength": 294,
+            "bodySha256": "e5a18a7816301e6b31f2a3b3e751c265f81e84a951ac52e160dc16e891ca459d",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"107-wrdPLaie1e8/fMf5xBbPEOxLkuA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"probe_field\":\"value\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-json-schema": {
+      "scenario": "mistral-json-schema.json",
+      "purpose": "MISTRAL json_schema with strict absent: response_format carries strict true, name/description/schema copied, and the schema is NOT flattened (it is passed through).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe schema user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false,
+              "json_schema": {
+                "name": "probe_schema",
+                "description": "probe schema description",
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "probe_field": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "probe_field"
+                  ]
+                }
+              }
+            },
+            "bodySha256": "22fb402018b517f10331edff0ca31933f48cbc6153e6042144c5d37e23f1052c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "361"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe schema user marker\"}],\"max_tokens\":96,\"stream\":false,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"probe_schema\",\"description\":\"probe schema description\",\"schema\":{\"type\":\"object\",\"properties\":{\"probe_field\":{\"type\":\"string\"}},\"required\":[\"probe_field\"]},\"strict\":true}}}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHNjaGVtYSB1c2VyIG1hcmtlciJ9XSwibWF4X3Rva2VucyI6OTYsInN0cmVhbSI6ZmFsc2UsInJlc3BvbnNlX2Zvcm1hdCI6eyJ0eXBlIjoianNvbl9zY2hlbWEiLCJqc29uX3NjaGVtYSI6eyJuYW1lIjoicHJvYmVfc2NoZW1hIiwiZGVzY3JpcHRpb24iOiJwcm9iZSBzY2hlbWEgZGVzY3JpcHRpb24iLCJzY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsicHJvYmVfZmllbGQiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsicHJvYmVfZmllbGQiXX0sInN0cmljdCI6dHJ1ZX19fQ==",
+            "bodyLength": 361,
+            "bodySha256": "35e2dc1beb07cb2d94fd663b59c84c35d85b863deafa365671aa696640d560ff",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"107-wrdPLaie1e8/fMf5xBbPEOxLkuA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"probe_field\":\"value\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-message-shaping": {
+      "scenario": "mistral-message-shaping.json",
+      "purpose": "MISTRAL message shaping: example_user/example_assistant lose their name and gain a speaker prefix, a named assistant message is prefixed with its own name, and a system turn immediately after an assistant turn becomes a user turn.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "user_name": "Probe User",
+              "char_name": "Probe Char",
+              "messages": [
+                {
+                  "role": "system",
+                  "name": "example_user",
+                  "content": "example user line"
+                },
+                {
+                  "role": "system",
+                  "name": "example_assistant",
+                  "content": "example assistant line"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "assistant",
+                  "name": "Probe Char",
+                  "content": "named assistant line"
+                },
+                {
+                  "role": "system",
+                  "content": "late system line"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false
+            },
+            "bodySha256": "3dcd0a0ff139f03cf8a62ea07dcc7f14adb718ba1bbff87283394a2fb5aa61c7"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "355"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"system\",\"content\":\"Probe User: example user line\"},{\"role\":\"system\",\"content\":\"Probe Char: example assistant line\"},{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"assistant\",\"content\":\"Probe Char: named assistant line\"},{\"role\":\"user\",\"content\":\"late system line\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJzeXN0ZW0iLCJjb250ZW50IjoiUHJvYmUgVXNlcjogZXhhbXBsZSB1c2VyIGxpbmUifSx7InJvbGUiOiJzeXN0ZW0iLCJjb250ZW50IjoiUHJvYmUgQ2hhcjogZXhhbXBsZSBhc3Npc3RhbnQgbGluZSJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoiUHJvYmUgQ2hhcjogbmFtZWQgYXNzaXN0YW50IGxpbmUifSx7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImxhdGUgc3lzdGVtIGxpbmUifV0sIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 355,
+            "bodySha256": "f31fb1fd4fbff8518796708fc8a8a2c8986828f3cb9c60d23054c7b034f2b3cc",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-nonstream": {
+      "scenario": "mistral-nonstream.json",
+      "purpose": "MISTRAL source, NON-STREAMING default: the fixed body order (model, messages, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, stream, safe_prompt, random_seed, stop), seed -1 dropped instead of forwarded, an empty stop array not sent, and safe_prompt forwarded.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "assistant",
+                  "content": "probe assistant marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe follow-up marker"
+                }
+              ],
+              "temperature": 0.4,
+              "top_p": 0.8,
+              "frequency_penalty": 0.1,
+              "presence_penalty": 0.2,
+              "max_tokens": 96,
+              "stream": false,
+              "safe_prompt": true,
+              "seed": -1,
+              "stop": []
+            },
+            "bodySha256": "7d746d3ec43ae48afb0ecf6dcee731765825c8500a4dce2b11271a183ff38b39"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "322"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"assistant\",\"content\":\"probe assistant marker\"},{\"role\":\"user\",\"content\":\"probe follow-up marker\"}],\"temperature\":0.4,\"top_p\":0.8,\"frequency_penalty\":0.1,\"presence_penalty\":0.2,\"max_tokens\":96,\"stream\":false,\"safe_prompt\":true}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6InByb2JlIGFzc2lzdGFudCBtYXJrZXIifSx7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIGZvbGxvdy11cCBtYXJrZXIifV0sInRlbXBlcmF0dXJlIjowLjQsInRvcF9wIjowLjgsImZyZXF1ZW5jeV9wZW5hbHR5IjowLjEsInByZXNlbmNlX3BlbmFsdHkiOjAuMiwibWF4X3Rva2VucyI6OTYsInN0cmVhbSI6ZmFsc2UsInNhZmVfcHJvbXB0Ijp0cnVlfQ==",
+            "bodyLength": 322,
+            "bodySha256": "89595147e1add79edec5dd88369feb8e05c96b888f0054746347eeed8d8caffa",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-reverse-proxy": {
+      "scenario": "mistral-reverse-proxy.json",
+      "purpose": "MISTRAL reverse_proxy: the URL is new URL(reverse_proxy).toString() + /chat/completions (a bare origin gains a trailing slash, so the target carries a doubled slash) and proxy_password is used as the Bearer key instead of the stored secret.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false,
+              "reverse_proxy": "http://<mock>",
+              "proxy_password": "synthetic-mistral-proxy-password"
+            },
+            "bodySha256": "2a7bf7e1bbf114b5880cd4c7b8e1d5b60e946b99bd6e550d58b28d2b4416e27a"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "//chat/completions",
+            "rawPath": "//chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "119"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 119,
+            "bodySha256": "08e30cc84d0decfb9e9e0f7b4a8f34476a33a32ac73bb51ca9e3cdffc57b7eee",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
+    },
+    "mistral-seed-and-stop": {
+      "scenario": "mistral-seed-and-stop.json",
+      "purpose": "MISTRAL seed/stop control: seed 42 becomes random_seed 42 and a non-empty stop array is forwarded, so the drop rules of mistral-nonstream cannot be satisfied by dropping them unconditionally.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "seed": 42,
+              "stop": [
+                "PROBE_STOP",
+                "SECOND_STOP"
+              ],
+              "stream": false
+            },
+            "bodySha256": "94796b3daed710be734cf523b426d95fcc6af8bd96b4f96824a7d8f66478ac7a"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "172"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":false,\"random_seed\":42,\"stop\":[\"PROBE_STOP\",\"SECOND_STOP\"]}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjpmYWxzZSwicmFuZG9tX3NlZWQiOjQyLCJzdG9wIjpbIlBST0JFX1NUT1AiLCJTRUNPTkRfU1RPUCJdfQ==",
+            "bodyLength": 172,
+            "bodySha256": "6e84bc93b1f59085f1d4fe23a47d5728b5c10c53afce9e41c7f7b8492768d60b",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-stream-control-nonstream": {
+      "scenario": "mistral-stream-control-nonstream.json",
+      "purpose": "The NON-STREAM CONTROL for mistral-stream: the same answer text through the buffered path, which also pins the PASSTHROUGH (no OAI rewrap, unlike CLAUDE) of the provider body.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false
+            },
+            "bodySha256": "6982ca4d168e40b8bc1444a16de7656c261aabd225efbe55c6eb851cc203715c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "119"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 119,
+            "bodySha256": "08e30cc84d0decfb9e9e0f7b4a8f34476a33a32ac73bb51ca9e3cdffc57b7eee",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-stream": {
+      "scenario": "mistral-stream.json",
+      "purpose": "MISTRAL streaming: the provider frames are forwarded VERBATIM, terminating in the provider's own [DONE] sentinel, and the backend response carries no content type of its own.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": true
+            },
+            "bodySha256": "4e9ea7f2bb6de4cbdd2145d778a9c4d9bcc9f527773b30e589549327f01ee967"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "118"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":true}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHVzZXIgbWFya2VyIn1dLCJtYXhfdG9rZW5zIjo5Niwic3RyZWFtIjp0cnVlfQ==",
+            "bodyLength": 118,
+            "bodySha256": "49a93b3a0b5386892d43a65be865b55452c645cbce22f8ee57d89127edf29ea6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": [
+          {
+            "event": null,
+            "data": "{\"id\":\"probe-mistral\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock mistral reply\"},\"finish_reason\":null}]}"
+          },
+          {
+            "event": null,
+            "data": "{\"id\":\"probe-mistral\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}"
+          },
+          {
+            "event": null,
+            "data": "[DONE]"
+          }
+        ]
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-tool-messages": {
+      "scenario": "mistral-tool-messages.json",
+      "purpose": "MISTRAL tool handling: tool_calls ids and the tool turn tool_call_id are replaced by sha512(id)[0:9], and the user turn after the tool turn is folded into the earlier user content with a blank-line separator.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe first user"
+                },
+                {
+                  "role": "assistant",
+                  "content": "",
+                  "tool_calls": [
+                    {
+                      "id": "call_probe_alpha",
+                      "type": "function",
+                      "function": {
+                        "name": "probe_tool",
+                        "arguments": "{\"probe_arg\":\"one\"}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "tool",
+                  "tool_call_id": "call_probe_alpha",
+                  "content": "tool result payload"
+                },
+                {
+                  "role": "user",
+                  "content": "probe after tool"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false
+            },
+            "bodySha256": "e8436fc2d3fd65e4d0f851f4f3587b20f181a26a692cc26920f3b68e955e8391"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "370"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe first user\\n\\nprobe after tool\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"1e2ce7c01\",\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"arguments\":\"{\\\"probe_arg\\\":\\\"one\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"1e2ce7c01\",\"content\":\"tool result payload\"}],\"max_tokens\":96,\"stream\":false}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIGZpcnN0IHVzZXJcblxucHJvYmUgYWZ0ZXIgdG9vbCJ9LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiIiLCJ0b29sX2NhbGxzIjpbeyJpZCI6IjFlMmNlN2MwMSIsInR5cGUiOiJmdW5jdGlvbiIsImZ1bmN0aW9uIjp7Im5hbWUiOiJwcm9iZV90b29sIiwiYXJndW1lbnRzIjoie1wicHJvYmVfYXJnXCI6XCJvbmVcIn0ifX1dfSx7InJvbGUiOiJ0b29sIiwidG9vbF9jYWxsX2lkIjoiMWUyY2U3YzAxIiwiY29udGVudCI6InRvb2wgcmVzdWx0IHBheWxvYWQifV0sIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 370,
+            "bodySha256": "584af3d8e9c742e0b0eb9181a4f9eb0e6360a15bc0cdf087f89b8ef9666abcbb",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
+    },
+    "mistral-tools-raw": {
+      "scenario": "mistral-tools-raw.json",
+      "purpose": "MISTRAL tools: the tools array and tool_choice are forwarded EXACTLY as supplied, including a non-function entry that the CLAUDE branch would have filtered out.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "mistralai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "mistralai",
+              "model": "open-mistral-nemo",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe tool user marker"
+                }
+              ],
+              "max_tokens": 96,
+              "stream": false,
+              "tool_choice": "auto",
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "probe_tool",
+                    "description": "probe tool",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "probe_arg": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "probe-not-a-function",
+                  "function": {
+                    "name": "survives"
+                  }
+                }
+              ]
+            },
+            "bodySha256": "5bb05857bfe6fb8f290d53861134c0d81b4235b4c3d8508ecc523030592c4a0e"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "374"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"model\":\"open-mistral-nemo\",\"messages\":[{\"role\":\"user\",\"content\":\"probe tool user marker\"}],\"max_tokens\":96,\"stream\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"description\":\"probe tool\",\"parameters\":{\"type\":\"object\",\"properties\":{\"probe_arg\":{\"type\":\"string\"}}}}},{\"type\":\"probe-not-a-function\",\"function\":{\"name\":\"survives\"}}],\"tool_choice\":\"auto\"}",
+            "bodyBase64": "eyJtb2RlbCI6Im9wZW4tbWlzdHJhbC1uZW1vIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHRvb2wgdXNlciBtYXJrZXIifV0sIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0b29scyI6W3sidHlwZSI6ImZ1bmN0aW9uIiwiZnVuY3Rpb24iOnsibmFtZSI6InByb2JlX3Rvb2wiLCJkZXNjcmlwdGlvbiI6InByb2JlIHRvb2wiLCJwYXJhbWV0ZXJzIjp7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7InByb2JlX2FyZyI6eyJ0eXBlIjoic3RyaW5nIn19fX19LHsidHlwZSI6InByb2JlLW5vdC1hLWZ1bmN0aW9uIiwiZnVuY3Rpb24iOnsibmFtZSI6InN1cnZpdmVzIn19XSwidG9vbF9jaG9pY2UiOiJhdXRvIn0=",
+            "bodyLength": 374,
+            "bodySha256": "ddb7bcd9ac28438558854062f43ad866941df82350c1fc573b1ec829f7555977",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fe-Z3+u0J5y2sKr7l2L+kIosBa+PCY\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-mistral",
+          "object": "chat.completion",
+          "model": "open-mistral-nemo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock mistral reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+        "pinnedLiteral": "https://api.mistral.ai/v1"
+      }
     },
     "openai-reverse-proxy-abort": {
       "scenario": "openai-reverse-proxy-abort.json",

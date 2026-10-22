@@ -176,14 +176,36 @@ if (probeSource !== 'custom' && probeSource !== 'openrouter') {
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 
 function startStreamingPeer(mode) {
-    const state = { requests: [], heldClosed: false };
+    // EVERY request the peer answered, with the status it gave: without this a drive that never
+    // reaches a connected status cannot be told apart from one whose status call the peer answered, and
+    // that indistinguishability has produced phantom defects on this project twice.
+    const state = { requests: [], heldClosed: false, paths: [] };
     const server = http.createServer((request, response) => {
+        const pathEntry = { method: request.method, path: request.url, status: null };
+        state.paths.push(pathEntry);
         if (request.method === 'GET' && request.url.startsWith('/models')) {
+            pathEntry.status = 200;
+            // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
+            // ever needed a bare id; the openrouter source populates a real model list from it and will not
+            // reach a connected status if the entries lack the fields its renderer reads. Measured: with
+            // `{data:[{id:'probe-model'}]}` the drive failed with "the frontend never reached a connected
+            // online_status" while the SAME peer drove custom successfully. `architecture` is deliberately
+            // absent so the drive keeps the frontend's turbo fallback tokenizer, which is what the
+            // non-streaming OpenRouter artifact was recorded with.
             response.writeHead(200, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({ data: [{ id: 'probe-model' }] }));
+            response.end(JSON.stringify({
+                data: [{
+                    id: 'probe-model',
+                    name: 'probe-model',
+                    context_length: 4096,
+                    pricing: { prompt: '0.000001', completion: '0.000002' },
+                    top_provider: { context_length: 4096 },
+                }],
+            }));
             return;
         }
         if (request.method !== 'POST' || !request.url.startsWith('/chat/completions')) {
+            pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
             response.end('not found');
             return;
@@ -202,6 +224,7 @@ function startStreamingPeer(mode) {
                 framesWritten: 0,
             };
             state.requests.push(entry);
+            pathEntry.status = 200;
             response.writeHead(200, {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
@@ -287,6 +310,13 @@ if (streamingMode) {
     if (!mockAddress) {
         throw new Error('mock provider did not report its address');
     }
+}
+
+// AIM THE LEGS AT THE PEER IN BOTH MODES. This block used to sit INSIDE the non-stream branch, so a
+// streaming drive exported no seam and wrote no redirect mapping: the peer's own path log showed it was
+// never asked for anything, on EITHER leg, because neither backend was pointed at it. That is a harness
+// defect that presents exactly like a product one -- both legs refused for the same reason and the
+// downstream symptom was 'the frontend never reached a connected online_status'.
     // OPENROUTER'S PEER CANNOT TRAVEL IN THE REQUEST. Its URL is the pinned literal
     // `https://openrouter.ai/api/v1` with no reverse_proxy and no custom_url, so the GoTavern leg is aimed at
     // the recording peer through the seam the provider-wire lane added, and the PINNED leg through the
@@ -301,7 +331,6 @@ if (streamingMode) {
     if (probeSource === 'openrouter' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://openrouter.ai/api/v1', to: `http://${mockAddress}` }]));
     }
-}
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 const serverLog = [];
@@ -734,7 +763,14 @@ try {
         if (onlineStatus === 'no_connection') {
             return { preconditions: { charactersLoaded: true, settingsReady: true, onlineStatus, connectButtonPresent: Boolean(connectButton) }, error: 'the frontend never reached a connected online_status; a send is silently ignored in that state' };
         }
+        // WHICH MODELS THE PAGE ACCEPTED for the openrouter source: an empty or fallback-only list
+        // means the page never accepted the peer's model, which is a different failure from a populated
+        // list whose connect path needs a call the peer does not answer.
+        const modelOptionValues = [...document.querySelectorAll('#model_openrouter_select option')].map(option => String(option.value)).slice(0, 25);
+        const modelOptionCount = document.querySelectorAll('#model_openrouter_select option').length;
         const before = diagnostics();
+        before.modelOptionCount = modelOptionCount;
+        before.modelOptionValues = modelOptionValues;
         // Preconditions a real user action implies. Asserted, not assumed: an unfaithful drive must
         // fail loudly instead of reporting a false negative.
         if (before.thisChid === 'undefined' || before.charactersLength === 0) {
@@ -1007,6 +1043,7 @@ try {
             clientDisconnected: request.clientDisconnected,
             framesWritten: request.framesWritten,
         }));
+        report.streamingPeerPaths = streamingPeer.state.paths;
         report.requestArrived = report.recording.some(request => request.method === 'POST');
         if (!report.requestArrived) {
             report.failure = report.failure ?? 'streaming peer received no POST /chat/completions';

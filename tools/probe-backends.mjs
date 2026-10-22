@@ -94,6 +94,10 @@ const SEAM_DEFAULTS = {
     [SEAMS.multimodalXai]: 'https://api.x.ai',
     [SEAMS.multimodalMoonshot]: 'https://api.moonshot.ai',
     [SEAMS.multimodalWorkersAi]: 'https://api.cloudflare.com',
+    // NOT a multimodal route: the MISTRALAI status branch builds its URL from the same pinned literal
+    // the generate route uses (chat-completions.js:75 API_MISTRAL), so it declares its seam here and
+    // its scenarios below. `backends_test.go` asserts this default against the accessor.
+    GOTAVERN_MISTRAL_CHAT_URL: 'https://api.mistral.ai/v1',
 };
 
 function secretFile(values) {
@@ -730,6 +734,33 @@ addScenario({
 // With a reverse_proxy present the :2067 guard is skipped, and the next statement is
 // `new URL(urlJoin('', '/models'))`, i.e. the RELATIVE URL '/models', which throws; the pinned catch
 // answers 200 {"error":true} -- still with no outbound request.
+// ---- MISTRALAI HAS a real status branch (:1796-1799) -------------------------------------------
+//
+// Unlike CLAUDE, this source is in the chain: the URL is `new URL(reverse_proxy || API_MISTRAL)`, the
+// key is the proxy password or the MISTRALAI secret, headers are empty so the shared call adds only
+// `Authorization: Bearer`, and the provider body is returned unchanged. A non-2xx provider answer
+// leaves the shared `else` (:2143-2145) in place: 200 {"error":true,"data":{"data":[]}}.
+addScenario({
+    name: 'status.mistral.ok',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'mistralai' },
+    seam: 'GOTAVERN_MISTRAL_CHAT_URL',
+    upstream: [{ ...OK, path: '/v1/models', body: JSON.stringify({ object: 'list', data: [{ id: 'mistral-probe-a', capabilities: { vision: true } }, { id: 'mistral-probe-b' }] }) }],
+});
+addScenario({
+    name: 'status.mistral.nonOk',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'mistralai' },
+    seam: 'GOTAVERN_MISTRAL_CHAT_URL',
+    upstream: [{ path: '/v1/models', status: 401, headers: { 'Content-Type': 'application/json' }, body: '{"message":"probe unauthorized"}' }],
+});
+addScenario({
+    name: 'status.mistral.noKey',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'mistralai' },
+    seam: 'GOTAVERN_MISTRAL_CHAT_URL',
+    secrets: {},
+});
 addScenario({
     name: 'status.claude.reverseProxy',
     route: 'chat-completions/status',

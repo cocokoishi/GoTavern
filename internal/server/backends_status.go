@@ -46,6 +46,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveClaudeChatCompletionStatus(w, body)
 		return
 	}
+	if source == chatCompletionSourceMistral {
+		runtime.serveMistralChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return

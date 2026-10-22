@@ -211,6 +211,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
+			// :956-962: the MISTRAL route's catch uses `response.send` with NO status, so a thrown
+			// fetch answers 200 {"error":true}. Answering 500 here would be a different contract.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -219,6 +225,11 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
 		// :424-439: the shared forwarder for a stream, the pinned rewrap for a buffered answer.
 		serveClaudeChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
+		// :943-954: the shared forwarder for a stream, the provider body passed through otherwise.
+		serveMistralChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -342,6 +353,12 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 // body for the sources this route implements.
 func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
 	sourceName := pinnedChatCompletionSourceName(body)
+	if sourceName == chatCompletionSourceMistral {
+		// chat-completions.js:881 is its own transform, a sibling of the CLAUDE branch: its own body
+		// order, its own seed/stop coercions, its own message converter and three error observables of
+		// its own. See mistral_chat.go.
+		return pinnedMistralPlan(body, directories)
+	}
 	if sourceName == chatCompletionSourceClaude {
 		// chat-completions.js:230 is NOT on the generic path: it builds its own body, URL and header
 		// set, and has its own response mapping, so it delegates here and the response side branches

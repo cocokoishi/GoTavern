@@ -118,6 +118,57 @@ if (openrouterGeneration) {
     const openrouterDiffs = Array.isArray(openrouterGeneration.bodyDifferences) ? openrouterGeneration.bodyDifferences.length : 0;
     console.log(`  generation-openrouter-comparison.json providerRequestEqual true, ${openrouterDiffs} documented body difference(s), ${openrouterBytes} B per leg`);
 }
+// ---- streaming-openrouter-comparison.json -----------------------------------------------------
+//
+// The OpenRouter source's C surface: a streamed reply, a cancellation, and the non-stream control, each
+// driven on both legs. `compatibleReady` is the conjunction the row's claim rests on, so it must be TRUE
+// here for a `compatible` claim to be possible at all; a missing leg or a missing cancellation proof is a
+// FAILURE, never a vacuous pass.
+const openrouterStreaming = read('streaming-openrouter-comparison.json');
+if (openrouterStreaming) {
+    for (const surface of ['streaming', 'cancellation', 'nonstream']) {
+        const block = openrouterStreaming[surface];
+        if (!block || typeof block !== 'object') {
+            fail('streaming-openrouter-comparison.json', `the ${surface} block is missing, so that surface was never compared`);
+            continue;
+        }
+        if (block.proven !== true) {
+            const falseChecks = Object.entries(block.checks ?? {}).filter(([, value]) => value !== true).map(([name]) => name);
+            fail('streaming-openrouter-comparison.json', `${surface}.proven is not true; failing checks: ${falseChecks.join(', ') || '(none isolated)'}`);
+        }
+        for (const leg of ['gotavern', 'pinned']) {
+            const requests = block[leg]?.providerRequests;
+            if (!Array.isArray(requests) || requests.length === 0) {
+                fail('streaming-openrouter-comparison.json', `${surface}.${leg} records no provider request, so that leg was never driven`);
+            }
+        }
+    }
+    // CANCELLATION IS PROVED AT THE PROVIDER, not by the page stopping to render.
+    for (const leg of ['gotavern', 'pinned']) {
+        const requests = openrouterStreaming.cancellation?.[leg]?.providerRequests ?? [];
+        if (!requests.some(request => request.clientDisconnected === true)) {
+            fail('streaming-openrouter-comparison.json', `cancellation.${leg} does not record clientDisconnected true, so the teardown never reached the provider on that leg`);
+        }
+    }
+    // THE TICK-ALIGNMENT REPLACEMENT: alignment is recorded, and the properties asserted in its place must
+    // be present and boolean, so a future edit cannot quietly drop them and leave `proven` computed from
+    // fewer claims than the artifact documents.
+    for (const name of ['finalTextEqual', 'streamedRenderPrefixes', 'framesWrittenEqual', 'incrementalRenderingObserved']) {
+        if (typeof openrouterStreaming.streaming?.checks?.[name] !== 'boolean') {
+            fail('streaming-openrouter-comparison.json', `streaming.checks.${name} is missing or not boolean`);
+        }
+    }
+    if (typeof openrouterStreaming.streaming?.renderTickAlignment?.tickByTickEqual !== 'boolean') {
+        fail('streaming-openrouter-comparison.json', 'streaming.renderTickAlignment is missing, so the recorded (unasserted) tick alignment was not carried');
+    }
+    if (typeof openrouterStreaming.driveParameters?.streamFrameCount !== 'string') {
+        fail('streaming-openrouter-comparison.json', 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
+    }
+    console.log(`  streaming-openrouter-comparison.json compatibleReady true, three surfaces proven, cancellation clientDisconnected on both legs`);
+    if (openrouterStreaming.compatibleReady !== true) {
+        fail('streaming-openrouter-comparison.json', 'compatibleReady is not true, so no compatible claim may cite this artifact');
+    }
+}
 // ---- generation-comparison.json --------------------------------------------------------------
 const generation = read('generation-comparison.json');
 if (generation) {

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "mistralai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_mistralai": [
+      {
+        "id": "probe-id-api_key_mistralai",
+        "value": "synthetic-mistral-key",
+        "label": "api_key_mistralai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-mistral-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.mistral.ai/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_MISTRAL_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.mistral.ai/v1"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_MISTRAL is a pinned literal. The PATH (/chat/completions, and its normalization) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:75 API_MISTRAL = https://api.mistral.ai/v1, :882 new URL(reverse_proxy || API_MISTRAL).toString(), :942 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "mistral-message-shaping",
+  "purpose": "MISTRAL message shaping: example_user/example_assistant lose their name and gain a speaker prefix, a named assistant message is prefixed with its own name, and a system turn immediately after an assistant turn becomes a user turn.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "mistralai",
+      "model": "open-mistral-nemo",
+      "user_name": "Probe User",
+      "char_name": "Probe Char",
+      "messages": [
+        {
+          "role": "system",
+          "name": "example_user",
+          "content": "example user line"
+        },
+        {
+          "role": "system",
+          "name": "example_assistant",
+          "content": "example assistant line"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        },
+        {
+          "role": "assistant",
+          "name": "Probe Char",
+          "content": "named assistant line"
+        },
+        {
+          "role": "system",
+          "content": "late system line"
+        }
+      ],
+      "max_tokens": 96,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-mistral\",\"object\":\"chat.completion\",\"model\":\"open-mistral-nemo\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock mistral reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":5,\"total_tokens\":14}}"
+      }
+    ]
+  }
+}
