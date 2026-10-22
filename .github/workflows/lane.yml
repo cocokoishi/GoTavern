@@ -1,0 +1,73 @@
+name: GoTavern Lane CI
+
+# Per-lane verification, on GitHub's machines.
+#
+# WHY THIS WORKFLOW EXISTS. The development host is weak: a Go build or a package test there is
+# slow enough that lanes stop running them and start guessing, and several lanes sharing one working
+# tree broke each other's compiles. GitHub Actions is the authoritative environment (AGENTS.md
+# "Where verification runs"), so each lane gets its own branch `lane/<name>`, pushes it, and reads
+# ITS OWN run instead of competing for the main branch's single run.
+#
+# WHAT IT RUNS, and why this subset: `gofmt` (cheap, catches the formatting defect that build and vet
+# both accept), `go build ./...`, `go vet ./...`, and `go test ./... -count=1`. That is exactly the
+# set a lane needs to know whether its change compiles and its replay test passes. It deliberately
+# does NOT run the cross-compile matrix, the Docker job, the browser evidence job or the oracle
+# re-record job: those belong to main, and a lane's fixtures are re-recorded on Linux by the oracle
+# job when the lane lands. A lane that changed a probe fixture should say so in its report so the
+# Lead runs the oracle job on the merge commit.
+#
+# `-count=1` is not optional: the Go test cache answers `ok (cached)` for a test whose inputs have not
+# changed, which has already produced a "passing" mutation run in this project.
+
+on:
+  push:
+    branches:
+      - 'lane/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lane:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify Go formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would rewrite these files:"
+            echo "$unformatted"
+            exit 1
+          fi
+          echo "all Go files are gofmt-clean"
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./... -count=1
+      - name: Verify internal Go tests are not vacuous
+        # A `-run` that matches nothing reports `ok`, and a package that fails to COMPILE also stops
+        # the named test from running. Both have produced "green" results in this project, so the
+        # lane job names the oracle replay tests it actually saw run, when a fixture is present.
+        run: |
+          set -euo pipefail
+          fixtures="$(git ls-files 'tests/oracle/*.json' | wc -l)"
+          echo "oracle fixtures present: $fixtures"
+          go test ./internal/server -count=1 -v 2>&1 | tee /tmp/server-tests.log >/dev/null
+          echo "internal/server tests executed: $(grep -c '^=== RUN' /tmp/server-tests.log)"
+          if [ "$(grep -c '^=== RUN' /tmp/server-tests.log)" -eq 0 ]; then
+            echo "no test executed in internal/server -- refusing to report success"
+            exit 1
+          fi
+          grep -E '^--- (PASS|FAIL)' /tmp/server-tests.log | tail -5

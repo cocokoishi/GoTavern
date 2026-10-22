@@ -32,7 +32,7 @@
 // its owner pid is gone or it is older than STALE_MS, and the takeover is logged with the reason,
 // because a silent takeover is how a lock turns into decoration.
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -40,7 +40,31 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const lockDirectory = path.join(repositoryRoot, '.pinned-boot-lock');
+
+// THE LOCK LIVES IN THE SHARED GIT DIRECTORY, NOT IN THE CHECKOUT.
+//
+// Lanes work in their own `git worktree`, so a per-checkout lock would be one lock per lane and the
+// whole point -- serialising the pinned server's pruned webpack compile -- would be lost while still
+// LOOKING enforced. Every worktree of a repository shares one git common dir, so the lock is placed
+// there. Outside a git checkout it falls back to the checkout root, which is the pre-worktree
+// behaviour.
+function lockParentDirectory(repositoryRootPath) {
+    try {
+        const common = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+            cwd: repositoryRootPath,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (common !== '') {
+            return path.resolve(repositoryRootPath, common);
+        }
+    } catch {
+        // Not a git checkout (or no git on PATH): the checkout root is the only shared place.
+    }
+    return repositoryRootPath;
+}
+
+const lockDirectory = path.join(lockParentDirectory(repositoryRoot), 'pinned-boot-lock');
 const ownerFile = path.join(lockDirectory, 'owner.json');
 const STALE_MS = 40 * 60 * 1000;
 const DEFAULT_WAIT_SECONDS = 3600;
