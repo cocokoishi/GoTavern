@@ -46,10 +46,9 @@ RUN mkdir -p /app/public/img /app/public/sounds \
         /app/public/scripts/extensions/third-party /app/backups \
     && chown -R gotavern:gotavern /app/public /app/backups
 
-# The runtime root is the working directory: the binary creates config.yaml and
-# data/ here from its embedded pinned defaults. No config.yaml, no data/ and no
-# extension repository is baked in, so extraction can never overwrite a live
-# installation.
+# The working directory is where config.yaml is resolved from, and the data root
+# is set explicitly below. No config.yaml and no data/ are baked in, so
+# extraction can never overwrite a live installation.
 WORKDIR /data
 RUN chown -R gotavern:gotavern /data
 VOLUME ["/data"]
@@ -61,8 +60,20 @@ EXPOSE 8000
 # whitelistMode on, which is what satisfies the startup security gate for a
 # non-localhost listener; the default whitelist already allows 127.0.0.1, so the
 # healthcheck below is permitted.
+#
+# --dataRoot is REQUIRED here, and it is a supported flag rather than a
+# workaround. Pinned src/command-line.js:288-290 is
+#     const dataRoot = isGlobal ? defaultConfig.dataRoot
+#                               : (cliArguments.dataRoot ?? getConfigValue('dataRoot', defaultConfig.dataRoot));
+# so the argument is honoured outside global mode; the only "ignored" warning is
+# the global-mode one. Without it, the config's relative `dataRoot: ./data` is
+# resolved against the SERVER directory, which is the binary's own directory
+# because install root = filepath.Dir(os.Executable()). The data root then
+# becomes /app/data, outside the volume, and startup fails writing
+# cookie-secret.txt there as a non-root user. The documented launch path never
+# hits this because start.sh cds to the install root first; a container does not.
 ENTRYPOINT ["/app/gotavern"]
-CMD ["start", "--listen", "true", "--port", "8000"]
+CMD ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data"]
 
 # /version is a pinned public compatibility route: no session and no CSRF, so it
 # is a valid liveness probe rather than an invented endpoint.

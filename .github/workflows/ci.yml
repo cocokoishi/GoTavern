@@ -218,10 +218,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Report what was seen, not only that it failed. The first run of this
+          # job failed with a bare exit code, which left the cause to be
+          # reconstructed from the image rather than read from the log.
+          report_failure() {
+            echo "::group::container state"
+            docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' gotavern-docker-smoke || true
+            echo "::endgroup::"
+            echo "::group::container logs"
+            docker logs gotavern-docker-smoke || true
+            echo "::endgroup::"
+          }
+
           docker run --detach --name gotavern-docker-smoke --publish 8000:8000 gotavern:ci
+
           # /version is a pinned public compatibility route: no session, no CSRF,
           # and it is in the pinned route set rather than invented for the probe.
           for attempt in $(seq 1 30); do
+            state=$(docker inspect --format '{{.State.Status}}' gotavern-docker-smoke 2>/dev/null || echo missing)
+            if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+              echo "the container $state before it served /version"
+              report_failure
+              exit 1
+            fi
             if docker exec gotavern-docker-smoke wget -q -O - http://127.0.0.1:8000/version > /tmp/gotavern-version.json 2>/dev/null; then
               echo "GET /version inside the container:"
               cat /tmp/gotavern-version.json
@@ -230,10 +250,7 @@ jobs:
             sleep 2
           done
           echo "the container never answered /version within 60 seconds"
-          echo "--- container state ---"
-          docker inspect --format '{{json .State}}' gotavern-docker-smoke || true
-          echo "--- container logs ---"
-          docker logs gotavern-docker-smoke || true
+          report_failure
           exit 1
       - name: Stop the container
         if: always()

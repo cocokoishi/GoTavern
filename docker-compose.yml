@@ -11,13 +11,19 @@ services:
     image: gotavern:local
     # --listen true binds the container interface; the pinned default config
     # keeps whitelistMode on, which satisfies the startup security gate.
-    command: ["start", "--listen", "true", "--port", "8000"]
+    #
+    # --dataRoot is required: without it the relative `dataRoot: ./data` resolves
+    # against the binary's own directory (/app), so the data root lands outside
+    # the volume. The flag is honoured outside global mode per pinned
+    # src/command-line.js:288-290. config.yaml is resolved from the working
+    # directory, which is the volume below.
+    command: ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data"]
     ports:
       - "8000:8000"
     volumes:
-      # The whole runtime root, not just data/: config.yaml lives here too, so a
-      # container replacement preserves the operator's configuration as well as
-      # their content.
+      # The volume covers config.yaml AND the data root, so a container
+      # replacement preserves the operator's configuration as well as their
+      # characters, chats, worlds, settings and secrets.
       - gotavern-data:/data
     restart: unless-stopped
     healthcheck:
