@@ -140,7 +140,7 @@ var dataMaidTokens = struct {
 }{entries: make(map[string]dataMaidTokenEntry)}
 
 func dataMaidPathHash(path string) string {
-	digest := sha256.Sum256([]byte(path))
+	digest := sha256.Sum256([]byte(filepath.Base(path)))
 	return hex.EncodeToString(digest[:])
 }
 
@@ -235,7 +235,7 @@ func (runtime *accountRuntime) serveDataMaidFinalize(w http.ResponseWriter, requ
 		serveStatusText(w, http.StatusForbidden)
 		return
 	}
-	_ = forgetDataMaidToken
+	forgetDataMaidToken(token)
 	serveNoContent(w)
 }
 
