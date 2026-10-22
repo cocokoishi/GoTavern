@@ -41,13 +41,13 @@
     "/api/sd/drawthings/generate",
     "/api/sd/generate",
     "/api/sd/stability/generate",
-    "/api/sd/workersai/generate"
+    "/api/sd/workersai/generate",
+    "/api/sd/bfl/generate",
+    "/api/sd/falai/generate"
   ],
   "notImplementedRoutes": [
-    "/api/sd/bfl/generate",
     "/api/sd/comfy/generate",
     "/api/sd/comfyrunpod/generate",
-    "/api/sd/falai/generate",
     "/api/sd/zai/generate",
     "/api/sd/zai/generate-video"
   ],
