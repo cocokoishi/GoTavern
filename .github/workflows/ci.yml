@@ -95,6 +95,17 @@ jobs:
           test "$(npm --version)" = 11.17.0
       - name: Test observer comparison harness
         run: node --test tests/oracle/compare-observations.test.mjs
+      - name: Build the GoTavern binary a runtime probe drives
+        # A probe that compares a GoTavern-written tree against a pinned-written one needs a GoTavern
+        # BINARY, not just the repository. It cannot build one on the development host (the build cache
+        # there filled a 149 GB disk), so the oracle job builds it here and exports GOTAVERN_BINARY for
+        # any probe that asks. A probe that needs it and cannot find it must FAIL rather than skip.
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -eu
+          go build -trimpath -o .oracle-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.oracle-bin/gotavern" >> "$GITHUB_ENV"
       - name: Rebuild pinned assets, inventories, and Node oracle
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Verify generated results are committed
@@ -187,8 +198,10 @@ jobs:
         # platform, which is exactly what catches a platform-specific file being wrong -- the failure
         # mode the matrix existed for. CGO is off everywhere, as in distribution.
         #
-        # A real cross-compile of the CLI remains available on demand: the `Release qualification`
-        # workflow builds the archives, and `Release` builds and publishes them on a tag.
+        # A real cross-compile of the CLI remains available on demand: `Release` builds and publishes
+        # all six canonical archives on a tag, and `Release qualification` builds the linux-amd64
+        # archive in order to EXECUTE it (extract, boot, update, roll back). Neither is a per-push
+        # gate, which is the point.
         shell: bash
         run: |
           set -euo pipefail

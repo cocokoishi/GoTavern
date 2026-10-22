@@ -1,0 +1,943 @@
+#!/usr/bin/env node
+// @gotavern-oracle: fixture=sillytavern-1.19.0-novelai-generate.json label="novelai generate and generate-image"
+// Capture the two pinned NovelAI routes that were deferred from the first NovelAI round:
+//
+//	POST /api/novelai/generate        novelai.js:167   model-dependent parameter body + SSE forward
+//	POST /api/novelai/generate-image  novelai.js:300   NAI Diffusion body, PNG zip, conditional upscale
+//
+// `/api/novelai/status` and `/api/novelai/generate-voice` are already recorded by
+// tools/probe-novelai.mjs and are NOT re-recorded here.
+//
+// WHY THESE TWO NEEDED THEIR OWN PROBE, stated so the next reader does not re-derive it:
+//
+//   - `generate` builds its outbound body from FOUR model-dependent tables (the hypebot, clio/kayra
+//     and erato bad-word lists, two logit-bias lists, two repetition-penalty whitelists) plus a
+//     `theme_textadventure` eos_token_id. A missing table entry is INVISIBLE unless the fixture
+//     exercises each model family, and the precedence between the families is itself observable:
+//     `getBadWordsList` checks hypebot, then clio/kayra, then erato (last write wins) while
+//     `getRepPenaltyWhitelist` checks clio/kayra FIRST, so `clio-erato` gets erato bad words and the
+//     CLIO repetition whitelist. `generate.mixedModel` pins exactly that.
+//   - `generate-image` unzips the upstream PNG archive and then CONDITIONALLY performs a SECOND
+//     request (api.novelai.net/ai/upscale) whose failure falls back to the original base64. The
+//     second request and its fallback are the parts a naive implementation gets wrong, so every one
+//     of those branches is a scenario and the OUTBOUND COUNT is asserted, not recorded as a
+//     convenience.
+//
+// Every upstream is a hardcoded literal (api/text/image.novelai.net), so the probe replaces the
+// pinned server's `node-fetch` module AND the global `fetch` with a controlled peer, exactly as
+// tools/lib/pinned-outbound.mjs documents. The Go side gets seams for the three bases
+// (GOTAVERN_NOVELAI_{API,TEXT,IMAGE}_URL) whose defaults are the pinned literals, asserted by
+// TestNovelAIGenerateSeamDefaults.
+//
+// All zip and PNG bytes in this fixture are SYNTHETIC bytes this probe builds (see makePNG/zip
+// below): a stored (uncompressed) zip with fixed 1980-01-01 timestamps, so the fixture is
+// byte-identical on every host and carries no live provider output.
+//
+// NOT RECORDED, with the reason (see the fixture's `notRecorded`):
+//   - `if (!req.body)` (both routes): both global body parsers (`bodyParser.json` and
+//     `bodyParser.urlencoded`, server-main.js:110-111) assign `request.body = {}` before any type
+//     check, so the guard is unreachable. There is nothing to record, and GoTavern's equivalent
+//     parser always produces an object too.
+//   - a missing or non-string `model`: `getBadWordsList(req.body.model)` runs OUTSIDE the try block
+//     and throws `model.includes is not a function`, which is an unhandled rejection in the pinned
+//     process — probing it would kill the oracle mid-run. It is a named Go deviation instead.
+//   - client-disconnect cancellation: the controlled peer's response body cannot be held open
+//     without a tools/lib change, so the abort path has no oracle here.
+//   - the status-LINE phrase: pinned forwards the upstream `statusText` through
+//     forwardFetchResponse, so its 401->400 rewrite reads `400 Unauthorized` on the wire; Go's
+//     net/http derives the phrase from the code and has no API to override it. The status CODE and
+//     the body are compared; the phrase is not recorded at all rather than recorded and ignored.
+
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import http from 'node:http';
+import path from 'node:path';
+import process from 'node:process';
+
+import { PINNED_COMMIT, PINNED_VERSION, startPinnedProviderServer, writeFixture } from './lib/pinned-outbound.mjs';
+
+const sourceRoot = path.resolve(process.argv[2] ?? '');
+const repositoryRoot = path.resolve(process.argv[3] ?? '');
+if (!process.argv[2] || !process.argv[3]) {
+    console.error('usage: node tools/probe-novelai-generate.mjs <pinned-source-clone> <gotavern-root>');
+    process.exit(2);
+}
+if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim() !== PINNED_COMMIT) {
+    throw new Error(`upstream checkout is not pinned at ${PINNED_COMMIT}`);
+}
+
+const SEAM_DEFAULTS = {
+    GOTAVERN_NOVELAI_API_URL: 'https://api.novelai.net',
+    GOTAVERN_NOVELAI_TEXT_URL: 'https://text.novelai.net',
+    GOTAVERN_NOVELAI_IMAGE_URL: 'https://image.novelai.net',
+};
+const NOVEL_KEY = 'probe-novel-key';
+const SECRETS = { api_key_novel: NOVEL_KEY };
+
+// ---- synthetic binary fixtures ---------------------------------------------------------------
+//
+// Everything here is generated by this probe from the bytes below. No provider output is recorded.
+
+const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let index = 0; index < 256; index++) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+        table[index] = value >>> 0;
+    }
+    return table;
+})();
+
+function crc32(buffer) {
+    let crc = 0xffffffff;
+    for (const byte of buffer) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 0xff];
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function adler32(buffer) {
+    let low = 1;
+    let high = 0;
+    for (const byte of buffer) {
+        low = (low + byte) % 65521;
+        high = (high + low) % 65521;
+    }
+    return ((high << 16) | low) >>> 0;
+}
+
+function u32be(value) {
+    const buffer = Buffer.alloc(4);
+    buffer.writeUInt32BE(value >>> 0, 0);
+    return buffer;
+}
+
+function pngChunk(type, data) {
+    const typeBytes = Buffer.from(type, 'ascii');
+    return Buffer.concat([u32be(data.length), typeBytes, data, u32be(crc32(Buffer.concat([typeBytes, data])))]);
+}
+
+// makePNG builds a VALID 1x1 8-bit greyscale PNG whose tEXt chunk carries the marker, so the
+// fixture is self-describing and two variants can never be confused for one another. The IDAT is a
+// single STORED deflate block, so the bytes do not depend on the host's zlib version.
+function makePNG(marker, pixel) {
+    const signature = Buffer.from('89504e470d0a1a0a', 'hex');
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);   // width
+    ihdr.writeUInt32BE(1, 4);   // height
+    ihdr[8] = 8;                // bit depth
+    ihdr[9] = 0;                // greyscale
+    const raw = Buffer.from([0x00, pixel & 0xff]);   // filter type 0 + one sample
+    const stored = Buffer.alloc(5);
+    stored[0] = 0x01;                                // BFINAL=1, BTYPE=00 (stored)
+    stored.writeUInt16LE(raw.length, 1);
+    stored.writeUInt16LE((~raw.length) & 0xffff, 3);
+    const idat = Buffer.concat([Buffer.from([0x78, 0x01]), stored, raw, u32be(adler32(raw))]);
+    const text = Buffer.concat([Buffer.from('gotavern', 'latin1'), Buffer.from([0]), Buffer.from(marker, 'latin1')]);
+    return Buffer.concat([
+        signature,
+        pngChunk('IHDR', ihdr),
+        pngChunk('tEXt', text),
+        pngChunk('IDAT', idat),
+        pngChunk('IEND', Buffer.alloc(0)),
+    ]);
+}
+
+// zip builds a STORED (uncompressed) archive with a fixed DOS timestamp, in the given entry order.
+// Entry order matters: extractFileFromZipBuffer walks the central directory in archive order and
+// takes the FIRST entry whose name ends with '.png'.
+function zip(entries) {
+    const locals = [];
+    const centrals = [];
+    let offset = 0;
+    for (const entry of entries) {
+        const name = Buffer.from(entry.name, 'latin1');
+        const data = Buffer.from(entry.data);
+        const crc = crc32(data);
+        const local = Buffer.alloc(30);
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);      // version needed
+        local.writeUInt16LE(0, 6);       // flags: no UTF-8 bit, no data descriptor
+        local.writeUInt16LE(0, 8);       // method 0 = stored
+        local.writeUInt16LE(0x0000, 10); // time 00:00:00
+        local.writeUInt16LE(0x0021, 12); // date 1980-01-01
+        local.writeUInt32LE(crc, 14);
+        local.writeUInt32LE(data.length, 18);
+        local.writeUInt32LE(data.length, 22);
+        local.writeUInt16LE(name.length, 26);
+        local.writeUInt16LE(0, 28);
+        locals.push(local, name, data);
+        const central = Buffer.alloc(46);
+        central.writeUInt32LE(0x02014b50, 0);
+        central.writeUInt16LE(20, 4);    // version made by
+        central.writeUInt16LE(20, 6);    // version needed
+        central.writeUInt16LE(0, 8);
+        central.writeUInt16LE(0, 10);
+        central.writeUInt16LE(0x0000, 12);
+        central.writeUInt16LE(0x0021, 14);
+        central.writeUInt32LE(crc, 16);
+        central.writeUInt32LE(data.length, 20);
+        central.writeUInt32LE(data.length, 24);
+        central.writeUInt16LE(name.length, 28);
+        central.writeUInt16LE(0, 30);
+        central.writeUInt16LE(0, 32);
+        central.writeUInt16LE(0, 34);
+        central.writeUInt16LE(0, 36);
+        central.writeUInt32LE(0, 38);
+        central.writeUInt32LE(offset, 42);
+        centrals.push(central, name);
+        offset += 30 + name.length + data.length;
+    }
+    const centralDirectory = Buffer.concat(centrals);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);
+    end.writeUInt16LE(0, 4);
+    end.writeUInt16LE(0, 6);
+    end.writeUInt16LE(entries.length, 8);
+    end.writeUInt16LE(entries.length, 10);
+    end.writeUInt32LE(centralDirectory.length, 12);
+    end.writeUInt32LE(offset, 16);
+    end.writeUInt16LE(0, 20);
+    return Buffer.concat([...locals, centralDirectory, end]);
+}
+
+const PNG_ORIGINAL = makePNG('original', 0x11);
+const PNG_UPSCALED = makePNG('upscaled', 0x22);
+const PNG_MACOSX_DECOY = makePNG('macosx-decoy', 0x33);
+const PNG_ORIGINAL_BASE64 = PNG_ORIGINAL.toString('base64');
+const PNG_UPSCALED_BASE64 = PNG_UPSCALED.toString('base64');
+const PNG_MACOSX_DECOY_BASE64 = PNG_MACOSX_DECOY.toString('base64');
+
+// A non-PNG member FIRST, so a scenario only extracts the PNG if the archive is walked in order
+// instead of by a hardcoded entry index.
+const ARCHIVE_ORIGINAL = zip([
+    { name: 'note.txt', data: 'gotavern synthetic archive member' },
+    { name: 'image_0.png', data: PNG_ORIGINAL },
+]);
+const ARCHIVE_UPSCALED = zip([{ name: 'upscaled.png', data: PNG_UPSCALED }]);
+const ARCHIVE_UPSCALED_NO_PNG = zip([{ name: 'meta.json', data: '{"upscaled":true}' }]);
+const ARCHIVE_NO_PNG = zip([
+    { name: 'note.txt', data: 'gotavern synthetic archive member' },
+    { name: 'image_0.png.bak', data: PNG_ORIGINAL },
+]);
+const ARCHIVE_MACOSX_FIRST = zip([
+    { name: '__MACOSX/._image_0.png', data: PNG_MACOSX_DECOY },
+    { name: 'image_0.png', data: PNG_ORIGINAL },
+]);
+
+// ---- request plumbing ------------------------------------------------------------------------
+//
+// The probe drives the pinned listener over node:http instead of fetch because the FRAMING is part
+// of what these routes do: the SSE branch pipes an upstream stream, so it answers with
+// `transfer-encoding: chunked` and NO content-length and NO content-type, while the res.send
+// branches answer with an explicit content-length. undici's fetch would hide the first of those.
+// The same client is used for every scenario so the two branches cannot be captured differently.
+
+const EXCLUDED_RESPONSE_HEADERS = new Set([
+    'connection', 'date', 'keep-alive', 'last-modified', 'set-cookie',
+    'transfer-encoding', 'x-response-time',
+]);
+
+function pinnedRequest(origin, route, { body = '', headers = {} } = {}) {
+    const target = new URL(origin + route);
+    return new Promise((resolve, reject) => {
+        const request = http.request({
+            host: target.hostname,
+            port: target.port,
+            path: target.pathname + target.search,
+            method: 'POST',
+            agent: false,
+            headers: { ...headers, 'content-length': Buffer.byteLength(body) },
+        }, response => {
+            const chunks = [];
+            response.on('data', chunk => chunks.push(chunk));
+            response.on('error', reject);
+            response.on('end', () => resolve({
+                status: response.statusCode,
+                rawHeaders: response.rawHeaders,
+                body: Buffer.concat(chunks),
+                terminated: 'end',
+            }));
+        });
+        request.on('error', reject);
+        request.end(body);
+    });
+}
+
+function capturePinnedResponse(result) {
+    const pairs = [];
+    const transferEncoding = [];
+    for (let index = 0; index < result.rawHeaders.length; index += 2) {
+        const name = String(result.rawHeaders[index]).toLowerCase();
+        const value = String(result.rawHeaders[index + 1]);
+        if (name === 'transfer-encoding') {
+            transferEncoding.push(value.trim());
+            continue;
+        }
+        if (EXCLUDED_RESPONSE_HEADERS.has(name)) continue;
+        pairs.push([name, value]);
+    }
+    // SORTED, not in wire order. The fixture is re-recorded on another host and compared byte for
+    // byte, while the comparison that matters is keyed by name; keeping the wire order would make
+    // the committed bytes depend on the order Node happened to write the header block.
+    pairs.sort((left, right) => left[0].localeCompare(right[0]));
+    const headers = {};
+    for (const [name, value] of pairs) headers[name] = value;
+    const contentLength = headers['content-length'] === undefined ? null : Number(headers['content-length']);
+    const body = result.body;
+    return {
+        status: result.status,
+        headers,
+        framing: {
+            transferEncoding: transferEncoding.length === 0 ? null : transferEncoding.join(', '),
+            contentLength,
+        },
+        terminated: result.terminated,
+        bodyBase64: body.toString('base64'),
+        bodySha256: createHash('sha256').update(body).digest('hex'),
+        bodyLength: body.length,
+        bodyText: isUtf8Text(body) ? body.toString('utf8') : null,
+    };
+}
+
+function isUtf8Text(buffer) {
+    const text = buffer.toString('utf8');
+    return Buffer.from(text, 'utf8').equals(buffer);
+}
+
+// ---- scenario table: /api/novelai/generate ---------------------------------------------------
+
+// The parameter block every full request carries, so one scenario proves the whole projection and
+// the sparse scenario proves that an ABSENT member is omitted rather than sent as null.
+const GENERATE_PARAMETERS = {
+    temperature: 1.5,
+    max_length: 40,
+    min_length: 2,
+    tail_free_sampling: 0.9,
+    repetition_penalty: 1.05,
+    repetition_penalty_range: 2048,
+    repetition_penalty_slope: 0.9,
+    repetition_penalty_frequency: 0.02,
+    repetition_penalty_presence: 0.01,
+    top_a: 0.5,
+    top_p: 0.9,
+    top_k: 13,
+    typical_p: 0.97,
+    mirostat_lr: 0.22,
+    mirostat_tau: 4,
+    phrase_rep_pen: 'medium',
+    stop_sequences: [[13], [58]],
+    generate_until_sentence: true,
+    use_cache: false,
+    return_full_text: false,
+    prefix: 'vanilla',
+    order: [1, 5, 3, 2, 4],
+    num_logprobs: 0,
+    min_p: 0,
+    math1_temp: 0.2,
+    math1_quad: 0.3,
+    math1_quad_entropy_scale: 0.4,
+};
+
+const generateBody = overrides => ({
+    input: 'Once upon a time',
+    ...GENERATE_PARAMETERS,
+    ...overrides,
+});
+
+const STREAM_FRAMES = 'data: {"token":"He"}\n\ndata: {"token":"llo"}\n\ndata: [DONE]\n\n';
+
+const SCENARIOS = [
+    // ── the model tables ──────────────────────────────────────────────────────────────────────
+    { label: 'generate.clio', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.kayra', route: 'generate', body: generateBody({ model: 'kayra-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.erato', route: 'generate', body: generateBody({ model: 'llama-3-erato-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.hypebot', route: 'generate', body: generateBody({ model: 'hypebot', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.unknownModel', route: 'generate', body: generateBody({ model: 'some-external-model', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    // erato wins the bad-word and logit-bias tables, clio wins the repetition whitelist.
+    { label: 'generate.mixedModel', route: 'generate', body: generateBody({ model: 'clio-erato', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    // two empty arrays survive the pinned splice-during-iteration loop; use_string:null becomes true.
+    { label: 'generate.customBadWords', route: 'generate', body: generateBody({
+        model: 'clio-v1',
+        streaming: false,
+        bad_words_ids: [[100], [], []],
+        logit_bias_exp: [{ sequence: [7], bias: -1, ensure_sequence_finish: true, generate_once: false }],
+        use_string: null,
+    }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.sparse', route: 'generate', body: { input: 'Once upon a time', model: 'clio-v1' },
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.textadventureClio', route: 'generate', body: {
+        input: '>look', model: 'clio-v1', prefix: 'theme_textadventure', temperature: 1,
+    },
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":">"}' }] },
+    { label: 'generate.textadventureErato', route: 'generate', body: {
+        input: '>look', model: 'llama-3-erato-v1', prefix: 'theme_textadventure', temperature: 1,
+    },
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":">"}' }] },
+
+    // ── the SSE forward, and the NON-STREAM CONTROL that makes it meaningful ──────────────────
+    { label: 'generate.stream', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: true }),
+      upstream: [{ path: '/ai/generate-stream', headers: { 'content-type': 'text/event-stream' }, body: STREAM_FRAMES }] },
+    { label: 'generate.nonStreamControl', route: 'generate', control: 'non-stream',
+      body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'application/json' }, body: '{"output":"Hello there"}' }] },
+    { label: 'generate.streamNonOk', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: true }),
+      upstream: [{ path: '/ai/generate-stream', status: 500, statusText: 'Internal Server Error', text: 'stream exploded' }] },
+    { label: 'generate.streamUnauthorized', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: true }),
+      upstream: [{ path: '/ai/generate-stream', status: 401, statusText: 'Unauthorized', text: 'nope' }] },
+
+    // ── failure branches ─────────────────────────────────────────────────────────────────────
+    { label: 'generate.upstreamErrorJson', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', status: 400, statusText: 'Bad Request', headers: { 'content-type': 'application/json' }, body: '{"message":"upstream rejected it"}' }] },
+    { label: 'generate.upstreamErrorText', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', status: 500, statusText: 'Internal Server Error', headers: { 'content-type': 'text/plain' }, body: 'upstream exploded' }] },
+    // JSON.parse succeeds on a JSON string, so `data.message` is undefined and the member is DROPPED.
+    { label: 'generate.upstreamErrorNoMessage', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', status: 400, statusText: 'Bad Request', headers: { 'content-type': 'application/json' }, body: '"just a string"' }] },
+    // a 200 that is not JSON makes response.json() reject, which the pinned catch answers 200 {error:true}.
+    { label: 'generate.upstreamOkNonJson', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      upstream: [{ path: '/ai/generate', headers: { 'content-type': 'text/plain' }, body: 'not json at all' }] },
+    { label: 'generate.noKey', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      secrets: { ...SECRETS, api_key_novel: '' } },
+    { label: 'generate.rejected', route: 'generate', body: generateBody({ model: 'clio-v1', streaming: false }),
+      peer: 'closed', upstream: [{ path: '/ai/generate', throws: true }] },
+
+    // ---- scenario table: /api/novelai/generate-image ---------------------------------------
+    { label: 'generate-image.defaults', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 42 },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.overrides', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', negative_prompt: 'lowres', model: 'nai-diffusion-3', height: 768, width: 512,
+        scale: 5.5, seed: 0, sampler: 'k_euler', scheduler: 'native', steps: 12, decrisper: true, sm: true,
+        sm_dyn: true, upscale_ratio: 1,
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    // An absent seed is randomized; the marker is applied ONLY here, because masking every body
+    // would make "seed 42 is forwarded verbatim" unobservable (rule 18: a masked value cannot fail).
+    { label: 'generate-image.randomSeed', route: 'generate-image', randomSeed: true, body: { prompt: 'a synthetic cat' },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.varietyBoostReference', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 3, variety_boost: true, width: 832, height: 1216, model: 'nai-diffusion',
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.varietyBoostV45', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 3, variety_boost: true, width: 832, height: 1216, model: 'nai-diffusion-4-5-full',
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.varietyBoostScaled', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 3, variety_boost: true, width: 512, height: 768, model: 'nai-diffusion',
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+
+    // ── the SECOND request, and every way it can fall back to the original base64 ────────────
+    { label: 'generate-image.upscaleOk', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 832, height: 1216, upscale_ratio: 2,
+    },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_UPSCALED },
+      ] },
+    { label: 'generate-image.upscaleOmitsSize', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5, upscale_ratio: 2 },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_UPSCALED },
+      ] },
+    { label: 'generate-image.upscaleStringRatio', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 64, height: 64, upscale_ratio: '2',
+    },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_UPSCALED },
+      ] },
+    { label: 'generate-image.upscaleFails', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 2,
+    },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', status: 500, statusText: 'Internal Server Error', text: 'upscale exploded' },
+      ] },
+    { label: 'generate-image.upscaleNoPng', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 2,
+    },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_UPSCALED_NO_PNG },
+      ] },
+    // The second request is REJECTED while the first succeeds: the two bases are separate seams, so
+    // the Go side reproduces this by pointing only GOTAVERN_NOVELAI_API_URL at a closed port.
+    { label: 'generate-image.upscaleRejected', route: 'generate-image', secondPeer: 'closed', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 2,
+    },
+      upstream: [
+          { path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL },
+          { path: '/ai/upscale', throws: true },
+      ] },
+
+    // ── the archive and the first request failing ────────────────────────────────────────────
+    { label: 'generate-image.noUpscaleWhenRatioOne', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 1,
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.noUpscaleWhenRatioNaN', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 'big',
+    },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_ORIGINAL }] },
+    { label: 'generate-image.macOsxIgnored', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5 },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_MACOSX_FIRST }] },
+    { label: 'generate-image.noPngInArchive', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5 },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'application/zip' }, binary: ARCHIVE_NO_PNG }] },
+    { label: 'generate-image.notAZip', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5 },
+      upstream: [{ path: '/ai/generate-image', headers: { 'content-type': 'text/plain' }, body: 'this is not a zip archive' }] },
+    { label: 'generate-image.nonOk', route: 'generate-image', body: {
+        prompt: 'a synthetic cat', seed: 5, width: 512, height: 512, upscale_ratio: 2,
+    },
+      upstream: [{ path: '/ai/generate-image', status: 500, statusText: 'Internal Server Error', text: 'generate exploded' }] },
+    { label: 'generate-image.noKey', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5 },
+      secrets: { ...SECRETS, api_key_novel: '' } },
+    { label: 'generate-image.rejected', route: 'generate-image', body: { prompt: 'a synthetic cat', seed: 5 },
+      peer: 'closed', upstream: [{ path: '/ai/generate-image', throws: true }] },
+];
+
+function secretFile(values) {
+    const secrets = {};
+    for (const [key, value] of Object.entries(values)) {
+        secrets[key] = [{ id: `probe-id-${key}`, value, label: key, active: true }];
+    }
+    return secrets;
+}
+
+function normalizeSeed(value) {
+    if (typeof value !== 'string') return value;
+    return value.replace(/"seed":\d+/g, '"seed":"<seed>"');
+}
+
+// ---- record ----------------------------------------------------------------------------------
+
+const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-novelai-generate-oracle-', mocks: [] });
+const scenarios = {};
+let bootOutbound = [];
+try {
+    bootOutbound = server.bootOutbound;
+    for (const scenario of SCENARIOS) {
+        const rules = (scenario.upstream ?? []).map((rule, index) => ({
+            run: scenario.label,
+            match: rule.path,
+            status: rule.status ?? 200,
+            statusText: rule.statusText ?? 'OK',
+            headers: rule.headers ?? { 'content-type': 'application/json' },
+            body: rule.binary !== undefined ? rule.binary.toString('base64')
+                : rule.text !== undefined ? rule.text
+                    : rule.body ?? '',
+            ...(rule.binary !== undefined ? { binaryBody: true } : {}),
+            ...(rule.throws === true ? { throws: true } : {}),
+            // Two rules that share a path prefix (none here) would need `times`; index keeps the
+            // consumption accounting per rule rather than per path.
+            index,
+        }));
+        server.writeSecrets(secretFile(scenario.secrets ?? SECRETS));
+        server.setMocks(rules);
+        const result = await pinnedRequest(server.origin, `/api/novelai/${scenario.route}`, {
+            body: JSON.stringify(scenario.body),
+            headers: {
+                cookie: server.session.cookie,
+                'x-csrf-token': server.session.csrfToken,
+                'content-type': 'application/json',
+            },
+        });
+        const attempted = server.outbound().map(request => ({
+            url: request.url,
+            method: request.method,
+            explicitHeaders: Object.entries(request.headers ?? {})
+                .map(([name, value]) => [String(name).toLowerCase(), String(value)])
+                .sort((left, right) => left[0].localeCompare(right[0])),
+            body: scenario.randomSeed === true ? normalizeSeed(request.body ?? '') : (request.body ?? ''),
+        }));
+        // The stub records a request BEFORE it throws, so a rejected attempt is visible there but
+        // can never reach a Go peer (a closed port records nothing). Split the two so the compared
+        // list is the list the Go peer must record, and keep the rejected count as provenance.
+        const throwing = (scenario.upstream ?? []).filter(rule => rule.throws === true);
+        const rejected = throwing.length;
+        // The rejected attempt is always the LAST request: both routes issue their requests in
+        // sequence, and only generate-image's second request can be rejected on its own.
+        for (let index = 0; index < rejected; index++) {
+            const recordedURL = attempted[attempted.length - rejected + index]?.url ?? '';
+            const expectedPath = throwing[index].path;
+            assert.equal(recordedURL.endsWith(expectedPath), true,
+                `${scenario.label}: the rejected attempt must be the last recorded request and must be ${expectedPath}, not ${recordedURL}`);
+        }
+        scenarios[scenario.label] = {
+            route: `/api/novelai/${scenario.route}`,
+            requestBody: JSON.stringify(scenario.body),
+            ...(scenario.peer === undefined ? {} : { peer: scenario.peer }),
+            ...(scenario.secondPeer === undefined ? {} : { secondPeer: scenario.secondPeer }),
+            ...(scenario.control === undefined ? {} : { control: scenario.control }),
+            ...(scenario.randomSeed === true ? { randomSeed: true } : {}),
+            secrets: scenario.secrets ?? SECRETS,
+            upstream: (scenario.upstream ?? []).map(rule => ({
+                path: rule.path,
+                status: rule.status ?? 200,
+                ...(rule.headers === undefined ? {} : { headers: rule.headers }),
+                ...(rule.binary !== undefined ? { bodyBase64: rule.binary.toString('base64'), bodyLength: rule.binary.length }
+                    : rule.text !== undefined ? { bodyText: rule.text } : { bodyText: rule.body ?? '' }),
+                ...(rule.throws === true ? { throws: true } : {}),
+            })),
+            response: capturePinnedResponse(result),
+            outbound: attempted.slice(0, attempted.length - rejected),
+            outboundAttempts: attempted.length,
+            outboundRejectedAttempts: rejected,
+        };
+    }
+} catch (error) {
+    console.error('PROBE FAILED; pinned server log tail:');
+    console.error(server.logs.join('').slice(-8000));
+    throw error;
+} finally {
+    await server.stop();
+}
+
+const outboundURLs = label => scenarios[label].outbound.map(request => request.url);
+const outboundBody = (label, index) => JSON.parse(scenarios[label].outbound[index].body);
+
+// ── record-time assertions: the fixture must agree with the pinned BEHAVIOUR, not just with itself
+assert.equal(bootOutbound.length, 0, 'the pinned boot itself must make no outbound request');
+assert.equal(Object.keys(scenarios).length, SCENARIOS.length, 'every declared scenario recorded');
+
+// The model tables: each family must actually change the outbound body, or the scenario is decoration.
+const badWordCounts = label => outboundBody(label, 0).parameters.bad_words_ids.length;
+assert.equal(badWordCounts('generate.clio'), 20, 'clio carries the 20-entry bad-word list');
+assert.equal(badWordCounts('generate.kayra'), 20, 'kayra carries the same list');
+assert.equal(badWordCounts('generate.erato'), 7, 'erato carries its own 7-entry list');
+assert.equal(badWordCounts('generate.hypebot'), 150, 'hypebot carries the 150-entry list');
+assert.equal(outboundBody('generate.unknownModel', 0).parameters.bad_words_ids, null,
+    'a model outside every family sends bad_words_ids null');
+assert.equal(outboundBody('generate.mixedModel', 0).parameters.bad_words_ids.length, 7,
+    'clio-erato takes the ERATO bad-word list (erato is checked last in getBadWordsList)');
+assert.equal(outboundBody('generate.mixedModel', 0).parameters.repetition_penalty_whitelist.length, 73,
+    'clio-erato takes the CLIO repetition whitelist (clio/kayra is checked FIRST in getRepPenaltyWhitelist)');
+assert.equal(outboundBody('generate.mixedModel', 0).parameters.logit_bias_exp.length, 2,
+    'clio-erato takes the erato logit-bias list');
+assert.equal(outboundBody('generate.erato', 0).parameters.repetition_penalty_whitelist.length, 79,
+    'erato carries its own repetition whitelist');
+assert.deepEqual(outboundBody('generate.hypebot', 0).parameters.logit_bias_exp, [],
+    'no family other than clio/kayra/erato contributes a logit bias, and the member is still an EMPTY ARRAY');
+assert.equal(outboundBody('generate.hypebot', 0).parameters.repetition_penalty_whitelist, null,
+    'hypebot sends repetition_penalty_whitelist null');
+
+// The parameter projection.
+const clioBody = outboundBody('generate.clio', 0);
+assert.equal(clioBody.parameters.use_string, true, 'an absent use_string becomes true');
+assert.equal(outboundBody('generate.customBadWords', 0).parameters.use_string, true,
+    'use_string null becomes true: the writer is `?? true`, not a truthiness test');
+assert.equal('use_string' in outboundBody('generate.sparse', 0).parameters, true,
+    'the sparse body still carries use_string');
+assert.equal('stop_sequences' in outboundBody('generate.sparse', 0).parameters, false,
+    'an absent parameter is OMITTED, not sent as null (JSON.stringify drops undefined)');
+assert.equal('temperature' in outboundBody('generate.sparse', 0).parameters, false, 'so is temperature');
+assert.equal(clioBody.parameters.temperature, 1.5, 'a supplied parameter is passed through verbatim');
+assert.deepEqual(clioBody.parameters.stop_sequences, [[13], [58]], 'stop_sequences keeps its nested arrays');
+assert.deepEqual(clioBody.parameters.order, [1, 5, 3, 2, 4], 'order keeps its order');
+assert.deepEqual(Object.keys(clioBody), ['input', 'model', 'parameters'], 'the top-level member order');
+assert.deepEqual(Object.keys(clioBody.parameters).slice(0, 3), ['use_string', 'temperature', 'max_length'],
+    'the parameter member order starts at use_string and is not sorted');
+
+// The custom bad-word append, including the pinned splice-during-iteration skip.
+const customBadWords = outboundBody('generate.customBadWords', 0).parameters;
+assert.deepEqual(customBadWords.bad_words_ids.slice(0, 20), JSON.parse(JSON.stringify(outboundBody('generate.clio', 0).parameters.bad_words_ids)),
+    'the request bad words are APPENDED after the model list, not merged');
+assert.deepEqual(customBadWords.bad_words_ids.slice(20), [[100], []],
+    'ONE empty array survives: the pinned loop splices the array it is iterating and skips the next entry');
+assert.equal(customBadWords.logit_bias_exp.length, 3, 'the request logit_bias_exp entries are appended');
+
+// eos_token_id.
+assert.equal(outboundBody('generate.textadventureClio', 0).parameters.eos_token_id, 49405,
+    'theme_textadventure on clio adds eos_token_id 49405');
+assert.equal(outboundBody('generate.textadventureErato', 0).parameters.eos_token_id, 29,
+    'theme_textadventure on erato adds eos_token_id 29');
+assert.equal('eos_token_id' in clioBody.parameters, false, 'no eos_token_id outside theme_textadventure');
+
+// URL selection: kayra and erato go to text.novelai.net, everything else to api.novelai.net.
+assert.equal(outboundURLs('generate.clio')[0], 'https://api.novelai.net/ai/generate', 'clio uses the API host');
+assert.equal(outboundURLs('generate.kayra')[0], 'https://text.novelai.net/ai/generate', 'kayra uses the TEXT host');
+assert.equal(outboundURLs('generate.erato')[0], 'https://text.novelai.net/ai/generate', 'erato uses the TEXT host');
+assert.equal(outboundURLs('generate.mixedModel')[0], 'https://text.novelai.net/ai/generate', 'clio-erato uses the TEXT host');
+assert.equal(outboundURLs('generate.hypebot')[0], 'https://api.novelai.net/ai/generate', 'hypebot uses the API host');
+
+// The stream, and the control that makes the stream's framing meaningful.
+assert.equal(outboundURLs('generate.stream')[0], 'https://api.novelai.net/ai/generate-stream', 'streaming selects /ai/generate-stream');
+assert.equal(outboundURLs('generate.nonStreamControl')[0], 'https://api.novelai.net/ai/generate', 'non-streaming selects /ai/generate');
+assert.equal(scenarios['generate.stream'].outbound[0].body, scenarios['generate.nonStreamControl'].outbound[0].body,
+    'the control sends the IDENTICAL upstream body: only the URL and the response framing differ');
+assert.equal(scenarios['generate.stream'].response.status, 200, 'the forwarded stream keeps the upstream status');
+assert.equal(scenarios['generate.stream'].response.framing.transferEncoding, 'chunked',
+    'the forwarded stream is chunk-framed (pinned pipes the source stream through Express)');
+assert.equal(scenarios['generate.stream'].response.framing.contentLength, null,
+    'and has NO content-length: a buffered res.send would set one');
+assert.equal(scenarios['generate.stream'].response.headers['content-type'], undefined,
+    'and NO content-type: forwardFetchResponse never forwards upstream headers');
+assert.equal(scenarios['generate.stream'].response.bodyText, STREAM_FRAMES, 'the SSE frames arrive byte for byte');
+assert.equal(scenarios['generate.stream'].response.terminated, 'end', 'the response terminated cleanly after the last frame');
+assert.equal(scenarios['generate.nonStreamControl'].response.headers['content-type'], 'application/json; charset=utf-8',
+    'the control answers JSON, which is what makes the stream capture discriminable from a buffered one');
+assert.notEqual(scenarios['generate.nonStreamControl'].response.framing.contentLength, null,
+    'the control carries an explicit content-length');
+assert.equal(scenarios['generate.nonStreamControl'].response.bodyText, '{"output":"Hello there"}',
+    'the control forwards the parsed JSON');
+assert.equal(scenarios['generate.streamNonOk'].response.status, 500, 'a non-ok stream keeps the upstream status');
+assert.equal(scenarios['generate.streamNonOk'].response.bodyText, 'stream exploded', 'and forwards the raw error text');
+assert.equal(scenarios['generate.streamNonOk'].response.framing.contentLength, null,
+    'res.end(text) is chunk-framed too: no content-length');
+assert.equal(scenarios['generate.streamNonOk'].response.headers['content-type'], undefined,
+    'and the error text is sent with no content type');
+assert.equal(scenarios['generate.streamUnauthorized'].response.status, 400,
+    'forwardFetchResponse rewrites a 401 to 400 so a streamed reply cannot reset Basic Auth');
+assert.equal(scenarios['generate.streamUnauthorized'].response.bodyText, 'nope', 'and forwards the body');
+
+// Failure branches.
+assert.equal(scenarios['generate.upstreamErrorJson'].response.status, 500, 'an upstream error is a 500');
+assert.deepEqual(JSON.parse(scenarios['generate.upstreamErrorJson'].response.bodyText),
+    { error: { message: 'upstream rejected it' } }, 'a JSON error body contributes its message');
+assert.deepEqual(JSON.parse(scenarios['generate.upstreamErrorText'].response.bodyText),
+    { error: { message: 'upstream exploded' } }, 'a non-JSON error body is used as the message');
+assert.deepEqual(JSON.parse(scenarios['generate.upstreamErrorNoMessage'].response.bodyText), { error: {} },
+    'a JSON error body without a message leaves the member undefined, which JSON.stringify drops');
+assert.equal(scenarios['generate.upstreamOkNonJson'].response.status, 200, 'a 200 that is not JSON is a 200');
+assert.deepEqual(JSON.parse(scenarios['generate.upstreamOkNonJson'].response.bodyText), { error: true },
+    'response.json() rejecting lands in the catch, which answers {error:true}');
+assert.equal(scenarios['generate.noKey'].response.status, 400, 'a missing key is a 400');
+assert.equal(scenarios['generate.noKey'].outboundAttempts, 0, 'and makes NO outbound attempt');
+assert.deepEqual(JSON.parse(scenarios['generate.rejected'].response.bodyText), { error: true },
+    'a rejected fetch is the same {error:true} envelope at 200');
+assert.equal(scenarios['generate.rejected'].outboundRejectedAttempts, 1, 'the rejected attempt was attempted once');
+
+// ── generate-image ─────────────────────────────────────────────────────────────────────────────
+const imageBody = (label, index = 0) => outboundBody(label, index);
+const imageDefaults = imageBody('generate-image.defaults');
+assert.equal(imageDefaults.action, 'generate', 'the upstream action is fixed');
+assert.equal(imageDefaults.input, 'a synthetic cat', 'the prompt becomes input');
+assert.equal(imageDefaults.model, 'nai-diffusion', 'an absent model becomes nai-diffusion');
+assert.deepEqual(imageDefaults.parameters, {
+    params_version: 3,
+    prefer_brownian: true,
+    negative_prompt: '',
+    height: 512,
+    width: 512,
+    scale: 9,
+    seed: 42,
+    sampler: 'k_dpmpp_2m',
+    noise_schedule: 'karras',
+    steps: 28,
+    n_samples: 1,
+    ucPreset: 0,
+    qualityToggle: false,
+    add_original_image: false,
+    controlnet_strength: 1,
+    deliberate_euler_ancestral_bug: false,
+    dynamic_thresholding: false,
+    legacy: false,
+    legacy_v3_extend: false,
+    sm: false,
+    sm_dyn: false,
+    uncond_scale: 1,
+    skip_cfg_above_sigma: null,
+    use_coords: false,
+    characterPrompts: [],
+    reference_image_multiple: [],
+    reference_information_extracted_multiple: [],
+    reference_strength_multiple: [],
+    v4_negative_prompt: { caption: { base_caption: '', char_captions: [] } },
+    v4_prompt: { caption: { base_caption: 'a synthetic cat', char_captions: [] }, use_coords: false, use_order: true },
+}, 'the whole NAI Diffusion default parameter block, in the pinned member order');
+assert.deepEqual(Object.keys(imageDefaults.parameters), [
+    'params_version', 'prefer_brownian', 'negative_prompt', 'height', 'width', 'scale', 'seed', 'sampler',
+    'noise_schedule', 'steps', 'n_samples', 'ucPreset', 'qualityToggle', 'add_original_image',
+    'controlnet_strength', 'deliberate_euler_ancestral_bug', 'dynamic_thresholding', 'legacy',
+    'legacy_v3_extend', 'sm', 'sm_dyn', 'uncond_scale', 'skip_cfg_above_sigma', 'use_coords',
+    'characterPrompts', 'reference_image_multiple', 'reference_information_extracted_multiple',
+    'reference_strength_multiple', 'v4_negative_prompt', 'v4_prompt',
+], 'the parameter member order is the literal order in the pinned source');
+assert.equal(imageDefaults.parameters.seed, 42, 'a seed >= 0 is forwarded verbatim');
+assert.equal(scenarios['generate-image.defaults'].outboundAttempts, 1,
+    'no upscale_ratio means NO second request');
+
+const imageOverrides = imageBody('generate-image.overrides');
+assert.equal(imageOverrides.model, 'nai-diffusion-3', 'the model override');
+assert.equal(imageOverrides.parameters.negative_prompt, 'lowres', 'the negative prompt override');
+assert.equal(imageOverrides.parameters.height, 768, 'the height override');
+assert.equal(imageOverrides.parameters.width, 512, 'the width override');
+assert.equal(imageOverrides.parameters.scale, 5.5, 'the scale override');
+assert.equal(imageOverrides.parameters.seed, 0, 'seed 0 is kept: the test is `>= 0`, not truthiness');
+assert.equal(imageOverrides.parameters.sampler, 'k_euler', 'the sampler override');
+assert.equal(imageOverrides.parameters.noise_schedule, 'native', 'scheduler becomes noise_schedule');
+assert.equal(imageOverrides.parameters.steps, 12, 'the steps override');
+assert.equal(imageOverrides.parameters.dynamic_thresholding, true, 'decrisper becomes dynamic_thresholding');
+assert.equal(imageOverrides.parameters.sm, true, 'the sm override');
+assert.equal(imageOverrides.parameters.sm_dyn, true, 'the sm_dyn override');
+assert.equal(imageOverrides.parameters.v4_negative_prompt.caption.base_caption, 'lowres', 'the v4 negative caption');
+assert.equal(scenarios['generate-image.overrides'].outboundAttempts, 1, 'upscale_ratio 1 does NOT upscale');
+
+// The random seed is the only nondeterministic value; it is masked in the recorded body and the
+// branch itself is asserted here.
+const randomSeedBody = scenarios['generate-image.randomSeed'].outbound[0].body;
+assert.equal(randomSeedBody.includes('"seed":"<seed>"'), true,
+    'an ABSENT seed is randomized by Math.floor(Math.random()*9999999999) and masked as <seed>');
+
+// variety_boost: the reference pixel count and both magic numbers.
+assert.equal(imageBody('generate-image.varietyBoostReference').parameters.skip_cfg_above_sigma, 19,
+    'the reference size 832x1216 makes the ratio exactly 1, so the sigma is the bare magic number 19');
+assert.equal(imageBody('generate-image.varietyBoostV45').parameters.skip_cfg_above_sigma, 58,
+    'nai-diffusion-4-5 uses the 58 magic number');
+assert.equal(imageBody('generate-image.varietyBoostScaled').parameters.skip_cfg_above_sigma, 11.84515480302779,
+    'a non-reference size produces Math.pow(ratio, 0.5) * 19 with JavaScript number formatting');
+assert.equal(imageDefaults.parameters.skip_cfg_above_sigma, null, 'variety_boost off sends null, not 0');
+
+// The second request.
+assert.equal(scenarios['generate-image.upscaleOk'].outboundAttempts, 2, 'upscale_ratio 2 makes a SECOND request');
+assert.equal(scenarios['generate-image.upscaleOk'].outbound[1].url, 'https://api.novelai.net/ai/upscale',
+    'the second request goes to the API host, NOT the image host');
+assert.equal(scenarios['generate-image.upscaleOk'].outbound[1].method, 'POST', 'the upscale is a POST');
+const upscaleBody = imageBody('generate-image.upscaleOk', 1);
+assert.deepEqual(Object.keys(upscaleBody), ['image', 'height', 'width', 'scale'], 'the upscale member order');
+assert.equal(upscaleBody.image, PNG_ORIGINAL_BASE64, 'the upscale carries the ORIGINAL image base64');
+assert.equal(upscaleBody.height, 1216, 'the raw body height, not the default');
+assert.equal(upscaleBody.width, 832, 'the raw body width, not the default');
+assert.equal(upscaleBody.scale, 2, 'the scale is the raw upscale_ratio');
+assert.equal(scenarios['generate-image.upscaleOk'].response.bodyText, PNG_UPSCALED_BASE64,
+    'the UPSCALED image is what the caller receives');
+const upscaleOmitsSize = imageBody('generate-image.upscaleOmitsSize', 1);
+assert.deepEqual(Object.keys(upscaleOmitsSize), ['image', 'scale'],
+    'the upscale reads request.body.width/height directly, so an absent size is OMITTED (the generate request used the default)');
+assert.equal(imageBody('generate-image.upscaleStringRatio', 1).scale, '2',
+    'isNaN("2") is false, so a STRING ratio still upscales and the scale keeps its string type');
+
+// Every fallback returns the ORIGINAL base64 and still made both requests.
+for (const label of ['generate-image.upscaleFails', 'generate-image.upscaleNoPng', 'generate-image.upscaleRejected']) {
+    assert.equal(scenarios[label].response.status, 200, `${label}: a failed upscale is not an error status`);
+    assert.equal(scenarios[label].response.bodyText, PNG_ORIGINAL_BASE64,
+        `${label}: the original image is returned when upscaling fails`);
+}
+assert.equal(scenarios['generate-image.upscaleFails'].outboundAttempts, 2, 'a non-ok upscale was still attempted');
+assert.equal(scenarios['generate-image.upscaleNoPng'].outboundAttempts, 2, 'so was an upscale with no PNG in the archive');
+assert.equal(scenarios['generate-image.upscaleRejected'].outboundAttempts, 2, 'and so was a rejected upscale');
+assert.equal(scenarios['generate-image.upscaleRejected'].outboundRejectedAttempts, 1,
+    'the rejected second request is counted separately: a closed port records nothing at the peer');
+
+// The first-request and archive branches.
+assert.equal(scenarios['generate-image.defaults'].response.bodyText, PNG_ORIGINAL_BASE64,
+    'the archive is walked in order and the PNG entry is extracted');
+assert.equal(scenarios['generate-image.defaults'].response.headers['content-type'], 'text/html; charset=utf-8',
+    'res.send(string) is html-typed, NOT application/json and NOT image/png');
+assert.equal(scenarios['generate-image.macOsxIgnored'].response.bodyText, PNG_ORIGINAL_BASE64,
+    'an entry under __MACOSX is skipped even when it is the first .png');
+assert.notEqual(PNG_MACOSX_DECOY_BASE64, PNG_ORIGINAL_BASE64, 'the decoy is a different image, so the assertion can fail');
+assert.equal(scenarios['generate-image.noUpscaleWhenRatioOne'].outboundAttempts, 1, 'upscale_ratio 1 does not upscale');
+assert.equal(scenarios['generate-image.noUpscaleWhenRatioNaN'].outboundAttempts, 1, 'a non-numeric ratio does not upscale');
+assert.equal(scenarios['generate-image.noPngInArchive'].response.status, 500, 'an archive with no PNG is a 500');
+assert.equal(scenarios['generate-image.notAZip'].response.status, 500, 'an archive that cannot be opened is a 500');
+assert.equal(scenarios['generate-image.nonOk'].response.status, 500, 'a non-ok generate is a 500');
+assert.equal(scenarios['generate-image.nonOk'].outboundAttempts, 1,
+    'and NEVER reaches the upscale request even though upscale_ratio was 2');
+assert.equal(scenarios['generate-image.noKey'].response.status, 400, 'a missing key is a 400');
+assert.equal(scenarios['generate-image.noKey'].outboundAttempts, 0, 'with no outbound attempt');
+assert.equal(scenarios['generate-image.rejected'].response.status, 500, 'a rejected fetch is a 500');
+assert.equal(scenarios['generate-image.rejected'].outboundRejectedAttempts, 1, 'after one attempted request');
+
+const fixture = {
+    schemaVersion: 1,
+    baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
+    probe: 'tools/probe-novelai-generate.mjs',
+    implementedRoutes: ['/api/novelai/generate', '/api/novelai/generate-image'],
+    pinnedSource: {
+        'src/endpoints/novelai.js:167': 'router.post(\'/generate\'): the model-dependent bad-word, logit-bias and repetition-penalty tables, the parameter projection, /ai/generate or /ai/generate-stream, and the res.send / forwardFetchResponse fork',
+        'src/endpoints/novelai.js:300': 'router.post(\'/generate-image\'): the NAI Diffusion body, extractFileFromZipBuffer(archive, \'.png\') and the conditional /ai/upscale request with a fallback to the original base64',
+        'src/endpoints/novelai.js:75': 'getBadWordsList / getLogitBiasList / getRepPenaltyWhitelist: the family precedence each function applies in a DIFFERENT order',
+        'src/util.js:732': 'forwardFetchResponse: the 401->400 rewrite, no content type, no content length, the raw text on a non-ok source',
+        'src/util.js:207': 'extractFileFromZipBuffer: archive order, `endsWith(.png)`, `__MACOSX` skipped, null on any open or read failure',
+    },
+    mechanism: 'Every upstream is a hardcoded literal, so the probe replaces the pinned server\'s `node-fetch` module and the global `fetch` with a controlled peer; the Go side gets seams for the three pinned bases whose defaults are the literals, and replays the same peer through a real listener. Rejected fetches are produced through a real CLOSED PORT on the Go side and through a throwing stub rule on the pinned side.',
+    conventions: {
+        hosts: 'there is NO <mock> marker in this fixture: unlike the routes whose upstream is a caller- or secret-supplied URL, every upstream here is a pinned literal (api/text/image.novelai.net), so the recorded URL is the value the route constructed and the Go seam is pointed at the peer by the test',
+        binary: 'the SSE frames, the JSON envelopes and the status phrases are recorded as base64 + SHA-256 + byte length and compared as bytes; the base64 image projection is a STRING body and is compared as text as well',
+        outbound: '`outbound` holds the requests the peer ANSWERED, in order, and is exactly what a Go peer must record. `outboundAttempts` is attempts = answered + rejected, which is the assertion the image route\'s second request needs. `outboundRejectedAttempts` separates the two because the pinned stub records a request before it throws while a closed port records nothing',
+        count: 'the image route\'s outbound count is an ASSERTION, not a convenience: every no-upscale branch must be 1 and every upscale branch 2',
+        syntheticBytes: 'every zip and png is generated by this probe (stored zip, fixed 1980-01-01 timestamps, a valid 1x1 greyscale PNG with a marker tEXt chunk), so the fixture carries no live provider output and no host-dependent byte',
+    },
+    fields: [
+        { path: 'scenarios.*.response.status', comparison: 'compared', reason: 'every branch differs in status: 200/400/500, and the streamed 401 becomes a 400' },
+        { path: 'scenarios.*.response.headers', comparison: 'compared', reason: 'the whole stable header set (content type, content length, ETag, the security headers and Vary), minus the transport headers listed in `excludedResponseHeaders`' },
+        { path: 'scenarios.*.response.framing', comparison: 'compared', reason: 'THE FRAMING: the forwarded stream is chunked with no content-length and no content-type, res.send is length-delimited. This is what a buffered capture cannot fake' },
+        { path: 'scenarios.*.response.bodyBase64/bodySha256/bodyLength', comparison: 'compared', reason: 'the SSE frames, the JSON envelopes, the status phrases, the base64 image projections and the fallback image, compared as bytes' },
+        { path: 'scenarios.*.response.terminated', comparison: 'compared', reason: 'the stream ends cleanly after the final frame rather than being cut off' },
+        { path: 'scenarios.*.outbound', comparison: 'compared', reason: 'method, absolute URL, declared header set and the exact body of every request the peer ANSWERED, in order' },
+        { path: 'scenarios.*.outboundAttempts', comparison: 'compared', reason: 'THE COUNT: the image route\'s second request is an assertion. A no-upscale branch that made two requests, or an upscale branch that made one, fails here' },
+        { path: 'scenarios.*.outboundRejectedAttempts', comparison: 'compared', reason: 'the number of requests that were attempted and REJECTED. The stub records an attempt before it throws, so this is separated from `outbound` rather than silently merged: a closed port records nothing for the same attempt on the Go side' },
+        { path: 'scenarios.*.upstream', comparison: 'compared', reason: 'the scenario inputs: what the controlled peer was told to answer, including the synthetic archive bytes' },
+        { path: 'scenarios.*.control', comparison: 'compared', reason: 'the non-stream control is labelled in the fixture, so a reader can tell which capture proves the streaming branch' },
+    ],
+    excludedResponseHeaders: ['connection', 'date', 'keep-alive', 'last-modified', 'set-cookie', 'transfer-encoding', 'x-response-time'],
+    normalizations: [
+        'A generate-image request with no seed (or a negative one) is randomized by Math.floor(Math.random() * 9999999999); the recorded request body carries `"seed":"<seed>"` and TestNovelAIGenerateImage randomizes the same way before comparing. It is the ONLY nondeterministic value in the domain.',
+        'transfer-encoding is recorded in `framing` rather than in `headers`, because Go\'s net/http exposes response framing as a struct field and strips it from the header map.',
+    ],
+    notRecorded: [
+        '`if (!req.body)` on both routes: unreachable. bodyParser.json and bodyParser.urlencoded (server-main.js:110-111) assign `request.body = {}` before the content-type check, so a request without a body or without a content type reaches the handler with a truthy object. There is nothing to record and GoTavern\'s parser does the same.',
+        'a missing or non-string `model`: `getBadWordsList(req.body.model)` runs OUTSIDE the route\'s try block, so `model.includes` throws and the pinned process dies on the unhandled rejection. Probing it would kill the oracle mid-run, so it is a named Go deviation (500) rather than a recorded branch.',
+        'cancellation: the pinned handler aborts the upstream fetch through `request.socket.on(close)`. The controlled peer cannot hold a response body open without a tools/lib change, so a mid-stream client abort has no oracle here.',
+        'the status-LINE phrase: forwardFetchResponse assigns the upstream `statusText`, so the 401->400 stream rewrite reads `400 Unauthorized` on the wire while Go\'s net/http derives the phrase from the code and cannot be overridden. The status CODE and body are compared; the phrase is not recorded rather than recorded and ignored.',
+    ],
+    inputs: {
+        cookieSecret: 'gotavern-pinned-novelai-generate-cookie-secret',
+        account: { handle: 'default-user', name: 'NovelAI Generate Probe', admin: true, password: '' },
+        seamDefaults: SEAM_DEFAULTS,
+        novelKey: NOVEL_KEY,
+        syntheticArtifacts: {
+            note: 'every zip and png below is generated by the probe from fixed bytes; no live provider output is recorded',
+            pngOriginalBase64: PNG_ORIGINAL_BASE64,
+            pngOriginalSha256: createHash('sha256').update(PNG_ORIGINAL).digest('hex'),
+            pngUpscaledBase64: PNG_UPSCALED_BASE64,
+            pngUpscaledSha256: createHash('sha256').update(PNG_UPSCALED).digest('hex'),
+            pngMacOsxDecoyBase64: PNG_MACOSX_DECOY_BASE64,
+            archiveOriginalBase64: ARCHIVE_ORIGINAL.toString('base64'),
+            archiveUpscaledBase64: ARCHIVE_UPSCALED.toString('base64'),
+        },
+        streamFrames: STREAM_FRAMES,
+        scenarios,
+    },
+    nodeFetchWireDefaults: {
+        headers: [['accept', '*/*'], ['accept-encoding', 'gzip, deflate, br'], ['user-agent', 'node-fetch']],
+        verifiedBy: 'tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire',
+    },
+    knownDifferences: [
+        {
+            routes: ['/api/novelai/generate'],
+            branch: 'a missing or non-string `model`',
+            pinned: '`getBadWordsList(req.body.model)` runs OUTSIDE the try block (novelai.js:184), so `model.includes` throws, the async handler rejects unhandled, and the pinned process exits',
+            gotavern: 'answers 500 (res.sendStatus) and keeps serving',
+            reason: 'no oracle can exist: recording the branch would kill the pinned server mid-run. Tested as a labelled source-derived test (TestNovelAIGenerateRejectsAMissingModel) that also asserts the peer saw no request.',
+        },
+        {
+            routes: ['/api/novelai/generate'],
+            branch: 'the upstream stream dying after it started',
+            pinned: 'forwardFetchResponse attaches no error handler to the source body, so the Express response is never ended and the caller waits until it disconnects',
+            gotavern: 'the read loop stops and the response ends, so the caller sees a truncated but terminated reply',
+            reason: 'a deliberate deviation from a hang, the same one recorded for the chat-completions stream. Not reproducible in a fixture either: the controlled peer would have to drop a response body mid-stream AND the pinned disconnect path can terminate the pinned process.',
+        },
+        {
+            routes: ['/api/novelai/generate-image'],
+            branch: 'an archive whose entry CRC does not match',
+            pinned: 'yauzl does not verify an entry CRC, so a corrupt .png is still returned',
+            gotavern: 'archive/zip verifies the CRC of a fully read entry and the entry is skipped, which surfaces as the 500 "PNG not found" branch',
+            reason: 'the fixture archives are synthetic and carry correct CRCs, so this cannot be recorded without inventing a corrupt archive no provider would send.',
+        },
+    ],
+    bootOutbound,
+};
+
+const outputFile = writeFixture(repositoryRoot, 'sillytavern-1.19.0-novelai-generate.json', fixture);
+console.log(`scenarios: ${Object.keys(scenarios).length}, boot outbound: ${bootOutbound.length}`);
+console.log(`png: original ${PNG_ORIGINAL.length} bytes, upscaled ${PNG_UPSCALED.length} bytes, archive ${ARCHIVE_ORIGINAL.length} bytes`);
+console.log(`fixture written to ${outputFile}`);

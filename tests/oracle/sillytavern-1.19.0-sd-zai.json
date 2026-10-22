@@ -1,0 +1,1502 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-sd-zai.mjs",
+  "waves": {
+    "6": [
+      "/api/sd/zai/generate",
+      "/api/sd/zai/generate-video"
+    ]
+  },
+  "implementedRoutes": [
+    "/api/sd/zai/generate",
+    "/api/sd/zai/generate-video"
+  ],
+  "notImplementedRoutes": [],
+  "pinnedSource": {
+    "src/endpoints/stable-diffusion.js:1880": "zai image: POST https://api.z.ai/api/paas/v4/images/generations with prompt/model/quality/size, then a hostname guard (.z.ai or .ufileos.com via endsWith) and up to 5 fetches of the provider URL, retrying only on 404 after delay(1000); format from path.extname of the URL path",
+    "src/endpoints/stable-diffusion.js:1957": "zai video: POST .../videos/generations with prompt/model/quality/size/aspect_ratio, then up to 30 polls of .../async-result/<id> after delay(5000 + attempt*1000), FAIL and non-ok polls forward text, SUCCESS without a valid video_result url is a bare 500, and the content fetch has NO hostname guard"
+  },
+  "mechanism": "Both upstreams are hardcoded literals, so the probe replaces the `node-fetch` module and the global `fetch` with a controlled peer; the Go side uses its own seams for the two bases and replays the recorded rules through a real local listener, rewriting the video content URL onto it.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handlers choose 200/400/500 themselves"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "a string body is html-typed, the JSON answers json-typed"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the projection, the forwarded provider text, and the hardcoded messages"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the two hardcoded POST targets plus the poll built from data.id (raw interpolation) and the provider content URL, compared as path+query"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "JSON member order of the two projections"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the declared provider headers, asserted in BOTH directions (Bearer on submit and poll, NOTHING on the content fetch)"
+    },
+    {
+      "path": "scenarios.*.outbound[].count",
+      "comparison": "compared",
+      "reason": "the REFUSAL is a count: an image URL outside the allowlist must not produce a second request, and the video poll count is fixture data"
+    },
+    {
+      "path": "scenarios.*.elapsedBucket",
+      "comparison": "recorded-not-replayed",
+      "reason": "a three-way bucket (under 4s / one poll / two polls). A duration is host-derived; the bucket proves the escalation happened. The Go replay collapses the delays through a test seam; separate Go tests pin 5000ms+1000ms*attempt, the 30 attempts and the 1000ms 404 retry."
+    },
+    {
+      "path": "scenarios.*.mocks",
+      "comparison": "recorded-not-compared",
+      "reason": "the timed rule list the peer served, so a scenario can be re-driven from the fixture"
+    },
+    {
+      "path": "scenarios.*.secrets",
+      "comparison": "recorded-not-compared",
+      "reason": "the secrets file the probe wrote"
+    }
+  ],
+  "normalizations": [
+    "Synthetic credentials and synthetic video bytes only.",
+    "The provider content host is synthetic (media.example.test), so no recording can be mistaken for live provider data.",
+    "No seeds or timestamps are recorded: neither projection carries a random member."
+  ],
+  "inputs": {
+    "videoSha256": "04f4957cabd8ef90fb5f0f1c2cac10326ae8a0f240227970053ec209635948e9",
+    "key": "synthetic-zai-key"
+  },
+  "notCovered": {
+    "zai image success path": "The route guards the provider URL with a hostname allowlist (.z.ai / .ufileos.com) and then fetches it AS GIVEN. The pinned side could answer a .z.ai URL from the controlled peer, but the GO replay cannot: the guard is evaluated by the implementation, and no local listener can answer to a .z.ai name. Recording it would put a scenario in the fixture that the Go replay can never drive, so only the refusal and error branches are recorded, each asserting the exact request count.",
+    "zai image 404 retry": "The retry loop (5 attempts, delay(1000) between 404s, format from path.extname) is unreachable for the same reason: it needs a .z.ai URL. The retry cadence and the extname mapping are covered by LABELLED Go implementation tests instead of a fixture.",
+    "zai video exhaustion": "Thirty polls with delay(5000 + attempt*1000) is 591 seconds of wall clock, so the branch is NOT recorded and the probe does not shorten the pinned delay. A LABELLED Go implementation test asserts 30 polls and the bare 500.",
+    "zai video unknown task_status": "Any status other than FAIL/SUCCESS keeps polling to exhaustion, the same 591 seconds; not recorded. The Go loop continues, which is the pinned behaviour read from the source.",
+    "zai video client disconnect": "The abort answers \"Video generation aborted by client\" at the top of each iteration; the disconnect cannot be produced reliably through the probe. A LABELLED Go implementation test asserts the message and that no poll follows the disconnect."
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "zaiNoKey": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [],
+      "secrets": {},
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "zaiSubmitNonOk": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiSubmitNonOk",
+          "match": "/v4/images/generations",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "zai says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiSubmitThrows": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiSubmitThrows",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiNoURL": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiNoURL",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiInvalidURL": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiInvalidURL",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"not a url\"}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiRefusedHost": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiRefusedHost",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://images.example.test/one.png\"}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiRefusedApex": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiRefusedApex",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://z.ai/one.png\"}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiRefusedSuffixTrap": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiRefusedSuffixTrap",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://notz.ai/one.png\"}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiRefusedLabelInside": {
+      "route": "/api/sd/zai/generate",
+      "requestBody": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}",
+      "mocks": [
+        {
+          "run": "zaiRefusedLabelInside",
+          "match": "/v4/images/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"data\":[{\"url\":\"https://good.z.ai.attacker.example/one.png\"}]}",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/images/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a tree\",\"model\":\"cogview-4\",\"quality\":\"hd\",\"size\":\"1024x1024\"}"
+        }
+      ]
+    },
+    "zaiVideoNoKey": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [],
+      "secrets": {},
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "zaiVideoSubmitNonOk": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoSubmitNonOk",
+          "match": "/v4/videos/generations",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "zai says no",
+          "binaryBody": false,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        }
+      ]
+    },
+    "zaiVideoSubmitThrows": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoSubmitThrows",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true,
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "under-4s",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        }
+      ]
+    },
+    "zaiVideoCompletedFirstPoll": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoCompletedFirstPoll",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoCompletedFirstPoll",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"SUCCESS\",\"video_result\":[{\"url\":\"https://media.example.test/clip.mp4\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "zaiVideoCompletedFirstPoll",
+          "match": "media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW1wNA==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-vYfFvNeBXT86RBuPP7r6KHZN2VQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "video": "Z290YXZlcm4tc3ludGhldGljLW1wNA=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"video\":\"Z290YXZlcm4tc3ludGhldGljLW1wNA==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://media.example.test/clip.mp4",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoCompletedSecondPoll": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoCompletedSecondPoll",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoCompletedSecondPoll",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"PROCESSING\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoCompletedSecondPoll",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"SUCCESS\",\"video_result\":[{\"url\":\"https://media.example.test/clip.mp4\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "zaiVideoCompletedSecondPoll",
+          "match": "media.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "video/mp4"
+          },
+          "body": "Z290YXZlcm4tc3ludGhldGljLW1wNA==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "two-polls",
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-vYfFvNeBXT86RBuPP7r6KHZN2VQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "mp4",
+          "video": "Z290YXZlcm4tc3ludGhldGljLW1wNA=="
+        },
+        "bodyText": "{\"format\":\"mp4\",\"video\":\"Z290YXZlcm4tc3ludGhldGljLW1wNA==\"}"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://media.example.test/clip.mp4",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoTaskFail": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoTaskFail",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoTaskFail",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"FAIL\",\"detail\":\"moderation\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "23",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"17-ElrFH+qal/fDDrz+OH091Azaz70\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Video generation failed",
+        "bodyText": "Video generation failed"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoPollNonOk": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoPollNonOk",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoPollNonOk",
+          "match": "/async-result/",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "13",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"d-jAlJvLyZv04LZhgOTp/dvxeBO84\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "poll exploded",
+        "bodyText": "poll exploded"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoNoURL": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoNoURL",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoNoURL",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"SUCCESS\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal Server Error",
+        "bodyText": "Internal Server Error"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoContentNonOk": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoContentNonOk",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-video-job\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoContentNonOk",
+          "match": "/async-result/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"task_status\":\"SUCCESS\",\"video_result\":[{\"url\":\"https://media.example.test/clip.mp4\"}]}",
+          "binaryBody": false
+        },
+        {
+          "run": "zaiVideoContentNonOk",
+          "match": "media.example.test",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "content exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-YIvaqk9iiz4Ev01h0GWOqAqfXPU\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "content exploded",
+        "bodyText": "content exploded"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/gotavern-video-job",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        },
+        {
+          "url": "https://media.example.test/clip.mp4",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoReservedId": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoReservedId",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"job/one two\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoReservedId",
+          "match": "/async-result/job",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "13",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"d-jAlJvLyZv04LZhgOTp/dvxeBO84\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "poll exploded",
+        "bodyText": "poll exploded"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/job/one two",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "zaiVideoNoId": {
+      "route": "/api/sd/zai/generate-video",
+      "requestBody": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}",
+      "mocks": [
+        {
+          "run": "zaiVideoNoId",
+          "match": "/v4/videos/generations",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "zaiVideoNoId",
+          "match": "/async-result/undefined",
+          "status": 500,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "poll exploded",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_zai": [
+          {
+            "id": "sid-api_key_zai",
+            "value": "synthetic-zai-key",
+            "label": "api_key_zai",
+            "active": true
+          }
+        ]
+      },
+      "elapsedBucket": "one-poll",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "13",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"d-jAlJvLyZv04LZhgOTp/dvxeBO84\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "poll exploded",
+        "bodyText": "poll exploded"
+      },
+      "outbound": [
+        {
+          "url": "https://api.z.ai/api/paas/v4/videos/generations",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": "{\"prompt\":\"a cat\",\"model\":\"cogvideox-3\",\"quality\":\"720p\",\"size\":\"1920x1080\",\"aspect_ratio\":\"16:9\"}"
+        },
+        {
+          "url": "https://api.z.ai/api/paas/v4/async-result/undefined",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-zai-key"
+          },
+          "body": null
+        }
+      ]
+    }
+  }
+}

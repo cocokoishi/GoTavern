@@ -1,0 +1,2383 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/anthropic/caption-image route",
+  "oracle": {
+    "file": "src/endpoints/anthropic.js",
+    "route": "POST /api/anthropic/caption-image",
+    "secretKey": "api_key_claude",
+    "defaultBaseUrl": "https://api.anthropic.com/v1",
+    "concatenation": "`${baseUrl}/messages` -- a template literal, so a trailing slash in reverse_proxy survives as a double slash"
+  },
+  "routing": {
+    "method": "POST only; the pinned router has no other verb on this path",
+    "body": "express.json(): a malformed body never reaches the handler, and the scenario records what the server answers instead"
+  },
+  "conventions": {
+    "markers": "request bodies and recorded URLs carry <wire>, <wire-host> and <closed> instead of the run's loopback origins, because a port is host-derived (rule 18); the probe substitutes the live origin before sending and the Go replay substitutes its own peer",
+    "recording": "outboundRecording \"stub\" records the header object the ROUTE passed (the convention other provider fixtures use); \"wire\" records the headers a real listener received; \"none\" is the unhooked closed-port boot, where no stub exists to record an attempt",
+    "mocks": "each rule is bounded with times:1 so it cannot answer a later request (rule 20)"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "connection",
+        "close"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "measuredBy": "the wire.success scenario on an UNHOOKED pinned boot, with the route-managed headers (host, content-length, content-type, anthropic-version, x-api-key) removed; this is what a real peer received, not a claim copied from another route's fixture",
+    "host": "the authority differs per run and per peer, so it is asserted separately as Host"
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-anthropic-caption-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Anthropic Caption Probe",
+      "admin": true,
+      "password": ""
+    },
+    "seamDefaults": {
+      "GOTAVERN_ANTHROPIC_CAPTION_BASE_URL": "https://api.anthropic.com/v1"
+    },
+    "caption": "a synthetic anthropic caption"
+  },
+  "scenarios": {
+    "success": {
+      "route": "/api/anthropic/caption-image",
+      "note": "the only scenario that reads a caption; pins the outbound URL, header set, body member order and the 200 body",
+      "requestBody": "{\"model\":\"claude-3-haiku-20240307\",\"prompt\":\"describe this image\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "success",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"claude-3-haiku-20240307\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"describe this image\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "upstream.jsonError": {
+      "route": "/api/anthropic/caption-image",
+      "note": "a non-2xx upstream with a JSON body: the pinned code forwards the STATUS and answers {error:true}, NOT the provider body",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"describe this image\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "upstream.jsonError",
+          "match": "api.anthropic.com",
+          "status": 429,
+          "statusText": "Too Many Requests",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\"}}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyText": "{\"error\":true}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"describe this image\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "upstream.textError": {
+      "route": "/api/anthropic/caption-image",
+      "note": "the same branch with a TEXT body: the provider body is still discarded, so the body type cannot select a different answer",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"describe this image\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "upstream.textError",
+          "match": "api.anthropic.com",
+          "status": 400,
+          "statusText": "Bad Request",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "provider said no",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "error": true
+        },
+        "bodyText": "{\"error\":true}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"describe this image\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.contentAbsent": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no content member: content[0].text throws inside the try, so the CATCH answers 500 Internal server error -- not No caption found",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.contentAbsent",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"msg_1\",\"type\":\"message\"}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.contentEmptyArray": {
+      "route": "/api/anthropic/caption-image",
+      "note": "an EMPTY content array: content[0] is undefined, so the property access throws the same way",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.contentEmptyArray",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.notJson": {
+      "route": "/api/anthropic/caption-image",
+      "note": "a 2xx whose body is not JSON: `result.json()` throws inside the try, so the CATCH answers -- NOT No caption found, which is what a reader that treated a parse failure as an empty caption would answer",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.notJson",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "not json at all",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.arrayBody": {
+      "route": "/api/anthropic/caption-image",
+      "note": "a 2xx whose body is a JSON ARRAY: `[].content` is undefined, so content[0].text throws and the catch answers",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.arrayBody",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "[]",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.contentNumericKey": {
+      "route": "/api/anthropic/caption-image",
+      "note": "content as an OBJECT with the member \"0\": a numeric index is the property \"0\", so content[0] is that object and the caption is returned",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.contentNumericKey",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":{\"0\":{\"type\":\"text\",\"text\":\"a numeric key caption\"}}}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "35",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-vzRDUxd+StC9isQkplORrU0kQ+g\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a numeric key caption"
+        },
+        "bodyText": "{\"caption\":\"a numeric key caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.contentString": {
+      "route": "/api/anthropic/caption-image",
+      "note": "content as a STRING: \"ab\"[0] is \"a\" (strings are indexable) and \"a\".text is undefined, so this takes No caption found rather than the catch",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.contentString",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":\"ab\"}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.firstScalar": {
+      "route": "/api/anthropic/caption-image",
+      "note": "content[0] as a NUMBER: property access on a number is allowed and yields undefined, so this is No caption found and NOT a throw",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.firstScalar",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[5]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.textNumber": {
+      "route": "/api/anthropic/caption-image",
+      "note": "a truthy NON-STRING text: `res.json({ caption })` forwards the VALUE, so the body is {\"caption\":42} and not {\"caption\":\"42\"}",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.textNumber",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":42}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "14",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-1SXrV/HbeESwH2JTt8ugggyEEzM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": 42
+        },
+        "bodyText": "{\"caption\":42}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.textEmptyString": {
+      "route": "/api/anthropic/caption-image",
+      "note": "an empty string is falsy: `if (!caption)` takes the No caption found branch, which is a DIFFERENT branch from the catch above",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.textEmptyString",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.textZero": {
+      "route": "/api/anthropic/caption-image",
+      "note": "the number 0 is falsy: `if (!caption)` takes the No caption found branch, which is a DIFFERENT branch from the catch above",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.textZero",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":0}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.textFalse": {
+      "route": "/api/anthropic/caption-image",
+      "note": "false is falsy: `if (!caption)` takes the No caption found branch, which is a DIFFERENT branch from the catch above",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.textFalse",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":false}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "ok.textNull": {
+      "route": "/api/anthropic/caption-image",
+      "note": "null is falsy: `if (!caption)` takes the No caption found branch, which is a DIFFERENT branch from the catch above",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "ok.textNull",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":null}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "16",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-LDxDhSrFMxs2cogAjEcVRdkh3sw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "No caption found",
+        "bodyText": "No caption found"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "image.noComma": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no comma in the data URI: base64Data is undefined, so JSON.stringify OMITS `data` from source while media_type survives",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64\"}",
+      "mocks": [
+        {
+          "run": "image.noComma",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "image.noColon": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no colon in the data URI: mimeType is undefined, so JSON.stringify OMITS `media_type` while data survives",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"image/png;base64,AAAA\"}",
+      "mocks": [
+        {
+          "run": "image.noColon",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"data\":\"AAAA\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "image.absent": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no image member: `.split` on undefined throws before any request, so the catch answers with ZERO outbound requests",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 0,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "prompt.absent": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no prompt member: `text: undefined` is omitted, so the text part is {\"type\":\"text\"} and the member is ABSENT",
+      "requestBody": "{\"model\":\"m\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "prompt.absent",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "model.absent": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no model member: `model: undefined` is omitted from the outbound body",
+      "requestBody": "{\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "model.absent",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-claude-key"
+          },
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "secret.absent": {
+      "route": "/api/anthropic/caption-image",
+      "note": "no api_key_claude: the key is read anyway, so the outbound header carries the EMPTY value rather than the header being dropped",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}",
+      "mocks": [
+        {
+          "run": "secret.absent",
+          "match": "api.anthropic.com",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": ""
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "proxy.noTrailingSlash": {
+      "route": "/api/anthropic/caption-image",
+      "note": "reverse_proxy without a trailing slash: `${baseUrl}/messages` yields a single slash, and x-api-key becomes the PROXY PASSWORD",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"https://proxy.example.test/v1\",\"proxy_password\":\"synthetic-proxy-password\"}",
+      "mocks": [
+        {
+          "run": "proxy.noTrailingSlash",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-proxy-password"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "proxy.trailingSlash": {
+      "route": "/api/anthropic/caption-image",
+      "note": "reverse_proxy WITH a trailing slash: no url join happens, so the path carries a DOUBLE SLASH (/v1//messages)",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"https://proxy.example.test/v1/\",\"proxy_password\":\"synthetic-proxy-password\"}",
+      "mocks": [
+        {
+          "run": "proxy.trailingSlash",
+          "match": "proxy.example.test",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://proxy.example.test/v1//messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-proxy-password"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "transport.stubRejects": {
+      "route": "/api/anthropic/caption-image",
+      "note": "the stub rejects the fetch: the catch answers 500 Internal server error, which is DIFFERENT from the {error:true} a non-ok RESPONSE produces",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"https://reject.example.test/v1\",\"proxy_password\":\"synthetic-proxy-password\"}",
+      "mocks": [
+        {
+          "run": "transport.stubRejects",
+          "match": "reject.example.test",
+          "throws": true,
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "stub",
+      "transportFailure": true,
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "https://reject.example.test/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": "synthetic-proxy-password"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText"
+        ],
+        "shape": [
+          "outboundCount",
+          "outbound",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers",
+          "response.headers.*"
+        ],
+        "shapeReason": {
+          "outboundCount": "a rejected fetch never reaches a peer, so the count a peer can observe is 0 on both legs and the pinned count is what the STUB logged before rejecting; the scenario claims the response branch, not the attempt",
+          "outbound": "the attempt is recorded from the stub, which the Go replay does not have (it reaches the catch through a real closed port)",
+          "outbound[].url": "recorded from the stub's pre-throw log; no peer receives it on either leg",
+          "outbound[].method": "recorded from the stub's pre-throw log",
+          "outbound[].body": "recorded from the stub's pre-throw log",
+          "outbound[].headers": "recorded from the stub's pre-throw log",
+          "response.headers.*": "express security middleware supplies them"
+        }
+      }
+    },
+    "body.malformedJson": {
+      "route": "/api/anthropic/caption-image",
+      "note": "malformed JSON never reaches the handler, so this pins what the server (not the route) answers, with ZERO outbound requests",
+      "requestBody": "{\"image\":",
+      "mocks": [],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "body": null,
+        "bodyText": null
+      },
+      "outboundRecording": "stub",
+      "transportFailure": false,
+      "outboundCount": 0,
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "outboundCount"
+        ],
+        "shape": [
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outbound",
+          "response.headers.*"
+        ],
+        "shapeReason": {
+          "bodyText": "finalhandler renders a development error page whose body embeds the checkout path and a stack trace, so the bytes are host-derived; the VALUE is nulled and the scenario claims only the status and the zero outbound count",
+          "contentType": "chosen by the same error renderer rather than by the route, so it is not a behaviour this project claims to reproduce",
+          "contentLength": "derived from the nulled body bytes",
+          "etag": "derived from the nulled body bytes",
+          "outbound": "recorded as an EMPTY array because the handler never runs; the count is the compared observable and it is 0",
+          "response.headers.*": "the error renderer supplies them, not the route"
+        }
+      }
+    },
+    "wire.noProxyPassword": {
+      "route": "/api/anthropic/caption-image",
+      "note": "reverse_proxy SET and proxy_password ABSENT, on an UNHOOKED pinned boot pointed at a real listener: the x-api-key value recorded here is what a peer RECEIVES, not the route's raw object",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"<wire>/v1\"}",
+      "mocks": [
+        {
+          "run": "wire",
+          "match": "/v1/messages",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "wire",
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "<wire>/v1/messages",
+          "method": "POST",
+          "headers": {
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "anthropic-version": "2023-06-01",
+            "content-length": "226",
+            "content-type": "application/json",
+            "user-agent": "node-fetch",
+            "x-api-key": "undefined",
+            "host": "<wire-host>",
+            "connection": "close"
+          },
+          "body": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"p\"}]}],\"max_tokens\":4096}",
+          "target": "/v1/messages"
+        }
+      ],
+      "wireHeadersShape": {
+        "host": "<wire-host>"
+      },
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "wire.success": {
+      "route": "/api/anthropic/caption-image",
+      "note": "the happy path over a REAL socket, with the wire headers recorded verbatim (defaults included)",
+      "requestBody": "{\"model\":\"claude-3-haiku-20240307\",\"prompt\":\"describe this image\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"<wire>/v1\"}",
+      "mocks": [
+        {
+          "run": "wire",
+          "match": "/v1/messages",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"content\":[{\"type\":\"text\",\"text\":\"a synthetic anthropic caption\"}]}",
+          "times": 1
+        }
+      ],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "43",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2b-ce2hAWGpvVJMCAfIRkir9bJJclA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "caption": "a synthetic anthropic caption"
+        },
+        "bodyText": "{\"caption\":\"a synthetic anthropic caption\"}"
+      },
+      "outboundRecording": "wire",
+      "outboundCount": 1,
+      "outbound": [
+        {
+          "url": "<wire>/v1/messages",
+          "method": "POST",
+          "headers": {
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "anthropic-version": "2023-06-01",
+            "content-length": "266",
+            "content-type": "application/json",
+            "user-agent": "node-fetch",
+            "x-api-key": "undefined",
+            "host": "<wire-host>",
+            "connection": "close"
+          },
+          "body": "{\"model\":\"claude-3-haiku-20240307\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\"}},{\"type\":\"text\",\"text\":\"describe this image\"}]}],\"max_tokens\":4096}",
+          "target": "/v1/messages"
+        }
+      ],
+      "wireHeadersShape": {
+        "host": "<wire-host>"
+      },
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value"
+        }
+      }
+    },
+    "transport.closedPort": {
+      "route": "/api/anthropic/caption-image",
+      "note": "reverse_proxy points at a genuinely CLOSED loopback port on the UNHOOKED boot, so the rejection is a real ECONNREFUSED rather than the stub's simulated throw; no stub exists on this boot, so nothing records the attempt",
+      "requestBody": "{\"model\":\"m\",\"prompt\":\"p\",\"image\":\"data:image/png;base64,Z290YXZlcm4tc3ludGhldGljLWFudGhyb3BpYy1pbWFnZQ==\",\"reverse_proxy\":\"<closed>/v1\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_claude": "synthetic-claude-key"
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Internal server error",
+        "bodyText": "Internal server error"
+      },
+      "outboundRecording": "none",
+      "outboundCount": 0,
+      "outbound": [],
+      "closedPortRefusal": "ECONNREFUSED",
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "bodyText",
+          "outboundCount",
+          "outbound[].url",
+          "outbound[].method",
+          "outbound[].body",
+          "outbound[].headers"
+        ],
+        "shape": [
+          "response.headers.* other than content-type/content-length/etag",
+          "outbound[].headers.connection",
+          "outbound[].headers.content-length",
+          "outbound[].headers.host",
+          "outbound"
+        ],
+        "shapeReason": {
+          "response.headers.* other than content-type/content-length/etag": "express security middleware supplies them; the four named ones are compared because they describe the body",
+          "outbound[].headers.connection": "the TRANSPORT appends it, not the route: the pinned stub records the header object the route passed and a peer records the framing the client chose, so the value is not a route observable. Presence is still asserted, because a request without a Connection header is a different request",
+          "outbound[].headers.content-length": "derived from the body, which IS compared byte for byte, and whether a given recording peer exposes it is a property of that peer rather than of the request",
+          "outbound[].headers.host": "the authority differs per run and per peer; it is asserted as the fact that the request ARRIVED at the peer, plus the recorded path, rather than compared as a value",
+          "outbound": "the unhooked boot has no stub, so a refused connection leaves no record; the count is 0 and the refusal is recorded separately as closedPortRefusal"
+        }
+      }
+    }
+  },
+  "knownDifferences": [
+    {
+      "routes": [
+        "POST /api/anthropic/caption-image"
+      ],
+      "status": "partial-by-claim",
+      "reason": "the route sets NO timeout, so \"the peer accepted the connection and never answered\" is not probed on either leg; the pinned console.debug/console.warn lines are not HTTP observables and are not recorded"
+    }
+  ]
+}

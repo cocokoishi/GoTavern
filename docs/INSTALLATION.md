@@ -183,7 +183,16 @@ Existing reverse-proxy/service configurations should generally need only an exec
 
 ## 6. Migrating an existing SillyTavern installation
 
-The long-term canonical migration command is cross-platform:
+> **STATUS: `gotavern migrate` IS NOT IMPLEMENTED.** This section previously described it as "the
+> long-term canonical migration command" and listed its flags. A release audit found that the binary
+> has no such subcommand -- `gotavern` accepts only `start`, `version` and `assets verify` -- so the
+> text was promising a command a user cannot run. That is the same class of defect as a stale negative:
+> a documented capability with no implementation behind it. The corrected status is stated here rather
+> than removed, because the capabilities below remain REQUIRED for release and are tracked as their own
+> increment. Until then, migration is done by the transitional shell helper
+> (`scripts/migrate-from-sillytavern.sh`), which is itself not yet executed by any test.
+
+The planned canonical migration command is cross-platform:
 
 ```text
 gotavern migrate
@@ -193,7 +202,7 @@ The shell migration helper is transitional until this command covers the complet
 
 ### Typical standalone clone
 
-Expected flow:
+Planned flow (see the status note above -- step 3 has no implementation today):
 
 ```text
 1. Download/install GoTavern into a different directory.

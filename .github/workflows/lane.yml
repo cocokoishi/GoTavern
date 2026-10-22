@@ -52,20 +52,27 @@ jobs:
           echo "all Go files are gofmt-clean"
       - name: Build
         run: go build ./...
-      - name: Build the binary a browser probe can run
+      - name: Build the binaries browser probes can run
         # The browser probes boot GoTavern from a REAL binary in a release-shaped install root, and
         # they used to build it themselves (`go build` inside the harness). On this project the build
         # host is the weak machine, so a lane that needs a binary must not compile one: it downloads
         # the one built here, from the exact commit under test, and passes it as GOTAVERN_BINARY.
         #
-        # A release ASSET was the wrong answer for this (it is a tag, not the code under review) and a
-        # local build was the answer that filled a 149 GB disk. This is the durable one.
-        run: go build -trimpath -o gotavern ./cmd/gotavern
-      - name: Upload the binary for browser probes
+        # BOTH platforms are built, because a lane recording on the Windows development host needs a
+        # Windows binary while the oracle job re-records on Linux. A release ASSET was the wrong answer
+        # for this (it is a tag, not the code under review), and a local build was the answer that
+        # filled a 149 GB disk. This is the durable one.
+        run: |
+          set -eu
+          mkdir -p lane-binaries
+          CGO_ENABLED=0 go build -trimpath -o lane-binaries/gotavern-linux-amd64 ./cmd/gotavern
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o lane-binaries/gotavern-windows-amd64.exe ./cmd/gotavern
+          ls -l lane-binaries
+      - name: Upload the binaries for browser probes
         uses: actions/upload-artifact@v4
         with:
-          name: gotavern-lane-binary
-          path: gotavern
+          name: gotavern-lane-binaries
+          path: lane-binaries/
           retention-days: 7
           if-no-files-found: error
       - name: Vet

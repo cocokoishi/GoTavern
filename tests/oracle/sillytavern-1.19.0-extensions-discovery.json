@@ -1,0 +1,1453 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned built-in extension discovery on a fresh install: the system list /api/extensions/discover reports with no seeded user or global extensions, the pinned checkout files behind every name, and the frontend static middleware's answer for each built-in extension's manifest.json and index.js",
+  "normalizations": [
+    "No path, port or modification time is recorded: discovery returns names only, and the per-file observations record the request path, status, content type, content length and body digest.",
+    "Pinned /discover returns fs.readdirSync order, which is a property of the host filesystem (ext4 hash order, NTFS name order). The fixture records the list sorted within the pinned group order (system, local, global) and the comparison is order-insensitive; src/endpoints/extensions.js:506-530 performs no sort.",
+    "Every file list is sorted by relative path and records the SHA-256 of the bytes plus the path. Size and mtime are not recorded, because they are properties of the checkout extraction rather than of the file.",
+    "ETag and Last-Modified are not recorded. send() derives both from stat().mtime, and a runtime that answers the same bytes from its embedded copy has no modification time to describe (static.go:46-52 and the Frontend static middleware row of docs/compat-matrix.md). Recording them would assert a value the embedded path cannot carry.",
+    "Only headers that are properties of the route are recorded: Content-Type, Content-Length, Cache-Control, Accept-Ranges and Vary. Connection, Date, Keep-Alive, Transfer-Encoding, Set-Cookie and X-Response-Time belong to the connection, the clock or the session.",
+    "Requests are sent with Accept-Encoding: identity and with keep-alive disabled, so the recorded framing is a property of the route rather than of the pinned compression middleware or a reused socket.",
+    "The per-file digests are taken from the PINNED CHECKOUT's public/scripts/extensions tree, not from the reference implementation's embedded copy, so the comparison is anchored to upstream bytes."
+  ],
+  "gaps": [
+    "A pinned checkout always ships its built-in extensions inside public/scripts/extensions, so pinned CANNOT be observed in the state a release-shaped reference install is in: a public/scripts/extensions directory that exists (startup creates it: src/users.js:113-118 creates every PUBLIC_DIRECTORIES entry recursively) and contains only the empty third-party container. The embedded-tree answer for that state is faithful because pinned's own users.js guarantees the built-ins are there, but it is not itself a pinned observation.",
+    "Consequently a checkout whose built-in extensions were DELETED from public/scripts/extensions is byte-indistinguishable on disk from the release scaffold, and pinned would answer an empty system list there. That state is only reachable by mutating the pinned checkout's tracked files, and the reference implementation still serves those extensions' files from its embedded copy, so listing them describes what the runtime can load. Recorded here rather than papered over.",
+    "The per-file observations are made with a session cookie. The unauthenticated reachability of these files is pinned by one extra observation (extra.anonymousManifestStatus) rather than by repeating every file twice.",
+    "This probe records manifests and index.js only. Other files a built-in extension loads (HTML templates, CSS, worker scripts) are listed in each entry's file digests but are not requested over HTTP by this probe."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-extensions-discovery-cookie-secret",
+    "config": "enableUserAccounts: true\nskipContentCheck: true\nextensions:\n  enabled: true\n",
+    "seededUsers": [
+      {
+        "handle": "default-user",
+        "name": "Extensions Discovery Probe",
+        "created": 1700000000000,
+        "password": "",
+        "admin": true,
+        "enabled": true,
+        "salt": ""
+      }
+    ],
+    "sealedUserExtensionsDirectory": "removed before the request, so the route's own recreation is observed",
+    "globalRootPlaceholder": ".gitkeep",
+    "staticProbeFiles": [
+      "manifest.json",
+      "index.js"
+    ]
+  },
+  "discovery": {
+    "status": 200,
+    "headers": {
+      "content-length": "523",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "same-origin",
+      "origin-agent-cluster": "?1",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "Origin, Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-xss-protection": "0"
+    },
+    "entries": [
+      {
+        "type": "system",
+        "name": "assets"
+      },
+      {
+        "type": "system",
+        "name": "attachments"
+      },
+      {
+        "type": "system",
+        "name": "caption"
+      },
+      {
+        "type": "system",
+        "name": "connection-manager"
+      },
+      {
+        "type": "system",
+        "name": "expressions"
+      },
+      {
+        "type": "system",
+        "name": "gallery"
+      },
+      {
+        "type": "system",
+        "name": "memory"
+      },
+      {
+        "type": "system",
+        "name": "quick-reply"
+      },
+      {
+        "type": "system",
+        "name": "regex"
+      },
+      {
+        "type": "system",
+        "name": "stable-diffusion"
+      },
+      {
+        "type": "system",
+        "name": "token-counter"
+      },
+      {
+        "type": "system",
+        "name": "translate"
+      },
+      {
+        "type": "system",
+        "name": "tts"
+      },
+      {
+        "type": "system",
+        "name": "vectors"
+      }
+    ]
+  },
+  "systemExtensions": [
+    {
+      "name": "assets",
+      "files": [
+        {
+          "path": "character.html",
+          "sha256": "6868c20e9d983994232869bf18cdaeec728b94a8c0cdaa91b792a6bec046b7a8"
+        },
+        {
+          "path": "index.js",
+          "sha256": "8c1ff364658de07254ae010f68f3e92c8dc2705d67ca5fed8187e23a7e5b6191"
+        },
+        {
+          "path": "installation.html",
+          "sha256": "41c07ae9f28be54ea4957dd89af5ae50f409e9235872ddae9927a528975538bd"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "4221e7a330614a907bd47d20ac969022493a1f2f261e734b2cc29768a9fe4967"
+        },
+        {
+          "path": "market.html",
+          "sha256": "132afd5e50477498e85f2101a332e37d0986a9b34eebec326ea53924b9ab2c97"
+        },
+        {
+          "path": "style.css",
+          "sha256": "564c640723a05f0b32bf70b876c04c0ca817705c8d6127afbb2c24d21095326a"
+        },
+        {
+          "path": "window.html",
+          "sha256": "9272b596395bd4b56c5263d4e76e3aac274835b11094162e68f0ff9f3c19bf55"
+        }
+      ]
+    },
+    {
+      "name": "attachments",
+      "files": [
+        {
+          "path": "attach-button.html",
+          "sha256": "38023c3c9156acfb98e8d3efc65d72bd161444928158cfe2bb0130e5c0f93db2"
+        },
+        {
+          "path": "fandom-scrape.html",
+          "sha256": "4b0c6cf3d6710616a65f7d74bbf031c65b7d7a2b4fd2be5ce60ac5626050d807"
+        },
+        {
+          "path": "files-dropped.html",
+          "sha256": "2e3f285d8d49381b399de733ecc1397c969139ed4a90e5e073da1f192a4f4087"
+        },
+        {
+          "path": "index.js",
+          "sha256": "3d6ca95f22e50d1082b048d3d393431ff2967a613ac3dc94e020ddd3859deac5"
+        },
+        {
+          "path": "manage-button.html",
+          "sha256": "d410b76208ca8a7dfaca8313a46b01106ea97224d880df9b86c4ce332e6c48a3"
+        },
+        {
+          "path": "manager.html",
+          "sha256": "d8879e6f93d8e131bcc50e7ac31f73af69d5913614182058de220897bd9bbc5d"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "f2b32969fda10727fbaa2c6d1876987046717c52b2b58ff9062bad289783baf1"
+        },
+        {
+          "path": "mediawiki-scrape.html",
+          "sha256": "1aa3ee3d242c52eb1cd647ad24219a92419db5ee2f17797f9cc3496b5b3af3d9"
+        },
+        {
+          "path": "move-attachment.html",
+          "sha256": "40877dbca43ffd9e82ea13ed608f9d5354b7cb36442382c903d80d9660344419"
+        },
+        {
+          "path": "notepad.html",
+          "sha256": "9a2977b75fd0fd700c2e5845fd78b76913754df582e583628b29ecb36b987063"
+        },
+        {
+          "path": "style.css",
+          "sha256": "dfa4ff5cca6f5a620f9e68c589f1c8c24a0c7519d39fc2defe4db62e81c4407e"
+        },
+        {
+          "path": "web-scrape.html",
+          "sha256": "cda2de3197a46afd007d1ae5d0bd8895554fdce13281cd1c3b7677eb5b72b623"
+        },
+        {
+          "path": "youtube-scrape.html",
+          "sha256": "2c93beab4da7d2848e400d0a25a64399838ee4cd0679e9b61b4f2cf98aa7d0af"
+        }
+      ]
+    },
+    {
+      "name": "caption",
+      "files": [
+        {
+          "path": "index.js",
+          "sha256": "a876a122c2a3b33d074a4cc43f8247a801bc225e3f24904907aa015ee0c715db"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "db0171f4166e72e18b7f86439ca8d029c0f69c3e669f5a11049f317e69e085ed"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "79185b8dcada8c854c495f1b6d6a64eedfd7e2e9d0481e1c60fc1593dd331dd5"
+        },
+        {
+          "path": "style.css",
+          "sha256": "7f7ab4c00d0a958526d6a6503d9092aba88e383f6db4c6517cbfc3d9ebdf2178"
+        }
+      ]
+    },
+    {
+      "name": "connection-manager",
+      "files": [
+        {
+          "path": "edit.html",
+          "sha256": "383e829d788134a45d8b443f08c3cc83e07b850fc14d48a6e8a758c484640098"
+        },
+        {
+          "path": "index.js",
+          "sha256": "008c5be223cdd28208f082652d5b893e0e2e4255291d5d85fa305301d3fc2dc7"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "32efb3cb41e0c7726bba883ec6060697686cbf7e6da723c1f7f807f4b24ecdad"
+        },
+        {
+          "path": "profile.html",
+          "sha256": "2b98fd698fff7dfe28a590154a85f5cbe55f0b437814c8b072fa123ce4915cbb"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "7f014d160c295099547f4479043929a9b151ebc8fdb084921ca5e3617ca45012"
+        },
+        {
+          "path": "style.css",
+          "sha256": "c4e89b46a76ed58c0d65fcc2264c710059792432a11c366f7c782b2ea4cd6e85"
+        },
+        {
+          "path": "view.html",
+          "sha256": "081a750ee911355a43d0cda3f5b80bb277769f54d541536976ea6278af3fb5a4"
+        }
+      ]
+    },
+    {
+      "name": "expressions",
+      "files": [
+        {
+          "path": "add-custom-expression.html",
+          "sha256": "7ac8b0baaf01e93eebc30ff0cf81a5c15f829d35d7b1d773477bdc61fa318659"
+        },
+        {
+          "path": "index.js",
+          "sha256": "8a22921607cb9ce8a2c00391fd412a3927ee7991e33b3170104d4b0bb3356067"
+        },
+        {
+          "path": "list-item.html",
+          "sha256": "d03d0322c8a3cde798234d068b6d75ac08cad49c34af5e711494ae783c730eda"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "a1c8d924960d0f02d3a8ffc1d30cb5939c5b6018d2df91945d65c4b3d203ea4f"
+        },
+        {
+          "path": "remove-custom-expression.html",
+          "sha256": "95c8e47a1cbcc14f4a8c1dc0163165cbbd30701e03887d9b49bf7588e38b8242"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "b8a6c8a1fb300135897060ca7e9502ae21c76367af65eeb0da1711462bb3d425"
+        },
+        {
+          "path": "style.css",
+          "sha256": "2c6928daae4172384b03a4a5d983aac11bc08b5e02bad0ea9a9080534ea12faa"
+        },
+        {
+          "path": "templates/upload-expression.html",
+          "sha256": "09aab4591f5b6a4c6459c7a0bb1c87102a0819a8bd80e4f51950c9094266b7f6"
+        }
+      ]
+    },
+    {
+      "name": "gallery",
+      "files": [
+        {
+          "path": "index.i18n.html",
+          "sha256": "9e6aeca48f07b5942fe975894242a7fc67236b8ea4babb759ae7a5059c6f2621"
+        },
+        {
+          "path": "index.js",
+          "sha256": "7288a9ad3c45edf1af0283d3ac9a62c1a4c590d1e31339b63eb3ea82861644a2"
+        },
+        {
+          "path": "jquery.nanogallery2.min.js",
+          "sha256": "0cdb8369e8033afa84374c23af11f3351b4c3070f645826970c2cf7fe270f228"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "3d86e941cec495fa089ac407fae3fd663340d7fd6b97c7e865f3110caa5288a3"
+        },
+        {
+          "path": "nanogallery2.woff.min.css",
+          "sha256": "09980efa87ffd496c75e70a1b76231cc1aad674e440f3d4fbfbeeb8088346baf"
+        },
+        {
+          "path": "style.css",
+          "sha256": "59c3d8570dff8c24cfe66659ae873ec7c793bf3b2493335d800f82c106348bce"
+        }
+      ]
+    },
+    {
+      "name": "memory",
+      "files": [
+        {
+          "path": "index.js",
+          "sha256": "00cc5ec3146899de0392226b1d1e496bb604cfe4e3b590e0e9d47e65249300d9"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "4027a4ece282d363d7c453b41cf9a61281a762ae603f6d63a111d1bf42fd5bb5"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "87a4632bc3422dd6affbc4e77e8524d3930bad83742137da3a1154f18e6f0de1"
+        },
+        {
+          "path": "style.css",
+          "sha256": "a3b488850331aa9ec205bf525244567208577959ebfe13087974e68dac96c02a"
+        }
+      ]
+    },
+    {
+      "name": "quick-reply",
+      "files": [
+        {
+          "path": "api/QuickReplyApi.js",
+          "sha256": "689d64a0f85e240b988c1e9aa37271d2356fe5b4bcad3b5e9f8ed010daa591f6"
+        },
+        {
+          "path": "html/qrEditor.html",
+          "sha256": "8d94986b61dfc1eceec6f96e6c01d9102452ba36c9fc4b1d52ef8209acf4f78b"
+        },
+        {
+          "path": "html/settings.html",
+          "sha256": "6e03b447d577f27b5d20383560cf7889477f7223053c31df440c02068603c849"
+        },
+        {
+          "path": "index.js",
+          "sha256": "d486692119260c299545f8b1a0390dedc003888c5508e2b4b59abb131c0b4911"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "4fdd31aa3f99cc3a3f5e7526bf7e0f437d5beb07a8c37f683c2109d7b6fd6579"
+        },
+        {
+          "path": "src/AutoExecuteHandler.js",
+          "sha256": "435bbee8ae36c2ce393d2be7e6dab4e12f0e2ff1085b1c610b06d9ae686edff8"
+        },
+        {
+          "path": "src/QuickReply.js",
+          "sha256": "0209150d5a5366757eca23fbe911fee81c51c092aa4109e9ba1c7ce0f91fa46b"
+        },
+        {
+          "path": "src/QuickReplyConfig.js",
+          "sha256": "0129d8b74159fb3357b2d7c355e6b1a3fa56bf8ee16171b4f4848b217bfbbe9f"
+        },
+        {
+          "path": "src/QuickReplyContextLink.js",
+          "sha256": "dc913b36b9e5e50d10f50c6a487dd0bc6a87808ec1e0fb68ee8a7d91e7ff778e"
+        },
+        {
+          "path": "src/QuickReplySet.js",
+          "sha256": "e0da437fde542002a7c0b4652a6cf4c4288923a35150d3d722f916eb7d32ab2e"
+        },
+        {
+          "path": "src/QuickReplySetLink.js",
+          "sha256": "7766d5b73f915350b981bcf17cd7aa18396a5bb0f12a23bf5d43b25ffd4c574f"
+        },
+        {
+          "path": "src/QuickReplySettings.js",
+          "sha256": "6fd95d20b3cfc9e16e8831d3daad598edd770db3f8bcf9be0908f55bddd66e1c"
+        },
+        {
+          "path": "src/SlashCommandHandler.js",
+          "sha256": "254ed00d7b141704003d86ffbe97fd638ed95d6bd521b4a57b0ac410eaca1b0e"
+        },
+        {
+          "path": "src/ui/ButtonUi.js",
+          "sha256": "ca3b18f1e2b3375c740914cec70e6b0ca39be0ae877c34f63da99de8181071a3"
+        },
+        {
+          "path": "src/ui/SettingsUi.js",
+          "sha256": "4e112ec7cbd3bc80eb51f8b98d2246b407d82b94d1e9999a5c4bac7cff33067e"
+        },
+        {
+          "path": "src/ui/ctx/ContextMenu.js",
+          "sha256": "eede2492119fd88363d1bfb313645fbd3e3b53bbac26406afe071f9dfb084cd2"
+        },
+        {
+          "path": "src/ui/ctx/MenuHeader.js",
+          "sha256": "47295cb6ed04438a1b8636d147ede318416641cb40c96c184433ab25ec29c27a"
+        },
+        {
+          "path": "src/ui/ctx/MenuItem.js",
+          "sha256": "8bdf5b03a7fc60aa535625ed6a85927aa55481cae3c222378b310a4296818d35"
+        },
+        {
+          "path": "src/ui/ctx/SubMenu.js",
+          "sha256": "c5372b7f48202773a652a3f13e508ed17736763d02fe3c7772a613cf72ee6492"
+        },
+        {
+          "path": "style.css",
+          "sha256": "fe43ea2230da7a347abe060d3f9125312d742d71eccfef5634ec1ff8b1778950"
+        },
+        {
+          "path": "style.less",
+          "sha256": "7ab42f1cd1d15c11c1f7d94f9ece2f4fa5365945d27b2ba1c8398249f34dcfb9"
+        }
+      ]
+    },
+    {
+      "name": "regex",
+      "files": [
+        {
+          "path": "debugger.css",
+          "sha256": "391e5163df4c08b5c6dd9968890f80dca9f3b32ed25e31d5bd72dcee27c52712"
+        },
+        {
+          "path": "debugger.html",
+          "sha256": "a177ec58398e67fcef17ba8884a34e358b8a4c5318d7198bc7285ded3bb1242e"
+        },
+        {
+          "path": "dropdown.html",
+          "sha256": "55054f6df119aea2d66f934e0d19311b7e0c6810f9d41d11055346c6b7359465"
+        },
+        {
+          "path": "editor.html",
+          "sha256": "ae0d538f4d5c72cca4991dcd5b9cfc0224d573813116d6840ce0ed5ffd57805d"
+        },
+        {
+          "path": "embeddedScripts.html",
+          "sha256": "f6a5e65c7570f9102784a5a225cd666555e0963c4430c782e51ffa4d97aa7905"
+        },
+        {
+          "path": "engine.js",
+          "sha256": "091bb3402a12552cf1754d6e4d2b44df38d3553aa374539896c716e78905d350"
+        },
+        {
+          "path": "importTarget.html",
+          "sha256": "ff9c8574abc35a055f9ee4e688d34061e41ee6c14232ab4bf040099a2b70971d"
+        },
+        {
+          "path": "index.js",
+          "sha256": "7a43b7d6e40a1b6f38a8a7c53a4d552e1aa56c4a13e893224fddf79b663ecb7f"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "8219d865b273177eb0efec7938d30466052efb789587114055075771319a3b4a"
+        },
+        {
+          "path": "presetEmbeddedScripts.html",
+          "sha256": "9704c71c42245ad23a978578105bb721b3c8306176cea85dbb5684e5238a0389"
+        },
+        {
+          "path": "scriptTemplate.html",
+          "sha256": "f8e49fd3e8c3152f9030fa0d0e5b7392324ee36050305771a0fde35c0355727e"
+        },
+        {
+          "path": "style.css",
+          "sha256": "7408e49377f98594dccc58b4bc706e195565c951bfbb86ff02711dd251804b29"
+        }
+      ]
+    },
+    {
+      "name": "stable-diffusion",
+      "files": [
+        {
+          "path": "button.html",
+          "sha256": "49f5708d4bdb27aea5530434da047995ae474533be921020eddffeeeff5eb15e"
+        },
+        {
+          "path": "comfyWorkflowEditor.html",
+          "sha256": "f595d125cfb6d5ce7e65bad242af0478c747e292e15bf8c70b13b0a3118facfb"
+        },
+        {
+          "path": "dropdown.html",
+          "sha256": "011fee0ba13299d32534bf613fbabfefcc5348c25697327fb13c0ade7ea1265e"
+        },
+        {
+          "path": "index.js",
+          "sha256": "8787b1ec791b8ec6716250d2ae296143291776d97c3bffdc4283a5356413c2c9"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "9780950644f01ae65f02575d3ca4bf43e69b5dcced3f48442bdc87b4c1c5cdfb"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "df27d778dfce3598696272dfaee7e4811660444065e88b7cd38769e4552b61b6"
+        },
+        {
+          "path": "style.css",
+          "sha256": "0ba2212e3677318c4adc71cc344b3278209f7af9b2cc20e37e289d6f6ea086a3"
+        }
+      ]
+    },
+    {
+      "name": "token-counter",
+      "files": [
+        {
+          "path": "index.js",
+          "sha256": "5bfa108bf5050b80a1baec82f2bbbb52267c36b3875a862a7dae4cc498398ca5"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "d0691282674e8d0af64231914bf1bd49a2380da54bacd072f189fee662d9436b"
+        },
+        {
+          "path": "style.css",
+          "sha256": "21ac048b1d2634f4fb38dd3395ec5abaee72e236321cc40ad9d40bff06e72dff"
+        },
+        {
+          "path": "window.html",
+          "sha256": "6ff3892e8994d32d51a36a948837d3171fa89a81e4ebf001da6c0737bd69091d"
+        }
+      ]
+    },
+    {
+      "name": "translate",
+      "files": [
+        {
+          "path": "buttons.html",
+          "sha256": "db6d00adfbee7e065504903a9095f8f97d81d98af3fa3041f00928aea9cf6728"
+        },
+        {
+          "path": "deleteConfirmation.html",
+          "sha256": "4debe80145b5fb7df8347f218385daf221f1e775a3999a276ea2ef986ea0eedf"
+        },
+        {
+          "path": "index.html",
+          "sha256": "4dc3211944d4bcd57259846738dfa215eb3a38e0e0be59a4783afe7c23ec065c"
+        },
+        {
+          "path": "index.js",
+          "sha256": "90ef10dff55342287f49397a1f30b3248f50d0751b6e985ad9373abb29b93d82"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "87e458609b4a74525859c9fb798c64e130695d0a4c3fbeff7e09dfb684074fcd"
+        },
+        {
+          "path": "style.css",
+          "sha256": "acf31bfe5e382885b6dc69a2e4a774327b6843f7621436767d97cc3da9df4802"
+        }
+      ]
+    },
+    {
+      "name": "tts",
+      "files": [
+        {
+          "path": "alltalk.js",
+          "sha256": "2c934b3179c87534d20e9b1fb4ee75761e8753e2df32ad3fa0359135dd474534"
+        },
+        {
+          "path": "azure.js",
+          "sha256": "5e302eaed29d9d8929269847c843170284a147909ec770f111843acd066824d8"
+        },
+        {
+          "path": "chatterbox.js",
+          "sha256": "03f1b74783975d507d264bd2ccf5cf6cea8417b022ed95193df7174f47f31c64"
+        },
+        {
+          "path": "chutes.js",
+          "sha256": "58f888619658b67df714ef904a0feeb5ae14cd1e837601dc4556bd0b5552f0ef"
+        },
+        {
+          "path": "coqui.js",
+          "sha256": "73c9f75d4694102ab40374126b38e3496005d40934e4204c606d7d2ee3af3ad0"
+        },
+        {
+          "path": "coqui_api_models_settings.json",
+          "sha256": "9e1733eb3ad2a4a9b21c939224b90f0ad7a765548a18fdd63e59d23cf02341d8"
+        },
+        {
+          "path": "coqui_api_models_settings_full.json",
+          "sha256": "3a0cc2aa43dab1ad5840b4cc822426785da6b6332fff01ba8bbda92ec4ef06d6"
+        },
+        {
+          "path": "cosyvoice.js",
+          "sha256": "3f97d70de970c0232af2c0c9e80fa430bd707075ae6410c21ba190d4720f42aa"
+        },
+        {
+          "path": "css/minimax-tts.css",
+          "sha256": "a6cd7ae27ad35d52cda8cc02965877b5c0d31f275fc93eb5dcd8bf4c3facae40"
+        },
+        {
+          "path": "css/openai-tts.css",
+          "sha256": "a1447c5fa6294c073a580d40a9402cd601e9eff51bb3e01c97e94d14ab75e04e"
+        },
+        {
+          "path": "edge.js",
+          "sha256": "b16c5fc17892472ea95f3ba726338e1185b880c7fee2b2e03038c8a4de3c0d86"
+        },
+        {
+          "path": "electronhub.js",
+          "sha256": "59bd649b16e5cde0deca4f380c73b799803379c55542bba5fccd1e8d3813f131"
+        },
+        {
+          "path": "elevenlabs.js",
+          "sha256": "db720eb1cc2ebe1ff284fd25845b7be6ce4f68c9e00f26fc0283a12b972d6355"
+        },
+        {
+          "path": "google-native.js",
+          "sha256": "af330c606c8cac8230edb3a0fae88f671cd0cb95d5448a7d5742c8e0c8a0c9d0"
+        },
+        {
+          "path": "google-translate.js",
+          "sha256": "0734ee5f95f553d9f15e6516a8990f1a40283282633102bf2fb8454aa5944457"
+        },
+        {
+          "path": "gpt-sovits-adapter.js",
+          "sha256": "9549c7ca8d13c75a9069056d80604f7049ca891ac0f6f2b4f50200772e501bac"
+        },
+        {
+          "path": "gpt-sovits-v2.js",
+          "sha256": "4e17627a7563d939b46dfa64a5255601dc8d5d66c1682329b50bc816da14eb8b"
+        },
+        {
+          "path": "gsvi.js",
+          "sha256": "874b4899a5a03a40b0f95016320d508d88d77c351db99d85bf3f832750567fac"
+        },
+        {
+          "path": "index.js",
+          "sha256": "fc75e205ca03f564b2c5a5111948230b1ba69048968926697849b377466f1381"
+        },
+        {
+          "path": "kokoro-worker.js",
+          "sha256": "f1898c34b17696b66fbdb295dea11910602db7ee61fb06f2eab88c649936c6f3"
+        },
+        {
+          "path": "kokoro.js",
+          "sha256": "e4ee992788993ab15bb021c3bf7af589caebcc904ed0deb1010d2e1239ec5c7f"
+        },
+        {
+          "path": "lib/README.md",
+          "sha256": "f94c3461e2272fca60529497c2c71441acb70e3ec43dfde993612066237a9f93"
+        },
+        {
+          "path": "lib/kokoro.web.js",
+          "sha256": "575ef1a9ef5a37ef3d194efac5f24a5fdc4524ab140a12ebc6921050967a925c"
+        },
+        {
+          "path": "lib/pcm-processor.js",
+          "sha256": "369a82b646f69d7d37d0a10f941ff6475a420dd21ef4c708402e131f6ee464c1"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "57ac6762d9fb50cc7605d6981c9e3f913007d3163453e8c80b791d4d46f7c8d1"
+        },
+        {
+          "path": "minimax.js",
+          "sha256": "aa2cbb0f37bce208b8e2e4671aa603fcda98b8028159723f0510d5e782455e38"
+        },
+        {
+          "path": "novel.js",
+          "sha256": "a9a8da1d5bea23d76a16bb03646853df9779152b23824134260a156311aad8fa"
+        },
+        {
+          "path": "openai-compatible.js",
+          "sha256": "3d42773168f595d8c73cedec06324a6a7297b8ba34baad4aa173d049a650ff2c"
+        },
+        {
+          "path": "openai.js",
+          "sha256": "4551f156195bb74523bfe8f841143a145d4a0d8cf7e889a89f8fb586f0ce64cd"
+        },
+        {
+          "path": "pollinations.js",
+          "sha256": "ea6f5b113dc727a70dff2b0ae3bf0c0b379558f7684c369abcea88bcad8e7268"
+        },
+        {
+          "path": "readme.md",
+          "sha256": "4b19d30cd70fd36bd622e0bedd7151d5cdedd04423e862bcd7d8c5c7708a6ffa"
+        },
+        {
+          "path": "sbvits2.js",
+          "sha256": "cd2af179f738a9b6290fb0764fdd099f663a27fa1b8d61dc2c34da0cf1d0e43a"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "e94d4a1e64605cee63b3a2e8778dcbc8258bf736b9f397f1f5a68fd7500f91bb"
+        },
+        {
+          "path": "silerotts.js",
+          "sha256": "e31091aee3eefc85afee91d661462ecab62e52736bafb87a44d13105020328d2"
+        },
+        {
+          "path": "speecht5.js",
+          "sha256": "974ea8560d390d802af6b33184d831a8d59191bc3576451a5efef86f312799c8"
+        },
+        {
+          "path": "style.css",
+          "sha256": "434a9a8343f28bc24c7be3ea1ffe51a469de65bee1baaa7bd307ca50ea8bf0b5"
+        },
+        {
+          "path": "system.js",
+          "sha256": "8830d15cfb19b59231c9115bf5be93b56d7e3da9b2eb066a7b3526f6bb288983"
+        },
+        {
+          "path": "tts-webui.js",
+          "sha256": "05491e5e5787510aff2e5f60a6d62b9984fd3589fd7e1675613732d4d622f9d9"
+        },
+        {
+          "path": "vits.js",
+          "sha256": "bb415917b91192519b97959f29f1d9c186b575b845e92237d4bc767a97e7d6f1"
+        },
+        {
+          "path": "volcengine.js",
+          "sha256": "f9b879bb38212e95fbfc045ea0b0ce1943dde55d6d88ed90a9a65b07bfd34906"
+        },
+        {
+          "path": "xtts.js",
+          "sha256": "c785ecd0c58a32527afc1ac8daa49f7ca9ab03c470b256336f13d8a0e828abb8"
+        }
+      ]
+    },
+    {
+      "name": "vectors",
+      "files": [
+        {
+          "path": "index.js",
+          "sha256": "f107cef68090ac3981a5330cd10db8bb20ca4b9118e5ed5acb2b519e244dba4d"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "fa6522eb6f7395f118680797bab08a0657ebad55f18c6a379358352fcf16b01a"
+        },
+        {
+          "path": "settings.html",
+          "sha256": "cf13eaff5f76a53e43581e9495608cfe31fcf312b9a9290c031a635519225e31"
+        },
+        {
+          "path": "style.css",
+          "sha256": "f6b31eb9e85bd684c1ca616e337b459e15d486f0dcd763f30b6cc11451d9c184"
+        },
+        {
+          "path": "webllm.js",
+          "sha256": "00fa47437cb21157777e7d122ac681024d504a7a156683761c975eb795e09cd0"
+        }
+      ]
+    }
+  ],
+  "staticFiles": [
+    {
+      "path": "/scripts/extensions/assets/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "306",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "4221e7a330614a907bd47d20ac969022493a1f2f261e734b2cc29768a9fe4967",
+      "bodyLength": 306
+    },
+    {
+      "path": "/scripts/extensions/assets/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "24173",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "8c1ff364658de07254ae010f68f3e92c8dc2705d67ca5fed8187e23a7e5b6191",
+      "bodyLength": 24173
+    },
+    {
+      "path": "/scripts/extensions/attachments/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "327",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "f2b32969fda10727fbaa2c6d1876987046717c52b2b58ff9062bad289783baf1",
+      "bodyLength": 327
+    },
+    {
+      "path": "/scripts/extensions/attachments/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "16908",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "3d6ca95f22e50d1082b048d3d393431ff2967a613ac3dc94e020ddd3859deac5",
+      "bodyLength": 16908
+    },
+    {
+      "path": "/scripts/extensions/caption/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "339",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "db0171f4166e72e18b7f86439ca8d029c0f69c3e669f5a11049f317e69e085ed",
+      "bodyLength": 339
+    },
+    {
+      "path": "/scripts/extensions/caption/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "33659",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "a876a122c2a3b33d074a4cc43f8247a801bc225e3f24904907aa015ee0c715db",
+      "bodyLength": 33659
+    },
+    {
+      "path": "/scripts/extensions/connection-manager/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "318",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "32efb3cb41e0c7726bba883ec6060697686cbf7e6da723c1f7f807f4b24ecdad",
+      "bodyLength": 318
+    },
+    {
+      "path": "/scripts/extensions/connection-manager/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "45348",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "008c5be223cdd28208f082652d5b893e0e2e4255291d5d85fa305301d3fc2dc7",
+      "bodyLength": 45348
+    },
+    {
+      "path": "/scripts/extensions/expressions/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "345",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "a1c8d924960d0f02d3a8ffc1d30cb5939c5b6018d2df91945d65c4b3d203ea4f",
+      "bodyLength": 345
+    },
+    {
+      "path": "/scripts/extensions/expressions/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "109613",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "8a22921607cb9ce8a2c00391fd412a3927ee7991e33b3170104d4b0bb3356067",
+      "bodyLength": 109613
+    },
+    {
+      "path": "/scripts/extensions/gallery/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "311",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "3d86e941cec495fa089ac407fae3fd663340d7fd6b97c7e865f3110caa5288a3",
+      "bodyLength": 311
+    },
+    {
+      "path": "/scripts/extensions/gallery/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "32599",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "7288a9ad3c45edf1af0283d3ac9a62c1a4c590d1e31339b63eb3ea82861644a2",
+      "bodyLength": 32599
+    },
+    {
+      "path": "/scripts/extensions/memory/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "334",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "4027a4ece282d363d7c453b41cf9a61281a762ae603f6d63a111d1bf42fd5bb5",
+      "bodyLength": 334
+    },
+    {
+      "path": "/scripts/extensions/memory/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "41777",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "00cc5ec3146899de0392226b1d1e496bb604cfe4e3b590e0e9d47e65249300d9",
+      "bodyLength": 41777
+    },
+    {
+      "path": "/scripts/extensions/quick-reply/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "320",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "4fdd31aa3f99cc3a3f5e7526bf7e0f437d5beb07a8c37f683c2109d7b6fd6579",
+      "bodyLength": 320
+    },
+    {
+      "path": "/scripts/extensions/quick-reply/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "11538",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "d486692119260c299545f8b1a0390dedc003888c5508e2b4b59abb131c0b4911",
+      "bodyLength": 11538
+    },
+    {
+      "path": "/scripts/extensions/regex/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "302",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "8219d865b273177eb0efec7938d30466052efb789587114055075771319a3b4a",
+      "bodyLength": 302
+    },
+    {
+      "path": "/scripts/extensions/regex/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "85485",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "7a43b7d6e40a1b6f38a8a7c53a4d552e1aa56c4a13e893224fddf79b663ecb7f",
+      "bodyLength": 85485
+    },
+    {
+      "path": "/scripts/extensions/stable-diffusion/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "385",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "9780950644f01ae65f02575d3ca4bf43e69b5dcced3f48442bdc87b4c1c5cdfb",
+      "bodyLength": 385
+    },
+    {
+      "path": "/scripts/extensions/stable-diffusion/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "221238",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "8787b1ec791b8ec6716250d2ae296143291776d97c3bffdc4283a5356413c2c9",
+      "bodyLength": 221238
+    },
+    {
+      "path": "/scripts/extensions/token-counter/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "314",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "d0691282674e8d0af64231914bf1bd49a2380da54bacd072f189fee662d9436b",
+      "bodyLength": 314
+    },
+    {
+      "path": "/scripts/extensions/token-counter/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "4555",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "5bfa108bf5050b80a1baec82f2bbbb52267c36b3875a862a7dae4cc498398ca5",
+      "bodyLength": 4555
+    },
+    {
+      "path": "/scripts/extensions/translate/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "316",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "87e458609b4a74525859c9fb798c64e130695d0a4c3fbeff7e09dfb684074fcd",
+      "bodyLength": 316
+    },
+    {
+      "path": "/scripts/extensions/translate/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "26595",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "90ef10dff55342287f49397a1f30b3248f50d0751b6e985ad9373abb29b93d82",
+      "bodyLength": 26595
+    },
+    {
+      "path": "/scripts/extensions/tts/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "337",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "57ac6762d9fb50cc7605d6981c9e3f913007d3163453e8c80b791d4d46f7c8d1",
+      "bodyLength": 337
+    },
+    {
+      "path": "/scripts/extensions/tts/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "59410",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "fc75e205ca03f564b2c5a5111948230b1ba69048968926697849b377466f1381",
+      "bodyLength": 59410
+    },
+    {
+      "path": "/scripts/extensions/vectors/manifest.json",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "395",
+        "content-type": "application/json; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "fa6522eb6f7395f118680797bab08a0657ebad55f18c6a379358352fcf16b01a",
+      "bodyLength": 395
+    },
+    {
+      "path": "/scripts/extensions/vectors/index.js",
+      "status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=0",
+        "content-length": "93152",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodySha256": "f107cef68090ac3981a5330cd10db8bb20ca4b9118e5ed5acb2b519e244dba4d",
+      "bodyLength": 93152
+    }
+  ],
+  "extra": {
+    "userExtensionsDirectoryRecreated": true,
+    "anonymousManifestStatus": 200,
+    "systemCount": 14,
+    "systemFileCount": 145
+  }
+}

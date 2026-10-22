@@ -1,0 +1,232 @@
+name: GoTavern release qualification
+
+# EXECUTE THE ARTEFACT USERS ACTUALLY DOWNLOAD.
+#
+# A release audit found that nothing in this repository ever extracted or ran a release archive:
+# `verify` builds the CLI from source, `docker` builds and smokes an IMAGE (a different artefact), and
+# `release` builds and publishes the archives without ever unpacking one. The install/update/rollback
+# requirements in docs/INSTALLATION.md were therefore documented PROCEDURES with no execution behind
+# them -- and rollback is the direction that can silently corrupt a user tree, because nothing had ever
+# booted a server over a data root written by a DIFFERENT build.
+#
+# WHAT THIS JOB DOES, on the one platform whose archive it builds itself:
+#   1. build TWO canonical linux-amd64 archives from the same source with DIFFERENT version strings,
+#      so "update" and "rollback" move real immutable bytes rather than re-extracting an identical file;
+#   2. assert archive CONTENTS and MODES (binary and launcher executable, LICENSE/notices/BUILD-INFO
+#      present, tokenizers/ present -- without tokenizers the tokenizer routes silently take the pinned
+#      fallback and count every prompt wrong while still answering);
+#   3. run `assets verify` from the EXTRACTED archive, not from a source build;
+#   4. fresh boot over an empty runtime root, require /version to answer, stop, snapshot the tree;
+#   5. IDEMPOTENCE: boot a second time over that tree and require the snapshot to be unchanged apart
+#      from the paths named in the exclusion list printed with the diff -- the property "an update must
+#      not disturb user data" depends on this;
+#   6. UPDATE: extract archive B over the install directory exactly as a re-install does (immutable
+#      files replaced, mutable state kept), require the user file and config.yaml to survive byte for
+#      byte and the server to answer again;
+#   7. ROLLBACK: extract archive A back over the same directory, require the same data to survive and
+#      the server to answer -- the reverse direction nobody had run.
+#
+# NOT CLAIMED HERE, and named so it is not mistaken for covered: `install.sh` itself is not executed,
+# because it downloads from the GitHub release URL with no override and this job has no published
+# release to point it at. That is a tracked gap with its own increment (an installer base-URL seam plus
+# a job that serves the just-built archives), not something this job pretends to cover.
+#
+# It runs on a tag or by dispatch, not on every push: it boots a server four times and it is release
+# infrastructure rather than a per-commit gate. The archives it tests are built in the SAME run, so the
+# artefact under test is the artefact just produced.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-qualification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qualify-linux-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build two archives with different immutable bytes
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -eu
+          for variant in a b; do
+            rm -rf "stage-${variant}"
+            mkdir -p "stage-${variant}"
+            go build -trimpath -ldflags="-s -w -X main.version=qual-${variant}" \
+              -o "stage-${variant}/gotavern" ./cmd/gotavern
+            # EXACTLY the file set release.yml stages, so the archive under test is the archive that
+            # ships. install.sh is deliberately NOT included: it is not in the release archive either,
+            # and adding it here would make this a test of a different artefact.
+            cp LICENSE THIRD_PARTY_NOTICES.txt start.sh "stage-${variant}/"
+            cp -R upstream/tokenizers "stage-${variant}/tokenizers"
+            {
+              echo "GoTavern qualification ${variant}"
+              echo "target linux"
+              echo
+              ./"stage-${variant}/gotavern" version || true
+            } > "stage-${variant}/BUILD-INFO.txt"
+            test ! -e "stage-${variant}/config.yaml"
+            test ! -e "stage-${variant}/data"
+            chmod +x "stage-${variant}/gotavern" "stage-${variant}/start.sh"
+            tar -czf "gotavern-${variant}.tar.gz" -C "stage-${variant}" .
+            test -s "gotavern-${variant}.tar.gz"
+          done
+          cmp -s gotavern-a.tar.gz gotavern-b.tar.gz && { echo "the two archives are identical; update/rollback would move no bytes" >&2; exit 1; }
+          ls -l gotavern-a.tar.gz gotavern-b.tar.gz
+
+      - name: Assert the archive contents and modes
+        run: |
+          set -eu
+          mkdir -p install-root
+          tar -xzf gotavern-a.tar.gz -C install-root
+          test -x install-root/gotavern
+          test -x install-root/start.sh
+          test -s install-root/LICENSE
+          test -s install-root/THIRD_PARTY_NOTICES.txt
+          test -s install-root/BUILD-INFO.txt
+          test -d install-root/tokenizers
+          test ! -e install-root/config.yaml
+          test ! -e install-root/data
+          echo "archive contents:"
+          find install-root -maxdepth 1 -mindepth 1 -printf '%f\n' | sort
+
+      - name: assets verify from the EXTRACTED archive
+        run: |
+          set -eu
+          cd install-root
+          ./gotavern assets verify
+
+      - name: Fresh boot, idempotence, update and rollback over the same data root
+        env:
+          PORT: '8791'
+        run: |
+          set -eu
+
+          BIN="$PWD/install-root/gotavern"
+          PORT="${PORT:-8791}"
+
+          boot() {
+            # $1 data root, $2 log file. The binary runs with its CWD inside the install directory,
+            # because config.yaml resolves against the working directory -- that is where a real
+            # install keeps it, and creating it in the checkout instead would test a layout no user has.
+            ( cd install-root && exec "$BIN" start --port "${PORT}" --dataRoot "$1" ) >"$2" 2>&1 &
+            echo $! > server.pid
+            for attempt in $(seq 1 60); do
+              if curl -fsS "http://127.0.0.1:${PORT}/version" >version.json 2>/dev/null; then
+                return 0
+              fi
+              if ! kill -0 "$(cat server.pid)" 2>/dev/null; then
+                echo "the extracted binary exited before answering /version:" >&2
+                cat "$2" >&2
+                return 1
+              fi
+              sleep 1
+            done
+            echo "the extracted binary never answered /version within 60 s:" >&2
+            cat "$2" >&2
+            return 1
+          }
+
+          stop() {
+            if [ -f server.pid ]; then
+              kill "$(cat server.pid)" 2>/dev/null || true
+              for attempt in $(seq 1 30); do
+                kill -0 "$(cat server.pid)" 2>/dev/null || break
+                sleep 1
+              done
+              kill -9 "$(cat server.pid)" 2>/dev/null || true
+              rm -f server.pid
+            fi
+          }
+
+          snapshot() {
+            # relative path + sha256 of every file under the data root, sorted, so two snapshots are
+            # directly comparable. Paths only; no hosts, no mtimes.
+            ( cd "$1" && find . -type f | LC_ALL=C sort | while read -r file; do
+                printf '%s  %s\n' "$(sha256sum "$file" | cut -d' ' -f1)" "$file"
+              done )
+          }
+
+          # NORMALISATION, stated rather than silent: these are the paths whose CONTENT is a boot
+          # timestamp, a generated secret, or a per-boot snapshot filename, so a second boot is
+          # EXPECTED to differ there. Everything else must be identical.
+          normalise() {
+            grep -v -e '/stats\.json$' -e '/cookie-secret\.txt$' -e '/backups/settings_' -e '/_storage/' -e '/logs/' || true
+          }
+
+          rm -rf data-root
+          mkdir -p data-root
+
+          echo "--- boot 1 (fresh) ---"
+          boot "$PWD/data-root" boot1.log
+          cat version.json
+          stop
+          snapshot data-root | normalise > snapshot-1.txt
+          test -s snapshot-1.txt || { echo "the fresh boot seeded nothing; the snapshot is empty" >&2; exit 1; }
+          echo "seeded files: $(wc -l < snapshot-1.txt)"
+
+          # A USER FILE that must survive an update and a rollback. Written directly so the assertion
+          # is about file preservation, not about any route this job does not exercise.
+          mkdir -p data-root/default-user/user/files
+          printf 'gotavern release qualification marker\n' > data-root/default-user/user/files/qualification.txt
+          CONFIG_BEFORE="$(sha256sum install-root/config.yaml | cut -d' ' -f1)"
+
+          echo "--- boot 2 (idempotence, same immutable files) ---"
+          boot "$PWD/data-root" boot2.log
+          stop
+          snapshot data-root | normalise > snapshot-2.txt
+          if ! diff -u snapshot-1.txt snapshot-2.txt > idempotence.diff; then
+            echo "a second boot over the same data root CHANGED it (normalised paths excluded):" >&2
+            cat idempotence.diff >&2
+            exit 1
+          fi
+          echo "second boot left the tree unchanged"
+
+          echo "--- update: extract archive B over the install directory ---"
+          tar -xzf gotavern-b.tar.gz -C install-root
+          test -s data-root/default-user/user/files/qualification.txt
+          test "$(sha256sum install-root/config.yaml | cut -d' ' -f1)" = "${CONFIG_BEFORE}" \
+            || { echo "the update replaced config.yaml; a re-install must preserve mutable state" >&2; exit 1; }
+          boot "$PWD/data-root" boot3.log
+          cat version.json
+          stop
+          test -s data-root/default-user/user/files/qualification.txt
+          echo "update preserved config.yaml and the user file, and the server answered"
+
+          echo "--- rollback: extract archive A over the same install directory ---"
+          tar -xzf gotavern-a.tar.gz -C install-root
+          test "$(sha256sum install-root/config.yaml | cut -d' ' -f1)" = "${CONFIG_BEFORE}" \
+            || { echo "the rollback replaced config.yaml" >&2; exit 1; }
+          boot "$PWD/data-root" boot4.log
+          cat version.json
+          stop
+          test -s data-root/default-user/user/files/qualification.txt
+          grep -q "gotavern release qualification marker" data-root/default-user/user/files/qualification.txt
+          echo "rollback preserved config.yaml, the user file and its bytes, and the server answered"
+
+      - name: Report failure context
+        if: failure()
+        run: |
+          echo "::group::server logs"
+          for log in boot1.log boot2.log boot3.log boot4.log; do
+            if [ -f "$log" ]; then echo "--- $log ---"; tail -80 "$log"; fi
+          done
+          echo "::endgroup::"
+          echo "::group::data root tree"
+          find data-root -maxdepth 4 -printf '%y %p\n' 2>/dev/null | sort | head -200 || true
+          echo "::endgroup::"

@@ -1,0 +1,1397 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/backups/chat/get route, with the sibling delete route used to move the tree between listings",
+  "oracle": {
+    "file": "src/endpoints/backups.js",
+    "helper": "src/endpoints/chats.js getChatInfo (line 393) + src/util.js formatBytes"
+  },
+  "mechanism": "the pinned process runs with node-fetch AND the global fetch replaced by a controlled peer, so every step asserts ZERO outbound requests rather than assuming it",
+  "conventions": {
+    "fixedMtimes": "every seeded file has mtime 1700000000 (whole seconds, 2023-11-14T22:13:20.000Z) so last_mes is a constant on every filesystem",
+    "listingOrder": "the listing is readdir order, so recorded arrays are sorted by file_name and the raw-byte ETag is classified shape with no value; each object's KEY ORDER is recorded under keyOrderByName and compared, because it is the pinned object literal's order and is host-independent",
+    "steps": "the steps are ordered data: the listings exist to observe the deletions before them, so the replay iterates them in recorded order",
+    "paths": "snapshot paths use forward slashes and are sorted"
+  },
+  "fixtureFields": {
+    "compared": [
+      "steps[].response.status",
+      "steps[].response.headers",
+      "steps[].response.body (sorted by file_name)",
+      "steps[].response.bodyText",
+      "steps[].response.bodyLength",
+      "steps[].response.keyOrderByName",
+      "steps[].state.backups (path, kind, size, sha256)",
+      "zero outbound requests per step"
+    ],
+    "shape": [
+      "steps[].response.headers.etag (listing steps)",
+      "steps[].response.body order (listing steps)"
+    ],
+    "shapeReason": {
+      "etag": "the ETag hashes the raw body bytes in readdir order; the value differs between NTFS and ext4, so it is classified shape AND records no value",
+      "body order": "the listing is built in readdir order; the fixture records the set sorted by file_name and the replay sorts its answer identically"
+    },
+    "notRecorded": [
+      "the pinned server listen port",
+      "absolute paths",
+      "startup log"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backups-chat-get-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Chat Journal",
+      "admin": true,
+      "password": ""
+    },
+    "fixedMtimeSeconds": 1700000000,
+    "seed": {
+      "chat_valid.jsonl": "{\"user_name\":\"u\"}\n{\"name\":\"A\",\"mes\":\"first\"}\n{\"is_user\":true,\"name\":\"B\",\"mes\":\"latest\",\"send_date\":1700000000123}\n",
+      "chat_nosenddate.jsonl": "{\"user_name\":\"u\"}\n{\"character_name\":\"C\",\"mes\":\"no date\"}\n",
+      "chat_alpha.jsonl": "{\"user_name\":\"u\"}\n{\"mes\":\"a\"}\n{\"mes\":\"b\"}\n",
+      "chat_badlast.jsonl": "{\"user_name\":\"u\"}\n{\"mes\":\"a\"}\n{\"mes\":\"b\"}\n{\"name\":\n",
+      "chat_empty.jsonl": "",
+      "chat_big.jsonl": "{\"user_name\":\"u\"}\n{\"name\":\"D\",\"mes\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\",\"send_date\":\"2024-05-05T00:00:00.000Z\"}\n",
+      "chat_crlf.jsonl": "{\"user_name\":\"u\"}\r\n{\"name\":\"E\",\"mes\":\"crlf\",\"send_date\":\"2024-06-06T00:00:00.000Z\"}\r\n",
+      "chat_upper.JSONL": "{\"user_name\":\"u\"}\n{\"mes\":\"never listed\"}\n",
+      "other.jsonl": "{\"user_name\":\"u\"}\n{\"mes\":\"never listed\"}\n",
+      "note.txt": "note\n"
+    },
+    "seedDirectories": [
+      "chat_dir.jsonl"
+    ]
+  },
+  "steps": [
+    {
+      "name": "chat.get.seeded",
+      "route": "get",
+      "body": {},
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2284",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat_alpha",
+            "file_name": "chat_alpha.jsonl",
+            "file_size": "42B",
+            "chat_items": 1,
+            "mes": "[The message is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_badlast",
+            "file_name": "chat_badlast.jsonl",
+            "file_size": "51B",
+            "chat_items": 2,
+            "mes": "[The message is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_big",
+            "file_name": "chat_big.jsonl",
+            "file_size": "1.25KB",
+            "chat_items": 1,
+            "mes": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+            "last_mes": "2024-05-05T00:00:00.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "chat_crlf",
+            "file_name": "chat_crlf.jsonl",
+            "file_size": "85B",
+            "chat_items": 1,
+            "mes": "crlf",
+            "last_mes": "2024-06-06T00:00:00.000Z"
+          },
+          {
+            "match": false,
+            "file_id": "chat_empty",
+            "file_name": "chat_empty.jsonl",
+            "file_size": "0B",
+            "chat_items": 0,
+            "mes": "[The chat is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_nosenddate",
+            "file_name": "chat_nosenddate.jsonl",
+            "file_size": "57B",
+            "chat_items": 1,
+            "mes": "no date",
+            "last_mes": "2023-11-14T22:13:20.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "chat_valid",
+            "file_name": "chat_valid.jsonl",
+            "file_size": "114B",
+            "chat_items": 2,
+            "mes": "latest",
+            "last_mes": 1700000000123
+          }
+        ],
+        "bodyText": null,
+        "bodyLength": 2284,
+        "keyOrderByName": {
+          "chat_alpha.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_badlast.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_big.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_crlf.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_empty.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_nosenddate.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_valid.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ]
+        },
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyLength",
+            "keyOrderByName"
+          ],
+          "shape": [
+            "etag",
+            "body order"
+          ],
+          "shapeReason": {
+            "etag": "the ETag hashes the raw body bytes in readdir order, which differs between NTFS and ext4; it records no value",
+            "body order": "the listing is built in readdir order; the fixture records the set sorted by file_name and the replay sorts its own answer the same way"
+          }
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_alpha.jsonl",
+            "kind": "file",
+            "size": 42,
+            "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_empty.jsonl",
+            "kind": "file",
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "chat_nosenddate.jsonl",
+            "kind": "file",
+            "size": 57,
+            "sha256": "1ee40ec657b0fd192b491ce5b98c9db252dc77fd1c810fe457acbd300946bb0f"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "chat_valid.jsonl",
+            "kind": "file",
+            "size": 114,
+            "sha256": "60910a11459834e15f1a29023184e11573b2021abba5a9fb8a713d9077eec415"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.valid",
+      "route": "delete",
+      "body": {
+        "name": "chat_valid.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_alpha.jsonl",
+            "kind": "file",
+            "size": 42,
+            "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_empty.jsonl",
+            "kind": "file",
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "chat_nosenddate.jsonl",
+            "kind": "file",
+            "size": 57,
+            "sha256": "1ee40ec657b0fd192b491ce5b98c9db252dc77fd1c810fe457acbd300946bb0f"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.get.afterDelete",
+      "route": "get",
+      "body": {},
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2141",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [
+          {
+            "match": true,
+            "file_id": "chat_alpha",
+            "file_name": "chat_alpha.jsonl",
+            "file_size": "42B",
+            "chat_items": 1,
+            "mes": "[The message is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_badlast",
+            "file_name": "chat_badlast.jsonl",
+            "file_size": "51B",
+            "chat_items": 2,
+            "mes": "[The message is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_big",
+            "file_name": "chat_big.jsonl",
+            "file_size": "1.25KB",
+            "chat_items": 1,
+            "mes": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+            "last_mes": "2024-05-05T00:00:00.000Z"
+          },
+          {
+            "match": true,
+            "file_id": "chat_crlf",
+            "file_name": "chat_crlf.jsonl",
+            "file_size": "85B",
+            "chat_items": 1,
+            "mes": "crlf",
+            "last_mes": "2024-06-06T00:00:00.000Z"
+          },
+          {
+            "match": false,
+            "file_id": "chat_empty",
+            "file_name": "chat_empty.jsonl",
+            "file_size": "0B",
+            "chat_items": 0,
+            "mes": "[The chat is empty]",
+            "last_mes": 1700000000000
+          },
+          {
+            "match": true,
+            "file_id": "chat_nosenddate",
+            "file_name": "chat_nosenddate.jsonl",
+            "file_size": "57B",
+            "chat_items": 1,
+            "mes": "no date",
+            "last_mes": "2023-11-14T22:13:20.000Z"
+          }
+        ],
+        "bodyText": null,
+        "bodyLength": 2141,
+        "keyOrderByName": {
+          "chat_alpha.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_badlast.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_big.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_crlf.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_empty.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ],
+          "chat_nosenddate.jsonl": [
+            "match",
+            "file_id",
+            "file_name",
+            "file_size",
+            "chat_items",
+            "mes",
+            "last_mes"
+          ]
+        },
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyLength",
+            "keyOrderByName"
+          ],
+          "shape": [
+            "etag",
+            "body order"
+          ],
+          "shapeReason": {
+            "etag": "the ETag hashes the raw body bytes in readdir order, which differs between NTFS and ext4; it records no value",
+            "body order": "the listing is built in readdir order; the fixture records the set sorted by file_name and the replay sorts its own answer the same way"
+          }
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_alpha.jsonl",
+            "kind": "file",
+            "size": 42,
+            "sha256": "8c647e4c9dc25bfa099edf30d453739b256a2dedbe5f51aa8a48827eb97d3491"
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_empty.jsonl",
+            "kind": "file",
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "chat_nosenddate.jsonl",
+            "kind": "file",
+            "size": 57,
+            "sha256": "1ee40ec657b0fd192b491ce5b98c9db252dc77fd1c810fe457acbd300946bb0f"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.alpha",
+      "route": "delete",
+      "body": {
+        "name": "chat_alpha.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_empty.jsonl",
+            "kind": "file",
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "chat_nosenddate.jsonl",
+            "kind": "file",
+            "size": 57,
+            "sha256": "1ee40ec657b0fd192b491ce5b98c9db252dc77fd1c810fe457acbd300946bb0f"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.empty",
+      "route": "delete",
+      "body": {
+        "name": "chat_empty.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_nosenddate.jsonl",
+            "kind": "file",
+            "size": 57,
+            "sha256": "1ee40ec657b0fd192b491ce5b98c9db252dc77fd1c810fe457acbd300946bb0f"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.noSendDate",
+      "route": "delete",
+      "body": {
+        "name": "chat_nosenddate.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_badlast.jsonl",
+            "kind": "file",
+            "size": 51,
+            "sha256": "8ff5e3108053632ff6c390e37ba26108e047e0b71b389de9505cdb780c07f715"
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.badLast",
+      "route": "delete",
+      "body": {
+        "name": "chat_badlast.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_big.jsonl",
+            "kind": "file",
+            "size": 1279,
+            "sha256": "d1c0acd89b8a203e1a367e324b796d2ed86053f434a9c34990b4c0e9f2e47224"
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.big",
+      "route": "delete",
+      "body": {
+        "name": "chat_big.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_crlf.jsonl",
+            "kind": "file",
+            "size": 85,
+            "sha256": "3d86d5363697111dfaca7785bc3eee86722e2a411f0c0c53bb9a8c6155294fd4"
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.delete.crlf",
+      "route": "delete",
+      "body": {
+        "name": "chat_crlf.jsonl"
+      },
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "OK",
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.get.noBackupsLeft",
+      "route": "get",
+      "body": {},
+      "prepare": null,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "2",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": [],
+        "bodyText": null,
+        "bodyLength": 2,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyLength",
+            "keyOrderByName"
+          ],
+          "shape": [
+            "etag",
+            "body order"
+          ],
+          "shapeReason": {
+            "etag": "the ETag hashes the raw body bytes in readdir order, which differs between NTFS and ext4; it records no value",
+            "body order": "the listing is built in readdir order; the fixture records the set sorted by file_name and the replay sorts its own answer the same way"
+          }
+        }
+      },
+      "state": {
+        "backups": [
+          {
+            "path": "_sysprompt",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl",
+            "kind": "directory",
+            "size": 0,
+            "sha256": null
+          },
+          {
+            "path": "chat_dir.jsonl/inside.jsonl",
+            "kind": "file",
+            "size": 17,
+            "sha256": "4b69598339f7504773edc30470f04aac180214ea053a162f2b4c42c1b237925a"
+          },
+          {
+            "path": "chat_upper.JSONL",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          },
+          {
+            "path": "note.txt",
+            "kind": "file",
+            "size": 5,
+            "sha256": "389ed6887e49a315f706f6c2b931b1dcf0d797c91437124f32eb98555c669758"
+          },
+          {
+            "path": "other.jsonl",
+            "kind": "file",
+            "size": 41,
+            "sha256": "b9957d3587cba63716570d040b9d71717cf81d053a31cacfe556425861b9880a"
+          }
+        ]
+      }
+    },
+    {
+      "name": "chat.get.missingDirectory",
+      "route": "get",
+      "body": {},
+      "prepare": "remove-backups-directory",
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "21",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"15-/6VXivhc2MKdLfIkLcUE47K6aH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": "Internal Server Error",
+        "bodyLength": 21,
+        "keyOrderByName": {},
+        "comparison": {
+          "compared": [
+            "status",
+            "headers",
+            "body",
+            "bodyText",
+            "bodyLength"
+          ],
+          "shape": [],
+          "shapeReason": {}
+        }
+      },
+      "state": {
+        "backups": []
+      }
+    }
+  ],
+  "knownDifferences": []
+}

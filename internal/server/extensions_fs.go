@@ -4,13 +4,16 @@ package server
 // See extensions.go for the route table and the known gaps.
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
+	"github.com/cocokoishi/gotavern/upstream"
 )
 
 // listPinnedExtensionFolders mirrors the pinned
@@ -42,6 +45,112 @@ func listPinnedExtensionFolders(directory string) ([]string, error) {
 	return names, nil
 }
 
+// embeddedPinnedExtensionsRoot is the same directory as
+// pinnedExtensionsRelativePath inside the embedded vendored tree. It is a
+// separate literal because embed.FS paths are always slash-separated, while the
+// filesystem form must be native (filepath.Join yields backslashes on Windows).
+func embeddedPinnedExtensionsRoot() string {
+	return "public/scripts/extensions"
+}
+
+// listEmbeddedPinnedExtensionFolders applies the pinned filter chain to the
+// embedded tree: directory-only, the `third-party` container excluded, and a
+// manifest.json present. It is the same three predicates listPinnedExtensionFolders
+// applies to disk, read through fs.ReadDir/fs.Stat on upstream.Assets, which
+// returns entries sorted by name for the same reason os.ReadDir does.
+//
+// The two pinned predicates that cannot be expressed on embed.FS and cannot fire
+// on it either: statSync().isDirectory() follows symlinks, and a tree generated
+// by go:embed contains no symlinks; existsSync(manifest.json) is true for a
+// directory of that name, and fs.Stat succeeds on one too.
+func listEmbeddedPinnedExtensionFolders() ([]string, error) {
+	root := embeddedPinnedExtensionsRoot()
+	entries, err := fs.ReadDir(upstream.Assets, root)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() {
+			continue
+		}
+		// extensions.js:509 excludes the third-party container itself, and does
+		// so BEFORE the manifest filter, because it holds user extensions that
+		// are listed by the local/global groups instead.
+		if name == "third-party" {
+			continue
+		}
+		if _, err := fs.Stat(upstream.Assets, path.Join(root, name, "manifest.json")); err != nil {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// pinnedSystemExtensionNames returns the system (built-in) group of the pinned
+// /discover listing.
+//
+// PRECEDENCE, and why it is this one. static.go documents the frontend
+// precedence for FILES: read <InstallRoot>/public/<path> from disk first, fall
+// back to the embedded tree. This is the same order for the system DIRECTORY,
+// with one deliberate asymmetry:
+//
+//   - When the on-disk directory yields at least one pinned system extension, it
+//     is authoritative and nothing from the embedded tree is added or removed.
+//     That is the state every real install is in — pinned's checkout always
+//     carries public/scripts/extensions — and it keeps the answer byte-identical
+//     to pinned's, including for a user who removed a built-in folder, whose
+//     removal pinned honours.
+//   - Only when the on-disk directory yields NOTHING (absent, or present but
+//     empty of pinned system extensions) does the embedded tree answer.
+//
+// The second case is not a hypothetical: startup mirrors pinned
+// ensurePublicDirectoriesExist (src/users.js:113-118, mkdirSync recursive over
+// every PUBLIC_DIRECTORIES entry), so a release-shaped install — binary,
+// launcher, LICENSE, THIRD_PARTY_NOTICES, tokenizers/ and BUILD-INFO, no
+// public/ — gets an EMPTY <InstallRoot>/public/scripts/extensions containing
+// only the empty third-party container. Pinned cannot be in that state, because
+// its built-ins are tracked files in the directory it recreates; answering the
+// embedded list is therefore the faithful answer for the state GoTavern's own
+// release layout produces, and answering [] made the pinned frontend load no
+// built-in extension at all (measured: 2 /scripts/extensions/* requests instead
+// of 109, and an empty system list on the wire).
+//
+// A thrown readdirSync (extensions.js:507) reaches Express finalhandler as a 500;
+// a MISSING directory is answered from the embedded tree instead, because that is
+// a layout state GoTavern owns rather than a pinned state. Any other error still
+// propagates as the route's 500.
+func pinnedSystemExtensionNames(directory string) ([]string, error) {
+	names, err := listPinnedExtensionFolders(directory)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	} else {
+		names = withoutThirdParty(names)
+		if len(names) > 0 {
+			return names, nil
+		}
+	}
+	return listEmbeddedPinnedExtensionFolders()
+}
+
+// withoutThirdParty applies extensions.js:509 to a directory listing. Pinned
+// applies it to the system listing only: the local and global groups each
+// describe one extension inside third-party.
+func withoutThirdParty(names []string) []string {
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		if name == "third-party" {
+			continue
+		}
+		result = append(result, name)
+	}
+	return result
+}
+
 func (runtime *accountRuntime) serveExtensionDiscover(w http.ResponseWriter, request *http.Request) {
 	_, directories, ok := runtime.extensionAccount(w, request)
 	if !ok {
@@ -49,17 +158,27 @@ func (runtime *accountRuntime) serveExtensionDiscover(w http.ResponseWriter, req
 	}
 	localDirectory := directories["extensions"]
 	globalDirectory := pinnedGlobalExtensionsDirectory(runtime.options)
-	// extensions.js:481-487 creates both directories before listing them.
+	// extensions.js:481-483 creates the user extensions directory before listing
+	// it.
 	if err := ensureExtensionDirectory(localDirectory); err != nil {
 		respondExtensionServerError(w)
 		return
 	}
-	if err := ensureExtensionDirectory(globalDirectory); err != nil {
-		respondExtensionServerError(w)
-		return
+	// extensions.js:485-487 does the same for the global directory, and mkdirSync
+	// is not recursive there, so the pinned call fails with ENOENT when its parent
+	// does not exist. GoTavern does not reproduce that failure: a runtime without a
+	// physical public/ tree is a permitted layout (ARCHITECTURE.md:458, static.go),
+	// and pinned's own startup would have created the whole chain recursively
+	// (src/users.js:116). Creating the parent here would be a side effect pinned
+	// never performs FROM THIS ROUTE, so it is skipped rather than faked.
+	if extensionIsDirectory(pinnedExtensionsDirectory(runtime.options)) {
+		if err := ensureExtensionDirectory(globalDirectory); err != nil {
+			respondExtensionServerError(w)
+			return
+		}
 	}
 
-	builtInNames, err := listPinnedExtensionFolders(pinnedExtensionsDirectory(runtime.options))
+	builtInNames, err := pinnedSystemExtensionNames(pinnedExtensionsDirectory(runtime.options))
 	if err != nil {
 		respondExtensionServerError(w)
 		return
@@ -71,8 +190,15 @@ func (runtime *accountRuntime) serveExtensionDiscover(w http.ResponseWriter, req
 	}
 	globalNames, err := listPinnedExtensionFolders(globalDirectory)
 	if err != nil {
-		respondExtensionServerError(w)
-		return
+		// A release-shaped install has no global extensions directory and none is
+		// created for it above, so the pinned readdirSync(ENOENT) that would answer
+		// 500 is reached by a layout GoTavern owns rather than by a pinned state:
+		// there is nothing to list.
+		if !errors.Is(err, fs.ErrNotExist) {
+			respondExtensionServerError(w)
+			return
+		}
+		globalNames = nil
 	}
 
 	result := orderedNodeJSON{kind: 'a', array: make([]orderedNodeJSON, 0, len(builtInNames)+len(userNames)+len(globalNames))}
@@ -83,10 +209,6 @@ func (runtime *accountRuntime) serveExtensionDiscover(w http.ResponseWriter, req
 		result.array = append(result.array, entry)
 	}
 	for _, name := range builtInNames {
-		// extensions.js:509 excludes the third-party container itself.
-		if name == "third-party" {
-			continue
-		}
 		appendEntry("system", name)
 	}
 	userEntries := make([]string, 0, len(userNames))

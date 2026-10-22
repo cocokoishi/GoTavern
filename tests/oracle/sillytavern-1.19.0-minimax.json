@@ -1,0 +1,4830 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/minimax/generate-voice route",
+  "oracle": {
+    "file": "src/endpoints/minimax.js",
+    "mountedAt": "/api/minimax (src/server-startup.js:184)"
+  },
+  "mechanism": "the upstream host is a destructuring default (`apiHost = 'https://api.minimax.io'`), so the pinned process runs with node-fetch replaced by a controlled peer (tools/lib/pinned-outbound.mjs); both the outbound request and the peer response are captured, and nothing is inferred",
+  "methods": {
+    "URL construction": "`${apiHost}/v1/t2a_v2` is plain concatenation: no trailing-slash normalisation, no encoding",
+    "default semantics": "the eight defaults are destructuring initializers, so they fire on undefined only; null and \"\" are used verbatim",
+    "error taxonomy": "non-ok upstream answers JSON-parse the body first and fall back to text; base_resp.status_code is compared strictly against the number 0; base_resp.status_msg is interpolated, so an absent one renders the literal \"undefined\"",
+    "audio hex": "the payload is hex-decoded after stripping a leading \"0x\" and every whitespace character; an odd length is LEFT-padded with a zero"
+  },
+  "conventions": {
+    "mock": "peer origins are recorded as the <mock> marker; the Go replay substitutes its own listener",
+    "closed": "a transport failure is recorded as the <closed> marker; the Go replay binds and closes a real local port, so the failure is produced rather than simulated"
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire against a real local peer"
+  },
+  "fixtureFields": {
+    "compared": [
+      "observations.*.status",
+      "observations.*.headers",
+      "observations.*.bodyText",
+      "observations.*.bodySha256",
+      "observations.*.sha256",
+      "observations.*.bytes",
+      "observations.*.outbound[] (url, method, explicitHeaders, body)"
+    ],
+    "shape": [
+      "observations.voice.url.throws.bodyText/.bodySha256/headers.content-length/headers.etag"
+    ],
+    "shapeReason": {
+      "voice.url.throws body": "that branch interpolates the transport error message, which carries the request authority (node-fetch renders \"request to <url> failed, reason: ECONNREFUSED <host>:<port>\"); the value is a property of the transport, so no value is recorded and the 500 status plus the two outbound requests are compared instead"
+    },
+    "notRecorded": [
+      "the ephemeral peer authority",
+      "the pinned server listen port",
+      "startup log",
+      "Date/Connection/Keep-Alive/Transfer-Encoding (transport framing)"
+    ]
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-minimax-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "MiniMax Probe",
+      "admin": true,
+      "password": ""
+    },
+    "apiKey": "probe-minimax-key",
+    "audioHex": "676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164",
+    "audioSha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+    "seamDefaults": {
+      "GOTAVERN_MINIMAX_API_URL": "https://api.minimax.io"
+    },
+    "scenarios": {
+      "voice.defaults": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "seam",
+        "overrides": [],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.apiHost": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>/tts",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>/tts\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": [
+          "apiHost"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.model": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "model": "speech-01-turbo"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"model\":\"speech-01-turbo\"}",
+        "urlSource": "body",
+        "overrides": [
+          "model"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.speed": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "speed": 0.35
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"speed\":0.35}",
+        "urlSource": "body",
+        "overrides": [
+          "speed"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.volume": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "volume": 7
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"volume\":7}",
+        "urlSource": "body",
+        "overrides": [
+          "volume"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.pitch": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "pitch": 1.25
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"pitch\":1.25}",
+        "urlSource": "body",
+        "overrides": [
+          "pitch"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.audioSampleRate": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "audioSampleRate": 16000
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"audioSampleRate\":16000}",
+        "urlSource": "body",
+        "overrides": [
+          "audioSampleRate"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.bitrate": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "bitrate": 64000
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"bitrate\":64000}",
+        "urlSource": "body",
+        "overrides": [
+          "bitrate"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.format": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "format": "wav"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"format\":\"wav\"}",
+        "urlSource": "body",
+        "overrides": [
+          "format"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.explicitNullHost": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": null,
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":null,\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": [
+          "apiHost"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 1,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "null/v1/t2a_v2",
+            "throws": true
+          }
+        ]
+      },
+      "voice.emptyHost": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": [
+          "apiHost"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 1,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "throws": true
+          }
+        ]
+      },
+      "voice.hostTrailingSlash": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>/",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>/\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": [
+          "apiHost"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.formatUnknown": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "format": "ogg"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"format\":\"ogg\"}",
+        "urlSource": "body",
+        "overrides": [
+          "format"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.language": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "language": "zh"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"language\":\"zh\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.languageEmpty": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "language": ""
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"language\":\"\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.coercions": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "speed": "fast",
+          "volume": null,
+          "pitch": true,
+          "audioSampleRate": "8000",
+          "bitrate": [],
+          "model": 5,
+          "format": 42
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"speed\":\"fast\",\"volume\":null,\"pitch\":true,\"audioSampleRate\":\"8000\",\"bitrate\":[],\"model\":5,\"format\":42}",
+        "urlSource": "body",
+        "overrides": [
+          "model",
+          "speed",
+          "volume",
+          "pitch",
+          "audioSampleRate",
+          "bitrate",
+          "format"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.reservedText": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "a/b?c&d=e#f%20g \"quoted\" ünïcode",
+          "voiceId": "voice/id with space"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"a/b?c&d=e#f%20g \\\"quoted\\\" ünïcode\",\"voiceId\":\"voice/id with space\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.sampleRateFloat": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "audioSampleRate": 22050.5,
+          "bitrate": 100000
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"audioSampleRate\":22050.5,\"bitrate\":100000}",
+        "urlSource": "body",
+        "overrides": [
+          "audioSampleRate",
+          "bitrate"
+        ],
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0,\"status_msg\":\"success\"}}"
+          }
+        ]
+      },
+      "voice.missingText": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 0,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": []
+      },
+      "voice.emptyText": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 0,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": []
+      },
+      "voice.missingVoiceId": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 0,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": []
+      },
+      "voice.missingKey": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 0,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {},
+        "upstream": []
+      },
+      "voice.upstream.json1004": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 401,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"base_resp\":{\"status_code\":1004,\"status_msg\":\"auth\"}}"
+          }
+        ]
+      },
+      "voice.upstream.jsonOtherStatus": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"base_resp\":{\"status_code\":1002,\"status_msg\":\"rate limited\"}}"
+          }
+        ]
+      },
+      "voice.upstream.errorEnvelope": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 500,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"error\":{\"message\":\"boom\"}}"
+          }
+        ]
+      },
+      "voice.upstream.messageEnvelope": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 502,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"message\":\"bad gateway twice\"}"
+          }
+        ]
+      },
+      "voice.upstream.detailEnvelope": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 503,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"detail\":\"detail wins next\"}"
+          }
+        ]
+      },
+      "voice.upstream.plainText": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "plain failure"
+          }
+        ]
+      },
+      "voice.upstream.jsonString": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 503,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "\"just a string\""
+          }
+        ]
+      },
+      "voice.upstream.largeText": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 500,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ]
+      },
+      "voice.upstream.largeJsonFallthrough": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 500,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"note\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}"
+          }
+        ]
+      },
+      "voice.response.notJson": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "not json at all"
+          }
+        ]
+      },
+      "voice.response.arrayPayload": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "[1,2,3]"
+          }
+        ]
+      },
+      "voice.baseResp.1004": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":1004,\"status_msg\":\"auth\"}}"
+          }
+        ]
+      },
+      "voice.baseResp.other": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":1002,\"status_msg\":\"quota\"}}"
+          }
+        ]
+      },
+      "voice.baseResp.noStatusMsg": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":1}}"
+          }
+        ]
+      },
+      "voice.baseResp.stringZero": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":\"0\",\"status_msg\":\"string zero\"}}"
+          }
+        ]
+      },
+      "voice.baseResp.nullCode": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":null,\"status_msg\":\"null code\"}}"
+          }
+        ]
+      },
+      "voice.hex.prefixedSpaced": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"0x676f7461 7665726e 2d6d696e 696d6178 2d73796e 74686574 69632d76 6f696365 2d706179 6c6f6164\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.oddLength": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"abc\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.uppercase": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "format": "flac"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"format\":\"flac\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676F74617665726E2D6D696E696D61782D73796E7468657469632D766F6963652D7061796C6F6164\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.newlines": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "format": "aac"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"format\":\"aac\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f746176\\n\\t 65726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.prefixOnly": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"0x\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.whitespaceOnly": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"   \"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.invalidChar": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"0xzz\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.hex.mixedCasePrefix": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"0X676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.audioNonString": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":5},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.audioEmptyString": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.noData": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.emptyDataObject": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.dataIsString": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":\"nope\",\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.noBaseRespEmpty": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{}"
+          }
+        ]
+      },
+      "voice.url.ok": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv",
+          "format": "wav"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\",\"format\":\"wav\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 2,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"url\":\"<mock>/audio/clip.bin\"},\"base_resp\":{\"status_code\":0}}"
+          },
+          {
+            "match": "/audio/clip.bin",
+            "status": 200,
+            "headers": {
+              "content-type": "application/octet-stream"
+            },
+            "body": "gotavern-minimax-synthetic-voice-payload",
+            "binaryBody": false
+          }
+        ]
+      },
+      "voice.url.nonOk": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 2,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"url\":\"<mock>/audio/missing.bin\"},\"base_resp\":{\"status_code\":0}}"
+          },
+          {
+            "match": "/audio/missing.bin",
+            "status": 404,
+            "headers": {
+              "content-type": "text/plain"
+            },
+            "body": "no audio"
+          }
+        ]
+      },
+      "voice.url.throws": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "closed",
+        "expectedOutbound": 2,
+        "unreachableOutbound": 1,
+        "shapeBody": true,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"url\":\"<closed>/audio/broken.bin\"},\"base_resp\":{\"status_code\":0}}"
+          },
+          {
+            "match": "/audio/broken.bin",
+            "throws": true
+          }
+        ]
+      },
+      "voice.url.takesPrecedenceOverNothing": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 2,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"url\":\"<mock>/audio/second.bin\"},\"base_resp\":{\"status_code\":0}}"
+          },
+          {
+            "match": "/audio/second.bin",
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "body": "SECOND-PAYLOAD"
+          },
+          {
+            "match": "/audio/first.bin",
+            "status": 200,
+            "headers": {
+              "content-type": "audio/mpeg"
+            },
+            "body": "FIRST-PAYLOAD"
+          }
+        ]
+      },
+      "voice.audioWinsOverUrl": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<mock>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<mock>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "mock",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 0,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"data\":{\"audio\":\"676f74617665726e2d6d696e696d61782d73796e7468657469632d766f6963652d7061796c6f6164\",\"url\":\"<mock>/audio/ignored.bin\"},\"base_resp\":{\"status_code\":0}}"
+          }
+        ]
+      },
+      "voice.closedPort": {
+        "route": "/api/minimax/generate-voice",
+        "body": {
+          "apiHost": "<closed>",
+          "text": "hello there",
+          "voiceId": "female-shaonv"
+        },
+        "bodyText": "{\"apiHost\":\"<closed>\",\"text\":\"hello there\",\"voiceId\":\"female-shaonv\"}",
+        "urlSource": "body",
+        "overrides": null,
+        "peerForUrl": "closed",
+        "expectedOutbound": 1,
+        "unreachableOutbound": 1,
+        "shapeBody": false,
+        "secrets": {
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "match": "/v1/t2a_v2",
+            "throws": true
+          }
+        ]
+      }
+    }
+  },
+  "observations": {
+    "voice.defaults": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "https://api.minimax.io/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.apiHost": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/tts/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.model": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-01-turbo\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.speed": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":0.35,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.volume": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":7,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.pitch": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1.25},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.audioSampleRate": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":16000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.bitrate": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":64000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.format": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/wav",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"wav\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.explicitNullHost": {
+      "status": 500,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-u8tno/8IdqEY6PFcopkQe0syfE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Internal server error\"}",
+      "bodySha256": "f26dcd3580f26f3b494c17bd81ff4eb958401b104fc84698cb36495101190e44",
+      "outbound": [
+        {
+          "url": "null/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.emptyHost": {
+      "status": 500,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-u8tno/8IdqEY6PFcopkQe0syfE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Internal server error\"}",
+      "bodySha256": "f26dcd3580f26f3b494c17bd81ff4eb958401b104fc84698cb36495101190e44",
+      "outbound": [
+        {
+          "url": "/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hostTrailingSlash": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>//v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.formatUnknown": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"ogg\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.language": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1},\"lang\":\"zh\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.languageEmpty": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.coercions": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":5,\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":null,\"vol\":0,\"pitch\":1},\"audio_setting\":{\"sample_rate\":8000,\"bitrate\":0,\"format\":42,\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.reservedText": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"a/b?c&d=e#f%20g \\\"quoted\\\" ünïcode\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"voice/id with space\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.sampleRateFloat": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":22050.5,\"bitrate\":100000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.missingText": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-Wg7mveeK26U8v3F4493W2QdOKU8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Missing required parameters: text, voiceId, and apiKey are required\"}",
+      "bodySha256": "06e63e6f3f2b2a1e0525d7fc9ef21fe5e815485530fc1be9a3ad0c332381d028",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.emptyText": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-Wg7mveeK26U8v3F4493W2QdOKU8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Missing required parameters: text, voiceId, and apiKey are required\"}",
+      "bodySha256": "06e63e6f3f2b2a1e0525d7fc9ef21fe5e815485530fc1be9a3ad0c332381d028",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.missingVoiceId": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-Wg7mveeK26U8v3F4493W2QdOKU8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Missing required parameters: text, voiceId, and apiKey are required\"}",
+      "bodySha256": "06e63e6f3f2b2a1e0525d7fc9ef21fe5e815485530fc1be9a3ad0c332381d028",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.missingKey": {
+      "status": 400,
+      "headers": {
+        "content-length": "79",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4f-Wg7mveeK26U8v3F4493W2QdOKU8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Missing required parameters: text, voiceId, and apiKey are required\"}",
+      "bodySha256": "06e63e6f3f2b2a1e0525d7fc9ef21fe5e815485530fc1be9a3ad0c332381d028",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.json1004": {
+      "status": 500,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-F9n+c+m+nOg6+GtyXvaWCavTk4k\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Authentication failed - Please check your API key and API host\"}",
+      "bodySha256": "7a46c881d96329b25a54d844cdda8fcccf209531265f3d6aff30d6b576c174c0",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.jsonOtherStatus": {
+      "status": 500,
+      "headers": {
+        "content-length": "35",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"23-aWAMEmvs+otGrL6wx8gHrvY34/8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: rate limited\"}",
+      "bodySha256": "3fee5d2fc617e65c6c66ac5774375802ceaa5d6b3e049019993e53b92e3ad958",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.errorEnvelope": {
+      "status": 500,
+      "headers": {
+        "content-length": "16",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"10-00cM8kbSMUKZ12wqlCxoPU1vRVY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"boom\"}",
+      "bodySha256": "fa33eaf6faeace5db196a664a00597a695057ea9dcb3923b48b4cfc70d588298",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.messageEnvelope": {
+      "status": 500,
+      "headers": {
+        "content-length": "29",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1d-oYVUKU/neTlC8TM3RJVvpo7CRas\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"bad gateway twice\"}",
+      "bodySha256": "b8317082500491c0d31f56e8293cb0c178508c7f578b16912857e995cd1eae60",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.detailEnvelope": {
+      "status": 500,
+      "headers": {
+        "content-length": "28",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1c-X8nKH8PzLMMP0f/Ly9QicJpxELY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"detail wins next\"}",
+      "bodySha256": "0138a19daef87ff7c1e01a0686bc151ffe4499ceda7018d3e84a1d7cb5268ea8",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.plainText": {
+      "status": 500,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-49G0GLdM6xoWPpHlCwSNLGpXhnI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"plain failure\"}",
+      "bodySha256": "51610d12a470787dfe5c56f464afd89214d46da7380b2e2fa09bd08a47b3db1e",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.jsonString": {
+      "status": 500,
+      "headers": {
+        "content-length": "20",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-V1LhQKWpXUPvjK/mtZGvOCx/OtQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"HTTP 503\"}",
+      "bodySha256": "28910e17bd65f7d3761a459c251b518ff2082fd9837153384d710c172279837d",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.largeText": {
+      "status": 500,
+      "headers": {
+        "content-length": "57",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"39-zjI4KiUbTMraAR3qTmWNsAMTjBM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"HTTP 500: Response too large (600 characters)\"}",
+      "bodySha256": "e93c8fe5579ac29b5d8d254d965a7cf72c600ed12a4aeaa03a15999bf0605cf3",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.upstream.largeJsonFallthrough": {
+      "status": 500,
+      "headers": {
+        "content-length": "20",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-bgKhQYiAzhW9DkGEm/RnBkptqkE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"HTTP 500\"}",
+      "bodySha256": "d0c3b333b5e42654f65452c7b781e5dc047bfc4ee540ef83da91deb4349c426c",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.response.notJson": {
+      "status": 500,
+      "headers": {
+        "content-length": "52",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"34-jEYIeqXNZbIpXbtnVk5eq4XljSE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid response format from MiniMax API\"}",
+      "bodySha256": "ef91c71ca173cf295ab7f2474144d3fcacb63bb0cde69366364032799278eece",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.response.arrayPayload": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.baseResp.1004": {
+      "status": 500,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-F9n+c+m+nOg6+GtyXvaWCavTk4k\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Authentication failed - Please check your API key and API host\"}",
+      "bodySha256": "7a46c881d96329b25a54d844cdda8fcccf209531265f3d6aff30d6b576c174c0",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.baseResp.other": {
+      "status": 500,
+      "headers": {
+        "content-length": "28",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"1c-tW1It7+LmmcNLMP7oBYcN4drSXg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: quota\"}",
+      "bodySha256": "eed4bc1d2dc8f8cf873a9d48d35e94db0a60bb8c276bae904905781614a590a2",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.baseResp.noStatusMsg": {
+      "status": 500,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-muX7Hg7wH1lPzpglCO81yTaF8SE\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: undefined\"}",
+      "bodySha256": "60572e49b9bd5aa5897881e83b2db906ed4221445c39edf426ec0cadd4b02405",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.baseResp.stringZero": {
+      "status": 500,
+      "headers": {
+        "content-length": "34",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"22-uRtn4dw1Wc1bhXpg0AcMMbEtDAo\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: string zero\"}",
+      "bodySha256": "522962b27847690cc8e6555784472d3235e9e8bb54346aee5ea40519cbe425d9",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.baseResp.nullCode": {
+      "status": 500,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-4SwANiqKcr172nHdMWeHV3PiZ+g\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: null code\"}",
+      "bodySha256": "5cc79b63c4b542d9c86935f163c1bb21313a3b1e930205a5ffb2af647998326d",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.prefixedSpaced": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.oddLength": {
+      "status": 200,
+      "headers": {
+        "content-length": "2",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2-xxTMU2f3WSeTu6C5Akw0zedj4VM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "1870348e36542f82a2bb6b134f9bda817cbc1f946dda37a0cce5b5221b9f0304",
+      "bytes": 2,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.uppercase": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/flac",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"flac\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.newlines": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/aac",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"aac\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.prefixOnly": {
+      "status": 500,
+      "headers": {
+        "content-length": "37",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-qoxclYCXRIMh9umJGE5LHWP8XLI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid hex string format\"}",
+      "bodySha256": "366bf22724c3e76d50e228cdae87f349c17ba941507ce26d7799fdf09a10b7a2",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.whitespaceOnly": {
+      "status": 500,
+      "headers": {
+        "content-length": "37",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-qoxclYCXRIMh9umJGE5LHWP8XLI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid hex string format\"}",
+      "bodySha256": "366bf22724c3e76d50e228cdae87f349c17ba941507ce26d7799fdf09a10b7a2",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.invalidChar": {
+      "status": 500,
+      "headers": {
+        "content-length": "37",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-xv+lYQ1N3Bb7MPtxOyuO+lSoF+c\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid audio data format\"}",
+      "bodySha256": "fff05be3dc7dd0610c46638ba2a31efd5e719220b9b4109aa12ad01ab57bd6de",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.hex.mixedCasePrefix": {
+      "status": 500,
+      "headers": {
+        "content-length": "37",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-xv+lYQ1N3Bb7MPtxOyuO+lSoF+c\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid audio data format\"}",
+      "bodySha256": "fff05be3dc7dd0610c46638ba2a31efd5e719220b9b4109aa12ad01ab57bd6de",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.audioNonString": {
+      "status": 500,
+      "headers": {
+        "content-length": "37",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"25-xv+lYQ1N3Bb7MPtxOyuO+lSoF+c\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Invalid audio data format\"}",
+      "bodySha256": "fff05be3dc7dd0610c46638ba2a31efd5e719220b9b4109aa12ad01ab57bd6de",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.audioEmptyString": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.noData": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.emptyDataObject": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.dataIsString": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.noBaseRespEmpty": {
+      "status": 500,
+      "headers": {
+        "content-length": "36",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"24-HEnA4t5B/0XGSRsDjkCJXw7V4rA\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"API Error: Unknown error\"}",
+      "bodySha256": "fdd74131de1dfe30249acc4281a1d21c289eec09fa7ac2c0b02ee8e7e3dbf6fa",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.url.ok": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/wav",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"wav\",\"channel\":1}}"
+        },
+        {
+          "url": "<mock>/audio/clip.bin",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.url.nonOk": {
+      "status": 500,
+      "headers": {
+        "content-length": "47",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"2f-b3hIDA4QWUvP1lg06aJ2E7Pe6A0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Failed to fetch audio from URL: 404\"}",
+      "bodySha256": "5ba967481281fc295c49fe4e249efbd46b4b57ab2c9ca0847f56f55ab4082796",
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        },
+        {
+          "url": "<mock>/audio/missing.bin",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.url.throws": {
+      "status": 500,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": null,
+      "bodySha256": null,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        },
+        {
+          "url": "<closed>/audio/broken.bin",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "outbound"
+        ],
+        "shape": [
+          "bodyText",
+          "bodySha256",
+          "headers.content-length",
+          "headers.etag"
+        ],
+        "shapeReason": {
+          "bodyText": "the body interpolates the transport error message, which carries the request authority (node-fetch renders \"request to <url> failed, reason: connect ECONNREFUSED <host>:<port>\"), so it is a property of the transport rather than of the route; no value is recorded and the 500 status is compared instead",
+          "bodySha256": "it hashes the unrecorded body",
+          "headers.content-length": "it measures the unrecorded body",
+          "headers.etag": "it hashes the unrecorded body"
+        }
+      }
+    },
+    "voice.url.takesPrecedenceOverNothing": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-zfyns7dTVlZW3ey1Zv/cNf/dfqI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "0afc6651c341624878360ce09a40d954ca65c3b33989be4dbeaf8a3cd1c92b3d",
+      "bytes": 14,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        },
+        {
+          "url": "<mock>/audio/second.bin",
+          "method": "GET",
+          "explicitHeaders": [],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.audioWinsOverUrl": {
+      "status": 200,
+      "headers": {
+        "content-length": "40",
+        "content-type": "audio/mpeg",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"28-nZ4x5r/Bg1XhY7wmGLj4L1+wt00\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "sha256": "c98d15e37cf4bb2f40c5ebf66c78360cdf254529d8ed32ce94be8cbf40e45b44",
+      "bytes": 40,
+      "outbound": [
+        {
+          "url": "<mock>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "sha256",
+          "bytes",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    },
+    "voice.closedPort": {
+      "status": 500,
+      "headers": {
+        "content-length": "33",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"21-u8tno/8IdqEY6PFcopkQe0syfE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "bodyText": "{\"error\":\"Internal server error\"}",
+      "bodySha256": "f26dcd3580f26f3b494c17bd81ff4eb958401b104fc84698cb36495101190e44",
+      "outbound": [
+        {
+          "url": "<closed>/v1/t2a_v2",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ],
+            [
+              "mm-api-source",
+              "SillyTavern-TTS"
+            ]
+          ],
+          "body": "{\"model\":\"speech-02-hd\",\"text\":\"hello there\",\"stream\":false,\"voice_setting\":{\"voice_id\":\"female-shaonv\",\"speed\":1,\"vol\":1,\"pitch\":1},\"audio_setting\":{\"sample_rate\":32000,\"bitrate\":128000,\"format\":\"mp3\",\"channel\":1}}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "headers",
+          "bodyText",
+          "bodySha256",
+          "outbound"
+        ],
+        "shape": [],
+        "shapeReason": {}
+      }
+    }
+  },
+  "knownDifferences": []
+}
