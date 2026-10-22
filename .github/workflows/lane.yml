@@ -52,6 +52,22 @@ jobs:
           echo "all Go files are gofmt-clean"
       - name: Build
         run: go build ./...
+      - name: Build the binary a browser probe can run
+        # The browser probes boot GoTavern from a REAL binary in a release-shaped install root, and
+        # they used to build it themselves (`go build` inside the harness). On this project the build
+        # host is the weak machine, so a lane that needs a binary must not compile one: it downloads
+        # the one built here, from the exact commit under test, and passes it as GOTAVERN_BINARY.
+        #
+        # A release ASSET was the wrong answer for this (it is a tag, not the code under review) and a
+        # local build was the answer that filled a 149 GB disk. This is the durable one.
+        run: go build -trimpath -o gotavern ./cmd/gotavern
+      - name: Upload the binary for browser probes
+        uses: actions/upload-artifact@v4
+        with:
+          name: gotavern-lane-binary
+          path: gotavern
+          retention-days: 7
+          if-no-files-found: error
       - name: Vet
         run: go vet ./...
       - name: Test, and prove the tests actually ran
