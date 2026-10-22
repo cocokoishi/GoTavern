@@ -245,9 +245,6 @@ func (runtime *accountRuntime) serveSDElectronHubGenerate(w http.ResponseWriter,
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	image, hasImage := sdStringMemberOr(decoded, "data", "0", "b64_json")
-	_ = image
-	_ = hasImage
 	if base64Value, found := sdImageAt(decoded); found {
 		answer := nodeObject()
 		answer.setMember("image", nodeString(base64Value))
