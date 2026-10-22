@@ -350,20 +350,22 @@ Reverse proxies must allow large imports and long-lived streaming responses, pre
 
 ## 11. Release acceptance checklist
 
-A native release is not ready merely because cross-compilation succeeded. CI must install/use artifacts as a user would and verify:
+A native release is not ready merely because cross-compilation succeeded. CI must install/use artifacts as a user would and verify the items below. EACH LINE NOW STATES ITS EVIDENCE, because a checklist whose items are asserted by nothing is how the installer shipped for months without installing tokenizers/ -- and without ever being executed at all.
 
-- archive extracts and executable starts;
-- installer latest/version-pinned download path works;
-- checksum verification rejects tampering;
-- re-install preserves an existing runtime fixture;
-- fresh empty runtime seeds the same pinned defaults as Node;
-- migrated standalone fixture boots;
-- custom/absolute data-root migration boots;
-- login and representative chat work;
-- semantic/provider-wire suite passes;
-- pinned Tavern Helper deep workflow passes;
-- supported LittleWhiteBox standard-API workflow passes;
-- Docker image passes the same smoke path;
-- resource benchmark is recorded.
+| # | item | evidence |
+|---|---|---|
+| 1 | archive extracts and executable starts | GATED -- release-qualification.yml asserts contents and modes, then boots the extracted binary and requires /version |
+| 2 | installer latest/version-pinned download path works | GATED -- scripts/qualify-install.sh installs through a loopback mirror in BOTH forms and requires the mirror to have served the requests |
+| 3 | checksum verification rejects tampering | GATED -- a tampered archive must ABORT, name the mismatch, and install nothing |
+| 4 | re-install preserves an existing runtime fixture | GATED -- a second install over the same prefix must preserve a user file and config.yaml byte for byte, and assets verify must still pass after an upgrade |
+| 5 | fresh empty runtime seeds the same pinned defaults as Node | GATED -- tests/oracle/sillytavern-1.19.0-fresh-start.json |
+| 6 | migrated standalone fixture boots | NOT GATED -- gotavern migrate does not exist yet (section 6); the transitional shell helper is executed by no test |
+| 7 | custom/absolute data-root migration boots | NOT GATED -- same reason |
+| 8 | login and representative chat work | PARTIAL -- the browser differential covers login and the DOM; generation has provider-wire plus browser evidence for the CUSTOM source only |
+| 9 | semantic/provider-wire suite passes | GATED -- the provider-wire, backend, SD and provider fixtures replayed in go test ./... |
+| 10 | pinned Tavern Helper deep workflow passes | PARTIAL -- tests/browser/extension-tavern-helper-comparison.json is committed and gated: 21 rows equal on a release-faithful install, one known difference (/thumbnail, the Jimp boundary) |
+| 11 | supported LittleWhiteBox standard-API workflow passes | PARTIAL -- tests/browser/extension-littlewhitebox-comparison.json: 452 rows equal, same single known difference; the drive exercises load/discover/storage, not the full feature set |
+| 12 | Docker image passes the same smoke path | GATED SEPARATELY -- docker.yml builds the image, runs assets verify inside it and smokes a pinned route; that is an IMAGE, not the archive a user downloads |
+| 13 | resource benchmark is recorded | NOT GATED -- no benchmark harness exists in the repository |
 
 Only then is the release suitable for ordinary deployment.
