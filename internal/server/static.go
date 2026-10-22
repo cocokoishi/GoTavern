@@ -210,7 +210,26 @@ func servePinnedFrontendStatic(w http.ResponseWriter, r *http.Request, notFoundP
 // so a real deployment keeps the pinned validators, and falls back to the
 // embedded vendored tree, which is what a runtime without a physical public/
 // tree has.
+//
+// ONE EXCEPTION, and it is measured rather than assumed: /lib.js comes from the
+// GENERATED bundle, never from a disk public/lib.js. The pinned server mounts the
+// webpack middleware ahead of express.static (server-main.js:240), so its own
+// public/lib.js -- a 3,085-byte placeholder -- is never the file a browser gets;
+// the real one is the ~1.9 MB generated bundle. A release stages public/** beside
+// the binary, so this function used to find that placeholder first and return it.
+//
+// The consequence was a release-blocking regression rather than a cosmetic one: the
+// browser drive against the release layout stopped after 203 requests with the
+// preloader still up, because the placeholder does not boot the app, while the same
+// drive reached settingsReady against the pinned server. A 200 with the wrong BYTES
+// is worse than a 404 -- nothing reports it, and every extension probe fails later
+// with no explanation. The check therefore runs BEFORE the disk lookup.
 func readPinnedFrontendStaticFile(options HTTPHandlerOptions, clean string) (frontendStaticFile, bool) {
+	if clean == "lib.js" {
+		if body, err := upstream.Assets.ReadFile("generated/lib.js"); err == nil {
+			return frontendStaticFile{body: body}, true
+		}
+	}
 	if options.InstallRoot != "" {
 		target := filepath.Join(options.InstallRoot, "public", filepath.FromSlash(clean))
 		if info, err := os.Stat(target); err == nil {
@@ -224,13 +243,7 @@ func readPinnedFrontendStaticFile(options HTTPHandlerOptions, clean string) (fro
 			return frontendStaticFile{body: body, modTime: info.ModTime(), hasModTime: true}, true
 		}
 	}
-	// /lib.js keeps its existing preference for the generated bundle.
 	embedded := "public/" + clean
-	if clean == "lib.js" {
-		if body, err := upstream.Assets.ReadFile("generated/lib.js"); err == nil {
-			return frontendStaticFile{body: body}, true
-		}
-	}
 	info, err := fs.Stat(upstream.Assets, embedded)
 	if err != nil {
 		return frontendStaticFile{}, false

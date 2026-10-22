@@ -156,6 +156,12 @@ const main = async () => {
     const differences = rows.filter(row => row.classification !== 'equal');
 
     const extensionRevisionMatches = gotavern.provenance?.extension?.installedRevision === pinned.provenance?.extension?.installedRevision;
+    // The legs must also have STARTED from the same state. Two legs sharing one
+    // data root produced a /css/user.css difference that was purely the order the
+    // legs ran in, because the first leg created <dataRoot>/_css/user.css and the
+    // second leg's server then served it. Reporting that as a product finding is
+    // the shared-state hazard, so it is a guard rather than a row.
+    const startingStateMatches = JSON.stringify(gotavern.provenance?.startingState ?? null) === JSON.stringify(pinned.provenance?.startingState ?? null);
     const guards = {
         // A leg that never reached a state a user can act from, or never loaded the
         // extension, measured nothing: saying so is the difference between a
@@ -167,11 +173,13 @@ const main = async () => {
         gotavernExtensionLoaded: Boolean(gotavern.extensionLoaded),
         pinnedExtensionLoaded: Boolean(pinned.extensionLoaded),
         extensionRevisionMatches,
+        startingStateMatches,
+        startingState: { gotavern: gotavern.provenance?.startingState ?? null, pinned: pinned.provenance?.startingState ?? null },
     };
     guards.faithful = !guards.gotavernFailure && !guards.pinnedFailure
         && guards.gotavernReachedUserState && guards.pinnedReachedUserState
         && guards.gotavernExtensionLoaded && guards.pinnedExtensionLoaded
-        && guards.extensionRevisionMatches;
+        && guards.extensionRevisionMatches && guards.startingStateMatches;
 
     const comparison = {
         schemaVersion: 1,

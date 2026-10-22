@@ -93,7 +93,14 @@ const scriptPath = path.resolve(here, script);
 const reference = await resolveReference();
 const readyMs = Number(process.env.PINNED_READY_MS ?? 90000);
 const port = await freePort();
-const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'gotavern-pinned-data-'));
+// A caller may supply a prepared data root (for example one with a pinned
+// extension already installed) so both legs of a comparison serve the same tree.
+// A supplied root belongs to the caller and is NOT deleted here.
+const suppliedDataRoot = argumentValue('--data-root');
+const dataRoot = suppliedDataRoot ? path.resolve(suppliedDataRoot) : await fs.mkdtemp(path.join(os.tmpdir(), 'gotavern-pinned-data-'));
+if (suppliedDataRoot) {
+    await fs.mkdir(dataRoot, { recursive: true });
+}
 const baseURL = `http://127.0.0.1:${port}`;
 console.log(`[pinned] checkout   ${reference}`);
 console.log(`[pinned] dataRoot   ${dataRoot}`);
@@ -160,6 +167,8 @@ try {
     console.error(tail.join('').slice(-4000));
 } finally {
     server.kill('SIGKILL');
-    await fs.rm(dataRoot, { recursive: true, force: true }).catch(() => {});
+    if (!suppliedDataRoot) {
+        await fs.rm(dataRoot, { recursive: true, force: true }).catch(() => {});
+    }
 }
 process.exit(exitCode);

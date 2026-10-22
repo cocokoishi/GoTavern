@@ -196,6 +196,28 @@ Two boundaries this route does not own, both recorded in `docs/compat-matrix.md`
 
 Playwright should instrument `fetch`/XHR/network observation externally from the test harness without modifying shipped `public/**` or extension source.
 
+### Status: harness wired; the first faithful run is BLOCKED, so no row above is promoted
+
+The dynamic harness now exists in `tests/browser/`:
+
+```text
+pinned-extensions.mjs          the two pinned revisions, in one place
+install-pinned-extension.mjs   installs a pinned revision into a data root as a git checkout
+extension-probe.mjs            drives the pinned frontend with the extension installed (one leg)
+compare-extension-legs.mjs     two legs -> a comparison artifact (pure JSON: no browser, no server)
+run-against-pinned.mjs         boots the pinned server (now with an optional --data-root)
+```
+
+`compare-extension-legs.mjs` is a pure function of two leg files, so the `browser-evidence` job can recompute it byte-identically. Each leg records every request (method, path, status, content type, body length, body SHA-256 and a bounded JSON SHAPE skeleton), the final browser state, console output, page errors, and the pre-drive data-root fingerprint so a comparison can refuse a pair of legs that did not start identically.
+
+**Every row in this document stays `static`.** The first run did not produce a comparable pair, and the reason is a GoTavern defect rather than an extension problem:
+
+- With `public/**` staged beside the binary — the release layout, and required for `/api/extensions/discover` to list the built-in extensions at all — GoTavern's frontend never finishes initialising. The page stops after 203 requests and the preloader never clears (measured with a 120 s wait), while the identical drive against pinned reaches `settingsReady`.
+- Cause: `/lib.js`. `upstream/public/lib.js` is a 3085-byte placeholder and `upstream/generated/lib.js` is the 1 947 206-byte webpack bundle; the pinned server answers `/lib.js` from the webpack middleware rather than from the `public/` file. GoTavern's frontend static middleware reads `<InstallRoot>/public` **first**, so it served the placeholder — a 200 with the wrong bytes, which is exactly the failure mode this probe exists to catch.
+- The same drive reached `settingsReady` before that middleware change, when GoTavern served the embedded generated bundle. It is therefore a regression introduced with the disk-first static middleware, and it would affect every release, because the release ships `public/**` on disk.
+
+Two harness defects were found and fixed while establishing this, and each would have produced a false product finding: the GoTavern binary was built without the release `public/` tree, so `/api/extensions/discover` answered 1 entry instead of 15; and both legs shared one data root, so `/css/user.css` existed for the pinned leg and not the GoTavern leg and the comparison reported that difference as a product difference.
+
 For each real extension run record:
 
 - method/path;

@@ -171,6 +171,10 @@ const report = {
     baseURL,
     provenance: {
         subject: external ? 'pinned' : 'gotavern',
+        // The pre-drive state, so a comparison can refuse legs that did not start
+        // identically rather than reporting the difference between them as a
+        // product finding.
+        startingState,
         extension: {
             key: extensionKey,
             label: extension.label,
@@ -244,7 +248,14 @@ try {
     // browser and can delay the load event indefinitely. The readiness signal that
     // matters is settingsReady, waited for explicitly below with its own guard.
     await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 90000 });
+    // The timeout is the THIRD argument: Playwright's signature is
+    // (pageFunction, arg, options), so the { timeout } object in the second
+    // position is silently taken as `arg` and the default 30 s applies. The
+    // existing probes use the two-argument form, which is why 30 s is what this
+    // drive gets; on a weak development machine that is not enough for a page
+    // with an installed extension, and the failure reads as "the frontend never
+    // finished" rather than as a harness timeout.
+    await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
 
     report.reachedUserState = await page.evaluate(async () => {
         const result = { onboardingCompleted: false, settingsReady: false };
