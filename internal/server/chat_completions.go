@@ -424,6 +424,19 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		if schema, schemaExists := body.member("json_schema"); schemaExists && pinnedJSTruthy(schema) {
 			bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
 		}
+	case chatCompletionSourceGroq:
+		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
+		// body params of its own. Its one fold is a json_schema shape the shared response_format helper
+		// cannot express (member order plus `description`), so pinnedGroqResponseFormat owns it.
+		apiURL = pinnedGroqBaseURL()
+		secret, err := pinnedReadSecret(directories, pinnedGroqSecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			bodyParams.setMember("response_format", pinnedGroqResponseFormat(schema))
+		}
 	case chatCompletionSourceOpenRtr:
 		// chat-completions.js:2301-2393. The source has NO reverse_proxy and NO custom_url: the URL is the
 		// literal above, the key is the OPENROUTER secret, and the request is shaped by members that no other

@@ -50,6 +50,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveMistralChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceGroq {
+		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return
