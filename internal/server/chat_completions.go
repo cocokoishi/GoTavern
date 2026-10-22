@@ -501,6 +501,38 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 			}
 			bodyParams.setMember("response_format", format)
 		}
+	case chatCompletionSourcePollinations:
+		// chat-completions.js:2511. The endpoint mode moves BOTH the host and the credential: anonymous sends
+		// the literal key `anonymous` and never reads the secret; authenticated reads api_key_pollinations.
+		anonymous := pinnedPollinationsAnonymous(body)
+		apiURL = pinnedPollinationsBaseURL(anonymous)
+		if anonymous {
+			apiKey = nodeString(pinnedPollinationsAnonymousKey)
+		} else {
+			secret, err := pinnedReadSecret(directories, pinnedPollinationsSecretKey, pinnedSecretID(body))
+			if err != nil {
+				return nil, pinnedChatCompletionTransportFailure(err)
+			}
+			apiKey = secret
+		}
+		// The seed is ALWAYS in the body: `seed: request.body.seed ?? Math.floor(Math.random()*99999999)`.
+		seed, _ := pinnedPollinationsSeed(body)
+		bodyParams.setMember("seed", seed)
+		if !anonymous {
+			if effort, exists := body.member("reasoning_effort"); exists {
+				bodyParams.setMember("reasoning_effort", effort)
+			}
+			if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+				format := nodeObject()
+				format.setMember("type", nodeString("json_schema"))
+				inner := nodeObject()
+				if value, hasValue := schema.member("value"); hasValue {
+					inner.setMember("schema", value)
+				}
+				format.setMember("json_schema", inner)
+				bodyParams.setMember("response_format", format)
+			}
+		}
 	case chatCompletionSourceGroq:
 		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
 		// body params of its own. Its one fold is a json_schema shape the shared response_format helper

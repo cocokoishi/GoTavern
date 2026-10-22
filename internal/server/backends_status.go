@@ -62,6 +62,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveWorkersAIChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourcePollinations {
+		runtime.servePollinationsChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceGroq {
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return

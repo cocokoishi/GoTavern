@@ -1,0 +1,106 @@
+{
+    "schemaVersion":  1,
+    "name":  "pollinations-reasoning-schema",
+    "purpose":  "POLLINATIONS authenticated with reasoning_effort and json_schema: reasoning_effort is copied and json_schema folds to {type:json_schema, json_schema:{schema:\u003cvalue\u003e}} -- note the schema value sits UNDER a schema key, unlike WORKERS_AI. The anonymous mode folds NEITHER, which pollinations-anonymous exercises by carrying the same members and showing they are dropped.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "pollinations",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_pollinations":  [
+                                                 {
+                                                     "id":  "probe-id-api_key_pollinations",
+                                                     "value":  "synthetic-pollinations-key",
+                                                     "label":  "api_key_pollinations",
+                                                     "active":  true
+                                                 }
+                                             ]
+                },
+    "expectedAuthorizationKey":  "synthetic-pollinations-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://gen.pollinations.ai/v1",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_POLLINATIONS_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://gen.pollinations.ai/v1"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "pollinations",
+                                 "model":  "probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  false,
+                                 "seed":  777,
+                                 "reasoning_effort":  "high",
+                                 "json_schema":  {
+                                                     "name":  "probe_schema",
+                                                     "value":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "answer":  {
+                                                                                                     "type":  "string"
+                                                                                                 }
+                                                                                  }
+                                                               }
+                                                 }
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the CREDENTIAL ITSELF is asserted by expectedAuthorizationKey",
+                                            "reason":  "a credential value is not a contract, but WHICH credential the branch sends is: the anonymous mode sends the literal string anonymous and never reads the secret, so that scenario plants no secret and declares the literal as its expected key",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2514 apiKey = isAnonymous ? \u0027anonymous\u0027 : readSecret(request.user.directories, SECRET_KEYS.POLLINATIONS, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the endpoint literal is replaced with \u003cmock\u003e",
+                                            "reason":  "POLLINATIONS selects its base from the request body (gen vs text), and its status arm uses a THIRD literal; each has its own seam so the mode is what decides the host, not the seam",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2513 apiUrl = isAnonymous ? API_POLLINATIONS_ANON : API_POLLINATIONS"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded from the compared headers",
+                                            "reason":  "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}
