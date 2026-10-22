@@ -78,6 +78,7 @@ func registerOpenRouterRoutes(mux *http.ServeMux, accounts *accountRuntime, notF
 	post("/api/openrouter/models/multimodal", accounts.serveOpenRouterMultimodal)
 	post("/api/openrouter/models/embedding", accounts.serveOpenRouterEmbedding)
 	post("/api/openrouter/models/image", accounts.serveOpenRouterImage)
+	post("/api/openrouter/image/generate", accounts.serveOpenRouterImageGenerate)
 	post("/api/openrouter/credits", accounts.serveOpenRouterCredits)
 }
 
@@ -214,6 +215,164 @@ func (runtime *accountRuntime) serveOpenRouterEmbedding(w http.ResponseWriter, r
 
 func (runtime *accountRuntime) serveOpenRouterImage(w http.ResponseWriter, request *http.Request) {
 	runtime.serveOpenRouterModelList(w, request, "text", "image", openRouterMapToImage)
+}
+
+// openRouterSplitDataURI mirrors the pinned `/^data:(.*);base64,(.*)$/`. The first group is GREEDY in
+// the pinned regex, so the separator that splits the two groups is the LAST occurrence, not the first.
+func openRouterSplitDataURI(value string) (string, string, bool) {
+	if !strings.HasPrefix(value, "data:") {
+		return "", "", false
+	}
+	rest := value[len("data:"):]
+	const marker = ";base64,"
+	index := strings.LastIndex(rest, marker)
+	if index < 0 {
+		return "", "", false
+	}
+	mimeType := rest[:index]
+	base64Data := rest[index+len(marker):]
+	if mimeType == "" || base64Data == "" {
+		return "", "", false
+	}
+	return mimeType, base64Data, true
+}
+
+// openRouterImageHeaders is the pinned OPENROUTER_HEADERS pair plus the JSON content type and bearer,
+// in the order the pinned object spreads them. The referer and title are part of the observed wire.
+func openRouterImageHeaders(key string) []outbound.Header {
+	headers := []outbound.Header{
+		{Name: "HTTP-Referer", Value: "https://sillytavern.app"},
+		{Name: "X-Title", Value: "SillyTavern"},
+	}
+	return append(headers, sdJSONHeaders(key)...)
+}
+
+// openRouterImageURL walks `choices[0].message.images[0].image_url.url` explicitly.
+// nodeGet cannot express this path: it requires an OBJECT at every step, so the moment an array
+// appears the lookup returns undefined and the route would answer 500 for a perfectly good answer.
+// (Note that sdStringMemberOr(decoded, "data", "0", "b64_json") has the same limitation; this
+// traversal exists so that this route does not inherit it.)
+func openRouterImageURL(decoded orderedNodeJSON) (string, bool) {
+	choices := nodeGet(decoded, "choices")
+	if choices.kind != 'a' || len(choices.array) == 0 {
+		return "", false
+	}
+	message := nodeGet(choices.array[0], "message")
+	if message.kind != 'o' {
+		return "", false
+	}
+	images := nodeGet(message, "images")
+	if images.kind != 'a' || len(images.array) == 0 {
+		return "", false
+	}
+	imageURL := nodeGet(images.array[0], "image_url")
+	if imageURL.kind != 'o' {
+		return "", false
+	}
+	resolved := nodeGet(imageURL, "url")
+	if resolved.kind != 's' {
+		return "", false
+	}
+	value, _ := resolved.scalar.(string)
+	return value, true
+}
+
+// openRouterImageFormat is the pinned `format` projection: the subtype of the data URI's mime type,
+// lowercased. `image/png` records `png`.
+func openRouterImageFormat(mimeType string) string {
+	subtype := mimeType
+	if index := strings.LastIndex(mimeType, "/"); index >= 0 {
+		subtype = mimeType[index+1:]
+	}
+	if subtype == "" {
+		return "png"
+	}
+	return strings.ToLower(subtype)
+}
+
+// serveOpenRouterImageGenerate answers the pinned /api/openrouter/image/generate projection:
+// { format, image }. Both refusals are JSON bodies rather than sendStatus, and a non-ok provider
+// answer is a BARE 500 -- the provider text is logged upstream and NOT forwarded, which is the
+// opposite of /api/openai/caption-image and the reason this handler must not be modelled on it.
+func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWriter, request *http.Request) {
+	_, input, bodyOK := readUserPresetRequestBody(request)
+	if !bodyOK {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	directories, ok := runtime.secretsDirectories(w, request)
+	if !ok {
+		return
+	}
+	keyText, err := startup.ReadSecretString(directories, "api_key_openrouter")
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if keyText == "" {
+		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"OpenRouter API key not found"}`))
+		return
+	}
+	// `if (!model || !prompt)` is JS FALSINESS, so an ABSENT member must be refused even though a
+	// string conversion of it would produce the non-empty literal "undefined".
+	modelRaw, modelPresent := input["model"]
+	promptRaw, promptPresent := input["prompt"]
+	if !modelPresent || !promptPresent || !nodeTruthyJSON(modelRaw) || !nodeTruthyJSON(promptRaw) {
+		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
+		return
+	}
+	model, modelErr := javascriptStringOfBody(modelRaw)
+	prompt, promptErr := javascriptStringOfBody(promptRaw)
+	if modelErr != nil || promptErr != nil || model == "" || prompt == "" {
+		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
+		return
+	}
+	// `req.body.aspect_ratio || '1:1'` is JS OR-defaulting: a falsy member (absent, empty, 0) falls back.
+	aspectRatio := "1:1"
+	if raw, present := input["aspect_ratio"]; present && nodeTruthyJSON(raw) {
+		if value, valueErr := javascriptStringOfBody(raw); valueErr == nil {
+			aspectRatio = value
+		}
+	}
+	message := nodeObject()
+	message.setMember("role", nodeString("user"))
+	message.setMember("content", nodeString(prompt))
+	imageConfig := nodeObject()
+	imageConfig.setMember("aspect_ratio", nodeString(aspectRatio))
+	payload := nodeObject()
+	setRawMember(&payload, "model", input["model"])
+	payload.setMember("messages", nodeArray(message))
+	payload.setMember("modalities", nodeArray(nodeString("image")))
+	payload.setMember("image_config", imageConfig)
+	body, err := marshalCharacterJSON(payload)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	decoded, ok := sdPostJSON(request, openRouterAPIURL()+"/chat/completions", openRouterImageHeaders(keyText), body)
+	if !ok {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	imageURL, found := openRouterImageURL(decoded)
+	if !found {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	mimeType, base64Data, matched := openRouterSplitDataURI(imageURL)
+	if !matched {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	answer := nodeObject()
+	answer.setMember("format", nodeString(openRouterImageFormat(mimeType)))
+	answer.setMember("image", nodeString(base64Data))
+	encoded, err := marshalCharacterJSON(answer)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	respondJSONBytes(w, http.StatusOK, encoded)
 }
 
 func (runtime *accountRuntime) serveOpenRouterModelList(w http.ResponseWriter, request *http.Request, inputModality, outputModality string, mode openRouterModelMode) {
