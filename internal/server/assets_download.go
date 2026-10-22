@@ -1,4 +1,4 @@
-﻿package server
+package server
 
 // Pinned asset download, from src/endpoints/assets.js:190.
 //
@@ -20,9 +20,9 @@
 // the fixture records is identical; the transient temp artifact is not reproduced.
 
 import (
-	"os"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
