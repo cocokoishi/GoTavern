@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 // Pinned asset download, from src/endpoints/assets.js:190.
 //
@@ -20,6 +20,7 @@ package server
 // the fixture records is identical; the transient temp artifact is not reproduced.
 
 import (
+	"os"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -72,6 +73,13 @@ var assetsDownloadMimeTypes = map[string]string{
 // temp path is gone) while no partial download can ever be left behind. The removal is under the
 // shared user content lock.
 func (runtime *accountRuntime) assetsDownloadRemoveTemp(account *storedAccount, directories startup.UserDirectories, filename string) error {
+	// The temp DIRECTORY is part of the end state and the replay measured it: pinned's ensureDirectory
+	// creates assets/temp before it opens the temp file, unlinks only the FILE afterwards, so the
+	// directory survives with nine entries where a tree without it has eight. Leaving it out made the
+	// whole-tree assertion fail with "tree has 8 entries, pinned Node left 9".
+	if err := os.MkdirAll(filepath.Join(directories["assets"], "temp"), 0o777); err != nil {
+		return err
+	}
 	relative, ok := sdUserRelativePath(directories, filepath.Join(directories["assets"], "temp", filename))
 	if !ok {
 		return errAssetsLockEscapes
