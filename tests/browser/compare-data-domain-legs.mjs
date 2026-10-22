@@ -232,8 +232,14 @@ const main = async () => {
     const comparison = {
         schemaVersion: 1,
         question: 'after a write-then-read interaction in each data domain, does the browser observe the same requests, responses and final values on both legs?',
-        inputs: { gotavernFirst: gotavernFirstPath, gotavernSecond: gotavernSecondPath, pinnedFirst: pinnedFirstPath, pinnedSecond: pinnedSecondPath },
-        provenance: { gotavern: gotavernFirst.provenance, pinned: pinnedFirst.provenance },
+        // FILE NAMES, not paths: this artifact is committed and an absolute path carries the
+        // developer's home directory into the repository (rule 18's sweep catches exactly this).
+        inputs: { gotavernFirst: path.basename(gotavernFirstPath), gotavernSecond: path.basename(gotavernSecondPath), pinnedFirst: path.basename(pinnedFirstPath), pinnedSecond: path.basename(pinnedSecondPath) },
+        // The base URLs are the legs' own ephemeral ports, which differ on every run and say nothing
+        // about compatibility: a committed artifact records that each leg answered on a loopback
+        // server, not which port it happened to take.
+        origins: { gotavern: 'loopback', pinned: 'loopback' },
+        provenance: { gotavern: { ...gotavernFirst.provenance, baseURL: undefined }, pinned: { ...pinnedFirst.provenance, baseURL: undefined } },
         guards: {
             faithful: Boolean(gotavernFirst.reachedUserState?.settingsReady) && Boolean(pinnedFirst.reachedUserState?.settingsReady) && !gotavernFirst.failure && !pinnedFirst.failure,
             gotavernReachedUserState: Boolean(gotavernFirst.reachedUserState?.settingsReady),

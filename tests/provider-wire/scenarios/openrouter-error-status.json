@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "name": "openrouter-error-status",
+  "purpose": "A provider NON-2XX is not forwarded as a status: the pinned handler answers 200 with {error:{message}, quota_error}, so the browser-visible shape is pinned here rather than inferred.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "openrouter",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_openrouter": [
+      {
+        "id": "probe-id-api_key_openrouter",
+        "value": "synthetic-openrouter-key",
+        "label": "api_key_openrouter",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-openrouter-key",
+  "transportRedirect": [
+    {
+      "from": "https://openrouter.ai/api/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://openrouter.ai/api/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "openrouter",
+      "model": "probe-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 429,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_exceeded\"}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header's presence and scheme are the contract, the value is not.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "OPENROUTER has NO reverse_proxy and NO custom_url: chat-completions.js:2302 is the hardcoded literal https://openrouter.ai/api/v1, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH (/api/v1/chat/completions) is untouched and IS compared, which is the part the pinned literal decides.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:2302 apiUrl = \"https://openrouter.ai/api/v1\""
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

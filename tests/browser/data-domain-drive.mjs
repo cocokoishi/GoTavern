@@ -76,16 +76,32 @@ if (!external) {
     // A release layout stages the tokenizer assets beside the binary. The startup differential
     // learned this the hard way: a capture once measured the FALLBACK tokenizer path because
     // `tokenizers/` was missing, so this REFUSES rather than measuring the wrong path.
+    // `gotavern start` resolves InstallRoot as the DIRECTORY OF THE EXECUTABLE, so a binary left in
+    // the artifact directory made every file staged into <dataRoot> invisible: the tokenizer check
+    // failed there and the frontend would have come from that directory's own public/ (or the
+    // embedded tree) rather than from this run's layout. The artifact is a SOURCE that is copied
+    // into the install root, exactly as a release archive places it.
+    if (binarySetting) {
+        await fs.copyFile(binarySetting, binary);
+    }
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
     if (!(await exists(tokenizerSource))) {
         throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
     }
     await fs.cp(tokenizerSource, path.join(dataRoot, 'tokenizers'), { recursive: true });
-    const extensionSource = path.join(repoRoot, 'upstream', 'public', 'scripts', 'extensions');
-    if (await exists(extensionSource)) {
-        await fs.cp(extensionSource, path.join(dataRoot, 'public', 'scripts', 'extensions'), { recursive: true });
-    }
-    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // `public/` IS NOT STAGED. The release archive ships no public/ tree (the frontend is embedded
+    // and ARCHITECTURE 8.1 allows an install with none), startup creates an EMPTY
+    // public/scripts/extensions, and discovery plus the static fallback read the EMBEDDED tree. An
+    // earlier version copied upstream/public/scripts/extensions here, which is a layout no user has
+    // and which hid the release-install discovery defect from this very comparison.
+    //
+    // The config is the pinned fresh-install document, passed explicitly so both legs resolve the
+    // same file: without it each server read whichever config.yaml sat in its own checkout, and the
+    // file decides accounts, colours and the extension guard.
+    const configSource = path.join(repoRoot, 'upstream', 'default', 'config.yaml');
+    const configPath = path.join(dataRoot, 'config.yaml');
+    await fs.cp(configSource, configPath);
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', configPath], { cwd: dataRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 const report = {
@@ -352,62 +368,146 @@ try {
         };
     });
 
-    // 4. Backgrounds: upload a file through the real control, then list with the folder assignment.
+    // 4. Backgrounds: open the panel a user opens, ASSERT the subject's own gate, then upload.
+    //
+    // The previous version dispatched `change` on `#add_bg_button` in a freshly loaded page and got
+    // no request and no console output on BOTH legs, which read like a silent product defect and was
+    // not one: the pinned frontend binds that handler when the Backgrounds settings panel is
+    // RENDERED, so a page where nobody ever opened the drawer has no listener at all
+    // (`jQuery._data(input,'events') === null`). Rule 10: a driver that dispatches into an unbound
+    // handler is driving something a user cannot. The precondition below is asserted BEFORE the
+    // dispatch, so a repeat failure names itself instead of looking like a no-op.
     await runInteraction('backgrounds', async () => {
-        // getBackgrounds is exported by the backgrounds module, not re-exported from script.js.
+        const toggle = document.querySelector('#backgrounds-drawer-toggle');
+        if (!toggle) return { status: 'not-driven', reason: 'no #backgrounds-drawer-toggle in the served frontend' };
+        const panel = document.querySelector('#Backgrounds');
+        if (panel?.classList.contains('closedDrawer')) {
+            toggle.click();
+        }
+        const input = await (async () => {
+            const deadline = performance.now() + 10000;
+            while (performance.now() < deadline) {
+                const candidate = document.querySelector('#add_bg_button');
+                const handlers = candidate && globalThis.jQuery ? globalThis.jQuery._data(candidate, 'events') : null;
+                if (candidate && handlers?.change?.length) return { candidate, handlers };
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            return { candidate: document.querySelector('#add_bg_button'), handlers: null };
+        })();
+        const preconditions = {
+            drawerTogglePresent: true,
+            panelRendered: Boolean(panel) && !panel.classList.contains('closedDrawer'),
+            fileInputPresent: Boolean(input.candidate),
+            changeHandlerBound: Boolean(input.handlers?.change?.length),
+        };
+        if (!preconditions.changeHandlerBound) {
+            // The subject's own gate, named: without a bound handler the page would ignore the file.
+            return { status: 'not-driven', reason: 'no change handler is bound to #add_bg_button after opening the Backgrounds panel, so the frontend would ignore a selected file', preconditions };
+        }
         const backgrounds = await import('./scripts/backgrounds.js');
-        const input = document.querySelector('#add_bg_button');
-        if (!input) return { status: 'not-driven', reason: 'no #add_bg_button control in the served frontend' };
         const canvas = document.createElement('canvas');
         canvas.width = 8;
         canvas.height = 8;
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#3366aa';
-        context.fillRect(0, 0, 8, 8);
+        canvas.getContext('2d').fillStyle = '#3366aa';
+        canvas.getContext('2d').fillRect(0, 0, 8, 8);
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        const file = new File([blob], 'probe-background.png', { type: 'image/png' });
         const transfer = new DataTransfer();
-        transfer.items.add(file);
-        input.files = transfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        transfer.items.add(new File([blob], 'probe-background.png', { type: 'image/png' }));
+        input.candidate.files = transfer.files;
+        input.candidate.dispatchEvent(new Event('change', { bubbles: true }));
         const deadline = performance.now() + 20000;
-        let listed = [];
+        let listed = null;
         while (performance.now() < deadline) {
             listed = await backgrounds.getBackgrounds();
-            if ((listed ?? []).some(name => String(name).includes('probe-background'))) break;
+            if (String(JSON.stringify(listed ?? null)).includes('probe-background')) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
         const serverList = await fetch('/api/backgrounds/all', { method: 'POST', headers: (await import('./script.js')).getRequestHeaders() });
-        const serverListBody = await serverList.json();
+        const serverListText = await serverList.text();
+        // The file must also be FETCHABLE at its own URL: the upload landing in the list is not the
+        // same observation as the frontend being able to display it.
+        const stillUrl = '/backgrounds/probe-background.png';
+        const still = await fetch(stillUrl, { headers: { ...(await import('./script.js')).getRequestHeaders() } });
         return {
             status: 'driven',
-            preconditions: { fileInputPresent: true },
+            preconditions,
             observed: {
-                listedContainsUpload: (listed ?? []).some(name => String(name).includes('probe-background')),
-                listCount: (listed ?? []).length,
-                // The server's own view of the list, read back through the browser session.
+                listedContainsUpload: String(JSON.stringify(listed ?? null)).includes('probe-background'),
+                listedType: Array.isArray(listed) ? 'array' : typeof listed,
                 serverListStatus: serverList.status,
-                serverListContainsUpload: Array.isArray(serverListBody) && serverListBody.some(name => String(name).includes('probe-background')),
-                serverListCount: Array.isArray(serverListBody) ? serverListBody.length : null,
+                serverListContainsUpload: serverListText.includes('probe-background'),
+                stillStatus: still.status,
+                stillBytes: (await still.arrayBuffer()).byteLength,
                 folders: (backgrounds.background_settings?.folders ?? []).map(folder => ({ name: folder?.name ?? null, backgroundCount: Array.isArray(folder?.backgrounds) ? folder.backgrounds.length : null })),
             },
         };
     });
 
-    // 5. Quick replies: save a set through the extension's own API, then reload and re-read the order.
-    await runInteraction('quickReplies', async () => {
-        let api = null;
+    // 5. Quick replies: create a set through the extension's own published API, persist it, then
+    // RELOAD and re-read. Two predecessor defects, both rule-10 shaped: the drive imported
+    // `api/QuickReplyApi.js` and read a static `instance` that the extension never sets (the instance
+    // is published as `globalThis.quickReplyApi` by the `hooks.activate -> init()` path), and its
+    // interaction body ended in an unconditional `not-driven` return, so it could never demonstrate a
+    // write. Both are gone; the observed value is now the state the SERVER hands back after a reload.
+    {
+        const startIndex = requests.length;
+        let created = null;
         try {
-            api = await import('./scripts/extensions/quick-reply/api/QuickReplyApi.js');
+            created = await page.evaluate(async () => {
+                const api = globalThis.quickReplyApi;
+                const preconditions = { publishedApiOnGlobal: Boolean(api), listSetsBefore: api ? api.listSets().length : null };
+                if (!api) {
+                    return { status: 'not-driven', reason: 'globalThis.quickReplyApi is undefined: the frontend never ran the extension init() that constructs it', preconditions };
+                }
+                await api.createSet('probe-set');
+                await api.createQuickReply('probe-set', 'probe-qr', { message: 'probe message' });
+                const set = api.getSetByName('probe-set');
+                if (set && typeof set.save === 'function') {
+                    await set.save();
+                }
+                return {
+                    status: 'driven',
+                    preconditions,
+                    observed: {
+                        setCreated: Boolean(set),
+                        qrCreated: Boolean(set?.qrList?.some(entry => entry.label === 'probe-qr')),
+                        listSetsAfterCreate: api.listSets().sort(),
+                    },
+                };
+            });
         } catch (error) {
-            return { status: 'not-driven', reason: `the quick-reply extension API did not load: ${String(error.message ?? error).slice(0, 160)}` };
+            created = { status: 'not-driven', reason: 'page.evaluate threw: ' + String(error.message ?? error).slice(0, 200) };
         }
-        const QuickReplyApi = api.QuickReplyApi ?? api.default;
-        if (!QuickReplyApi) return { status: 'not-driven', reason: 'QuickReplyApi.js loaded but exported no QuickReplyApi' };
-        const settings = QuickReplyApi.instance?.settings ?? QuickReplyApi.settings;
-        if (!settings) return { status: 'not-driven', reason: 'the quick-reply extension is not initialised in this page (no settings instance)' };
-        return { status: 'not-driven', reason: 'the quick-reply extension exposes no driveable save from the page module graph in this harness' };
-    });
+        // Wait for the extension's own save request rather than for a duration.
+        const saveDeadline = Date.now() + 15000;
+        while (Date.now() < saveDeadline && !requests.slice(startIndex).some(entry => entry.path.startsWith('/api/quick-replies/') && entry.method === 'POST')) {
+            await page.waitForTimeout(100);
+        }
+        let after = null;
+        if (created?.status === 'driven') {
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            const deadline = Date.now() + 60000;
+            while (Date.now() < deadline) {
+                after = await page.evaluate(() => {
+                    const api = globalThis.quickReplyApi;
+                    if (!api) return null;
+                    const sets = api.listSets().sort();
+                    const set = api.getSetByName('probe-set');
+                    return { listSetsAfterReload: sets, setPersisted: sets.includes('probe-set'), qrPersisted: Boolean(set?.qrList?.some(entry => entry.label === 'probe-qr')) };
+                }).catch(() => null);
+                if (after) break;
+                await page.waitForTimeout(250);
+            }
+        }
+        report.interactions.push({
+            id: 'quickReplies',
+            status: created?.status ?? 'not-driven',
+            reason: created?.reason ?? null,
+            preconditions: created?.preconditions ?? null,
+            observed: created ? { ...(created.observed ?? {}), ...(after ?? {}) } : null,
+            requests: requests.slice(startIndex).map(entry => ({ method: entry.method, path: entry.path, resourceType: entry.resourceType, status: entry.status, contentType: entry.contentType, bodySha256: entry.bodySha256, bodyLength: entry.bodyLength, postDataSha256: entry.postDataSha256, postDataLength: entry.postDataLength })),
+        });
+    }
 
     report.finalState = await page.evaluate(async () => {
         const script = await import('./script.js');

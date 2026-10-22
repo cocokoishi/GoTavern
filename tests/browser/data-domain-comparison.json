@@ -2,16 +2,19 @@
   "schemaVersion": 1,
   "question": "after a write-then-read interaction in each data domain, does the browser observe the same requests, responses and final values on both legs?",
   "inputs": {
-    "gotavernFirst": "data-domain-gotavern-1.json",
-    "gotavernSecond": "data-domain-gotavern-2.json",
-    "pinnedFirst": "data-domain-pinned-1.json",
-    "pinnedSecond": "data-domain-pinned-2.json"
+    "gotavernFirst": "dd2-g1.json",
+    "gotavernSecond": "dd2-g2.json",
+    "pinnedFirst": "dd2-p1.json",
+    "pinnedSecond": "dd2-p2.json"
+  },
+  "origins": {
+    "gotavern": "loopback",
+    "pinned": "loopback"
   },
   "provenance": {
     "gotavern": {
       "subject": "gotavern",
       "external": false,
-      "baseURL": "http://127.0.0.1:55746",
       "tokenizerAssetsStaged": true,
       "frontendVersion": {
         "pkgVersion": "1.19.0",
@@ -21,7 +24,6 @@
     "pinned": {
       "subject": "pinned",
       "external": true,
-      "baseURL": "http://127.0.0.1:53062",
       "tokenizerAssetsStaged": false,
       "frontendVersion": {
         "pkgVersion": "1.19.0",
@@ -40,25 +42,18 @@
     "settings",
     "characters",
     "chats",
-    "backgrounds"
-  ],
-  "notDriven": [
-    {
-      "id": "quickReplies",
-      "reason": "the quick-reply extension is not initialised in this page (no settings instance)",
-      "gotavernStatus": "not-driven",
-      "pinnedStatus": "not-driven"
-    }
-  ],
-  "promotable": [
-    "settings",
-    "characters",
-    "chats"
-  ],
-  "notPromotable": [
     "backgrounds",
     "quickReplies"
   ],
+  "notDriven": [],
+  "promotable": [
+    "settings",
+    "characters",
+    "chats",
+    "backgrounds",
+    "quickReplies"
+  ],
+  "notPromotable": [],
   "unexpectedCount": 0,
   "unexpected": [],
   "comparisonNote": "Requests are compared within each interaction's own domain path; ambient requests the frontend issues while a drive runs (rendering, background loading, polling) are counted separately because slice attribution depends on timing. Response bodies and write payloads are compared only where TWO RUNS OF EACH LEG agree on the digest. Differences on a documented boundary (the thumbnail codec) are cited, not counted as unexpected.",
@@ -138,7 +133,7 @@
             "bodyNondeterministic": false,
             "postDataSha256": null,
             "postDataNondeterministic": false,
-            "occurrences": 0
+            "occurrences": 1
           }
         },
         {
@@ -155,9 +150,9 @@
             "occurrences": 1
           },
           "pinned": {
-            "status": null,
+            "status": 200,
             "bodySha256": null,
-            "bodyNondeterministic": false,
+            "bodyNondeterministic": true,
             "postDataSha256": null,
             "postDataNondeterministic": false,
             "occurrences": 1
@@ -192,7 +187,7 @@
           "cited": null,
           "gotavern": {
             "status": 200,
-            "bodySha256": "1aad36b0fb02621b951649811957ba7ad67d4838c2932d02088f7d6e8db74313",
+            "bodySha256": null,
             "bodyNondeterministic": false,
             "postDataSha256": "d24ab32e443897bef3ab31969b5fa1bb74f39e1cae1b8909e51787977eb967cb",
             "postDataNondeterministic": false,
@@ -204,7 +199,7 @@
             "bodyNondeterministic": false,
             "postDataSha256": "d24ab32e443897bef3ab31969b5fa1bb74f39e1cae1b8909e51787977eb967cb",
             "postDataNondeterministic": false,
-            "occurrences": 2
+            "occurrences": 1
           }
         }
       ],
@@ -223,6 +218,11 @@
         {
           "key": "GET /thumbnail?type=avatar&file=Probe%20Character.png",
           "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=avatar&file=default_Seraphina.png",
+          "classification": "extra-on-gotavern",
           "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
         }
       ],
@@ -280,8 +280,8 @@
           },
           "pinned": {
             "status": 200,
-            "bodySha256": null,
-            "bodyNondeterministic": true,
+            "bodySha256": "d7fc8349b8beb9cfdd5f09c7e165f4d27d24f0ba778edb70204ea53583c169a0",
+            "bodyNondeterministic": false,
             "postDataSha256": null,
             "postDataNondeterministic": false,
             "occurrences": 1
@@ -289,7 +289,7 @@
         },
         {
           "key": "GET /thumbnail?type=avatar&file=default_Seraphina.png",
-          "classification": "equal",
+          "classification": "extra-on-gotavern",
           "routeStatus": "unknown",
           "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
           "gotavern": {
@@ -298,16 +298,9 @@
             "bodyNondeterministic": false,
             "postDataSha256": null,
             "postDataNondeterministic": false,
-            "occurrences": 5
+            "occurrences": 6
           },
-          "pinned": {
-            "status": null,
-            "bodySha256": null,
-            "bodyNondeterministic": false,
-            "postDataSha256": null,
-            "postDataNondeterministic": false,
-            "occurrences": 1
-          }
+          "pinned": null
         },
         {
           "key": "POST /api/characters/all",
@@ -586,26 +579,149 @@
       "pinnedStatus": "driven",
       "drivenOnBothLegs": true,
       "notDrivenReason": null,
-      "requestCount": 2,
-      "ambientRequestCount": 3,
+      "requestCount": 27,
+      "ambientRequestCount": 6,
       "differences": [],
-      "citedDifferences": [],
+      "citedDifferences": [
+        {
+          "key": "GET /thumbnail?type=bg&file=__transparent.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=_black.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=_white.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20clean.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20cyberpunk.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20red.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20tatami.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20medieval%20market.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20medieval%20night.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20postapoc.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=forest%20treehouse%20fireworks%20air%20baloons%20(by%20kallmeflocc).jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20classroom%20side.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20classroom.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20path%20cherry%20blossom.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20university.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20autumn%20great%20tree.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20beach%20day.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20beach%20night.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20mountain%20lake.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20postapoc.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20winter%20lake%20house.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=probe-background.png",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=royal.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=tavern%20day.jpg",
+          "classification": "different-status",
+          "reason": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)"
+        }
+      ],
       "observedClassification": "equal",
       "observed": {
         "gotavern": {
           "listedContainsUpload": false,
-          "listCount": 0,
+          "listedType": "undefined",
           "serverListStatus": 200,
-          "serverListContainsUpload": false,
-          "serverListCount": null,
+          "serverListContainsUpload": true,
+          "stillStatus": 200,
+          "stillBytes": 110,
           "folders": []
         },
         "pinned": {
           "listedContainsUpload": false,
-          "listCount": 0,
+          "listedType": "undefined",
           "serverListStatus": 200,
-          "serverListContainsUpload": false,
-          "serverListCount": null,
+          "serverListContainsUpload": true,
+          "stillStatus": 200,
+          "stillBytes": 110,
           "folders": []
         }
       },
@@ -613,12 +729,544 @@
         "gotavern": true,
         "pinned": true
       },
-      "writeDemonstrated": false,
+      "writeDemonstrated": true,
       "writeRequests": {
-        "gotavern": [],
-        "pinned": []
+        "gotavern": [
+          "POST /api/backgrounds/upload"
+        ],
+        "pinned": [
+          "POST /api/backgrounds/upload"
+        ]
       },
       "requests": [
+        {
+          "key": "GET /thumbnail?type=bg&file=__transparent.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "0598b3ef6eb9e59002ef6392a2dceb1c7449d78010f9e966ba135f2c4f05e6f7",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=_black.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "15c0a591973299fe4178a6cba42819afb70adb42fd9689c7dcc93fa37bbb8f53",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=_white.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "9a403484a0afd2fbd1584062d081ce451d10645f5b8f16e97511550d9d83774e",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20clean.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "dd8af3af4fcf978a48fe0e7a88712968a922602d8c093641336f581b86ac0eea",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20cyberpunk.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "7c81b7c487987777bff7ad2abce9de8aa43a38ee9e918b461d026fe380a98055",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20red.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "e65f9f105ec1ebb1d448f3ae1f04a0aaf1f46f4d8b40281e4aeae695b0c90b3d",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=bedroom%20tatami.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "5ae8ef9ef63fbf12f705b8dcc2af2df2e740cabf55191f98a2d2c88996fc1de6",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20medieval%20market.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "c1f590bece9557933a4bb0a9093522ac6dd1e6afcd14001b262d66217de3969b",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20medieval%20night.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "21764740de273bd98bdccf674639d8e1b8b53142bbb7d905a3b8290efc12c7e5",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=cityscape%20postapoc.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "a3dd0fb14ab0298a1288454fba9cebc4cad1abd3ae52a21aba117a1add0bd8e4",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=forest%20treehouse%20fireworks%20air%20baloons%20(by%20kallmeflocc).jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "e29abade9155e3e51f73f26580b170d421e9e9a70b365691253b4255253e5514",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20classroom%20side.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "5e966cb7902ed902999891b9b5bd051879607aa936e4062df25f8fa18a3ea2b5",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20classroom.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "344837fa09de447bbd6d0f11b480d95b550edf8c1b3e43bfdc77d7d3edae6e1a",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20path%20cherry%20blossom.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "27e75511613ca6a2b39be944d145841a47987809707e4e95e49caf27da6178ec",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=japan%20university.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "be6f2539ee17cd139a8946669f9a1ff916c8eab96ddd5ccb3a0c58c93fb82386",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20autumn%20great%20tree.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "ead1ada2fe7df5cd1f1fb0b4275821293386f97d3dd076ffaf928717f8aacb58",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20beach%20day.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": "5b142e6d20753118256ddf86c40095aaedf09f64619af7613fb2b77b9174ce1c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "5e5dab79d6ff11a5087497e0883e71475acd9edee040ad262178217f4e0ca114",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20beach%20night.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "c1a12c67bb2f12b9aab92a3f6ed099760ee473041ab02263d44eeb5b0adb7e4f",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20mountain%20lake.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "679fdb3e85971487ffea9b528d71bbf9c628798d8942ce24045fab4be2a1604d",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20postapoc.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "0f1abfeb4de43f05290b172f26fecd9c78903b0348a1a3b3b4176cbf3d76ec83",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=landscape%20winter%20lake%20house.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "805111a9532b9cd5ab0cbc90ee5278e974e7f0eab1466b1f7eb7b86dffdbe526",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=probe-background.png",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 51
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "63d66b8c4d8aa0f0dbbcf2cf859d310918ec78c7f84f7cd325b52618b84e947c",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=royal.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "04c0542d5497ccb41252b2eb7d0ec378babb130a3ad811a245323c1413018d8d",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
+        {
+          "key": "GET /thumbnail?type=bg&file=tavern%20day.jpg",
+          "classification": "different-status",
+          "routeStatus": "unknown",
+          "cited": "thumbnail codec boundary: /thumbnail/<computed> is not implemented (AGENTS.md architecture boundary 3)",
+          "gotavern": {
+            "status": 404,
+            "bodySha256": null,
+            "bodyNondeterministic": true,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 53
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "b5f4d127bd04be9254d85aea1bb7351a6eb0604195f0c249741cc50b44217fda",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          }
+        },
         {
           "key": "POST /api/backgrounds/all",
           "classification": "equal",
@@ -627,18 +1275,18 @@
           "gotavern": {
             "status": 200,
             "bodySha256": null,
-            "bodyNondeterministic": false,
+            "bodyNondeterministic": true,
             "postDataSha256": null,
             "postDataNondeterministic": false,
-            "occurrences": 48
+            "occurrences": 54
           },
           "pinned": {
             "status": 200,
-            "bodySha256": null,
+            "bodySha256": "1ee6af351305cff6459cd2d2baae183b11bc09a45bb395c7547ad2e2009789e2",
             "bodyNondeterministic": false,
             "postDataSha256": null,
             "postDataNondeterministic": false,
-            "occurrences": 21
+            "occurrences": 51
           }
         },
         {
@@ -652,7 +1300,7 @@
             "bodyNondeterministic": false,
             "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "postDataNondeterministic": false,
-            "occurrences": 48
+            "occurrences": 54
           },
           "pinned": {
             "status": 200,
@@ -660,38 +1308,113 @@
             "bodyNondeterministic": false,
             "postDataSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "postDataNondeterministic": false,
-            "occurrences": 21
+            "occurrences": 51
+          }
+        },
+        {
+          "key": "POST /api/backgrounds/upload",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": "997249330f5dd334e77b9785e0f7e51fa644763abee7bbfde13206affd874377",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": "997249330f5dd334e77b9785e0f7e51fa644763abee7bbfde13206affd874377",
+            "bodyNondeterministic": false,
+            "postDataSha256": null,
+            "postDataNondeterministic": false,
+            "occurrences": 1
           }
         }
       ],
-      "promotable": false
+      "promotable": true
     },
     {
       "id": "quickReplies",
-      "gotavernStatus": "not-driven",
-      "pinnedStatus": "not-driven",
-      "drivenOnBothLegs": false,
-      "notDrivenReason": "the quick-reply extension is not initialised in this page (no settings instance)",
-      "requestCount": 0,
-      "ambientRequestCount": 0,
+      "gotavernStatus": "driven",
+      "pinnedStatus": "driven",
+      "drivenOnBothLegs": true,
+      "notDrivenReason": null,
+      "requestCount": 1,
+      "ambientRequestCount": 334,
       "differences": [],
       "citedDifferences": [],
-      "observedClassification": "not-driven",
+      "observedClassification": "equal",
       "observed": {
-        "gotavern": null,
-        "pinned": null
+        "gotavern": {
+          "setCreated": true,
+          "qrCreated": true,
+          "listSetsAfterCreate": [
+            "Default",
+            "probe-set"
+          ],
+          "listSetsAfterReload": [
+            "Default",
+            "probe-set"
+          ],
+          "setPersisted": true,
+          "qrPersisted": true
+        },
+        "pinned": {
+          "setCreated": true,
+          "qrCreated": true,
+          "listSetsAfterCreate": [
+            "Default",
+            "probe-set"
+          ],
+          "listSetsAfterReload": [
+            "Default",
+            "probe-set"
+          ],
+          "setPersisted": true,
+          "qrPersisted": true
+        }
       },
       "observedStablePerLeg": {
         "gotavern": true,
         "pinned": true
       },
-      "writeDemonstrated": false,
+      "writeDemonstrated": true,
       "writeRequests": {
-        "gotavern": [],
-        "pinned": []
+        "gotavern": [
+          "POST /api/quick-replies/save"
+        ],
+        "pinned": [
+          "POST /api/quick-replies/save"
+        ]
       },
-      "requests": [],
-      "promotable": false
+      "requests": [
+        {
+          "key": "POST /api/quick-replies/save",
+          "classification": "equal",
+          "routeStatus": "unknown",
+          "cited": null,
+          "gotavern": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "035842b4dd46d81426ec442917a8bb8c1dfafb921846505160c50d82f87a18b6",
+            "postDataNondeterministic": false,
+            "occurrences": 3
+          },
+          "pinned": {
+            "status": 200,
+            "bodySha256": null,
+            "bodyNondeterministic": false,
+            "postDataSha256": "035842b4dd46d81426ec442917a8bb8c1dfafb921846505160c50d82f87a18b6",
+            "postDataNondeterministic": false,
+            "occurrences": 3
+          }
+        }
+      ],
+      "promotable": true
     }
   ]
 }

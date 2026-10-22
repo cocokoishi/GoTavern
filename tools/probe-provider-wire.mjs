@@ -242,10 +242,71 @@ async function waitForBackend(child, origin, logs, label) {
     if (!ready) throw new Error(`${label} did not become ready:\n${logs.join('').slice(-4000)}`);
 }
 
+// A TRANSPORT REDIRECT for a provider whose URL is a hardcoded LITERAL.
+//
+// The custom and reverse_proxy scenarios carry the recording provider's origin in the REQUEST BODY, which is
+// how the mock is reached without touching either backend. A source such as OpenRouter has no such member:
+// its URL is the literal `https://openrouter.ai/api/v1` in BOTH backends (chat-completions.js:2302 and the
+// Go seam default), so the only way to point the PINNED leg at the mock is one layer below the route.
+//
+// This is the same idea `tools/lib/pinned-outbound.mjs` uses, with ONE difference that matters here: that
+// library REPLACES node-fetch and therefore records the route's raw header object, while the provider-wire
+// standard is what a listener RECEIVED (casing, order, Content-Length, Connection). This hook keeps the real
+// node-fetch and rewrites only the scheme and host of a declared prefix, so the request still crosses a real
+// socket to the mock. The PATH -- the part the pinned literal decides -- is untouched, and a scenario using
+// a redirect must declare it in its tier-2 list with that reasoning.
+function redirectHookProgram(realFetchURL, rewrites) {
+    return [
+        `import { registerHooks } from 'node:module';`,
+        `const REAL = ${JSON.stringify(realFetchURL)};`,
+        `registerHooks({`,
+        `  resolve(specifier, context, nextResolve) {`,
+        `    if (specifier === 'node-fetch') return { url: 'gotavern-redirect:node-fetch', shortCircuit: true };`,
+        `    return nextResolve(specifier, context);`,
+        `  },`,
+        `  load(url, context, nextLoad) {`,
+        `    if (url !== 'gotavern-redirect:node-fetch') return nextLoad(url, context);`,
+        `    return { format: 'module', shortCircuit: true, source: SOURCE };`,
+        `  },`,
+        `});`,
+        ``,
+        `const SOURCE = [`,
+        `  'import realFetch from ' + JSON.stringify(REAL) + ';',`,
+        `  'const REWRITES = ' + JSON.stringify(${JSON.stringify(rewrites)}) + ';',`,
+        `  'function redirect(input) {',`,
+        `  '  const href = typeof input === "string" ? input : (input && input.href ? input.href : String(input));',`,
+        `  '  for (const pair of REWRITES) {',`,
+        `  '    if (!href.startsWith(pair.from)) continue;',`,
+        `  '    return pair.to + href.slice(pair.from.length);',`,
+        `  '  }',`,
+        `  '  return href;',`,
+        `  '}',`,
+        `  'export default function fetchThroughRedirect(input, options) { return realFetch(redirect(input), options); }',`,
+        `  'globalThis.fetch = fetchThroughRedirect;',`,
+        `].join(String.fromCharCode(10));`,
+        ``,
+    ].join('\n');
+}
+
+// Writes the hook ONLY for a scenario that declares redirects, so every existing scenario boots the pinned
+// server exactly as before and cannot be moved by this capability.
+function writeRedirectHook(runtimeRoot, rewrites) {
+    const hooksPath = path.join(runtimeRoot, 'redirect-hook.mjs');
+    const realFetchPath = path.join(sourceRoot, 'node_modules', 'node-fetch', 'src', 'index.js');
+    if (!existsSync(realFetchPath)) {
+        throw new Error(`the pinned checkout has no node-fetch at ${realFetchPath}; run npm ci in it first`);
+    }
+    writeFileSync(hooksPath, redirectHookProgram(pathToFileURL(realFetchPath).href, rewrites));
+    return hooksPath;
+}
+
 async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
     const configPath = prepareRuntime(scenario, runtimeRoot, dataRoot);
     const port = await choosePort();
+    const rewrites = (scenario.transportRedirect ?? []).map(entry => ({ from: entry.from, to: entry.to }));
+    const hookArgs = rewrites.length > 0 ? ['--import', pathToFileURL(writeRedirectHook(runtimeRoot, rewrites)).href] : [];
     const child = spawn(process.execPath, [
+        ...hookArgs,
         'server.js', '--configPath', configPath, '--dataRoot', dataRoot,
         '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
         '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
@@ -260,16 +321,18 @@ async function startPinnedServer(scenario, runtimeRoot, dataRoot, logs) {
     return { child, origin };
 }
 
-async function startGoTavernServer(binaryPath, scenario, runtimeRoot, dataRoot, logs) {
+async function startGoTavernServer(binaryPath, scenario, runtimeRoot, dataRoot, logs, extraEnv = {}) {
     const configPath = prepareRuntime(scenario, runtimeRoot, dataRoot);
     const port = await choosePort();
     // The same command-line contract the pinned server is started with, so the
-    // two backends differ only in the implementation under test.
+    // two backends differ only in the implementation under test. `extraEnv` carries the Go SEAM for a
+    // provider whose URL is a pinned literal: the pinned leg is redirected at the transport layer and the Go
+    // leg through this variable, and both are declared in the scenario.
     const child = spawn(binaryPath, [
         '--configPath', configPath, '--dataRoot', dataRoot,
         '--listenAddressIPv4', '127.0.0.1', '--enableIPv4', 'true', '--enableIPv6', 'false',
         '--listen', 'false', '--port', String(port), '--browserLaunchEnabled', 'false', '--heartbeatInterval', '0',
-    ], { cwd: runtimeRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    ], { cwd: runtimeRoot, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', chunk => logs.push(chunk));
@@ -403,7 +466,18 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         writeFileSync(scriptPath, JSON.stringify(definition.mock, null, 2));
         const mock = await startMockProvider(mockBinary, scriptPath, logs);
         mockChild = mock.child;
-        const server = await startBackend(definition, runtimeRoot, dataRoot, logs);
+        const mockOrigin = `http://${mock.address}`;
+        // The scenario's own redirect declarations and Go seam are materialized with the mock origin HERE,
+        // for the same reason the request body is: it is per-run, and a backend that hardcodes its provider
+        // URL can only be pointed at the recording peer through one of them.
+        const served = {
+            ...definition,
+            transportRedirect: (definition.transportRedirect ?? []).map(entry => ({ from: entry.from, to: entry.to.replace('<mock>', mockOrigin) })),
+        };
+        const extraEnv = definition.goSeam
+            ? { [definition.goSeam.environmentVariable]: definition.goSeam.value.replace('<mock>', mockOrigin) }
+            : {};
+        const server = await startBackend(served, runtimeRoot, dataRoot, logs, extraEnv);
         backendChild = server.child;
         const { token, sessionCookie } = await authenticate(server.origin);
 
@@ -511,6 +585,13 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             normalization: definition.normalization,
             headerCoverage,
             authorizationKeyVerified,
+            // A HARDCODED-URL SOURCE HAS NO REQUEST MEMBER to redirect, so the Go side needs a seam and the
+            // pinned side needs a transport redirect. The seam's DEFAULT is asserted against `pinnedLiteral`
+            // by the Go test, so the default cannot drift into "whatever makes the replay pass" while the
+            // fixture still records the literal this route actually uses.
+            goSeam: definition.goSeam
+                ? { environmentVariable: definition.goSeam.environmentVariable, pinnedLiteral: definition.goSeam.pinnedLiteral }
+                : undefined,
         };
         if (goCaptureDirectory) {
             mkdirSync(goCaptureDirectory, { recursive: true });
@@ -625,6 +706,11 @@ function resolveBinary(environmentVariable, buildRelativePath, fallbackName) {
 
 const mockBinary = resolveBinary('GOTAVERN_MOCK_PROVIDER_BINARY', './tools/mock-provider', 'mock-provider');
 const goTavernBinary = resolveBinary('GOTAVERN_BINARY', './cmd/gotavern', 'gotavern');
+// The GoTavern captures are kept for diagnosis when the differential fails. They used to live beside the
+// binary in `goTavernRoot`, which the binary-resolution change removed: the reference survived and made
+// EVERY run that reached the GoTavern leg die with `goTavernRoot is not defined`, which is a probe defect
+// that presents as a red differential. They get their own directory now.
+const goTavernCaptureRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-captures-'));
 
 const captures = {};
 for (const { file, definition } of scenarios) {
@@ -638,6 +724,14 @@ const fixture = {
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
     probe: 'pinned backend -> provider transformation captured from a recording mock provider, per scenario',
     stage1Boundary: 'Validates the backend to provider transformation only. Browser-side prompt assembly is not covered.',
+    // Every seam a scenario declared, once, in declaration order, so the Go test can assert each default
+    // against the pinned literal WITHOUT reading the scenario files (a scenario could be edited without the
+    // fixture following, and then the assertion would be about the edit rather than about the capture).
+    seams: Object.fromEntries([...new Set(scenarios
+        .filter(({ definition }) => definition.goSeam)
+        .map(({ definition }) => JSON.stringify([definition.goSeam.environmentVariable, definition.goSeam.pinnedLiteral])))]
+        .map(entry => JSON.parse(entry))
+        .map(([environmentVariable, pinnedLiteral]) => [environmentVariable, { pinnedLiteral }])),
     scenarios: captures,
 };
 const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-provider-wire.json');
@@ -652,12 +746,12 @@ const goTavernCaptures = {};
 for (const { file, definition } of scenarios) {
     goTavernCaptures[definition.name] = await captureScenario({
         file, definition, mockBinary, backendLabel: 'GoTavern',
-        startBackend: (scenario, runtimeRoot, dataRoot, logs) => startGoTavernServer(goTavernBinary, scenario, runtimeRoot, dataRoot, logs),
-        goCaptureDirectory: path.join(goTavernRoot, 'captures'),
+        startBackend: (scenario, runtimeRoot, dataRoot, logs, extraEnv) => startGoTavernServer(goTavernBinary, scenario, runtimeRoot, dataRoot, logs, extraEnv),
+        goCaptureDirectory: goTavernCaptureRoot,
     });
 }
 assertGoTavernMatchesPinned(captures, goTavernCaptures);
-console.log(`Provider-wire differential closed for ${Object.keys(goTavernCaptures).length} scenarios; GoTavern captures kept in ${path.join(goTavernRoot, 'captures')}`);
+console.log(`Provider-wire differential closed for ${Object.keys(goTavernCaptures).length} scenarios; GoTavern captures kept in ${goTavernCaptureRoot}`);
 
 // Every scenario wrote its capture, so exit deliberately: a lingering child
 // handle must never hang the oracle job after the fixture is on disk. A

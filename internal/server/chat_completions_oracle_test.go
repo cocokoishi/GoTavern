@@ -39,8 +39,16 @@ type providerWireScenario struct {
 	Secrets                  map[string]any `json:"secrets"`
 	ExpectedAuthorizationKey string         `json:"expectedAuthorizationKey"`
 	AbortAfterFirstEvent     bool           `json:"abortAfterFirstEvent"`
-	DriverTimeoutMs          int            `json:"driverTimeoutMs"`
-	Request                  struct {
+	// A source whose provider URL is a pinned LITERAL declares a SEAM here (openrouter is the first): the
+	// live probe exports it for the GoTavern leg and redirects the pinned leg at the transport layer, so the
+	// replay must do the same or it drives the route at the real provider instead of the recorder.
+	GoSeam *struct {
+		EnvironmentVariable string `json:"environmentVariable"`
+		Value               string `json:"value"`
+		PinnedLiteral       string `json:"pinnedLiteral"`
+	} `json:"goSeam"`
+	DriverTimeoutMs int `json:"driverTimeoutMs"`
+	Request         struct {
 		Path string `json:"path"`
 	} `json:"request"`
 	Mock struct {
@@ -155,6 +163,9 @@ func TestChatCompletionGenerateMatchesProviderWireCapture(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = recorder.Close() })
 
+			if scenario.GoSeam != nil {
+				t.Setenv(scenario.GoSeam.EnvironmentVariable, strings.ReplaceAll(scenario.GoSeam.Value, "<mock>", "http://"+address.String()))
+			}
 			origin, cookie, token := startChatCompletionTestServer(t, scenario)
 			rawBody := chatCompletionDriverBody(t, nodeGet(ordered, "request", "body"), address.String())
 			status, header, text, aborted, timedOut := driveChatCompletionScenario(t, scenario, origin, cookie, token, rawBody)

@@ -18,13 +18,16 @@ package server
 import (
 	"net/http"
 	"strings"
+
+	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
 func init() {
 	// Registration happens in registerBackendsRoutes; nothing to add here.
 }
 
-// serveBackendsChatCompletionStatus is chat-completions.js:1778, custom branch + 501 for the rest.
+// serveBackendsChatCompletionStatus is chat-completions.js:1778: the custom and openrouter branches, and 501
+// for every other source in the pinned provider matrix.
 func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.ResponseWriter, request *http.Request) {
 	_, directories, ok := runtime.sdUser(w, request)
 	if !ok {
@@ -35,6 +38,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		return
 	}
 	source, _ := sdBodyMember(body, "chat_completion_source").stringValue()
+	if source == chatCompletionSourceOpenRtr {
+		runtime.serveOpenRouterChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return
@@ -79,6 +86,71 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 	response, fetchErr := searchFetch(request.Context(), searchRequest{
 		Method:  http.MethodGet,
 		URL:     sdURLJoin(customURL, "/models"),
+		Headers: headers,
+	})
+	if fetchErr != nil {
+		searchJSON(w, errorOnly)
+		return
+	}
+	if !sdResponseOK(response) {
+		failure := nodeObject()
+		failure.setMember("error", nodeBool(true))
+		data := nodeObject()
+		data.setMember("data", nodeArray())
+		failure.setMember("data", data)
+		searchJSON(w, failure)
+		return
+	}
+	parsed, parsedOK := sdReadJSON(response)
+	if !parsedOK {
+		searchJSON(w, errorOnly)
+		return
+	}
+	searchJSON(w, parsed)
+}
+
+// serveOpenRouterChatCompletionStatus is the OPENROUTER branch of chat-completions.js:1778-2156:
+//
+//	apiUrl = 'https://openrouter.ai/api/v1'; apiKey = readSecret(..OPENROUTER); headers = {...OPENROUTER_HEADERS}
+//	then the SHARED tail: 400 {error:true} when the key is missing (unless the request carries
+//	reverse_proxy), GET urlJoin(apiUrl, '/models') with `Authorization: Bearer <key>` plus those headers,
+//	the provider's parsed body passed through unchanged on 2xx, 200 {error:true, data:{data:[]}} on a non-2xx,
+//	and 200 {error:true} when the fetch or the parse throws.
+func (runtime *accountRuntime) serveOpenRouterChatCompletionStatus(w http.ResponseWriter, request *http.Request, body orderedNodeJSON, directories startup.UserDirectories) {
+	errorOnly := nodeObject()
+	errorOnly.setMember("error", nodeBool(true))
+	keyNode, secretErr := pinnedReadSecret(directories, pinnedOpenRouterSecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		searchJSON(w, errorOnly)
+		return
+	}
+	key, keyErr := pinnedJSStringValue(keyNode)
+	if keyErr != nil {
+		searchJSON(w, errorOnly)
+		return
+	}
+	// chat-completions.js:2067 -- the missing-key refusal is 400 and consults `request.body.reverse_proxy`
+	// even though this source never uses that member for its URL.
+	reverseProxyTruthy := false
+	if reverseProxy, exists := body.member("reverse_proxy"); exists && pinnedJSTruthy(reverseProxy) {
+		reverseProxyTruthy = true
+	}
+	if key == "" && !reverseProxyTruthy {
+		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	headers := map[string]string{"authorization": "Bearer " + key}
+	for _, entry := range pinnedOpenRouterHeaders().object {
+		value, valueErr := pinnedJSStringValue(entry.value)
+		if valueErr != nil {
+			searchJSON(w, errorOnly)
+			return
+		}
+		headers[strings.ToLower(entry.key)] = value
+	}
+	response, fetchErr := searchFetch(request.Context(), searchRequest{
+		Method:  http.MethodGet,
+		URL:     sdURLJoin(pinnedOpenRouterBaseURL(), "/models"),
 		Headers: headers,
 	})
 	if fetchErr != nil {

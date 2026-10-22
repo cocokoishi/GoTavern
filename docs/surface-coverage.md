@@ -39,8 +39,8 @@ has to be argued per area.
 | Characters (list, card read, create/edit/delete) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-characters-{read,write,import}.json`; **E**: `tests/browser/data-domain-comparison.json` — the drive opens the real create panel, submits the form, reads the list and the card back through `/api/characters/get`, deletes, and re-reads the list; every in-domain request, its write payload and the final browser values are equal on both legs |
 | Chats (save, get, `.jsonl` framing) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-chats-{save-get,mutations,import,search-recent}.json`; **E**: `tests/browser/data-domain-comparison.json` — `/api/chats/save` then `/api/chats/get` with the message array compared element by element, then `/api/chats/export` for the raw line framing; equal on both legs |
 | Settings (save then re-read) | ✓ | n/a | ✓ | ✓ | n/a | partial | `tests/oracle/sillytavern-1.19.0-settings-{get,save}.json`; **E**: `tests/browser/data-domain-comparison.json` — the `/api/settings/save` write payload and the `/api/settings/get` re-read body are compared by digest and the final settings values by value; equal on both legs. The value the drive flips does not survive the round trip on EITHER leg (recorded as `writeReflected: false`), so this cell rests on the write payload, the re-read body and the final state, not on value reflection |
-| Backgrounds (upload then list) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-backgrounds-{all,upload,delete,rename}.json`. **E is NOT promoted**: in `tests/browser/data-domain-comparison.json` the drive reports `writeDemonstrated: false` on both legs — the upload never reached the server, so the interaction only read and cannot fail on a difference |
-| Quick replies (save then reload) | ✓ | n/a | ✓ |  | n/a | partial | `tests/oracle/sillytavern-1.19.0-quick-replies.json`. **E is NOT promoted**: the drive could not initialise the quick-reply extension in the fresh-install page (`status: not-driven`, reason recorded per leg), so no save was issued on either leg |
+| Backgrounds (upload then list) | ✓ | n/a | ✓ | ✓ | n/a | **compatible** | `tests/oracle/sillytavern-1.19.0-backgrounds-{all,upload,delete,rename}.json`; `tests/browser/data-domain-comparison.json` -- the drive opens the Backgrounds panel (`#backgrounds-drawer-toggle`, the drawer a user clicks), ASSERTS the frontend has bound the upload handler (`jQuery._data(#add_bg_button, "events")`) and returns `not-driven` naming that gate if it has not, then observes the upload in `/api/backgrounds/all` AND at `/backgrounds/<name>` (200, 110 bytes) on BOTH legs, twice per leg. The gate assertion is the fix: the old drive dispatched into an unbound handler and reported a silent no-op as "the upload never reached the server" |
+| Quick replies (save then reload) | ✓ | n/a | ✓ | ✓ | n/a | **compatible** | `tests/oracle/sillytavern-1.19.0-quick-replies.json`; `tests/browser/data-domain-comparison.json` -- the drive reads and ASSERTS `globalThis.quickReplyApi` (published by the extension's `hooks.activate -> init()`, not a static the drive can import), creates a set and a quick reply through that API, persists, RELOADS and re-reads, and both survive on BOTH legs, twice per leg. The unconditional `not-driven` return was deleted rather than kept as a fallback |
 
 `✓*` means the cell is covered for a NAMED SCENARIO only. The startup differential drives the page
 at boot, so it gives characters (`/api/characters/all`), chats (`recent`, `get`, `save`),
@@ -139,14 +139,15 @@ stale-negative problem this file keeps warning about.
    provider-wire-first, which is the prerequisite for any E/C claim about that source. Until it lands,
    the other sources have neither P nor E, and saying they have "provider-wire only" was wrong: they
    have neither.
-3. ~~**E for every data domain**~~ -- done for characters, chats and settings by
-   `tests/browser/data-domain-comparison.json` (see the rows above). What is left of it: backgrounds
-   needs the upload to actually land (the drive's `writeDemonstrated` is false on both legs today),
-   and quick replies needs a drive that can initialise the extension in a fresh-install page. Both
-   blockers are being re-measured against current main, because the routes behind them
-   (`GET /backgrounds/*`, the user-CSS override, `/user/files/*`, `/user/images/*`) were all 404s
-   when the drive last ran.
-
+3. ~~**E for every data domain**~~ -- CLOSED. All five domains (`settings`, `characters`, `chats`,
+   `backgrounds`, `quickReplies`) are promotable in `tests/browser/data-domain-comparison.json` with
+   all five guards true, and backgrounds and quick replies are now `compatible` rows. BOTH blockers
+   turned out to be DRIVE gates rather than product gaps, which is why they survived two earlier
+   rounds: the backgrounds drive dispatched `change` into a handler the frontend had not bound yet
+   (the panel was never opened), and the quick-replies drive read a static instance the extension
+   never sets instead of `globalThis.quickReplyApi`. Each drive now ASSERTS its gate and names it
+   when absent, so the next failure says which precondition is missing instead of looking like a
+   silent no-op.
 **The data-domain comparison IS covered by the gate**, and this paragraph used to say it was not.
 `a1fc22a` added the comparison artifact and the artifact's own hand-written block in
 `tools/verify-browser-comparisons.mjs` in the SAME commit, so the earlier note ("it has none for
