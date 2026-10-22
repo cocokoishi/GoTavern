@@ -125,17 +125,27 @@ pinned revision (seeded installs now point `origin` at the local seed and the re
 afterwards), and the comparison was writing absolute leg paths into a committed file.
 ## The cheapest next promotions
 
-Ordered by missing work, not by route count:
+Ordered by missing work, not by route count. The list is kept honest by striking items when they
+close: two of the three below were ALREADY closed when this list was last written, which is the
+stale-negative problem this file keeps warning about.
 
-1. **Horde F** — the domain writes nothing outside its own state, so F is probably n/a and can be
-   argued from source in one paragraph. Cheapest to close.
-2. **Chat-completions E/C for the other sources** — the harness now does this for one source; the
-   cost is a per-source Connect/settings drive, not new infrastructure.
-3. ~~**E for every data domain**~~ — done for characters, chats and settings by
-   `tests/browser/data-domain-comparison.json` (see the rows above). What is left of it:
-   backgrounds needs the upload to actually land (the drive's `writeDemonstrated` is false on both
-   legs today), and quick replies needs a drive that can initialise the extension in a
-   fresh-install page.
+1. ~~**Horde F**~~ -- CLOSED BY ARGUMENT, and the argument was already in the Horde row above: the
+   pinned `src/endpoints/horde.js` contains ZERO filesystem calls (swept for `fs.`, `writeFile`,
+   `appendFile`, `mkdir`, `unlink`, `createWriteStream`, `rename`, `rmSync`) and the Go handlers write
+   nothing either -- only their test fixtures seed state. The domain keeps two 60-second in-memory
+   caches, so there is no persisted side effect to compare. F is n/a, not unmeasured.
+2. **Chat-completions P and E/C for the other sources** -- IN FLIGHT. The generator has a transport
+   for OPENAI/CUSTOM only and answers 501 for everything else; a lane is implementing OPENROUTER
+   provider-wire-first, which is the prerequisite for any E/C claim about that source. Until it lands,
+   the other sources have neither P nor E, and saying they have "provider-wire only" was wrong: they
+   have neither.
+3. ~~**E for every data domain**~~ -- done for characters, chats and settings by
+   `tests/browser/data-domain-comparison.json` (see the rows above). What is left of it: backgrounds
+   needs the upload to actually land (the drive's `writeDemonstrated` is false on both legs today),
+   and quick replies needs a drive that can initialise the extension in a fresh-install page. Both
+   blockers are being re-measured against current main, because the routes behind them
+   (`GET /backgrounds/*`, the user-CSS override, `/user/files/*`, `/user/images/*`) were all 404s
+   when the drive last ran.
 
 **The data-domain comparison IS covered by the gate**, and this paragraph used to say it was not.
 `a1fc22a` added the comparison artifact and the artifact's own hand-written block in
