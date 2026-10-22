@@ -219,6 +219,24 @@ jobs:
           grep -q "gotavern release qualification marker" data-root/default-user/user/files/qualification.txt
           echo "rollback preserved config.yaml, the user file and its bytes, and the server answered"
 
+      - name: Qualify the INSTALLER against the archives this run just built
+        # The step above extracts archives by hand; this one runs the installer REAL USERS run, which
+        # is a different claim. `scripts/qualify-install.sh` serves the two archives this run built
+        # over a loopback mirror, sets GOTAVERN_RELEASES_BASE_URL for every install, and asserts:
+        #   - the mirror SERVED the metadata and archive requests (so an ignored seam shows up as a
+        #     MISSING request instead of as a successful install from github.com -- rule 14's
+        #     discipline, which is exactly how the Horde probe's live-network leak was found);
+        #   - a tampered archive ABORTS, names the mismatch and installs nothing;
+        #   - the installed prefix PASSES `assets verify`, including after an upgrade -- the assertion
+        #     that caught the installer never installing tokenizers/, the defect that made the
+        #     documented primary install path produce a runtime counting every prompt ~25% high;
+        #   - a re-install preserves a user file and config.yaml byte for byte, and a rollback to the
+        #     older archive preserves them too;
+        #   - the launcher the INSTALLER WRITES (a different file from the archive's) starts a server
+        #     that answers /version.
+        # It never touches the network: the seam points at 127.0.0.1 and assertion 6 proves it.
+        run: bash scripts/qualify-install.sh "$PWD"
+
       - name: Report failure context
         if: failure()
         run: |

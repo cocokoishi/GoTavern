@@ -431,6 +431,12 @@ func isPublicAccountRequest(request *http.Request, options HTTPHandlerOptions) b
 			return true
 		}
 	}
+	// The pinned userCssMiddleware is mounted before requireLoginMiddleware, so a data-root CSS
+	// override is served to an anonymous browser. Its existence is what decides publicness.
+	if userCSSOverrideIsPublic(request, options) {
+		return true
+	}
+
 	return pinnedFrontendStaticServes(options, request)
 }
 

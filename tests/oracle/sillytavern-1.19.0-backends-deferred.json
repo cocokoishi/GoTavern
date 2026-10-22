@@ -1,0 +1,2764 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/backends deferred routes: kobold generate (streaming, abort, error branches) and kobold transcribe-audio (multipart)",
+  "oracle": {
+    "file": "src/endpoints/backends/kobold.js",
+    "routes": [
+      "POST /api/backends/kobold/generate (kobold.js:11)",
+      "POST /api/backends/kobold/transcribe-audio (kobold.js:190)"
+    ],
+    "mountedAt": "/api/backends/kobold (src/server-startup.js:179)",
+    "uploadMiddleware": "multer({ dest: dataRoot/_uploads }).single('avatar') (src/server-main.js:269) plus multerMonkeyPatch"
+  },
+  "conventions": {
+    "ordered": "scenarios is an ARRAY and the replay MUST iterate it in order: every step shares ONE data root, and the transcribe 400 paths leave a staged upload behind, so step N sees what step N-1 left.",
+    "observation": "each scenario is exchanged over a raw socket so the status, the FULL header list, the chunk framing and the terminator are observables; a fetch-based capture would decode all of them away",
+    "mock": "body-URL peers are recorded as the <mock> marker and the pinned localhost-rewrite port as <port>; the Go replay substitutes its own local origin",
+    "outboundHeaderModel": "explicitHeaders are the header object the route passed, lowercased and sorted; node-fetch 3 lowercases and SORTS them (node_modules/node-fetch/src/headers.js), so this is also the order they reach the peer relative to each other. Transport headers (Host, Connection) are not visible to the stub and are asserted on the Go side from nodeFetchWireDefaults instead.",
+    "multipart": "the upload is built with a fixed boundary and recorded as a parsed part list; the real boundary is whatever the client sends, so the raw bytes are never compared",
+    "multipartParts": "parts[].bytes and parts[].sha256 describe the value the PINNED server received, with the peer origin materialized; parts[].value is the same text with the <mock>/<port> markers restored, which is what the replay rebuilds and materializes against its own origin",
+    "uploads": "the staging directory is recorded as [{name: '<upload>', bytes, sha256}] because multer's filename is random",
+    "frames": "framing.frames are the chunked-transfer payloads in arrival order; framing.terminated reports the terminal zero-length chunk. A reply that is still open when the client disconnects has terminated:false."
+  },
+  "nodeFetchWireDefaults": {
+    "headers": [
+      [
+        "accept",
+        "*/*"
+      ],
+      [
+        "accept-encoding",
+        "gzip, deflate, br"
+      ],
+      [
+        "user-agent",
+        "node-fetch"
+      ]
+    ],
+    "verifiedBy": "tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire",
+    "limitation": "the stub sees the header OBJECT the route passed, before node-fetch adds its defaults, so a request with no body cannot show whether node-fetch would have added `content-length: 0`"
+  },
+  "fixtureFields": {
+    "compared": [
+      "scenarios[].observation.status",
+      "scenarios[].observation.headers",
+      "scenarios[].observation.framing",
+      "scenarios[].observation.bodyText",
+      "scenarios[].observation.bodySha256",
+      "scenarios[].observation.outbound[] (method, url, explicitHeaders, body)",
+      "scenarios[].observation.uploadsBefore/After",
+      "scenarios[].observation.sse"
+    ],
+    "shape": [
+      "observation.headers connection/keep-alive (presence only)",
+      "observation.headers x-powered-by (recorded, asserted by nothing)"
+    ],
+    "notRecorded": [
+      "Date",
+      "X-Response-Time value",
+      "the ephemeral peer authority",
+      "the pinned listen port",
+      "the multer staging filename",
+      "startup log"
+    ]
+  },
+  "excludedHeaders": {
+    "date": "the server clock, different on every request and on every host",
+    "x-response-time": "the pinned global middleware measures wall-clock latency; presence is asserted, the value is not"
+  },
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-backends-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Backends Deferred Probe",
+      "admin": true,
+      "password": ""
+    },
+    "secrets": {
+      "api_key_chutes": "probe-chutes-key",
+      "api_key_mistralai": "probe-mistral-key",
+      "api_key_xai": "probe-xai-key",
+      "api_key_moonshot": "probe-moonshot-key",
+      "api_key_workers_ai": "probe-workers-key",
+      "api_key_koboldcpp": "probe-koboldcpp-key",
+      "api_key_generic": "probe-generic-key",
+      "api_key_tabby": "probe-tabby-key",
+      "api_key_custom": "probe-custom-key"
+    },
+    "scenarios": [
+      {
+        "name": "kobold.generate.nonStream",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "Once upon a time",
+          "max_context_length": 2048,
+          "max_length": 120,
+          "rep_pen": 1.1,
+          "rep_pen_range": 320,
+          "rep_pen_slope": 0.7,
+          "temperature": 0.8,
+          "tfs": 0.9,
+          "top_a": 0.5,
+          "top_k": 40,
+          "top_p": 0.95,
+          "min_p": 0.05,
+          "typical": 1,
+          "sampler_order": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "singleline": "yes",
+          "use_default_badwordsids": false,
+          "mirostat": 2,
+          "mirostat_eta": 0.2,
+          "mirostat_tau": 5,
+          "grammar": "root ::= \"a\"",
+          "sampler_seed": 42,
+          "stop_sequence": [
+            "\nUser:"
+          ],
+          "streaming": false,
+          "can_abort": true,
+          "api_type": "koboldcpp",
+          "gui_settings": false
+        },
+        "form": null,
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/generate",
+            "body": "{\"results\":[{\"text\":\"Once upon\"}],\"model\":\"kobold-model\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"Once upon a time\",\"max_context_length\":2048,\"max_length\":120,\"rep_pen\":1.1,\"rep_pen_range\":320,\"rep_pen_slope\":0.7,\"temperature\":0.8,\"tfs\":0.9,\"top_a\":0.5,\"top_k\":40,\"top_p\":0.95,\"min_p\":0.05,\"typical\":1,\"sampler_order\":[0,1,2,3,4,5,6],\"singleline\":\"yes\",\"use_default_badwordsids\":false,\"mirostat\":2,\"mirostat_eta\":0.2,\"mirostat_tau\":5,\"grammar\":\"root ::= \\\"a\\\"\",\"sampler_seed\":42,\"stop_sequence\":[\"\\nUser:\"],\"streaming\":false,\"can_abort\":true,\"api_type\":\"koboldcpp\",\"gui_settings\":false}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "57"
+            ],
+            [
+              "etag",
+              "W/\"39-rXG0WXPiTc8UJq3zFivcUviYBsU\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "57",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"results\":[{\"text\":\"Once upon\"}],\"model\":\"kobold-model\"}",
+          "bodyBytes": 57,
+          "bodySha256": "953162f7a2659c84442df9b9810ce3049b574ccd95ab7a803165ad3aabb33415",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"Once upon a time\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":2048,\"max_length\":120,\"rep_pen\":1.1,\"rep_pen_range\":320,\"rep_pen_slope\":0.7,\"temperature\":0.8,\"tfs\":0.9,\"top_a\":0.5,\"top_k\":40,\"top_p\":0.95,\"min_p\":0.05,\"typical\":1,\"sampler_order\":[0,1,2,3,4,5,6],\"singleline\":true,\"use_default_badwordsids\":false,\"mirostat\":2,\"mirostat_eta\":0.2,\"mirostat_tau\":5,\"grammar\":\"root ::= \\\"a\\\"\",\"sampler_seed\":42,\"stop_sequence\":[\"\\nUser:\"]}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.guiSettings",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "hi",
+          "gui_settings": true,
+          "max_context_length": 512,
+          "max_length": 8,
+          "temperature": 2,
+          "sampler_seed": 7,
+          "stop_sequence": [
+            "x"
+          ],
+          "singleline": 0,
+          "streaming": false
+        },
+        "form": null,
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/generate",
+            "body": "{\"results\":[{\"text\":\"hi\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"hi\",\"gui_settings\":true,\"max_context_length\":512,\"max_length\":8,\"temperature\":2,\"sampler_seed\":7,\"stop_sequence\":[\"x\"],\"singleline\":0,\"streaming\":false}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "27"
+            ],
+            [
+              "etag",
+              "W/\"1b-/f3+KF3s/bjIW0kTlspNqkc5+Rk\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "27",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"results\":[{\"text\":\"hi\"}]}",
+          "bodyBytes": 27,
+          "bodySha256": "a04025e141984d7a3db3d362a1c32ad498aadd5e6f1240692232c20d689ad084",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"hi\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":512,\"max_length\":8}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.missingPrompt",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "gui_settings": true,
+          "max_context_length": 100,
+          "max_length": 10
+        },
+        "form": null,
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/generate",
+            "body": "{\"results\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"gui_settings\":true,\"max_context_length\":100,\"max_length\":10}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "14"
+            ],
+            [
+              "etag",
+              "W/\"e-24vRBFXLdkiGHboJ0qD/fA5L4XI\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "14",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"results\":[]}",
+          "bodyBytes": 14,
+          "bodySha256": "5021e624e752b001ce3e3846e8f158ed4aeb93a4c9a72fdb35a0c5b14a0eea84",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":100,\"max_length\":10}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.localhostRewrite",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "http://localhost:<port>",
+          "prompt": "p",
+          "gui_settings": true,
+          "max_context_length": 1,
+          "max_length": 1
+        },
+        "form": null,
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/generate",
+            "body": "{\"results\":[{\"text\":\"p\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"http://localhost:<port>\",\"prompt\":\"p\",\"gui_settings\":true,\"max_context_length\":1,\"max_length\":1}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "26"
+            ],
+            [
+              "etag",
+              "W/\"1a-wUZwa1zNHjsT+jc7QVwQDCqa6Xg\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "26",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"results\":[{\"text\":\"p\"}]}",
+          "bodyBytes": 26,
+          "bodySha256": "6cfc70f8ce87e6ccefd344e83253dc425cab1d3c760f893288bfb6e176e36da6",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "http://127.0.0.1:<port>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"p\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":1,\"max_length\":1}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.nonOkJson",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "too long",
+          "gui_settings": true,
+          "max_context_length": 1,
+          "max_length": 1
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/v1/generate",
+            "status": 400,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"detail\":{\"msg\":\"context too long\"}}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"too long\",\"gui_settings\":true,\"max_context_length\":1,\"max_length\":1}"
+          },
+          "status": 400,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "40"
+            ],
+            [
+              "etag",
+              "W/\"28-ioL8dRj/UVUS5g+eSsuZRWhMEBk\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "40",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"error\":{\"message\":\"context too long\"}}",
+          "bodyBytes": 40,
+          "bodySha256": "d652a85662fd4ee0da48151af0281fe1b66238d9807136195291ecee60881a05",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"too long\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":1,\"max_length\":1}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.nonOkText",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "boom",
+          "gui_settings": true,
+          "max_context_length": 1,
+          "max_length": 1
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/v1/generate",
+            "status": 503,
+            "body": "please retry later"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"boom\",\"gui_settings\":true,\"max_context_length\":1,\"max_length\":1}"
+          },
+          "status": 400,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "42"
+            ],
+            [
+              "etag",
+              "W/\"2a-Z+6ukDq+XT9Ev+av68bFiVfaXuU\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "42",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"error\":{\"message\":\"please retry later\"}}",
+          "bodyBytes": 42,
+          "bodySha256": "e03154e48df9b65bc9a94eb5b9af3176617532991ccec0f04ac3d8ab48b065f9",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"boom\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":1,\"max_length\":1}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.transportFailure",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "boom",
+          "gui_settings": true,
+          "max_context_length": 1,
+          "max_length": 1
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/v1/generate",
+            "throws": true
+          }
+        ],
+        "replayed": true,
+        "peer": "closed",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"boom\",\"gui_settings\":true,\"max_context_length\":1,\"max_length\":1}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "14"
+            ],
+            [
+              "etag",
+              "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "14",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"error\":true}",
+          "bodyBytes": 14,
+          "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/v1/generate",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"boom\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":1,\"max_length\":1}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.streamCompletes",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "Once upon a time",
+          "gui_settings": true,
+          "max_context_length": 64,
+          "max_length": 32,
+          "streaming": true,
+          "can_abort": false
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/extra/generate/stream",
+            "status": 200,
+            "headers": {
+              "Content-Type": "text/event-stream"
+            },
+            "body": "data: {\"token\":\"Once\"}\n\ndata: {\"token\":\" upon\"}\n\ndata: {\"token\":\" a time.\"}\n\n"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"Once upon a time\",\"gui_settings\":true,\"max_context_length\":64,\"max_length\":32,\"streaming\":true,\"can_abort\":false}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ],
+            [
+              "transfer-encoding",
+              "chunked"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": "chunked",
+            "contentLength": null,
+            "frames": [
+              {
+                "hex": "646174613a207b22746f6b656e223a224f6e6365227d0a0a646174613a207b22746f6b656e223a222075706f6e227d0a0a646174613a207b22746f6b656e223a2220612074696d652e227d0a0a",
+                "text": "data: {\"token\":\"Once\"}\n\ndata: {\"token\":\" upon\"}\n\ndata: {\"token\":\" a time.\"}\n\n",
+                "bytes": 77
+              }
+            ],
+            "terminated": true,
+            "serverEnded": false
+          },
+          "bodyText": "data: {\"token\":\"Once\"}\n\ndata: {\"token\":\" upon\"}\n\ndata: {\"token\":\" a time.\"}\n\n",
+          "bodyBytes": 77,
+          "bodySha256": "8c2d7d437a55cef22d09c7d057c04d56a1885e0208633ee24ce23465981fd12c",
+          "sse": [
+            {
+              "event": null,
+              "data": "{\"token\":\"Once\"}"
+            },
+            {
+              "event": null,
+              "data": "{\"token\":\" upon\"}"
+            },
+            {
+              "event": null,
+              "data": "{\"token\":\" a time.\"}"
+            }
+          ],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/extra/generate/stream",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"Once upon a time\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":64,\"max_length\":32}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.streamHoldOpenAbort",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "hold",
+          "gui_settings": true,
+          "max_context_length": 64,
+          "max_length": 32,
+          "streaming": true,
+          "can_abort": true
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/extra/abort",
+            "status": 200,
+            "body": "{\"ok\":true}"
+          },
+          {
+            "path": "/extra/generate/stream",
+            "status": 200,
+            "headers": {
+              "Content-Type": "text/event-stream"
+            },
+            "body": "data: {\"held\":true}\n\n",
+            "holdOpen": true
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": true,
+        "disconnectAfterFirstFrame": true,
+        "expectedOutbound": 2,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"hold\",\"gui_settings\":true,\"max_context_length\":64,\"max_length\":32,\"streaming\":true,\"can_abort\":true}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ],
+            [
+              "transfer-encoding",
+              "chunked"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": "chunked",
+            "contentLength": null,
+            "frames": [
+              {
+                "hex": "646174613a207b2268656c64223a747275657d0a0a",
+                "text": "data: {\"held\":true}\n\n",
+                "bytes": 21
+              }
+            ],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "data: {\"held\":true}\n\n",
+          "bodyBytes": 21,
+          "bodySha256": "215a26d47024fceda5348888a8f571b5a0e574d300fb0705e6023b9915fbd678",
+          "sse": [
+            {
+              "event": null,
+              "data": "{\"held\":true}"
+            }
+          ],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/extra/generate/stream",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"hold\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":64,\"max_length\":32}"
+            },
+            {
+              "method": "POST",
+              "url": "<mock>/extra/abort",
+              "explicitHeaders": [],
+              "body": null
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.streamHoldOpenNoAbort",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "hold",
+          "gui_settings": true,
+          "max_context_length": 64,
+          "max_length": 32,
+          "streaming": true
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/extra/abort",
+            "status": 200,
+            "body": "{\"ok\":true}"
+          },
+          {
+            "path": "/extra/generate/stream",
+            "status": 200,
+            "headers": {
+              "Content-Type": "text/event-stream"
+            },
+            "body": "data: {\"held\":true}\n\n",
+            "holdOpen": true
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": true,
+        "disconnectAfterFirstFrame": true,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"hold\",\"gui_settings\":true,\"max_context_length\":64,\"max_length\":32,\"streaming\":true}"
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ],
+            [
+              "transfer-encoding",
+              "chunked"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": "chunked",
+            "contentLength": null,
+            "frames": [
+              {
+                "hex": "646174613a207b2268656c64223a747275657d0a0a",
+                "text": "data: {\"held\":true}\n\n",
+                "bytes": 21
+              }
+            ],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "data: {\"held\":true}\n\n",
+          "bodyBytes": 21,
+          "bodySha256": "215a26d47024fceda5348888a8f571b5a0e574d300fb0705e6023b9915fbd678",
+          "sse": [
+            {
+              "event": null,
+              "data": "{\"held\":true}"
+            }
+          ],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/extra/generate/stream",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"hold\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":64,\"max_length\":32}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.generate.streamNonOk401",
+        "route": "kobold/generate",
+        "routePath": "/api/backends/kobold/generate",
+        "body": {
+          "api_server": "<mock>",
+          "prompt": "bad key",
+          "gui_settings": true,
+          "max_context_length": 8,
+          "max_length": 8,
+          "streaming": true,
+          "can_abort": false
+        },
+        "form": null,
+        "upstream": [
+          {
+            "path": "/extra/generate/stream",
+            "status": 401,
+            "body": "bad key"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "json",
+            "bodyText": "{\"api_server\":\"<mock>\",\"prompt\":\"bad key\",\"gui_settings\":true,\"max_context_length\":8,\"max_length\":8,\"streaming\":true,\"can_abort\":false}"
+          },
+          "status": 400,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin"
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ],
+            [
+              "transfer-encoding",
+              "chunked"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": "chunked",
+            "contentLength": null,
+            "frames": [
+              {
+                "hex": "626164206b6579",
+                "text": "bad key",
+                "bytes": 7
+              }
+            ],
+            "terminated": true,
+            "serverEnded": false
+          },
+          "bodyText": "bad key",
+          "bodyBytes": 7,
+          "bodySha256": "38825420c6a52f3648c4a6aa0735da2eae19b731fa6f6484dae6176af95b5c6c",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/extra/generate/stream",
+              "explicitHeaders": [
+                [
+                  "content-type",
+                  "application/json"
+                ]
+              ],
+              "body": "{\"prompt\":\"bad key\",\"use_story\":false,\"use_memory\":false,\"use_authors_note\":false,\"use_world_info\":false,\"max_context_length\":8,\"max_length\":8}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.ok",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "server",
+            "value": "<mock>"
+          },
+          {
+            "name": "avatar",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/extra/transcribe",
+            "body": "{\"text\":\"hello there\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "server",
+                "filename": null,
+                "contentType": null,
+                "value": "<mock>",
+                "bytes": 27,
+                "sha256": "9bffa793aeb9e3758c03af37726d9853d6d6cd18e669c223f9105a732621808c"
+              },
+              {
+                "name": "avatar",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "22"
+            ],
+            [
+              "etag",
+              "W/\"16-xc4S7ZzWUjb5AbNlxWlDfT1lh6E\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "22",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"text\":\"hello there\"}",
+          "bodyBytes": 22,
+          "bodySha256": "36bf2b86f2be015f8372ed413cec7a21201bf30dd4af592025868761d5b1ed4f",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/api/extra/transcribe",
+              "explicitHeaders": [
+                [
+                  "authorization",
+                  "Bearer probe-koboldcpp-key"
+                ]
+              ],
+              "body": "{\"prompt\":\"\",\"audio_data\":\"SUQzdjIgZ2J0LWtvYm9sZC10cmFuc2NyaXB0aW9uLXByb2JlLXBheWxvYWQ=\"}"
+            }
+          ],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.wrongFieldName",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "server",
+            "value": "<mock>"
+          },
+          {
+            "name": "file",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 0,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "server",
+                "filename": null,
+                "contentType": null,
+                "value": "<mock>",
+                "bytes": 27,
+                "sha256": "9bffa793aeb9e3758c03af37726d9853d6d6cd18e669c223f9105a732621808c"
+              },
+              {
+                "name": "file",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 500,
+          "headers": null,
+          "framing": null,
+          "bodyText": null,
+          "bodyBytes": null,
+          "bodySha256": null,
+          "sse": null,
+          "outbound": [],
+          "uploadsBefore": [],
+          "uploadsAfter": [],
+          "comparison": {
+            "compared": [
+              "status",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers",
+              "framing",
+              "body"
+            ],
+            "shapeReason": {
+              "headers": "the rendered error page's header set is the error renderer's, not this route's: a rendered Express error page: multer rejects a file field it does not expect with LIMIT_UNEXPECTED_FILE, the pinned error handler renders it in dev mode, and the page embeds a stack trace with absolute paths",
+              "framing": "the rendered error page is framed by the error renderer: a rendered Express error page: multer rejects a file field it does not expect with LIMIT_UNEXPECTED_FILE, the pinned error handler renders it in dev mode, and the page embeds a stack trace with absolute paths",
+              "body": "a rendered Express error page: multer rejects a file field it does not expect with LIMIT_UNEXPECTED_FILE, the pinned error handler renders it in dev mode, and the page embeds a stack trace with absolute paths"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.noServer",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "avatar",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 0,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "avatar",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 400,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "text/plain; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "11"
+            ],
+            [
+              "etag",
+              "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "11",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "Bad Request",
+          "bodyBytes": 11,
+          "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+          "sse": [],
+          "outbound": [],
+          "uploadsBefore": [],
+          "uploadsAfter": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.nonOk",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "server",
+            "value": "<mock>"
+          },
+          {
+            "name": "avatar",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [
+          {
+            "path": "/api/extra/transcribe",
+            "status": 500,
+            "body": "transcribe failed"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "server",
+                "filename": null,
+                "contentType": null,
+                "value": "<mock>",
+                "bytes": 27,
+                "sha256": "9bffa793aeb9e3758c03af37726d9853d6d6cd18e669c223f9105a732621808c"
+              },
+              {
+                "name": "avatar",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 500,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "text/html; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "17"
+            ],
+            [
+              "etag",
+              "W/\"11-JHjHBWQczyMaORhFGgm1IFVSnGA\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "17",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "transcribe failed",
+          "bodyBytes": 17,
+          "bodySha256": "534a6bd6ebaba5402fdcb739bf42af8527a6e2a78f57ac57612bf8795d818174",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/api/extra/transcribe",
+              "explicitHeaders": [
+                [
+                  "authorization",
+                  "Bearer probe-koboldcpp-key"
+                ]
+              ],
+              "body": "{\"prompt\":\"\",\"audio_data\":\"SUQzdjIgZ2J0LWtvYm9sZC10cmFuc2NyaXB0aW9uLXByb2JlLXBheWxvYWQ=\"}"
+            }
+          ],
+          "uploadsBefore": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "uploadsAfter": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.invalidServer",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "server",
+            "value": "not a url"
+          },
+          {
+            "name": "avatar",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 0,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "server",
+                "filename": null,
+                "contentType": null,
+                "value": "not a url",
+                "bytes": 9,
+                "sha256": "d8b5bf9b9fd4760c61234d12614d80c96892c75fe92d8819c6320f1ca6b3533d"
+              },
+              {
+                "name": "avatar",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 500,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "text/html; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "21"
+            ],
+            [
+              "etag",
+              "W/\"15-+7WyptUlKk9uPTM0Emj6siPHfDA\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "21",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "Internal server error",
+          "bodyBytes": 21,
+          "bodySha256": "f74d744451ed13502cccccac6c65505d59099b6621cc4debe58575e9442d66e6",
+          "sse": [],
+          "outbound": [],
+          "uploadsBefore": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "uploadsAfter": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      },
+      {
+        "name": "kobold.transcribe.secretAndQuery",
+        "route": "kobold/transcribe-audio",
+        "routePath": "/api/backends/kobold/transcribe-audio",
+        "body": null,
+        "form": [
+          {
+            "name": "server",
+            "value": "<mock>/base/path?k=a%2Fb&j=k%3Dl"
+          },
+          {
+            "name": "avatar",
+            "filename": "probe.mp3",
+            "contentType": "audio/mpeg",
+            "value": "ID3v2 gbt-kobold-transcription-probe-payload"
+          }
+        ],
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/api/extra/transcribe",
+            "body": "{\"text\":\"query kept\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock",
+        "stopAfterFirstFrame": false,
+        "disconnectAfterFirstFrame": false,
+        "expectedOutbound": 1,
+        "observation": {
+          "request": {
+            "kind": "multipart",
+            "boundary": "gotavern-kobold-probe-boundary",
+            "parts": [
+              {
+                "name": "server",
+                "filename": null,
+                "contentType": null,
+                "value": "<mock>/base/path?k=a%2Fb&j=k%3Dl",
+                "bytes": 53,
+                "sha256": "c5420e3bee4b2ac0c17212ff987f15c7a849797a976bd89d815fc580b575c0d8"
+              },
+              {
+                "name": "avatar",
+                "filename": "probe.mp3",
+                "contentType": "audio/mpeg",
+                "value": "ID3v2 gbt-kobold-transcription-probe-payload",
+                "bytes": 44,
+                "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+              }
+            ]
+          },
+          "status": 200,
+          "headers": [
+            [
+              "cross-origin-opener-policy",
+              "same-origin"
+            ],
+            [
+              "cross-origin-resource-policy",
+              "same-origin"
+            ],
+            [
+              "origin-agent-cluster",
+              "?1"
+            ],
+            [
+              "referrer-policy",
+              "no-referrer"
+            ],
+            [
+              "strict-transport-security",
+              "max-age=31536000; includeSubDomains"
+            ],
+            [
+              "x-content-type-options",
+              "nosniff"
+            ],
+            [
+              "x-dns-prefetch-control",
+              "off"
+            ],
+            [
+              "x-download-options",
+              "noopen"
+            ],
+            [
+              "x-frame-options",
+              "SAMEORIGIN"
+            ],
+            [
+              "x-permitted-cross-domain-policies",
+              "none"
+            ],
+            [
+              "x-xss-protection",
+              "0"
+            ],
+            [
+              "vary",
+              "Origin, Accept-Encoding"
+            ],
+            [
+              "content-type",
+              "application/json; charset=utf-8"
+            ],
+            [
+              "content-length",
+              "21"
+            ],
+            [
+              "etag",
+              "W/\"15-EFP5jdGgFNAUxYoobHl6+w9p46g\""
+            ],
+            [
+              "connection",
+              "keep-alive"
+            ],
+            [
+              "keep-alive",
+              "timeout=5"
+            ]
+          ],
+          "framing": {
+            "transferEncoding": null,
+            "contentLength": "21",
+            "frames": [],
+            "terminated": false,
+            "serverEnded": false
+          },
+          "bodyText": "{\"text\":\"query kept\"}",
+          "bodyBytes": 21,
+          "bodySha256": "1281a12e2c4c5facd468934fdaa3895d1d341a47b1632e6e681b82c238a07e0e",
+          "sse": [],
+          "outbound": [
+            {
+              "method": "POST",
+              "url": "<mock>/api/extra/transcribe?k=a%2Fb&j=k%3Dl",
+              "explicitHeaders": [
+                [
+                  "authorization",
+                  "Bearer probe-koboldcpp-key"
+                ]
+              ],
+              "body": "{\"prompt\":\"\",\"audio_data\":\"SUQzdjIgZ2J0LWtvYm9sZC10cmFuc2NyaXB0aW9uLXByb2JlLXBheWxvYWQ=\"}"
+            }
+          ],
+          "uploadsBefore": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "uploadsAfter": [
+            {
+              "name": "<upload>",
+              "bytes": 44,
+              "sha256": "864bf500ad259911b610939be0f1f06d08fb61767b7fc3b596e19b33aab37b46"
+            }
+          ],
+          "comparison": {
+            "compared": [
+              "status",
+              "headers",
+              "framing",
+              "body",
+              "outbound",
+              "uploads"
+            ],
+            "shape": [
+              "headers.connection",
+              "headers.keep-alive"
+            ],
+            "shapeReason": {
+              "headers.connection": "transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1",
+              "headers.keep-alive": "transport-owned: Node announces its idle timeout, Go does not emit the header at all"
+            },
+            "notCompared": []
+          }
+        }
+      }
+    ]
+  },
+  "derivedOnly": [
+    {
+      "branch": "kobold/generate: `if (!request.body) return response_generate.sendStatus(400)`",
+      "reason": "UNREACHABLE, so no oracle exists. Both global body parsers run before any handler and body-parser 1.20.4 starts with `req.body = req.body || {}` (node_modules/body-parser/lib/types/json.js:108), so request.body is always an object by the time the route runs. Probed instead: a JSON body that omits api_server (kobold.generate.missingPrompt) reaches the handler with a body and no prompt. The Go handler reproduces the observable, not the dead branch."
+    },
+    {
+      "branch": "kobold/generate: the 403/503 retry loop (MAX_RETRIES 50, delay 2500ms)",
+      "reason": "UNREACHABLE through the pinned transport, so no oracle exists: the switch reads `error.status`, and node-fetch throws a TypeError/FetchError with no `status` member only on a transport failure, while an HTTP 403/503 is a resolved response that takes the non-ok branch. A transport failure therefore falls to `default` and answers {error:true} on the first attempt, which IS recorded (kobold.generate.transportFailure). The Go handler makes one attempt and answers the same; it does not implement a retry loop it cannot observe."
+    },
+    {
+      "branch": "kobold/generate: a missing or non-string api_server",
+      "reason": "the pinned handler throws on `request.body.api_server.indexOf` inside an async handler with no try/catch and the process exits (the same crash the sibling /status row records). Not replayed against the pinned server, because it would kill the probe mid-wave. GoTavern answers 500, the documented deviation."
+    },
+    {
+      "branch": "kobold/generate: requestOverrides config headers (getOverrideHeaders)",
+      "reason": "the pinned config keys `requestOverrides[].hosts/.headers` are not projected into HTTPHandlerOptions, so GoTavern applies no override headers. The scenarios set none, so every capture records the object with only content-type."
+    }
+  ],
+  "knownDifferences": [
+    {
+      "route": "/api/backends/kobold/generate",
+      "status": "crash and dead branches recorded, not reproduced",
+      "reason": "see derivedOnly: the body-parser guard and the 403/503 retry loop are unreachable, and a missing api_server exits the pinned process."
+    }
+  ]
+}

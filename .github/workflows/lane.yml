@@ -86,18 +86,29 @@ jobs:
         # The counting itself is not decoration: a `-run` that matches nothing reports `ok`, and a
         # package that fails to COMPILE also produces no `=== RUN` line while the step can still look
         # green in the caller's reading. Both have happened here.
+        #
+        # THE OUTPUT IS NEVER DISCARDED. An earlier version piped the run through `tee ... >/dev/null`
+        # under `set -e`; a failing test then aborted the script at the pipe, so the run printed NO
+        # test name and NO assertion message -- a red that could not name its cause, which a lane
+        # reported and which this project's rules forbid. The status is captured first, the tail is
+        # always printed, and the exit code is decided afterwards.
         run: |
-          set -euo pipefail
-          go test ./... -count=1 -v 2>&1 | tee /tmp/all-tests.log >/dev/null
+          set -uo pipefail
+          go test ./... -count=1 -v > /tmp/all-tests.log 2>&1
+          status=$?
           executed="$(grep -c '^=== RUN' /tmp/all-tests.log || true)"
           echo "tests executed: $executed"
-          grep -E '^(--- )?(FAIL|ok  )' /tmp/all-tests.log | tail -15 || true
-          if grep -q '^FAIL' /tmp/all-tests.log; then
-            echo "at least one package failed"
+          echo "--- test log tail ---"
+          tail -60 /tmp/all-tests.log
+          echo "--- failing tests ---"
+          grep -E '^(--- FAIL|FAIL)' /tmp/all-tests.log || echo "(none named)"
+          if [ "$status" -ne 0 ]; then
+            echo "go test exited $status"
             exit 1
           fi
           if [ "$executed" -eq 0 ]; then
             echo "no test executed at all -- refusing to report success"
             exit 1
           fi
+
 

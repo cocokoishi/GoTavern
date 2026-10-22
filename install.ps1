@@ -27,11 +27,24 @@ switch ($arch) {
 
 $asset = "gotavern-windows-$releaseArch.zip"
 if ($Version -eq 'latest') {
-    $baseUrl = "https://github.com/$Repo/releases/latest/download"
+    $defaultBaseUrl = "https://github.com/$Repo/releases/latest/download"
     $releaseLabel = 'latest stable'
 } else {
-    $baseUrl = "https://github.com/$Repo/releases/download/$Version"
+    $defaultBaseUrl = "https://github.com/$Repo/releases/download/$Version"
     $releaseLabel = $Version
+}
+
+# MIRROR / AIR-GAPPED INSTALL (docs/INSTALLATION.md section 3.1), the same seam install.sh has: when
+# GOTAVERN_RELEASES_BASE_URL is set it REPLACES the computed base URL for BOTH forms, so a mirror must
+# serve `<base>/latest/download/` and `<base>/<tag>/` with the canonical asset names and a
+# `checksums.txt` in sha256sum format. Checksum verification below stays mandatory and has no bypass.
+# `Invoke-WebRequest` has NO --https-only equivalent -- plain http already works -- so unlike install.sh
+# there is no flag to drop here; that is stated rather than invented.
+$mirrorBaseUrl = $env:GOTAVERN_RELEASES_BASE_URL
+if ($mirrorBaseUrl) {
+    $baseUrl = $mirrorBaseUrl.TrimEnd('/')
+} else {
+    $baseUrl = $defaultBaseUrl
 }
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("gotavern-install-" + [Guid]::NewGuid().ToString('N'))
@@ -85,6 +98,13 @@ try {
     if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) {
         throw 'Release archive is missing gotavern.exe at archive root.'
     }
+    # tokenizers/ is REQUIRED, for the same reason as in install.sh: cmd/gotavern reads it from
+    # <InstallRoot>/tokenizers and `gotavern assets verify` hashes that directory on disk, so without it
+    # the tokenizer routes silently fall back to guesstimates. This installer used to omit it.
+    $sourceTokenizers = Join-Path $extracted 'tokenizers'
+    if (-not (Test-Path -LiteralPath $sourceTokenizers -PathType Container)) {
+        throw 'Release archive is missing tokenizers/ at archive root. GoTavern needs that directory beside the binary; without it tokenizer counts silently fall back.'
+    }
 
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     $targetExe = Join-Path $InstallDir 'gotavern.exe'
@@ -112,6 +132,18 @@ cd /d "%~dp0"
             Copy-Item -LiteralPath $source -Destination (Join-Path $InstallDir $name) -Force
         }
     }
+
+    # Replace the immutable tokenizer tree. Staged beside its final name and swapped, so an interrupted
+    # install leaves either the old tree or the new one rather than a half-copied directory.
+    $tokenizersNew = Join-Path $InstallDir ('.tokenizers.new.' + [Guid]::NewGuid().ToString('N'))
+    $tokenizersOld = Join-Path $InstallDir ('.tokenizers.old.' + [Guid]::NewGuid().ToString('N'))
+    Copy-Item -LiteralPath $sourceTokenizers -Destination $tokenizersNew -Recurse -Force
+    $tokenizersTarget = Join-Path $InstallDir 'tokenizers'
+    if (Test-Path -LiteralPath $tokenizersTarget) {
+        Move-Item -LiteralPath $tokenizersTarget -Destination $tokenizersOld
+    }
+    Move-Item -LiteralPath $tokenizersNew -Destination $tokenizersTarget
+    Remove-Item -LiteralPath $tokenizersOld -Recurse -Force -ErrorAction SilentlyContinue
 
     Write-Host
     Write-Host "Installed GoTavern into: $InstallDir"

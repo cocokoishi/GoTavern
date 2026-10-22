@@ -104,6 +104,7 @@ Installers must:
 - support latest stable and an explicit release tag;
 - download `checksums.txt` from the same release;
 - verify SHA-256 before installing anything;
+- install `tokenizers/` beside the binary as immutable release data, and refuse an archive that lacks it;
 - use a temporary directory for download/extraction;
 - replace immutable executable/launcher files only after successful verification;
 - preserve user config/data/extensions/certs on re-run;
@@ -115,6 +116,24 @@ Installers must:
 - clean temporary files on normal/error exit where feasible.
 
 For an executable update, download and verify first and then replace the old executable atomically or with the safest platform-equivalent sequence possible.
+
+### 3.1 Mirrors and air-gapped installs
+
+Both installers accept `GOTAVERN_RELEASES_BASE_URL`. When it is set it **replaces** the computed GitHub release base URL for **both** forms:
+
+- the latest form, which requests `<base>/latest/download/`;
+- the explicit-tag form, which requests `<base>/<tag>/`.
+
+A mirror must therefore serve both shapes, with the canonical asset names from §2 and a `checksums.txt` in `sha256sum` format (`<64 hex characters>  <asset name>`, no `./` prefix). For a mirror, the Unix installer drops the `--https-only` flag it uses when downloading from GitHub, because a loopback or intranet mirror is a legitimate plain-http target; the Windows installer's `Invoke-WebRequest` never enforced a scheme, so its only change is the URL.
+
+This is a **mirror / air-gapped install** feature, not a test hook, and it does not weaken any check:
+
+- checksum verification stays mandatory and unconditional, from the same release the archive came from;
+- there is **no fallback to compiling source**, with or without a mirror;
+- a missing `checksums.txt`, a missing entry for the asset, or a mismatched digest each abort the install and install nothing;
+- when the variable is unset, every URL and flag is byte-identical to the previous behaviour.
+
+**Status of the two installers.** `install.sh` is executed by release qualification, which serves the archives a release build produced in the same run on loopback and then installs, runs, verifies, re-installs, upgrades and rolls back through it (`scripts/qualify-install.sh`). `install.ps1` carries the same mirror seam and the same `tokenizers/` requirement, but **nothing executes it**: it needs Windows PowerShell, which the Linux qualification runner does not have. It is therefore `partial` with that reason rather than claimed verified.
 
 ---
 

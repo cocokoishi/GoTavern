@@ -42,14 +42,37 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       oracle: ${{ steps.diff.outputs.oracle }}
+      probes: ${{ steps.diff.outputs.probes }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: diff
-        name: Does this commit touch anything a fixture depends on?
+        name: Which probes must re-record, if any?
+        # TWO DECISIONS, because a full oracle run is now measured in HOURS: it re-records every
+        # declared probe TWICE, and each run boots the pinned server. On a push that changed one route
+        # that is most of this repository's CI cost for no extra information.
+        #
+        #   oracle=false              nothing a fixture depends on changed.
+        #   oracle=true, probes=""    run EVERY probe -- when the change can move any fixture
+        #                             (tools/lib/**, the generator, the inventories input, upstream/**),
+        #                             and on a schedule or by dispatch, which is now the only place a
+        #                             full re-record happens.
+        #   oracle=true, probes=<csv> re-record ONLY those probes: whose SCRIPT changed, plus every
+        #                             probe whose DECLARED fixture changed (resolved by grepping the
+        #                             declarations, so the mapping cannot drift from the probes).
+        #
+        # The zero-diff check still covers EVERY fixture, so narrowing removes recording work, not
+        # verification: a skipped probe whose output would have moved still fails this job.
         run: |
           set -eu
+          event="${{ github.event_name }}"
+          if [ "${event}" = "schedule" ] || [ "${event}" = "workflow_dispatch" ]; then
+            echo "scheduled or dispatched run: re-recording every probe"
+            echo "oracle=true" >> "$GITHUB_OUTPUT"
+            echo "probes=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           base="${{ github.event.before }}"
           if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             base="$(git rev-parse 'HEAD^' 2>/dev/null || echo '')"
@@ -57,18 +80,50 @@ jobs:
           if [ -z "${base}" ]; then
             echo "no parent commit to diff against; running the oracle"
             echo "oracle=true" >> "$GITHUB_OUTPUT"
+            echo "probes=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "${base}" HEAD)"
           echo "${changed}"
-          if printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|upstream/)'; then
-            echo "oracle=true" >> "$GITHUB_OUTPUT"
-          else
+          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|upstream/)'; then
             echo "oracle=false" >> "$GITHUB_OUTPUT"
+            echo "probes=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if printf '%s\n' "${changed}" | grep -qE '^(tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|upstream/)'; then
+            echo "a shared input changed; re-recording every probe"
+            echo "oracle=true" >> "$GITHUB_OUTPUT"
+            echo "probes=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          probes=""
+          for path in ${changed}; do
+            case "${path}" in
+              tools/probe-*.mjs) probes="${probes} $(basename "${path}")" ;;
+            esac
+          done
+          for path in ${changed}; do
+            case "${path}" in
+              tests/oracle/*.json)
+                fixture="$(basename "${path}")"
+                owners="$(grep -l "fixture=${fixture}" tools/probe-*.mjs 2>/dev/null | xargs -r -n1 basename || true)"
+                if [ -z "${owners}" ]; then
+                  echo "fixture ${fixture} is declared by no probe; re-recording everything"
+                  echo "oracle=true" >> "$GITHUB_OUTPUT"
+                  echo "probes=" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+                probes="${probes} ${owners}"
+                ;;
+            esac
+          done
+          selected="$(printf '%s\n' ${probes} | sort -u | tr '\n' ',' | sed 's/,$//')"
+          echo "oracle=true" >> "$GITHUB_OUTPUT"
+          echo "probes=${selected}" >> "$GITHUB_OUTPUT"
       - name: Report the decision
         run: |
           echo "oracle job will run: ${{ steps.diff.outputs.oracle }}"
+          echo "probes to re-record: '${{ steps.diff.outputs.probes }}' (empty means all)"
 
   oracle:
     needs: changes
@@ -107,6 +162,11 @@ jobs:
           go build -trimpath -o .oracle-bin/gotavern ./cmd/gotavern
           echo "GOTAVERN_BINARY=${PWD}/.oracle-bin/gotavern" >> "$GITHUB_ENV"
       - name: Rebuild pinned assets, inventories, and Node oracle
+        # GOTAVERN_ORACLE_PROBES narrows WHICH probes re-record; empty means every probe, which is
+        # what a schedule/dispatch run and any shared-input change does. The zero-diff step below still
+        # covers every fixture, so a narrowed run is cheaper, not weaker.
+        env:
+          GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Verify generated results are committed
         run: |

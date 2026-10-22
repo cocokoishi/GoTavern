@@ -3,12 +3,18 @@
 // the nine multimodal-model lists, chat-completions bias, kobold status/embed, llama.cpp
 // props/slots, ollama download/caption-image, tabby download, and text-completions status/props.
 //
-// SCOPE. The streaming/multipart routes (kobold/generate, kobold/transcribe-audio,
-// text-completions/generate) and chat-completions/status are NOT probed here; see
-// src/endpoints/backends/*.js and the Go implementation notes for the reason they are deferred
-// (streaming framing + multipart parsing need their own differential harness, and
-// chat-completions/status is a 380-line provider matrix whose source-specific branches each need
-// their own provider oracle).
+// SCOPE. This script has TWO waves, selected by argv[4]:
+//
+//   (default)          the cheap, deterministic routes: the nine multimodal-model lists,
+//                      chat-completions bias and process, kobold status/embed, llama.cpp
+//                      props/slots, ollama download/caption-image, tabby download, text-completions
+//                      status/props, and chat-completions/status (custom source). Fixture
+//                      sillytavern-1.19.0-backends.json.
+//   args=deferred      the streaming and multipart routes: kobold/generate (a live proxy over an
+//                      SSE stream, with the abort path and its error branches) and
+//                      kobold/transcribe-audio (a multipart upload). Fixture
+//                      sillytavern-1.19.0-backends-deferred.json. text-completions/generate is
+//                      still NOT probed here: it is its own lane's route.
 //
 // The pinned server runs unmodified with its node-fetch module replaced by a controlled peer
 // (tools/lib/pinned-outbound.mjs), so every outbound request is recorded and no probe run reaches
@@ -22,13 +28,19 @@
 // @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
 // which auto-discovers probes so that adding one needs no edit there.
 // @gotavern-oracle: fixture=sillytavern-1.19.0-backends.json label="backend probe routes"
+// The streaming/multipart wave is a SECOND run of this script with args=deferred: it needs its own
+// fixture (different schema: framing + parsed multipart part lists + upload staging) and its own
+// double-run determinism check.
+// @gotavern-oracle: fixture=sillytavern-1.19.0-backends-deferred.json label="backend streaming and multipart routes" args=deferred
 
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 
 import {
-    PINNED_COMMIT, PINNED_VERSION, startPinnedProviderServer, writeFixture,
+    PINNED_COMMIT, PINNED_VERSION, sha256, startPinnedProviderServer, writeFixture,
 } from './lib/pinned-outbound.mjs';
 
 const sourceRoot = path.resolve(process.argv[2] ?? '');
@@ -702,6 +714,705 @@ addScenario({
     route: 'chat-completions/status',
     body: { chat_completion_source: 'custom' },
 });
+// ---- deferred wave: kobold/generate (streaming) and kobold/transcribe-audio (multipart) ------
+//
+// WHY THIS WAVE OBSERVES OVER A RAW SOCKET. Every other scenario in this probe captures through
+// fetch(), which decodes chunked framing. A streamed reply and a buffered one are byte-identical
+// once the stream has FINISHED, so a fetch capture cannot tell them apart: it loses the
+// Transfer-Encoding, the chunk boundaries and the presence or absence of the terminal chunk. Every
+// scenario below is exchanged over a raw TCP socket and recorded as a status + header list + frame
+// list + terminator. The NON-STREAM CONTROL (`kobold.generate.nonStream`) is recorded with the same
+// reader and carries a Content-Length and no frames, so a buffered reply can never be read as a
+// streamed one.
+//
+// THE UPSTREAM HOLDS ITS RESPONSE OPEN for the streaming scenarios (the stub's additive `holdOpen`
+// rule). That is the only way to observe the property the route exists for: a client receives the
+// upstream's bytes while the upstream has not finished, which a buffering implementation cannot do.
+// Killing the client socket then exercises the pinned abort path (`request.socket.on('close')` ->
+// POST `${api_server}/extra/abort` when `can_abort`), which is an outbound request and is recorded.
+//
+// MULTIPART. transcribe-audio reads `request.file`, and the only file the pinned server stages is
+// the one the GLOBAL multer middleware accepts: `multer(...).single('avatar')`
+// (src/server-main.js:269), so a part named anything else never becomes a file. The upload is built
+// with a FIXED boundary so its bytes are deterministic, and it is recorded as a PARSED PART LIST
+// (name order, filename, content type, digest, length). The probe asserts every part list is
+// non-empty: a consumed stream would record zero parts, which looks exactly like "never sent". The
+// staging directory (<dataRoot>/_uploads) is snapshotted before and after every transcribe
+// scenario, because the pinned route unlinks its staged file on the paths that reach the fetch and
+// LEAVES IT BEHIND on the two 400 paths; multer's random filename is recorded as <upload>.
+//
+// NOT PROBED, and recorded as a derivation instead (see derivedOnly in the fixture): the
+// `if (!request.body) return sendStatus(400)` branch (body-parser sets `req.body = req.body || {}`
+// before any handler, so it is unreachable) and the 403/503 retry loop (node-fetch does not throw
+// on an HTTP status, so `error.status` is never 403/503 and the loop cannot be entered).
+
+const DEFERRED_FIXTURE = 'sillytavern-1.19.0-backends-deferred.json';
+const DEFERRED_BOUNDARY = 'gotavern-kobold-probe-boundary';
+// Three SSE events in ONE upstream write. The frame list proves the reply was forwarded as the
+// upstream wrote it; the SSE list proves the payload is the upstream payload.
+const STREAM_COMPLETE_FRAMES = 'data: {"token":"Once"}\n\ndata: {"token":" upon"}\n\ndata: {"token":" a time."}\n\n';
+// Deliberately the SAME bytes tests/mockprovider writes for its hold-open response, so the pinned
+// capture and the Go replay can compare the held frame byte for byte.
+const STREAM_HOLD_FRAME = 'data: {"held":true}\n\n';
+const AUDIO_PAYLOAD = 'ID3v2 gbt-kobold-transcription-probe-payload';
+
+// Both are wall-clock values: the pinned server and the Go server each stamp their own, so a
+// recorded value could only be compared against an invented one. X-Response-Time's PRESENCE is
+// asserted by the replay instead (it is the pinned global middleware, src/server-main.js:108).
+const DEFERRED_RESPONSE_HEADERS_NOT_RECORDED = {
+    date: 'the server clock, different on every request and on every host',
+    'x-response-time': 'the pinned global middleware measures wall-clock latency; presence is asserted, the value is not',
+};
+// Recorded for the read, asserted by nothing, because they are not route-controlled.
+const DEFERRED_RESPONSE_HEADERS_TRANSPORT = {
+    connection: 'transport-owned: Node answers keep-alive, Go omits the header for HTTP/1.1',
+    'keep-alive': 'transport-owned: Node announces its idle timeout, Go does not emit the header at all',
+};
+
+function deferredHeaderValue(headers, name) {
+    for (const [key, value] of headers) if (key === name) return value;
+    return undefined;
+}
+
+function parseRawResponseHead(rawHead) {
+    const lines = rawHead.split('\r\n');
+    const statusLine = lines.shift() ?? '';
+    const status = Number((statusLine.split(' ')[1] ?? '0'));
+    const headers = lines.filter(line => line !== '').map(line => {
+        const colon = line.indexOf(':');
+        return [line.slice(0, colon).toLowerCase(), line.slice(colon + 1).trim()];
+    });
+    return { statusLine, status, headers };
+}
+
+// exchangeRaw sends one request and reads the response itself, so the framing is visible.
+// `stopAfterFirstFrame` resolves as soon as the first body frame has arrived, which is how a reply
+// that is still open is observed; the caller then owns the socket and is expected to destroy it.
+function exchangeRaw({ origin, route, headers, body, stopAfterFirstFrame = false, timeoutMs = 20000, label }) {
+    return new Promise((resolve, reject) => {
+        const target = new URL(origin);
+        const socket = net.connect({ host: target.hostname, port: Number(target.port) });
+        let buffer = Buffer.alloc(0);
+        let head = null;
+        let frames = [];
+        let terminated = false;
+        let serverEnded = false;
+        let settled = false;
+        const timer = setTimeout(() => {
+            fail(new Error(`${label}: the raw exchange timed out after ${timeoutMs}ms `
+                + `(head ${head ? 'received' : 'missing'}, frames ${frames.length}, terminated ${terminated})`));
+        }, timeoutMs);
+        const fail = error => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            socket.destroy();
+            reject(error);
+        };
+        const settle = (extra = {}) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            const chunked = (deferredHeaderValue(head.headers, 'transfer-encoding') ?? '').toLowerCase().includes('chunked');
+            const declared = deferredHeaderValue(head.headers, 'content-length');
+            const payload = chunked
+                ? Buffer.concat(frames.map(frame => Buffer.from(frame.hex, 'hex')))
+                : buffer.slice(0, declared === undefined ? buffer.length : Math.min(Number(declared), buffer.length));
+            resolve({
+                socket,
+                status: head.status,
+                headers: head.headers,
+                framing: {
+                    transferEncoding: deferredHeaderValue(head.headers, 'transfer-encoding') ?? null,
+                    contentLength: declared ?? null,
+                    frames,
+                    terminated,
+                    serverEnded,
+                },
+                bodyBytes: payload,
+                ...extra,
+            });
+        };
+        const pump = () => {
+            if (settled) return;
+            if (head === null) {
+                const split = buffer.indexOf('\r\n\r\n');
+                if (split < 0) return;
+                head = parseRawResponseHead(buffer.slice(0, split).toString('latin1'));
+                buffer = buffer.slice(split + 4);
+            }
+            const chunked = (deferredHeaderValue(head.headers, 'transfer-encoding') ?? '').toLowerCase().includes('chunked');
+            if (chunked) {
+                for (;;) {
+                    const lineEnd = buffer.indexOf('\r\n');
+                    if (lineEnd < 0) break;
+                    const sizeText = buffer.slice(0, lineEnd).toString('latin1').split(';')[0].trim();
+                    const size = parseInt(sizeText, 16);
+                    if (!Number.isFinite(size)) {
+                        fail(new Error(`${label}: malformed chunk size ${JSON.stringify(sizeText)}`));
+                        return;
+                    }
+                    if (size === 0) {
+                        if (buffer.length < lineEnd + 4) break;
+                        terminated = true;
+                        buffer = buffer.slice(lineEnd + 4);
+                        break;
+                    }
+                    if (buffer.length < lineEnd + 2 + size + 2) break;
+                    const payload = buffer.slice(lineEnd + 2, lineEnd + 2 + size);
+                    frames.push({ hex: payload.toString('hex'), text: payload.toString('utf8'), bytes: size });
+                    buffer = buffer.slice(lineEnd + 2 + size + 2);
+                }
+            }
+            if (stopAfterFirstFrame && frames.length > 0) {
+                settle({ stoppedAfterFirstFrame: true });
+                return;
+            }
+            const declared = deferredHeaderValue(head.headers, 'content-length');
+            const complete = chunked
+                ? terminated
+                : (declared !== undefined ? buffer.length >= Number(declared) : serverEnded);
+            if (complete) settle({ stoppedAfterFirstFrame: false });
+        };
+        socket.on('connect', () => {
+            const head = [`POST ${route} HTTP/1.1`, `Host: ${target.host}`];
+            for (const [name, value] of Object.entries(headers)) head.push(`${name}: ${value}`);
+            head.push(`Content-Length: ${body.length}`, '', '');
+            socket.write(Buffer.from(head.join('\r\n'), 'latin1'));
+            if (body.length > 0) socket.write(body);
+        });
+        socket.on('data', chunk => {
+            buffer = Buffer.concat([buffer, chunk]);
+            pump();
+        });
+        socket.on('end', () => {
+            serverEnded = true;
+            pump();
+        });
+        socket.on('close', () => {
+            serverEnded = true;
+            pump();
+        });
+        socket.on('error', error => fail(new Error(`${label}: ${error.message}`)));
+    });
+}
+
+function buildMultipart(parts) {
+    const chunks = [];
+    for (const part of parts) {
+        let head = `--${DEFERRED_BOUNDARY}\r\nContent-Disposition: form-data; name="${part.name}"`;
+        if (part.filename !== undefined) head += `; filename="${part.filename}"`;
+        head += '\r\n';
+        if (part.contentType !== undefined) head += `Content-Type: ${part.contentType}\r\n`;
+        head += '\r\n';
+        chunks.push(Buffer.from(head, 'utf8'));
+        chunks.push(Buffer.from(String(part.value), 'utf8'));
+        chunks.push(Buffer.from('\r\n', 'utf8'));
+    }
+    chunks.push(Buffer.from(`--${DEFERRED_BOUNDARY}--\r\n`, 'utf8'));
+    return Buffer.concat(chunks);
+}
+
+// The parsed part list is what an upstream observes of a multipart body whose boundary is random.
+function multipartPartList(parts) {
+    // `value` is recorded (with the peer origin normalised to <mock>) because the replay has to
+    // REBUILD the same upload: a part list without the part contents would describe a request the
+    // Go side could not construct.
+    return parts.map(part => ({
+        name: part.name,
+        filename: part.filename ?? null,
+        contentType: part.contentType ?? null,
+        value: normalizeDeferred(String(part.value)),
+        bytes: Buffer.byteLength(String(part.value), 'utf8'),
+        sha256: sha256(String(part.value)),
+    }));
+}
+
+function snapshotUploads(directory) {
+    if (!existsSync(directory)) return [];
+    return readdirSync(directory).sort().map(name => {
+        const full = path.join(directory, name);
+        const content = readFileSync(full);
+        return { name: '<upload>', bytes: content.length, sha256: sha256(content) };
+    });
+}
+
+function describeOutbound(request) {
+    return {
+        method: request.method,
+        url: normalizeDeferred(request.url),
+        explicitHeaders: explicitHeaders(request.headers),
+        body: request.body === null || request.body === undefined ? null : normalizeDeferred(String(request.body)),
+    };
+}
+
+function parseSSE(text) {
+    const events = [];
+    let event = null;
+    let data = [];
+    const flush = () => {
+        if (data.length > 0 || event !== null) events.push({ event, data: data.join('\n') });
+        event = null;
+        data = [];
+    };
+    for (const rawLine of text.split('\n')) {
+        const line = rawLine.replace(/\r$/, '');
+        if (line === '') { flush(); continue; }
+        if (line.startsWith('event:')) event = line.slice('event:'.length).trim();
+        else if (line.startsWith('data:')) data.push(line.slice('data:'.length).replace(/^ /, ''));
+    }
+    flush();
+    return events;
+}
+
+// <port> marks the pinned localhost-rewrite port (a host-derived value); <mock> marks the peer origin.
+function normalizeDeferred(value) {
+    if (typeof value !== 'string') return value;
+    return value.split(PINNED_PEER).join(MOCK).split(PINNED_PORT).join(MOCK_PORT_MARKER);
+}
+
+// A request that must NOT arrive needs a window in which its absence is observed. Returning as soon
+// as the EXPECTED count is reached cannot see a LATE extra request, which is exactly the case the
+// `can_abort` negative exists for: the abort request is issued from the socket-close handler, after
+// the response the expected request produced. Without the settle window the fixture recorded a
+// count that could not fail -- measured: mutation G3c (can_abort ignored) survived CI twice. So the
+// drain always keeps collecting for `settleMs` after the expected count arrives, and the count
+// assertion below sees anything that lands in that window.
+const DEFERRED_OUTBOUND_SETTLE_MS = 400;
+
+async function drainDeferredOutbound(server, expected, windowMs) {
+    const collected = [];
+    const deadline = Date.now() + windowMs;
+    let settledAt = null;
+    for (;;) {
+        collected.push(...server.outbound());
+        if (collected.length >= expected) {
+            if (settledAt === null) settledAt = Date.now() + DEFERRED_OUTBOUND_SETTLE_MS;
+            if (Date.now() >= settledAt) return collected;
+        } else if (Date.now() > deadline) {
+            return collected;
+        }
+        await new Promise(resolve => setTimeout(resolve, 25));
+    }
+}
+
+const deferredScenarios = [];
+function addDeferredScenario(definition) { deferredScenarios.push(definition); }
+
+const KOBOLD_GENERATE_SETTINGS = {
+    api_server: MOCK,
+    prompt: 'Once upon a time',
+    max_context_length: 2048,
+    max_length: 120,
+    rep_pen: 1.1,
+    rep_pen_range: 320,
+    rep_pen_slope: 0.7,
+    temperature: 0.8,
+    tfs: 0.9,
+    top_a: 0.5,
+    top_k: 40,
+    top_p: 0.95,
+    min_p: 0.05,
+    typical: 1,
+    sampler_order: [0, 1, 2, 3, 4, 5, 6],
+    singleline: 'yes',
+    use_default_badwordsids: false,
+    mirostat: 2,
+    mirostat_eta: 0.2,
+    mirostat_tau: 5,
+    grammar: 'root ::= "a"',
+    sampler_seed: 42,
+    stop_sequence: ['\nUser:'],
+    streaming: false,
+    can_abort: true,
+    api_type: 'koboldcpp',
+};
+
+addDeferredScenario({
+    name: 'kobold.generate.nonStream',
+    route: 'kobold/generate',
+    // `gui_settings` absent -> the FULL settings object. `singleline: 'yes'` is a truthy non-boolean
+    // so `!!` is observable, and `api_type: koboldcpp` with the koboldcpp secret set proves the
+    // route applies NO api-type key header (`getOverrideHeaders` only, not `setAdditionalHeaders`).
+    body: { ...KOBOLD_GENERATE_SETTINGS, gui_settings: false },
+    upstream: [{
+        ...OK, path: '/v1/generate',
+        body: '{"results":[{"text":"Once upon"}],"model":"kobold-model"}',
+    }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.guiSettings',
+    // `gui_settings` truthy -> the seven-member object, and `stop_sequence` is NOT added there.
+    body: {
+        api_server: MOCK, prompt: 'hi', gui_settings: true, max_context_length: 512, max_length: 8,
+        temperature: 2, sampler_seed: 7, stop_sequence: ['x'], singleline: 0, streaming: false,
+    },
+    upstream: [{ ...OK, path: '/v1/generate', body: '{"results":[{"text":"hi"}]}' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.missingPrompt',
+    // No `prompt` member: JSON.stringify omits an undefined value, so the upstream body has none.
+    body: { api_server: MOCK, gui_settings: true, max_context_length: 100, max_length: 10 },
+    upstream: [{ ...OK, path: '/v1/generate', body: '{"results":[]}' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.localhostRewrite',
+    body: { api_server: 'http://localhost:<port>', prompt: 'p', gui_settings: true, max_context_length: 1, max_length: 1 },
+    upstream: [{ ...OK, path: '/v1/generate', body: '{"results":[{"text":"p"}]}' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.nonOkJson',
+    body: { api_server: MOCK, prompt: 'too long', gui_settings: true, max_context_length: 1, max_length: 1 },
+    upstream: [{ path: '/v1/generate', status: 400, headers: { 'Content-Type': 'application/json' }, body: '{"detail":{"msg":"context too long"}}' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.nonOkText',
+    body: { api_server: MOCK, prompt: 'boom', gui_settings: true, max_context_length: 1, max_length: 1 },
+    upstream: [{ path: '/v1/generate', status: 503, body: 'please retry later' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.transportFailure',
+    // The stub throws for this rule; the Go replay uses the convention's closed port instead.
+    body: { api_server: MOCK, prompt: 'boom', gui_settings: true, max_context_length: 1, max_length: 1 },
+    upstream: [{ path: '/v1/generate', throws: true }],
+    expectedOutbound: 1,
+    peer: 'closed',
+});
+addDeferredScenario({
+    name: 'kobold.generate.streamCompletes',
+    // The full stream: one upstream write, one client frame, and the terminal zero-length chunk.
+    body: { api_server: MOCK, prompt: 'Once upon a time', gui_settings: true, max_context_length: 64, max_length: 32, streaming: true, can_abort: false },
+    upstream: [{ path: '/extra/generate/stream', status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: STREAM_COMPLETE_FRAMES }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.streamHoldOpenAbort',
+    // The upstream never finishes. The client only receives anything at all if the reply is
+    // FORWARDED, and destroying the socket then has to reach `${api_server}/extra/abort`.
+    body: { api_server: MOCK, prompt: 'hold', gui_settings: true, max_context_length: 64, max_length: 32, streaming: true, can_abort: true },
+    upstream: [
+        { path: '/extra/abort', status: 200, body: '{"ok":true}' },
+        { path: '/extra/generate/stream', status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: STREAM_HOLD_FRAME, holdOpen: true },
+    ],
+    stopAfterFirstFrame: true,
+    disconnectAfterFirstFrame: true,
+    expectedOutbound: 2,
+});
+addDeferredScenario({
+    name: 'kobold.generate.streamHoldOpenNoAbort',
+    // Same held-open upstream with `can_abort` false: the abort POST must NOT happen. The positive
+    // scenario above calibrates the drain window this negative one is measured with.
+    body: { api_server: MOCK, prompt: 'hold', gui_settings: true, max_context_length: 64, max_length: 32, streaming: true },
+    upstream: [
+        { path: '/extra/abort', status: 200, body: '{"ok":true}' },
+        { path: '/extra/generate/stream', status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: STREAM_HOLD_FRAME, holdOpen: true },
+    ],
+    stopAfterFirstFrame: true,
+    disconnectAfterFirstFrame: true,
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.generate.streamNonOk401',
+    // A streamed reply rewrites 401 to 400 (`forwardFetchResponse`) and ends with the raw error text
+    // as one chunk, with no content type.
+    body: { api_server: MOCK, prompt: 'bad key', gui_settings: true, max_context_length: 8, max_length: 8, streaming: true, can_abort: false },
+    upstream: [{ path: '/extra/generate/stream', status: 401, body: 'bad key' }],
+    expectedOutbound: 1,
+});
+
+function transcribeForm(parts) { return parts; }
+addDeferredScenario({
+    name: 'kobold.transcribe.ok',
+    route: 'kobold/transcribe-audio',
+    // The only field name the global multer middleware accepts is `avatar`.
+    form: transcribeForm([
+        { name: 'server', value: MOCK },
+        { name: 'avatar', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [{ ...OK, path: '/api/extra/transcribe', body: '{"text":"hello there"}' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.transcribe.wrongFieldName',
+    route: 'kobold/transcribe-audio',
+    bodyShape: 'a rendered Express error page: multer rejects a file field it does not expect with LIMIT_UNEXPECTED_FILE, the pinned error handler renders it in dev mode, and the page embeds a stack trace with absolute paths',
+    // A part named `file` is never `request.file`, so the route answers 400 and the staged upload is
+    // LEFT in <dataRoot>/_uploads (the pinned leak).
+    form: transcribeForm([
+        { name: 'server', value: MOCK },
+        { name: 'file', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [],
+    expectedOutbound: 0,
+});
+addDeferredScenario({
+    name: 'kobold.transcribe.noServer',
+    route: 'kobold/transcribe-audio',
+    form: transcribeForm([
+        { name: 'avatar', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [],
+    expectedOutbound: 0,
+});
+addDeferredScenario({
+    name: 'kobold.transcribe.nonOk',
+    route: 'kobold/transcribe-audio',
+    form: transcribeForm([
+        { name: 'server', value: MOCK },
+        { name: 'avatar', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [{ path: '/api/extra/transcribe', status: 500, body: 'transcribe failed' }],
+    expectedOutbound: 1,
+});
+addDeferredScenario({
+    name: 'kobold.transcribe.invalidServer',
+    route: 'kobold/transcribe-audio',
+    // `new URL('not a url')` throws AFTER the staged file is read and unlinked, so the file is gone
+    // and the catch answers 'Internal server error'.
+    form: transcribeForm([
+        { name: 'server', value: 'not a url' },
+        { name: 'avatar', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [],
+    expectedOutbound: 0,
+});
+addDeferredScenario({
+    name: 'kobold.transcribe.secretAndQuery',
+    route: 'kobold/transcribe-audio',
+    // `url.pathname = '/api/extra/transcribe'` replaces the path and KEEPS the query, and the
+    // koboldcpp secret reaches the upstream as a Bearer header.
+    form: transcribeForm([
+        { name: 'server', value: `${MOCK}/base/path?k=a%2Fb&j=k%3Dl` },
+        { name: 'avatar', filename: 'probe.mp3', contentType: 'audio/mpeg', value: AUDIO_PAYLOAD },
+    ]),
+    upstream: [{ ...OK, path: '/api/extra/transcribe', body: '{"text":"query kept"}' }],
+    expectedOutbound: 1,
+});
+
+async function captureDeferredScenario(server, scenario) {
+    server.writeSecrets(secretFile(materialize(scenario.secrets ?? SECRETS)));
+    server.setMocks((scenario.upstream ?? []).map(stubRule));
+    const parts = scenario.form ? materialize(scenario.form) : null;
+    const body = parts
+        ? buildMultipart(parts)
+        : Buffer.from(JSON.stringify(materialize(scenario.body ?? {})), 'utf8');
+    const headers = {
+        Cookie: server.session.cookie,
+        'X-CSRF-Token': server.session.csrfToken,
+    };
+    if (parts) headers['Content-Type'] = `multipart/form-data; boundary=${DEFERRED_BOUNDARY}`;
+    else headers['Content-Type'] = 'application/json';
+
+    // Every generate scenario shares the route; the transcribe scenarios name it explicitly.
+    const scenarioRoute = scenario.route ?? 'kobold/generate';
+    const uploadsBefore = snapshotUploads(server.uploadsRoot);
+    const exchange = await exchangeRaw({
+        origin: server.origin,
+        route: `/api/backends/${scenarioRoute}`,
+        headers,
+        body,
+        stopAfterFirstFrame: scenario.stopAfterFirstFrame === true,
+        label: scenario.name,
+    });
+    if (scenario.disconnectAfterFirstFrame === true) {
+        // A client that stops a stream: the connection is aborted, which is the pinned
+        // socket-close path. destroy() (RST) is what a browser's cancel produces.
+        exchange.socket.destroy();
+    } else {
+        // A completed exchange: end() sends a FIN rather than an RST, so the server is never
+        // left with an RST while it is still draining a request body.
+        exchange.socket.end();
+    }
+    const outbound = await drainDeferredOutbound(server, scenario.expectedOutbound, scenario.disconnectAfterFirstFrame ? 8000 : 1500);
+    const uploadsAfter = snapshotUploads(server.uploadsRoot);
+    if (outbound.length !== scenario.expectedOutbound) {
+        throw new Error(`${scenario.name}: ${outbound.length} outbound request(s), expected ${scenario.expectedOutbound}: `
+            + JSON.stringify(outbound.map(request => `${request.method} ${request.url}`))
+            + ` | response ${exchange.status} ${JSON.stringify(exchange.headers)} `
+            + `body ${JSON.stringify(exchange.bodyBytes.toString('utf8').slice(0, 400))} `
+            + `| mocks ${JSON.stringify((scenario.upstream ?? []).map(rule => rule.path))}`);
+    }
+    if (parts && parts.length === 0) {
+        throw new Error(`${scenario.name}: the multipart request records zero parts, which looks exactly like "never sent"`);
+    }
+
+    // A rendered error page has no host-independent form: the pinned Express handler in dev mode
+    // embeds a stack with absolute paths. Rule: classify from the host-INDEPENDENT property of the
+    // scenario ("this body is a rendered error page"), record null, and null the DERIVED fields too
+    // (content-length measures those bytes and the ETag hashes them).
+    const bodyShape = scenario.bodyShape ?? null;
+    const bodyText = exchange.bodyBytes.toString('utf8');
+    // The REQUEST bytes, not the response body: the replay sends this text verbatim, so recording
+    // anything else would describe a request the pinned server never received.
+    const request = parts
+        ? { kind: 'multipart', boundary: DEFERRED_BOUNDARY, parts: multipartPartList(parts) }
+        : { kind: 'json', bodyText: normalizeDeferred(body.toString('utf8')) };
+    if (bodyShape) {
+        // The pinned answer is a RENDERED ERROR PAGE: its header set and body are the error
+        // renderer's (a stack with absolute paths), so only the host-independent observables are
+        // recorded -- the status it chose and the outbound requests it did not make.
+        return {
+            request,
+            status: exchange.status,
+            headers: null,
+            framing: null,
+            bodyText: null,
+            bodyBytes: null,
+            bodySha256: null,
+            sse: null,
+            outbound: outbound.map(describeOutbound),
+            uploadsBefore,
+            uploadsAfter,
+            comparison: {
+                compared: ['status', 'outbound', 'uploads'],
+                shape: ['headers', 'framing', 'body'],
+                shapeReason: {
+                    headers: `the rendered error page's header set is the error renderer's, not this route's: ${bodyShape}`,
+                    framing: `the rendered error page is framed by the error renderer: ${bodyShape}`,
+                    body: bodyShape,
+                },
+                notCompared: [],
+            },
+        };
+    }
+    const compared = ['status', 'headers', 'framing', 'body', 'outbound', 'uploads'];
+    const shape = ['headers.connection', 'headers.keep-alive'];
+    return {
+        request,
+        status: exchange.status,
+        headers: exchange.headers.filter(([name]) => !(name in DEFERRED_RESPONSE_HEADERS_NOT_RECORDED)),
+        framing: exchange.framing,
+        bodyText: normalizeDeferred(bodyText),
+        bodyBytes: exchange.bodyBytes.length,
+        bodySha256: sha256(exchange.bodyBytes),
+        sse: parseSSE(bodyText),
+        outbound: outbound.map(describeOutbound),
+        uploadsBefore,
+        uploadsAfter,
+        comparison: {
+            compared,
+            shape,
+            shapeReason: Object.fromEntries(shape
+                .map(key => [key, DEFERRED_RESPONSE_HEADERS_TRANSPORT[key.slice('headers.'.length)]])),
+            notCompared: Object.entries(DEFERRED_RESPONSE_HEADERS_TRANSPORT)
+                .filter(([name]) => !shape.includes(`headers.${name}`))
+                .map(([name, reason]) => ({ observable: `headers.${name}`, reason })),
+        },
+    };
+}
+
+async function recordDeferredWave() {
+    const server = await startPinnedProviderServer({ sourceRoot, prefix: 'gotavern-backends-deferred-oracle-', mocks: [] });
+    try {
+        const scenarios = [];
+        // A failure is COLLECTED rather than thrown on the first scenario: one pinned boot is
+        // expensive, and a run that stops at scenario 2 says nothing about scenarios 3..17. Every
+        // failure names its scenario and the mocks it was served, and NOTHING is written when one
+        // occurred, so a partially recorded wave can never become a fixture.
+        const failures = [];
+        for (const scenario of deferredScenarios) {
+            let observation;
+            try {
+                observation = await captureDeferredScenario(server, scenario);
+            } catch (error) {
+                failures.push(`${scenario.name}: ${error.message}\n    pinned server log tail:\n      `
+                    + server.logs.join('').split(String.fromCharCode(10)).slice(-12).join(String.fromCharCode(10, 32, 32, 32, 32, 32, 32)));
+                console.error(`${scenario.name}: FAILED ${error.message}`);
+                continue;
+            }
+            const snippet = observation.status >= 300 && observation.bodyText !== null
+                ? ` body ${JSON.stringify(observation.bodyText.slice(0, 160))}` : '';
+            console.log(`${scenario.name}: status ${observation.status} outbound ${observation.outbound.length} `
+                + `uploads ${observation.uploadsBefore.length}->${observation.uploadsAfter.length} `
+                + (observation.framing === null ? 'framing not recorded (rendered error page)' : `frames ${observation.framing.frames.length} terminated ${observation.framing.terminated}`)
+                + snippet);
+            scenarios.push({
+                name: scenario.name,
+                route: scenario.route ?? 'kobold/generate',
+                routePath: `/api/backends/${scenario.route ?? 'kobold/generate'}`,
+                body: scenario.body ?? null,
+                form: scenario.form ?? null,
+                upstream: scenario.upstream ?? [],
+                replayed: true,
+                peer: scenario.peer ?? 'mock',
+                stopAfterFirstFrame: scenario.stopAfterFirstFrame === true,
+                disconnectAfterFirstFrame: scenario.disconnectAfterFirstFrame === true,
+                expectedOutbound: scenario.expectedOutbound,
+                observation,
+            });
+        }
+        const fixture = {
+            schemaVersion: 1,
+            baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
+            probe: 'pinned /api/backends deferred routes: kobold generate (streaming, abort, error branches) and kobold transcribe-audio (multipart)',
+            oracle: {
+                file: 'src/endpoints/backends/kobold.js',
+                routes: ['POST /api/backends/kobold/generate (kobold.js:11)', 'POST /api/backends/kobold/transcribe-audio (kobold.js:190)'],
+                mountedAt: '/api/backends/kobold (src/server-startup.js:179)',
+                uploadMiddleware: "multer({ dest: dataRoot/_uploads }).single('avatar') (src/server-main.js:269) plus multerMonkeyPatch",
+            },
+            conventions: {
+                ordered: 'scenarios is an ARRAY and the replay MUST iterate it in order: every step shares ONE data root, and the transcribe 400 paths leave a staged upload behind, so step N sees what step N-1 left.',
+                observation: 'each scenario is exchanged over a raw socket so the status, the FULL header list, the chunk framing and the terminator are observables; a fetch-based capture would decode all of them away',
+                mock: 'body-URL peers are recorded as the <mock> marker and the pinned localhost-rewrite port as <port>; the Go replay substitutes its own local origin',
+                outboundHeaderModel: 'explicitHeaders are the header object the route passed, lowercased and sorted; node-fetch 3 lowercases and SORTS them (node_modules/node-fetch/src/headers.js), so this is also the order they reach the peer relative to each other. Transport headers (Host, Connection) are not visible to the stub and are asserted on the Go side from nodeFetchWireDefaults instead.',
+                multipart: 'the upload is built with a fixed boundary and recorded as a parsed part list; the real boundary is whatever the client sends, so the raw bytes are never compared',
+                multipartParts: 'parts[].bytes and parts[].sha256 describe the value the PINNED server received, with the peer origin materialized; parts[].value is the same text with the <mock>/<port> markers restored, which is what the replay rebuilds and materializes against its own origin',
+                uploads: "the staging directory is recorded as [{name: '<upload>', bytes, sha256}] because multer's filename is random",
+                frames: 'framing.frames are the chunked-transfer payloads in arrival order; framing.terminated reports the terminal zero-length chunk. A reply that is still open when the client disconnects has terminated:false.',
+            },
+            nodeFetchWireDefaults: {
+                headers: [['accept', '*/*'], ['accept-encoding', 'gzip, deflate, br'], ['user-agent', 'node-fetch']],
+                verifiedBy: 'tests/oracle/sillytavern-1.19.0-sd-routes.json records the same defaults on the pinned wire',
+                limitation: 'the stub sees the header OBJECT the route passed, before node-fetch adds its defaults, so a request with no body cannot show whether node-fetch would have added `content-length: 0`',
+            },
+            fixtureFields: {
+                compared: ['scenarios[].observation.status', 'scenarios[].observation.headers', 'scenarios[].observation.framing', 'scenarios[].observation.bodyText', 'scenarios[].observation.bodySha256', 'scenarios[].observation.outbound[] (method, url, explicitHeaders, body)', 'scenarios[].observation.uploadsBefore/After', 'scenarios[].observation.sse'],
+                shape: ['observation.headers connection/keep-alive (presence only)', 'observation.headers x-powered-by (recorded, asserted by nothing)'],
+                notRecorded: ['Date', 'X-Response-Time value', 'the ephemeral peer authority', 'the pinned listen port', 'the multer staging filename', 'startup log'],
+            },
+            excludedHeaders: DEFERRED_RESPONSE_HEADERS_NOT_RECORDED,
+            inputs: {
+                cookieSecret: COOKIE_SECRET,
+                account: { handle: 'default-user', name: 'Backends Deferred Probe', admin: true, password: '' },
+                secrets: SECRETS,
+                scenarios,
+            },
+            derivedOnly: [{
+                branch: 'kobold/generate: `if (!request.body) return response_generate.sendStatus(400)`',
+                reason: 'UNREACHABLE, so no oracle exists. Both global body parsers run before any handler and body-parser 1.20.4 starts with `req.body = req.body || {}` (node_modules/body-parser/lib/types/json.js:108), so request.body is always an object by the time the route runs. Probed instead: a JSON body that omits api_server (kobold.generate.missingPrompt) reaches the handler with a body and no prompt. The Go handler reproduces the observable, not the dead branch.',
+            }, {
+                branch: 'kobold/generate: the 403/503 retry loop (MAX_RETRIES 50, delay 2500ms)',
+                reason: 'UNREACHABLE through the pinned transport, so no oracle exists: the switch reads `error.status`, and node-fetch throws a TypeError/FetchError with no `status` member only on a transport failure, while an HTTP 403/503 is a resolved response that takes the non-ok branch. A transport failure therefore falls to `default` and answers {error:true} on the first attempt, which IS recorded (kobold.generate.transportFailure). The Go handler makes one attempt and answers the same; it does not implement a retry loop it cannot observe.',
+            }, {
+                branch: 'kobold/generate: a missing or non-string api_server',
+                reason: 'the pinned handler throws on `request.body.api_server.indexOf` inside an async handler with no try/catch and the process exits (the same crash the sibling /status row records). Not replayed against the pinned server, because it would kill the probe mid-wave. GoTavern answers 500, the documented deviation.',
+            }, {
+                branch: 'kobold/generate: requestOverrides config headers (getOverrideHeaders)',
+                reason: 'the pinned config keys `requestOverrides[].hosts/.headers` are not projected into HTTPHandlerOptions, so GoTavern applies no override headers. The scenarios set none, so every capture records the object with only content-type.',
+            }],
+            knownDifferences: [{
+                route: '/api/backends/kobold/generate',
+                status: 'crash and dead branches recorded, not reproduced',
+                reason: 'see derivedOnly: the body-parser guard and the 403/503 retry loop are unreachable, and a missing api_server exits the pinned process.',
+            }],
+        };
+        if (failures.length > 0) {
+            throw new Error(`${failures.length} deferred scenario(s) failed; the fixture was NOT written:\n  ${failures.join('\n  ')}`);
+        }
+        writeFixture(repositoryRoot, DEFERRED_FIXTURE, fixture);
+        console.log(`Wrote tests/oracle/${DEFERRED_FIXTURE} from pinned /api/backends deferred behaviour (${scenarios.length} scenarios)`);
+    } finally {
+        await server.stop();
+    }
+}
+
 // ---- fixture assembly ----------------------------------------------------------------------
 function stubRule(upstream) {
     return {
@@ -710,6 +1421,7 @@ function stubRule(upstream) {
         headers: upstream.headers ?? {},
         body: upstream.body,
         throws: upstream.throws === true,
+        holdOpen: upstream.holdOpen === true,
     };
 }
 
@@ -807,4 +1519,8 @@ async function main() {
     }
 }
 
-await main();
+if (process.argv[4] === 'deferred') {
+    await recordDeferredWave();
+} else {
+    await main();
+}

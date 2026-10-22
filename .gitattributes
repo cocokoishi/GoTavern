@@ -12,3 +12,10 @@ upstream/SILLYTAVERN_COMMIT -text
 # test reads. That is the same defect class as the CRLF vendored assets, where
 # the working tree looked right while the committed blobs were wrong.
 tests/oracle/** -text
+# Shell scripts must reach a POSIX shell with LF. Committed bytes are already LF
+# (git normalizes on commit), but a Windows checkout with core.autocrlf=true would
+# hand bash a CRLF script whose every line ends "\r", and the failure looks like a
+# syntax error in a script that is fine. The installers and the qualification
+# script are the ones a user runs, so the checkout is pinned here too.
+*.sh text eol=lf
+install.ps1 text eol=crlf

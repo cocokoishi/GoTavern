@@ -403,6 +403,45 @@ try {
     // tools/probe-*.mjs declares its own runs, so adding a probe needs no
     // edit to this file. A probe that declares nothing is reported below.
     const discoveredProbes = discoverProbes();
+    // OPTIONAL NARROWING of the RECORDING step, for the per-push gate.
+    //
+    // A full run re-records every declared probe TWICE and boots the pinned server for each, which is
+    // now measured in hours; on a push that changed one route that is most of this repository's CI
+    // cost for no extra information. GOTAVERN_ORACLE_PROBES=<comma-separated probe file names> records
+    // only those. An EMPTY value keeps the historical behaviour and records everything, which is what
+    // the scheduled/dispatched run and any shared-input change (`tools/lib/**`, this file,
+    // `upstream/**`) uses.
+    //
+    // This narrows what is RECORDED, never what is VERIFIED: the caller's zero-diff check still covers
+    // every fixture in tests/oracle, so a skipped probe whose output would have moved still fails.
+    //
+    // The undeclared-probe check below deliberately uses the FULL discovery list, so narrowing cannot
+    // hide a probe that declares nothing.
+    const oracleProbeFilter = (process.env.GOTAVERN_ORACLE_PROBES ?? '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(name => name !== '');
+    const selectedProbes = oracleProbeFilter.length === 0
+        ? discoveredProbes
+        : discoveredProbes.filter(probe => oracleProbeFilter.includes(probe.script));
+    if (oracleProbeFilter.length > 0) {
+        const unknown = oracleProbeFilter.filter(name => !discoveredProbes.some(probe => probe.script === name));
+        if (unknown.length > 0) {
+            probeFailures.push({
+                label: 'oracle probe filter',
+                message: `GOTAVERN_ORACLE_PROBES names probes that do not exist: ${unknown.join(', ')}`,
+            });
+        }
+        if (selectedProbes.length === 0) {
+            probeFailures.push({
+                label: 'oracle probe filter',
+                message: 'GOTAVERN_ORACLE_PROBES selected no probe; an empty selection records nothing, so it is an error rather than a success',
+            });
+        } else {
+            console.log(`oracle probe filter: recording ${selectedProbes.length} of ${discoveredProbes.length} probes`);
+            for (const probe of selectedProbes) console.log(`  ${probe.script} -> ${probe.fixture}`);
+        }
+    }
     const declaredScripts = new Set(discoveredProbes.map(probe => probe.script));
     const undeclaredProbes = readdirSync(path.join(repositoryRoot, 'tools'))
         .filter(name => name.startsWith('probe-') && name.endsWith('.mjs'))
@@ -432,9 +471,9 @@ try {
     const lateSerialProbes = new Map([
         ['probe-node-reference.mjs', 'fetches the generated /lib.js and asserts it matches the vendored artifact, so it needs the webpack build first'],
     ]);
-    const earlyRuns = discoveredProbes.filter(probe => earlySerialProbes.has(probe.script));
-    const lateRuns = discoveredProbes.filter(probe => lateSerialProbes.has(probe.script));
-    const pooledRuns = discoveredProbes.filter(probe => !earlySerialProbes.has(probe.script) && !lateSerialProbes.has(probe.script));
+    const earlyRuns = selectedProbes.filter(probe => earlySerialProbes.has(probe.script));
+    const lateRuns = selectedProbes.filter(probe => lateSerialProbes.has(probe.script));
+    const pooledRuns = selectedProbes.filter(probe => !earlySerialProbes.has(probe.script) && !lateSerialProbes.has(probe.script));
 
     // Every probe without sharedWrite runs against a read-only shared build root
     // for the whole probe phase, so an undeclared write fails immediately with a

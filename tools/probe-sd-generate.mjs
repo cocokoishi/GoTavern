@@ -609,23 +609,31 @@ const fixture = {
         // to a peer with no `times` rule support, no wave-5 seam and no provider-URL rewriting. The routes
         // are listed as implemented because they are implemented; their observations are in that file.
         '/api/sd/bfl/generate', '/api/sd/falai/generate',
+        // WAVE 6, same reasoning one level further. `zai`'s two routes are implemented and their
+        // observations live in `tools/probe-sd-zai.mjs` / `sillytavern-1.19.0-sd-zai.json`: the image
+        // route REFUSES any provider URL outside `.zai`/`.ufileos.com` and then fetches it as given, so
+        // its success path needs a peer no local host can name, and the video route polls a literal
+        // async-result path with `delay(5000 + attempt*1000)`. Listing them here as implemented states
+        // the fact; the fixture that proves it is that other file.
+        '/api/sd/zai/generate', '/api/sd/zai/generate-video',
     ],
     notImplementedRoutes: [
         '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
-        '/api/sd/zai/generate',
-        '/api/sd/zai/generate-video',
     ],
     // STALE REASONS DELETED. `stability/generate` and `workersai/generate` were listed here with the
     // reason that native FormData parts were unobservable. That reason was WRONG: the hook's
     // `recordBody` gained `[object FormData]` entry capture, so the parts are recorded (and asserted
     // non-empty) today. The correction is recorded in the inventory row as well, because a stale
     // reason is worse than a missing row - the next reader trusts it and stops.
+    //
+    // `zai`'s reason was also deleted, for the same class of reason: it was TRUE that the success path
+    // is unreplayable, but it was written as if the ROUTE were not implemented. The route is
+    // implemented; what is unrecordable is one branch, and that fact now lives in the zai fixture's
+    // `notCovered` where a reader of that route will meet it.
     staleReasonsRemoved: {
         '/api/sd/stability/generate': 'claimed native FormData parts were unobservable; recordBody now captures them',
         '/api/sd/workersai/generate': 'claimed its flux-2 multipart branch was unobservable; recordBody now captures it',
-    },
-    notImplementedReasons: {
-        '/api/sd/zai/generate': 'The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour.',
+        '/api/sd/zai/generate': 'said a peer cannot receive the provider URL, which is true, but implied the route was not implemented; it is, and the unreplayable branch is named in sillytavern-1.19.0-sd-zai.json',
     },
     pinnedSource: {
         'src/endpoints/stable-diffusion.js:1038': 'pollinations: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query',

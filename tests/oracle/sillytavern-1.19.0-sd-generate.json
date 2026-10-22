@@ -43,20 +43,18 @@
     "/api/sd/stability/generate",
     "/api/sd/workersai/generate",
     "/api/sd/bfl/generate",
-    "/api/sd/falai/generate"
-  ],
-  "notImplementedRoutes": [
-    "/api/sd/comfy/generate",
-    "/api/sd/comfyrunpod/generate",
+    "/api/sd/falai/generate",
     "/api/sd/zai/generate",
     "/api/sd/zai/generate-video"
   ],
+  "notImplementedRoutes": [
+    "/api/sd/comfy/generate",
+    "/api/sd/comfyrunpod/generate"
+  ],
   "staleReasonsRemoved": {
     "/api/sd/stability/generate": "claimed native FormData parts were unobservable; recordBody now captures them",
-    "/api/sd/workersai/generate": "claimed its flux-2 multipart branch was unobservable; recordBody now captures it"
-  },
-  "notImplementedReasons": {
-    "/api/sd/zai/generate": "The pinned route refuses any image URL whose hostname does not end in .zai or .ufileos.com and then fetches that URL as given, so a controlled local peer cannot receive that second request without a transport-level seam that would change production behaviour."
+    "/api/sd/workersai/generate": "claimed its flux-2 multipart branch was unobservable; recordBody now captures it",
+    "/api/sd/zai/generate": "said a peer cannot receive the provider URL, which is true, but implied the route was not implemented; it is, and the unreplayable branch is named in sillytavern-1.19.0-sd-zai.json"
   },
   "pinnedSource": {
     "src/endpoints/stable-diffusion.js:1038": "pollinations: GET /image/<encodeURIComponent(prompt)> with a URLSearchParams query",

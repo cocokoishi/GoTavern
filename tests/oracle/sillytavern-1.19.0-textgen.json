@@ -1,0 +1,1605 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-textgen.mjs",
+  "route": "/api/backends/text-completions/generate",
+  "pinnedSource": {
+    "src/endpoints/backends/text-completions.js:272": "POST /generate: localhost->127.0.0.1 rewrite, the api_type suffix switch, per-type pickBy allowlists, ollama body rebuild, stream vs JSON branch, catch envelope",
+    "src/endpoints/backends/text-completions.js:29": "parseOllamaStream: newline-delimited JSON re-framed as `data: {...}\\n\\n`, terminated by `data: [DONE]\\n\\n`",
+    "src/endpoints/backends/text-completions.js:80": "abortKoboldCppRequest: on client close POST `{base}/api/extra/abort` with the additional headers (NOT recorded, see notRecorded)",
+    "src/util.js:732": "forwardFetchResponse: 401 rewritten to 400, no content type set, `from.body.pipe(to)` (the piping is source-derived, not recorded)",
+    "src/additional-headers.js": "setAdditionalHeadersByType: the per-type secret header table plus requestOverrides"
+  },
+  "mechanism": "The upstream URL comes from request.body.api_server, so no seam exists or is needed: the URL is recorded as `<mock>` and the localhost rewrite port as `<port>`. The pinned server runs unmodified with `node-fetch` AND the global `fetch` replaced by tools/lib/pinned-outbound.mjs, so every outbound request is captured and nothing can reach the network.",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the route chooses 200 itself and only the stream branch forwards the provider status (401->400)"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "Express framing, the JSON content type of res.send(object), and the ABSENCE of a content type on a streamed reply"
+    },
+    {
+      "path": "scenarios.*.response.bodyText",
+      "comparison": "compared",
+      "reason": "the re-sent provider JSON, the {error,status,response} envelope, the InfermaticAI choice remap, and the raw streamed bytes"
+    },
+    {
+      "path": "scenarios.request.missingServer/response.nonJsonOk.response.*",
+      "comparison": "shape",
+      "reason": "both answer a V8 engine message (a property-read TypeError and a JSON.parse SyntaxError); nulled with their derived content-length/ETag, status and outbound count still compared"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the suffix switch, trimV1, and the localhost->127.0.0.1 rewrite are the route's destination contract"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the per-type allowlist, member order, the generic stop slice, the openrouter provider folding and the ollama rebuild"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the per-type secret header table and the two literal referer headers, asserted in both directions"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "a refusal or a missing api_server must send nothing"
+    }
+  ],
+  "normalizations": [
+    "The api_server origin is recorded as `<mock>`; the localhost rewrite target as `127.0.0.1:<port>`. Neither the host nor the port is recorded.",
+    "Synthetic secrets only."
+  ],
+  "notRecorded": [
+    "NON-BUFFERING is not recorded: the peer answers one chunk, so a buffered reply cannot distinguish a piping route from a buffering one. The pinned property is source-derived (`from.body.pipe(to)` in src/util.js forwardFetchResponse) and the GO side is proved by an implementation test against a peer that writes a chunk and then BLOCKS. The `holdOpen` rule that would make it recordable lives on an unmerged lane branch and is deliberately NOT taken into this route lane.",
+    "the koboldcpp ABORT leg POSTs `{base}/api/extra/abort` on client close; the peer answers immediately, so there is no in-flight request to abandon. Labelled implementation test, pinned parity unobserved.",
+    "the Ollama replay of MULTIPLE frames: the peer delivers its body as ONE chunk, so `JSON.parse(partialData)` sees two concatenated objects and the frame loop emits nothing until end. The recorded scenario uses a single frame; multi-frame chunking is a peer property, not a route property.",
+    "the two shape-classified bodies (V8 engine text).",
+    "requestOverrides from config (the header override table) are not exercised: it needs a boot-time config, and the route reads it only through setAdditionalHeaders."
+  ],
+  "inputs": {
+    "cookieSecret": "gotavern-pinned-textgen-cookie-secret",
+    "account": {
+      "handle": "default-user",
+      "name": "Textgen Probe",
+      "admin": true,
+      "password": ""
+    },
+    "secrets": {
+      "api_key_ooba": "probe-ooba-key",
+      "api_key_mancer": "probe-mancer-key",
+      "api_key_vllm": "probe-vllm-key",
+      "api_key_aphrodite": "probe-aphrodite-key",
+      "api_key_tabby": "probe-tabby-key",
+      "api_key_koboldcpp": "probe-koboldcpp-key",
+      "api_key_togetherai": "probe-togetherai-key",
+      "api_key_llamacpp": "probe-llamacpp-key",
+      "api_key_infermaticai": "probe-infermaticai-key",
+      "api_key_dreamgen": "probe-dreamgen-key",
+      "api_key_openrouter": "probe-openrouter-key",
+      "api_key_featherless": "probe-featherless-key",
+      "api_key_huggingface": "probe-huggingface-key",
+      "api_key_generic": "probe-generic-key"
+    },
+    "peer": "http://textgen-peer.example",
+    "portMarker": "<port>",
+    "pinnedPort": "59999",
+    "streamBodySha256": "032b05a660786c7cfeeb8ea5c967075d61960cb29714e543031f850f32f9574c"
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "type.generic": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "generic",
+        "stop": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "logit_bias": {
+          "1": 1
+        }
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"generic\",\"stop\":[\"a\",\"b\",\"c\",\"d\",\"e\"],\"logit_bias\":{\"1\":1}}",
+      "mocks": [
+        {
+          "run": "type.generic",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-generic-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"stop\":[\"a\",\"b\",\"c\",\"d\"],\"logit_bias\":{\"1\":1}}"
+        }
+      ]
+    },
+    "type.ooba": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "ooba"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"ooba\"}",
+      "mocks": [
+        {
+          "run": "type.ooba",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"ooba\"}"
+        }
+      ]
+    },
+    "type.vllm": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "vllm",
+        "best_of": 2,
+        "use_beam_search": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"vllm\",\"best_of\":2,\"use_beam_search\":true}",
+      "mocks": [
+        {
+          "run": "type.vllm",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-vllm-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"best_of\":2,\"use_beam_search\":true}"
+        }
+      ]
+    },
+    "type.aphrodite": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "aphrodite"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"aphrodite\"}",
+      "mocks": [
+        {
+          "run": "type.aphrodite",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-aphrodite-key",
+            "content-type": "application/json",
+            "x-api-key": "probe-aphrodite-key"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"aphrodite\"}"
+        }
+      ]
+    },
+    "type.tabby": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "tabby"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"tabby\"}",
+      "mocks": [
+        {
+          "run": "type.tabby",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-tabby-key",
+            "content-type": "application/json",
+            "x-api-key": "probe-tabby-key"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"tabby\"}"
+        }
+      ]
+    },
+    "type.koboldcpp": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "koboldcpp"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"koboldcpp\"}",
+      "mocks": [
+        {
+          "run": "type.koboldcpp",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-koboldcpp-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"koboldcpp\"}"
+        }
+      ]
+    },
+    "type.togetherai": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "togetherai",
+        "stop": [
+          "a"
+        ],
+        "logprobs": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"togetherai\",\"stop\":[\"a\"],\"logprobs\":true}",
+      "mocks": [
+        {
+          "run": "type.togetherai",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-togetherai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"stop\":[\"a\"]}"
+        }
+      ]
+    },
+    "type.llamacpp": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "llamacpp"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"llamacpp\"}",
+      "mocks": [
+        {
+          "run": "type.llamacpp",
+          "match": "/completion",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/completion",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-llamacpp-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"llamacpp\"}"
+        }
+      ]
+    },
+    "type.infermaticai": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "infermaticai",
+        "min_tokens": 1,
+        "logprobs": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"infermaticai\",\"min_tokens\":1,\"logprobs\":true}",
+      "mocks": [
+        {
+          "run": "type.infermaticai",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"message\":{\"content\":\"from message\"},\"index\":0,\"logprobs\":null},{\"text\":\"from text\",\"index\":1},{\"index\":2}]}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "106",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"6a-SCT8HP/pu0Sx90pkvv2qtKtHw6A\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"from message\",\"logprobs\":null,\"index\":0},{\"text\":\"from text\",\"index\":1},{\"index\":2}]}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-infermaticai-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"min_tokens\":1,\"logprobs\":true}"
+        }
+      ]
+    },
+    "type.dreamgen": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "kept by dreamgen",
+        "api_type": "dreamgen"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"kept by dreamgen\",\"api_type\":\"dreamgen\"}",
+      "mocks": [
+        {
+          "run": "type.dreamgen",
+          "match": "/api/openai/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/api/openai/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-dreamgen-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"kept by dreamgen\",\"api_type\":\"dreamgen\"}"
+        }
+      ]
+    },
+    "type.openrouter": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "openrouter",
+        "provider": [
+          "lambda",
+          "deepinfra"
+        ],
+        "allow_fallbacks": false,
+        "quantizations": [
+          "fp8"
+        ],
+        "top_a": 0.5
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"openrouter\",\"provider\":[\"lambda\",\"deepinfra\"],\"allow_fallbacks\":false,\"quantizations\":[\"fp8\"],\"top_a\":0.5}",
+      "mocks": [
+        {
+          "run": "type.openrouter",
+          "match": "/v1/chat/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-openrouter-key",
+            "content-type": "application/json",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"provider\":{\"allow_fallbacks\":false,\"order\":[\"lambda\",\"deepinfra\"],\"quantizations\":[\"fp8\"]},\"top_a\":0.5}"
+        }
+      ]
+    },
+    "type.openrouterNoProvider": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "openrouter",
+        "provider": []
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"openrouter\",\"provider\":[]}",
+      "mocks": [
+        {
+          "run": "type.openrouterNoProvider",
+          "match": "/v1/chat/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-openrouter-key",
+            "content-type": "application/json",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16}"
+        }
+      ]
+    },
+    "type.featherless": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "featherless",
+        "best_of": 2,
+        "use_beam_search": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"featherless\",\"best_of\":2,\"use_beam_search\":true}",
+      "mocks": [
+        {
+          "run": "type.featherless",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-featherless-key",
+            "content-type": "application/json",
+            "http-referer": "https://sillytavern.app",
+            "x-title": "SillyTavern"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"best_of\":2,\"use_beam_search\":true}"
+        }
+      ]
+    },
+    "type.huggingface": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "huggingface"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"huggingface\"}",
+      "mocks": [
+        {
+          "run": "type.huggingface",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-huggingface-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"huggingface\"}"
+        }
+      ]
+    },
+    "type.mancer": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "mancer"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"mancer\"}",
+      "mocks": [
+        {
+          "run": "type.mancer",
+          "match": "/oai/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/oai/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-mancer-key",
+            "content-type": "application/json",
+            "x-api-key": "probe-mancer-key"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"mancer\"}"
+        }
+      ]
+    },
+    "type.ollama": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "ollama",
+        "num_predict": 5,
+        "num_ctx": 2048,
+        "temperature": 0.2
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"ollama\",\"num_predict\":5,\"num_ctx\":2048,\"temperature\":0.2}",
+      "mocks": [
+        {
+          "run": "type.ollama",
+          "match": "/api/generate",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"response\":\"a tree\",\"done\":true}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "33",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"21-hUflZiz07gGPExXLoFBIYvcNWEM\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"response\":\"a tree\",\"done\":true}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/api/generate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"stream\":false,\"keep_alive\":-1,\"raw\":true,\"options\":{\"num_predict\":5,\"num_ctx\":2048,\"temperature\":0.2}}"
+        }
+      ]
+    },
+    "type.ollamaStream": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "dropped",
+        "api_type": "ollama",
+        "stream": true,
+        "num_predict": 5
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"dropped\",\"api_type\":\"ollama\",\"stream\":true,\"num_predict\":5}",
+      "mocks": [
+        {
+          "run": "type.ollamaStream",
+          "match": "/api/generate",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"response\":\"a\",\"thinking\":\"t\",\"done\":false}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "data: {\"choices\":[{\"text\":\"a\",\"thinking\":\"t\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/api/generate",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"probe-model\",\"prompt\":\"a tree\",\"stream\":true,\"keep_alive\":-1,\"raw\":true,\"options\":{\"num_predict\":5}}"
+        }
+      ]
+    },
+    "type.unknown": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "model": "probe-model",
+        "prompt": "a tree",
+        "max_tokens": 16,
+        "not_allowed": "forwarded",
+        "api_type": "not-a-real-type"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"forwarded\",\"api_type\":\"not-a-real-type\"}",
+      "mocks": [
+        {
+          "run": "type.unknown",
+          "match": "",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"model\":\"probe-model\",\"prompt\":\"a tree\",\"max_tokens\":16,\"not_allowed\":\"forwarded\",\"api_type\":\"not-a-real-type\"}"
+        }
+      ]
+    },
+    "target.trailingV1Trimmed": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>/v1/",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_server\":\"<mock>/v1/\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "run": "target.trailingV1Trimmed",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>/v1/\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}"
+        }
+      ]
+    },
+    "target.localhostRewrite": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "http://localhost:<port>",
+        "api_type": "generic",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_server\":\"http://localhost:<port>\",\"api_type\":\"generic\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "run": "target.localhostRewrite",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "84",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"54-e7aKmhNJWvl6e4Ap9xzWB0NjTOc\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"choices\":[{\"text\":\"a tree\",\"index\":0,\"logprobs\":null}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "outbound": [
+        {
+          "url": "http://127.0.0.1:<port>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-generic-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"model\":\"m\",\"prompt\":\"p\"}"
+        }
+      ]
+    },
+    "response.nonOkForwarded": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "run": "response.nonOkForwarded",
+          "match": "/v1/completions",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":\"backend exploded\"}"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "73",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"49-rlTLVY6hgiL/a0ZbwLnemA3fpbk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"error\":true,\"status\":500,\"response\":\"{\\\"error\\\":\\\"backend exploded\\\"}\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}"
+        }
+      ]
+    },
+    "response.nonJsonOk": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "run": "response.nonJsonOk",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "not json at all"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": null
+      },
+      "responseShape": "the pinned `completionsReply.json()` throws a V8 SyntaxError and the catch answers that message; engine text is not reproducible, so only the status and the outbound count are compared",
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}"
+        }
+      ]
+    },
+    "response.stream": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p",
+        "stream": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}",
+      "mocks": [
+        {
+          "run": "response.stream",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "text/event-stream"
+          },
+          "body": "data: {\"choices\":[{\"text\":\"a\"}]}\n\ndata: {\"choices\":[{\"text\":\"b\"}]}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "data: {\"choices\":[{\"text\":\"a\"}]}\n\ndata: {\"choices\":[{\"text\":\"b\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}"
+        }
+      ]
+    },
+    "response.stream401": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p",
+        "stream": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}",
+      "mocks": [
+        {
+          "run": "response.stream401",
+          "match": "/v1/completions",
+          "status": 401,
+          "statusText": "Unauthorized",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "bad key"
+        }
+      ],
+      "response": {
+        "status": 400,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "bad key"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}"
+        }
+      ]
+    },
+    "response.streamNonOk": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "koboldcpp",
+        "model": "m",
+        "prompt": "p",
+        "stream": true
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"koboldcpp\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}",
+      "mocks": [
+        {
+          "run": "response.streamNonOk",
+          "match": "/v1/completions",
+          "status": 503,
+          "statusText": "Service Unavailable",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "backend down"
+        }
+      ],
+      "response": {
+        "status": 503,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "backend down"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-koboldcpp-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"koboldcpp\",\"model\":\"m\",\"prompt\":\"p\",\"stream\":true}"
+        }
+      ]
+    },
+    "request.missingServer": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": null
+      },
+      "responseShape": "the pinned `request.body.api_server.indexOf` throws a V8 TypeError inside the try and the catch answers its message; engine text is not reproducible, so only the status and the zero outbound count are compared",
+      "outbound": []
+    },
+    "response.throws": {
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<mock>",
+        "api_type": "ooba",
+        "model": "m",
+        "prompt": "p"
+      },
+      "bodyText": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}",
+      "mocks": [
+        {
+          "run": "response.throws",
+          "match": "/v1/completions",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "throws": true
+        }
+      ],
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "59",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"3b-HCIIPUflhbKS3cu6hb+NXladjF0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "bodyText": "{\"error\":true,\"status\":\"UNKNOWN\",\"response\":\"fetch failed\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/v1/completions",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer probe-ooba-key",
+            "content-type": "application/json"
+          },
+          "body": "{\"api_server\":\"<mock>\",\"api_type\":\"ooba\",\"model\":\"m\",\"prompt\":\"p\"}"
+        }
+      ]
+    }
+  }
+}
