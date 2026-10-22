@@ -140,7 +140,7 @@ Status meanings follow `ARCHITECTURE.md`: `compatible` means no known material d
 No item in this matrix currently establishes a drop-in-compatible server RELEASE, and one area
 does not change that: chat-completions generation for the custom/OpenAI-compatible source is the
 first area with all five observer surfaces proven, but that is a ROUTE-level claim on a server that
-still has 44 unimplemented routes, of which ELEVEN are decided exclusions rather than work. A compatible release needs the
+still has 30 unimplemented routes, of which ELEVEN are decided exclusions rather than work. A compatible release needs the
 product surfaces, not just the best-proven route.
 
 The eleven excluded routes, so the remaining work is not overstated: five are local in-process ML
