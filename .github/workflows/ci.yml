@@ -109,15 +109,18 @@ jobs:
   # The E (browser events/final state) and C (cancel/streaming) surfaces are what separate a
   # `partial` area from a `compatible` one -- docs/surface-coverage.md: "The chat-completions row
   # became `compatible` only after the fifth surface was MEASURED". Until this job existed, every
-  # one of those claims rested on artifacts that CI never reproduced: a comparison file could be
-  # hand-edited, or a leg file could be refreshed without regenerating the comparison above it, and
-  # nothing would notice. The three comparators are pure JSON processors -- no browser, no pinned
-  # server, no network -- so this is a seconds-long gate rather than a Playwright run.
+  # one of those claims rested on artifacts CI never read.
   #
-  # It gates EXACTLY what it can prove: that the committed comparison is the one the committed legs
-  # produce. It does NOT re-drive a browser, so it cannot tell that the legs are stale relative to
-  # the product; that is what the documented re-capture procedure is for, and claiming otherwise
-  # here would be the "green that cannot fail" this project's rules warn about.
+  # IT CANNOT RECOMPUTE A COMPARISON FROM ITS LEGS AND MUST NOT PRETEND TO. The leg files are
+  # gitignored deliberately -- tests/browser/.gitignore says why: "a committed leg invites someone to
+  # treat a known divergence as the expected value". An earlier version of this job did recompute and
+  # failed with ENOENT, having passed when tried by hand only because the untracked legs were on that
+  # machine: the working tree, not the repository.
+  #
+  # What it checks instead, in tools/verify-browser-comparisons.mjs: that the committed artifacts are
+  # coherent with themselves and with the claim they underwrite -- no unexplained divergence, the
+  # provider-wire claim actually true, and the faithfulness guards still holding. A `compatible` row
+  # resting on a false core claim is the failure mode this catches.
   browser-evidence:
     runs-on: ubuntu-latest
     steps:
@@ -125,24 +128,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
-      - name: Recompute the browser comparisons from their committed legs
-        working-directory: tests/browser
-        run: |
-          set -eu
-          node compare-startup-legs.mjs \
-            startup-gotavern-1.json startup-gotavern-2.json \
-            startup-pinned-1.json startup-pinned-2.json > /dev/null
-          node compare-generation-legs.mjs gen-a.json gen-p1.json > /dev/null
-          node compare-streaming-legs.mjs \
-            stream-gotavern.json stream-pinned.json \
-            cancel-gotavern.json cancel-pinned.json \
-            nonstream-gotavern.json nonstream-pinned.json > /dev/null
-      - name: Verify the committed comparisons are the ones those legs produce
-        run: |
-          git diff --exit-code -- \
-            tests/browser/startup-comparison.json \
-            tests/browser/generation-comparison.json \
-            tests/browser/streaming-comparison.json
+      - name: Verify the browser comparison artifacts support their claims
+        run: node tools/verify-browser-comparisons.mjs
 
   verify:
     runs-on: ubuntu-latest

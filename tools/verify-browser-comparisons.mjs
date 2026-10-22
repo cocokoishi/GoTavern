@@ -1,0 +1,139 @@
+#!/usr/bin/env node
+// Verifies the committed browser-comparison artifacts against their own claims.
+//
+// WHAT THIS CAN AND CANNOT DO, stated first because the difference matters. The per-run leg files
+// (startup-*.json, stream-*.json, gen-*.json) are gitignored ON PURPOSE: tests/browser/.gitignore
+// records the reason -- "a committed leg invites someone to treat a known divergence as the expected
+// value". So a job CANNOT recompute a comparison from its legs in CI, and an earlier attempt at that
+// failed with ENOENT. It passed when tried by hand only because the untracked legs happened to be on
+// that machine: the working tree, not the repository. That is rule 5 ("verify committed bytes, not
+// working-tree bytes") in its most literal form.
+//
+// What the committed artifacts CAN support is a check that they are coherent with themselves and with
+// the compatibility claim they underwrite:
+//
+//   1. a comparison may not record an UNEXPLAINED divergence -- every difference must carry a reason;
+//   2. a `compatible` area may not rest on an artifact whose core claim is false (for generation that
+//      is the provider request, which is the thing this project promises to reproduce);
+//   3. the guards that say the differential was FAITHFUL must still hold, because a differential that
+//      never reached the state it compares proves nothing.
+//
+// Exit code 1 with a named finding, never a bare failure: "which claim is unsupported" is the only
+// useful output of a gate like this.
+
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const browserDir = path.resolve(here, '..', 'tests', 'browser');
+
+const findings = [];
+
+function fail(artifact, message) {
+    findings.push(`${artifact}: ${message}`);
+}
+
+function read(artifact) {
+    const file = path.join(browserDir, artifact);
+    try {
+        return JSON.parse(readFileSync(file, 'utf8'));
+    } catch (error) {
+        fail(artifact, `cannot be read as JSON (${error.message})`);
+        return null;
+    }
+}
+
+function requireReason(where, entry) {
+    const reason = entry?.knownReason;
+    if (typeof reason !== 'string' || reason.trim() === '') {
+        fail(where, `records a divergence with no knownReason: ${JSON.stringify(entry).slice(0, 300)}`);
+    }
+}
+
+// ---- startup-comparison.json ----------------------------------------------------------------
+const startup = read('startup-comparison.json');
+if (startup) {
+    if (startup.unexpectedCount !== 0) {
+        fail('startup-comparison.json', `unexpectedCount is ${startup.unexpectedCount}, must be 0`);
+    }
+    if (Array.isArray(startup.unexpected) && startup.unexpected.length !== 0) {
+        fail('startup-comparison.json', `unexpected[] holds ${startup.unexpected.length} entr(ies)`);
+    }
+    const guards = startup.guards ?? {};
+    for (const guard of ['faithful', 'gotavernReachedUserState', 'pinnedReachedUserState']) {
+        if (guards[guard] !== true) {
+            fail('startup-comparison.json', `guards.${guard} is ${JSON.stringify(guards[guard])}, must be true`);
+        }
+    }
+    const rows = Array.isArray(startup.rows) ? startup.rows : [];
+    if (rows.length === 0) {
+        fail('startup-comparison.json', 'rows[] is empty, so the comparison compared nothing');
+    }
+    for (const row of rows) {
+        if (row.classification === 'equal') {
+            continue;
+        }
+        requireReason(`startup-comparison.json ${row.method} ${row.path}`, row);
+        if (row.needsAttention === true && row.unexpected !== false) {
+            fail('startup-comparison.json', `${row.method} ${row.path} needsAttention without being classified unexpected:false`);
+        }
+    }
+}
+
+// ---- generation-comparison.json --------------------------------------------------------------
+const generation = read('generation-comparison.json');
+if (generation) {
+    // The provider request is the promise (hard rule 7: "HTTP parity alone is insufficient").
+    if (generation.providerRequestEqual !== true) {
+        fail('generation-comparison.json', 'providerRequestEqual is not true, so the provider-wire claim is unsupported');
+    }
+    if (generation.requestArrived?.gotavern !== true || generation.requestArrived?.pinned !== true) {
+        fail('generation-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    const differences = Array.isArray(generation.bodyDifferences) ? generation.bodyDifferences : [];
+    for (const entry of differences) {
+        requireReason('generation-comparison.json bodyDifferences[]', entry);
+    }
+    // A milestone counter that differs is a divergence like any other, and until this check existed
+    // `milestoneEqual: false` sat inside a `compatible` claim with no recorded reason anywhere.
+    if (generation.milestoneEqual !== true) {
+        const reason = generation.milestoneDifferenceReason;
+        if (typeof reason !== 'string' || reason.trim() === '') {
+            const left = generation.milestones?.gotavern ?? {};
+            const right = generation.milestones?.pinned ?? {};
+            const differing = [...new Set([...Object.keys(left), ...Object.keys(right)])]
+                .filter(key => left[key] !== right[key])
+                .map(key => `${key} gotavern=${JSON.stringify(left[key])} pinned=${JSON.stringify(right[key])}`);
+            fail('generation-comparison.json',
+                `milestoneEqual is false with NO milestoneDifferenceReason recorded; differing counters: ${differing.join('; ') || '(none isolated)'}`);
+        }
+    }
+}
+
+// ---- streaming-comparison.json ---------------------------------------------------------------
+const streaming = read('streaming-comparison.json');
+if (streaming) {
+    if (streaming.compatibleReady !== true) {
+        fail('streaming-comparison.json', 'compatibleReady is not true, so the streaming/cancel claim is unsupported');
+    }
+    for (const block of ['streaming', 'cancellation', 'nonstream']) {
+        if (!streaming[block] || typeof streaming[block] !== 'object') {
+            fail('streaming-comparison.json', `${block} block is missing, so that surface was not compared`);
+        }
+    }
+}
+
+if (findings.length > 0) {
+    console.error('browser comparison artifacts do not support their claims:');
+    for (const finding of findings) {
+        console.error('  - ' + finding);
+    }
+    console.error(`\n${findings.length} finding(s).`);
+    process.exit(1);
+}
+
+console.log('browser comparison artifacts are coherent with their claims');
+console.log(`  startup-comparison.json    ${startup.rows.length} rows, unexpectedCount 0, guards faithful`);
+console.log(`  generation-comparison.json providerRequestEqual true, ${generation.bodyDifferences?.length ?? 0} documented body difference(s)`);
+console.log('  streaming-comparison.json  compatibleReady true, three surface blocks present');

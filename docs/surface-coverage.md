@@ -57,17 +57,29 @@ measurement overturned three earlier conclusions:
 - a sequential mock script starves the real request once an extra call (Connect's `GET /models`)
   is added to the flow. Script per-endpoint, not per-order.
 
-## What CI now reproduces
+## What CI checks about these artifacts
 
-The `browser-evidence` job recomputes `startup-comparison.json`, `generation-comparison.json` and
-`streaming-comparison.json` from their committed leg files and requires a zero diff. Before it existed,
-every E and C cell in the table above rested on an artifact CI never touched: a comparison could be
-hand-edited, or a leg refreshed without regenerating the comparison above it, and nothing would notice.
+The `browser-evidence` job runs `tools/verify-browser-comparisons.mjs` over the three committed
+comparison artifacts. It cannot recompute them from their legs and does not pretend to: the per-run legs
+are gitignored deliberately, and `tests/browser/.gitignore` says why -- "a committed leg invites someone
+to treat a known divergence as the expected value". A first version of this job did recompute and failed
+with `ENOENT`; it had passed when tried by hand only because the untracked legs were on that machine,
+which is the working tree rather than the repository.
 
-The job is honest about its own limit and the limit is worth stating here too: it proves the committed
-comparison is the one the committed legs produce. It does NOT re-drive a browser, so it cannot detect
-that the legs are stale relative to the product. A stale-leg defect needs a re-capture, and the
-procedure for that is unchanged. Do not read this gate as "E and C are re-measured on every push".
+What the committed artifacts can support is a coherence check, and that is what the job does:
+
+- a comparison may not record an UNEXPLAINED divergence -- every non-equal row and every body
+  difference must carry a reason;
+- the faithfulness guards must still hold, because a differential that never reached the state it
+  compares proves nothing;
+- a `compatible` row may not rest on an artifact whose core claim is false -- for generation that is
+  `providerRequestEqual`, which is the provider wire this project promises to reproduce.
+
+**FIRST FINDING FROM THE GATE: `generation-comparison.json` records `milestoneEqual: false` and
+explains it nowhere.** The differing counter is `dryAfterData` (gotavern 1, pinned 2), inside the area
+this table calls `compatible`. Either the divergence is acceptable and needs a recorded reason, or it is
+a product difference. It is listed here rather than resolved, because a row may not keep a `compatible`
+claim while its own artifact records an unjustified difference.
 
 ## The cheapest next promotions
 
