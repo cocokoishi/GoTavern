@@ -341,7 +341,18 @@ export async function startPinnedProviderServer({ sourceRoot, prefix, mocks = []
     };
 
     try {
-        const deadline = Date.now() + 180000;
+        // READINESS DEADLINE, measured rather than guessed. The pinned server compiles the whole
+        // frontend before it listens (`src/server-main.js:354`, `pruneCache: true`, unconditional), and
+        // on this development host with a cold cache that compile took 237 s. The old 180 s deadline
+        // therefore expired on a HEALTHY boot, and the probe reported `pinned server did not become
+        // ready: TypeError: fetch failed` -- a readiness timeout dressed as a transport defect. It cost
+        // one lane three consecutive runs before the time was measured, and another lane worked around
+        // it with an out-of-tree copy carrying exactly this change.
+        //
+        // This constant gates WHEN the probe starts talking; it cannot enter a recorded fixture, so
+        // raising it does not change any fixture's bytes. It is a wait, not an assertion: a server that
+        // never becomes ready still fails, only later and with the same message.
+        const deadline = Date.now() + 900000;
         let lastError;
         let ready = false;
         while (Date.now() < deadline && !ready) {
