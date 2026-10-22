@@ -54,7 +54,7 @@ func registerDataMaidRoutes(mux *http.ServeMux, accounts *accountRuntime, notFou
 }
 
 // dataMaidChatBackupsPrefix is `CHAT_BACKUPS_PREFIX` (src/endpoints/chats.js:32).
-const dataMaidChatBackupsPrefix = "chat_"
+const dataMaidChatBackupsPrefix = "chats_"
 
 // dataMaidSettingsBackupPrefix is `getSettingsBackupFilePrefix(handle)` (src/endpoints/settings.js:88).
 func dataMaidSettingsBackupPrefix(handle string) string {
