@@ -27,10 +27,11 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import fs from 'node:fs/promises';
+import { existsSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { seedLegConfig } from './seed-leg-config.mjs';
 
@@ -113,7 +114,60 @@ console.log(`[pinned] baseURL    ${baseURL}`);
 // leg read state the first leg wrote.
 const legConfig = await seedLegConfig(dataRoot);
 console.log('[pinned] config     ' + legConfig.path + ' sha256=' + legConfig.sha256);
-const server = spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], {
+// A SOURCE WHOSE PROVIDER URL IS A PINNED LITERAL has no request member that can point it at the probe's
+// recording peer (openrouter is the first: chat-completions.js:2302 and the Go seam default are both
+// `https://openrouter.ai/api/v1`). The GoTavern leg is aimed through its seam; the PINNED leg needs the
+// same thing one layer lower, so this writes a loader hook that keeps the REAL node-fetch and rewrites only
+// the scheme and host of the declared prefixes, re-reading the mapping file on every request because the
+// peer's port is chosen by the child probe AFTER this server boots.
+//
+// The hook is installed ONLY when the caller asks for it, so every other pinned boot is byte-identical.
+let pinnedHookArgs = [];
+const redirectFile = process.env.PROBE_PINNED_REDIRECT_FILE;
+if (redirectFile) {
+    const redirectPath = path.resolve(redirectFile);
+    writeFileSync(redirectPath, JSON.stringify([]));
+    const realFetchPath = path.join(reference, 'node_modules', 'node-fetch', 'src', 'index.js');
+    if (!existsSync(realFetchPath)) {
+        throw new Error(`the pinned checkout has no node-fetch at ${realFetchPath}`);
+    }
+    const hookPath = path.join(path.dirname(redirectPath), 'pinned-redirect-hook.mjs');
+    const source = [
+        `import { registerHooks } from 'node:module';`,
+        `import { readFileSync } from 'node:fs';`,
+        `const REAL = ${JSON.stringify(pathToFileURL(realFetchPath).href)};`,
+        `const MAP = ${JSON.stringify(redirectPath)};`,
+        `registerHooks({`,
+        `  resolve(specifier, context, nextResolve) {`,
+        `    if (specifier === 'node-fetch') return { url: 'gotavern-redirect:node-fetch', shortCircuit: true };`,
+        `    return nextResolve(specifier, context);`,
+        `  },`,
+        `  load(url, context, nextLoad) {`,
+        `    if (url !== 'gotavern-redirect:node-fetch') return nextLoad(url, context);`,
+        `    return { format: 'module', shortCircuit: true, source: SOURCE };`,
+        `  },`,
+        `});`,
+        ``,
+        `const SOURCE = [`,
+        `  'import realFetch from ' + JSON.stringify(REAL) + ';',`,
+        `  'import { readFileSync } from "node:fs";',`,
+        `  'const MAP = ' + JSON.stringify(MAP) + ';',`,
+        `  'function readMap() { try { const v = JSON.parse(readFileSync(MAP, "utf8")); return Array.isArray(v) ? v : []; } catch { return []; } }',`,
+        `  'export default function fetchThroughRedirect(input, options) {',`,
+        `  '  const href = typeof input === "string" ? input : (input && input.href ? input.href : String(input));',`,
+        `  '  for (const pair of readMap()) {',`,
+        `  '    if (href.startsWith(pair.from)) return realFetch(pair.to + href.slice(pair.from.length), options);',`,
+        `  '  }',`,
+        `  '  return realFetch(href, options);',`,
+        `  '}',`,
+        `  'globalThis.fetch = fetchThroughRedirect;',`,
+        `].join(String.fromCharCode(10));`,
+    ].join('\n');
+    writeFileSync(hookPath, source);
+    pinnedHookArgs = ['--import', pathToFileURL(hookPath).href];
+    console.log(`[pinned] transport redirect hook: ${hookPath} (mapping ${redirectPath})`);
+}
+const server = spawn(process.execPath, [...pinnedHookArgs, 'server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], {
     cwd: reference,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,

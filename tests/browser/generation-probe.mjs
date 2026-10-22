@@ -117,7 +117,14 @@ const buildSteps = [];
 if (!binarySetting && !external) {
     buildSteps.push(['go', ['build', '-trimpath', '-o', binary, './cmd/gotavern']]);
 }
-buildSteps.push(['go', ['build', '-trimpath', '-o', path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), './tools/mock-provider']]);
+// The recording peer is a Go binary too, and this host cannot compile Go (a full cache once filled a
+// 149 GB disk). A lane downloads the binary its own CI run built from the commit under test, exactly as
+// tools/probe-provider-wire.mjs does; an unset variable keeps the build the CI oracle job relies on.
+const mockProviderSetting = process.env.GOTAVERN_MOCK_PROVIDER_BINARY ?? '';
+const mockProviderBinary = mockProviderSetting ? path.resolve(mockProviderSetting) : path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider');
+if (!mockProviderSetting) {
+    buildSteps.push(['go', ['build', '-trimpath', '-o', mockProviderBinary, './tools/mock-provider']]);
+}
 for (const [command, args] of buildSteps) {
     const build = spawn(command, args, { cwd: repoRoot, stdio: 'inherit' });
     const code = await new Promise(resolve => build.on('exit', resolve));
@@ -150,6 +157,15 @@ if (!external) {
 // whether the connection was closed before the stream finished. The peer is the only custom_url the
 // browser is given, so it is unbypassable for this drive (rule 14).
 const probeMode = process.env.PROBE_MODE ?? 'nonstream';
+// WHICH CHAT-COMPLETION SOURCE THIS DRIVE SELECTS. The custom source was the first one measured end to
+// end; openrouter is the second, and it reaches the peer differently: the custom source carries the peer
+// in `custom_url` (a request member), while openrouter's URL is a pinned LITERAL with no request member at
+// all, so the GoTavern leg is aimed through its seam and the pinned leg through a transport redirect that
+// tools/run-against-pinned.mjs installs.
+const probeSource = process.env.PROBE_SOURCE ?? 'custom';
+if (probeSource !== 'custom' && probeSource !== 'openrouter') {
+    throw new Error(`PROBE_SOURCE must be custom or openrouter, got ${probeSource}`);
+}
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 
 function startStreamingPeer(mode) {
@@ -250,7 +266,7 @@ if (streamingMode) {
     streamingPeer = await startStreamingPeer(probeMode);
     mockAddress = streamingPeer.address;
 } else {
-    mock = spawn(path.join(dataRoot, process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider'), ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    mock = spawn(mockProviderBinary, ['--responses', scriptPath, '--port', '0'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     mock.stdout.on('data', chunk => {
         const text = chunk.toString();
         const match = /mock-provider (\S+)/.exec(text);
@@ -263,6 +279,20 @@ if (streamingMode) {
     }
     if (!mockAddress) {
         throw new Error('mock provider did not report its address');
+    }
+    // OPENROUTER'S PEER CANNOT TRAVEL IN THE REQUEST. Its URL is the pinned literal
+    // `https://openrouter.ai/api/v1` with no reverse_proxy and no custom_url, so the GoTavern leg is aimed at
+    // the recording peer through the seam the provider-wire lane added, and the PINNED leg through the
+    // transport redirect tools/run-against-pinned.mjs installs for the same origin.
+    if (probeSource === 'openrouter' && !external) {
+        process.env.GOTAVERN_OPENROUTER_CHAT_URL = `http://${mockAddress}`;
+    }
+    // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
+    // this file is named: the hook re-reads it per request, which is why it can be written only now that the
+    // peer has an address.
+    const redirectFile = process.env.PROBE_PINNED_REDIRECT_FILE;
+    if (probeSource === 'openrouter' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://openrouter.ai/api/v1', to: `http://${mockAddress}` }]));
     }
 }
 
@@ -520,7 +550,7 @@ try {
             globalThis.__capturedSettings = settings;
         }, capturedSettings);
     }
-    const outcome = await page.evaluate(async ({ mockUrl, probeMode }) => {
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -530,7 +560,10 @@ try {
         const { oai_settings } = await import('./scripts/openai.js');
         const secretsModule = await import('./scripts/secrets.js');
         // The custom OpenAI-compatible source needs a key in secret_state; a user would paste one.
-        await secretsModule.writeSecret(secretsModule.SECRET_KEYS.CUSTOM, 'probe-synthetic-key');
+        await secretsModule.writeSecret(
+            probeSource === 'openrouter' ? secretsModule.SECRET_KEYS.OPENROUTER : secretsModule.SECRET_KEYS.CUSTOM,
+            'probe-synthetic-key',
+        );
 
         await script.getCharacters();
         if (!Array.isArray(script.characters) || script.characters.length === 0) {
@@ -559,6 +592,17 @@ try {
         // Streaming is a property of THIS drive, not of the captured user settings: the fixture stores
         // booleans as the strings the panel writes, and a streamed send must be requested explicitly.
         oai_settings.stream_openai = streaming;
+
+        // WHICH SOURCE THIS DRIVE SELECTS. The captured fixture is a custom-source setup, so the source is
+        // assigned AFTER it: without this, an openrouter run would silently be a custom run. For openrouter
+        // the peer cannot travel in the request (its URL is a pinned literal with no request member), so the
+        // legacy `custom_url` is left alone and the GoTavern leg is aimed by its seam below.
+        oai_settings.chat_completion_source = probeSource;
+        if (probeSource === 'openrouter') {
+            oai_settings.openrouter_model = 'probe-model';
+        } else if (captured) {
+            oai_settings.custom_url = mockUrl;
+        }
 
         // The API dispatch flag is NOT part of oai_settings, and `main_api` is an exported `let` that
         // cannot be reassigned from outside its module, so the settings shortcut above leaves it at
@@ -873,7 +917,7 @@ try {
             streamState,
         };
         return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend };
-    }, { mockUrl: `http://${mockAddress}`, probeMode });
+    }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
