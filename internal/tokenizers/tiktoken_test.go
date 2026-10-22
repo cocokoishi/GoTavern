@@ -24,7 +24,7 @@ const (
 // Expected replay counts. These are explicit so that a probe that silently stops
 // recording a family fails here instead of shrinking the test to nothing.
 const (
-	wantGpt2EncodeCases        = 33 // the full corpus, including the two tie-break inputs
+	wantGpt2EncodeCases        = 34 // the full corpus, including the two tie-break inputs and `probe user marker`
 	wantGpt2DecodeCases        = 7
 	wantOpenAIEncodeCases      = 63  // 7 tiktoken models x 9 inputs (gpt-3.5-turbo and `probe user marker` are new), including the two extra special-token inputs
 	wantOpenAIDecodeCases      = 12  // 4 tiktoken models x 3 id cases

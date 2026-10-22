@@ -24,7 +24,7 @@ const (
 	wantHFDirectDecodeCases = 49  // 7 models x 7 id cases
 	wantHFOpenAIEncodeCases = 63  // 7 models x 9 inputs (the corpus gained `probe user marker`)
 	wantHFOpenAIDecodeCases = 12  // claude, llama3, qwen2, deepseek x 3 id cases
-	wantHFOpenAICountCases  = 51  // claude, llama3, deepseek x 17 bodies
+	wantHFOpenAICountCases  = 66  // claude, llama3, deepseek x 22 bodies (the corpus gained the role-less count bodies)
 	// The two downloads-disabled runs answer the five external tokenizers from llama3.json.
 	// They are the fallback scenario rather than direct captures, and are counted so the
 	// exclusion cannot silently widen.
