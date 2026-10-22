@@ -1,0 +1,2605 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "tools/probe-sd-comfy-generate.mjs",
+  "implementedRoutes": [
+    "/api/sd/comfy/generate",
+    "/api/sd/comfyrunpod/generate"
+  ],
+  "notImplementedRoutes": [],
+  "correctedHandover": {
+    "claim": "/api/sd/comfy/generate reads a workflow JSON from the user's comfyWorkflows directory and substitutes the request's prompt/seed/etc into the workflow graph, then walks outputs",
+    "correction": "The route reads NO file and substitutes NOTHING: it POSTs request.body.prompt verbatim to {url}/prompt. The \"%prompt%\"/\"%seed%\" replacement is client-side (public/scripts/extensions/stable-diffusion/index.js:4216-4300, generateComfyImageCommon), which is why the workflows directory is not seeded for these scenarios and why every recorded prompt body is byte-identical to the request member.",
+    "stillTrue": "the POST /prompt -> poll /history/<id> -> walk outputs -> GET /view -> base64 answer sequence, the four distinct error branches, the 100ms local poll interval and the 500ms runpod interval all match the pinned source"
+  },
+  "pinnedSource": {
+    "src/endpoints/stable-diffusion.js:562": "comfy POST /generate: new URL(urlJoin(body.url, \"/prompt\")); the body.prompt string is POSTed verbatim; no fetch is signal-bound (the AbortController is a no-op); the socket-close handler POSTs {url}/interrupt with getBasicAuthHeader(body.auth)",
+    "src/endpoints/stable-diffusion.js:589": "historyUrl = urlJoin(body.url, `/history/${data.prompt_id}`); while(true) polls it, breaking when history[id] is truthy, awaiting delay(100) between attempts",
+    "src/endpoints/stable-diffusion.js:603": "item.status.status_str === \"error\" => \"ComfyUI generation did not succeed.\\n\\n\" + the execution_error traceback lines, trimmed",
+    "src/endpoints/stable-diffusion.js:612": "outputs = Object.keys(item.outputs).map(...); images of every array output flattened, else gifs; nothing => \"ComfyUI did not return any recognizable outputs.\"",
+    "src/endpoints/stable-diffusion.js:619": "imgUrl = new URL(urlJoin(body.url, \"/view\")); imgUrl.search = `?filename=${filename}&subfolder=${subfolder}&type=${type}` (template interpolation, WHATWG special-query encoding)",
+    "src/endpoints/stable-diffusion.js:625": "format = path.extname(imgInfo.filename).slice(1).toLowerCase() || \"png\"; data = Buffer.from(arrayBuffer).toString(\"base64\")",
+    "src/endpoints/stable-diffusion.js:628": "catch: console.error then res.status(500).send(error.message) -- the message TEXT, not sendStatus",
+    "src/endpoints/stable-diffusion.js:668": "comfyrunpod POST /generate: key from SECRET_KEYS.COMFY_RUNPOD (400 when absent); JSON.parse(body.prompt).prompt; `workflow?.input?.workflow ? workflow : {input:{workflow}}`; POST {url}/run with the bearer token",
+    "src/endpoints/stable-diffusion.js:709": "statusUrl = urlJoin(body.url, `/status/${data.id}`); polls with the bearer token, breaking when status.output.images[0] is truthy, awaiting delay(500)",
+    "src/endpoints/stable-diffusion.js:728": "format from item.filename; data is item.data passed THROUGH (undefined is omitted by JSON.stringify)",
+    "src/node_modules/node-fetch/src/body.js:310": "a string body with no declared content-type is sent as text/plain;charset=UTF-8 (source-derived; the peer records only declared headers)"
+  },
+  "mechanism": "The upstream base URL comes from `request.body.url`, so no provider seam exists or is needed: the probe points it at `<mock>`, boots the pinned server unmodified, replaces its `node-fetch` module and the global `fetch` with a controlled peer, and records every outbound request the pinned handler would have sent. The Go replay turns `<mock>` into its own httptest listener and applies the same substring+times rule selection the stub uses (AGENTS rule 20).",
+  "fields": [
+    {
+      "path": "scenarios.*.response.status",
+      "comparison": "compared",
+      "reason": "the pinned handler chooses 200/400/500 itself for every branch"
+    },
+    {
+      "path": "scenarios.*.response.headers",
+      "comparison": "compared",
+      "reason": "res.send(object) is JSON while res.send(string) is html; content-length and ETag are recomputed from the recorded body on both sides"
+    },
+    {
+      "path": "scenarios.*.response.body/bodyText",
+      "comparison": "compared",
+      "reason": "the {format,data} projection with member order, and every fixed error message"
+    },
+    {
+      "path": "scenarios.*.response.* (two scenarios)",
+      "comparison": "shape",
+      "reason": "the body is a V8 engine message (a property-read TypeError and a JSON.parse SyntaxError); nulled with its derived content-length/ETag, and the status plus the outbound count stay compared"
+    },
+    {
+      "path": "scenarios.*.outbound[].url",
+      "comparison": "compared",
+      "reason": "the escaped target is endpoint behaviour: the raw id interpolation into /history/<id> and the /view special-query encoding"
+    },
+    {
+      "path": "scenarios.*.outbound[].method",
+      "comparison": "compared",
+      "reason": "POST /prompt and POST /run versus three GETs"
+    },
+    {
+      "path": "scenarios.*.outbound[].headers",
+      "comparison": "compared",
+      "reason": "the DECLARED header set: empty for all three comfy requests, exactly the bearer token for the runpod pair. Asserted in both directions by the test so an added Authorization fails"
+    },
+    {
+      "path": "scenarios.*.outbound[].body",
+      "comparison": "compared",
+      "reason": "the verbatim prompt forward, the no-body case, and the runpod wrap/no-wrap/wrapped-undefined forms"
+    },
+    {
+      "path": "scenarios.*.outbound.length",
+      "comparison": "compared",
+      "reason": "THE POLL COUNT is the only thing that discriminates a cache-like shortcut from the real loop"
+    },
+    {
+      "path": "image bytes",
+      "comparison": "compared",
+      "reason": "synthetic peer answers with known digests; live provider content would be shape only"
+    }
+  ],
+  "normalizations": [
+    "The upstream origin is recorded as `<mock>`: the fixture holds no host and no port.",
+    "The prompt id and the runpod job id are synthetic constants chosen by the peer, not host-derived values.",
+    "Synthetic credentials and synthetic image bytes only."
+  ],
+  "notRecorded": [
+    "the CANCEL leg: the pinned socket-close handler POSTs /interrupt (comfy) or /cancel/<jobId> (runpod) when the caller goes away. The probe peer answers every rule immediately, so there is never an in-flight generation whose caller can disappear; the Go behaviour is covered by a LABELLED implementation test with pinned parity UNOBSERVED (the A1111 precedent).",
+    "a url of `null` (urlJoin reads `.length` on it, a V8 message), a url that is an OBJECT or an ARRAY (urlJoin treats an array as a parts list), and a non-string prompt (node-fetch rejects a non-BodyInit) are NOT probed; GoTavern answers the urlJoin type message with the JavaScript String() form of the value, which is a recorded known difference for `null`.",
+    "the infinite branches are NOT probed: a history payload that never contains the id, a history entry that is falsy, and a runpod `output.images` that is empty all keep polling forever, exactly as pinned does. GoTavern keeps that inherited property (see the fixture note in the compat row) rather than adding a timeout the product does not have.",
+    "a url whose scheme is not http/https: `new URL` accepts it and node-fetch then refuses with \"Only HTTP(S) protocols are supported\", but the probe peer would answer it instead, so it is source-derived only. GoTavern answers \"Invalid URL\" there, which is a recorded known difference.",
+    "a /prompt JSON body that is not an object (`null`) and an `outputs` member that is missing both throw V8 messages; not probed.",
+    "timing is not recorded: the poll interval is a source-derived constant asserted by a labelled Go test, because a 100ms/500ms bucket cannot be discriminated from a fast host."
+  ],
+  "inputs": {
+    "promptId": "gotavern-comfy-prompt-1",
+    "runpodJobId": "gotavern-job-1",
+    "runpodKey": "synthetic-comfy-runpod-key",
+    "pngSha256": "8c4d0a59e755358ce2e5c8a92d5f1274e53143337a52a60b56ee608eca99837c",
+    "gifSha256": "723033b25acc57e34ea1d8efbad25381aa096d22143df788f9c8aa16bf637127",
+    "webpSha256": "2e5b37463b75a8d0849ce4047d3addf7b0979642afb76d9b5d0868c3a4e83d2c",
+    "base64Image": "QUJD",
+    "workflow": "{\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}",
+    "placeholderWorkflow": "{\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"%prompt%\"}},\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":\"%seed%\",\"denoise\":\"%denoise%\",\"model\":\"%model%\"}}}",
+    "umlautCodePoint": 196
+  },
+  "bootOutbound": [],
+  "scenarios": {
+    "comfyFirstPoll": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyFirstPoll",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\",\"number\":1,\"node_errors\":{}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyFirstPoll",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyFirstPoll",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyThirdPoll": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyThirdPoll",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyThirdPoll",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "times": 2
+        },
+        {
+          "run": "comfyThirdPoll",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyThirdPoll",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyAuthSentIgnored": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "auth": "user:pass",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"auth\":\"user:pass\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyAuthSentIgnored",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyAuthSentIgnored",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyAuthSentIgnored",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyLiteralPlaceholders": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"%prompt%\"}},\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":\"%seed%\",\"denoise\":\"%denoise%\",\"model\":\"%model%\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"%prompt%\\\"}},\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":\\\"%seed%\\\",\\\"denoise\\\":\\\"%denoise%\\\",\\\"model\\\":\\\"%model%\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyLiteralPlaceholders",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyLiteralPlaceholders",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyLiteralPlaceholders",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"%prompt%\"}},\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":\"%seed%\",\"denoise\":\"%denoise%\",\"model\":\"%model%\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyNoPrompt": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>"
+      },
+      "requestBody": "{\"url\":\"<mock>\"}",
+      "mocks": [
+        {
+          "run": "comfyNoPrompt",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyNoPrompt",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyNoPrompt",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyPromptIdReserved": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyPromptIdReserved",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"p 1/x?y=1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyPromptIdReserved",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"p 1/x?y=1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyPromptIdReserved",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/p%201/x?y=1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyMissingPromptId": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyMissingPromptId",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyMissingPromptId",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"undefined\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyMissingPromptId",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/undefined",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyUnicodePrompt": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"ein Baum Ä\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"ein Baum Ä\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyUnicodePrompt",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyUnicodePrompt",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{\"9\":{\"images\":[{\"filename\":\"render.WEBP\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\"}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyUnicodePrompt",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/webp"
+          },
+          "body": "NTI0OTQ2NDYtZ290YXZlcm4tc3ludGhldGljLXdlYnA=",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "71",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"47-qJ6th5VBw+wFiQsjTOajZk4OU3M\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "webp",
+          "data": "NTI0OTQ2NDYtZ290YXZlcm4tc3ludGhldGljLXdlYnA="
+        },
+        "bodyText": "{\"format\":\"webp\",\"data\":\"NTI0OTQ2NDYtZ290YXZlcm4tc3ludGhldGljLXdlYnA=\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"ein Baum Ä\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=render.WEBP&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyGifFallback": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyGifFallback",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyGifFallback",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{\"1\":{\"images\":[]},\"9\":{\"gifs\":[{\"filename\":\"anim\",\"subfolder\":\"sub dir\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\"}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyGifFallback",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/gif"
+          },
+          "body": "NDc0OTQ2MzgtZ290YXZlcm4tc3ludGhldGljLWdpZg==",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "70",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"46-TUiirRdL8VH197LbWalchxy65K0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "NDc0OTQ2MzgtZ290YXZlcm4tc3ludGhldGljLWdpZg=="
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"NDc0OTQ2MzgtZ290YXZlcm4tc3ludGhldGljLWdpZg==\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=anim&subfolder=sub%20dir&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyImagesBeforeGifs": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyImagesBeforeGifs",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyImagesBeforeGifs",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{\"1\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]},\"2\":{\"gifs\":[{\"filename\":\"anim.gif\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\"}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyImagesBeforeGifs",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyFilenameReserved": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyFilenameReserved",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyFilenameReserved",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{\"9\":{\"images\":[{\"filename\":\"img one'#&x=y.PNG\",\"subfolder\":\"a b\",\"type\":\"temp\"}]}},\"status\":{\"status_str\":\"success\"}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyFilenameReserved",
+          "match": "/view?",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "image/png"
+          },
+          "body": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n",
+          "binaryBody": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "78",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"4e-c5m/NEZcTp4MQhKAQhE0Cwo/NL8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"ODk1MDRlNDcwZDBhMWEwYS1nb3RhdmVybi1zeW50aGV0aWMtcG5n\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=img%20one%27%23&x=y.PNG&subfolder=a%20b&type=temp",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyPromptFailed": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyPromptFailed",
+          "match": "/prompt",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":\"machine is on fire\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-A5EyVa5ZD8xRy595SluSU57+ObE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI returned an error.",
+        "bodyText": "ComfyUI returned an error."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        }
+      ]
+    },
+    "comfyHistoryFailed": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyHistoryFailed",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyHistoryFailed",
+          "match": "/history/",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "nope",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-A5EyVa5ZD8xRy595SluSU57+ObE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI returned an error.",
+        "bodyText": "ComfyUI returned an error."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyViewFailed": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyViewFailed",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyViewFailed",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"prompt\":[0,\"gotavern-comfy-prompt-1\",{},{},[]],\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}},\"status\":{\"status_str\":\"success\",\"completed\":true,\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}]]}}}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyViewFailed",
+          "match": "/view?",
+          "status": 404,
+          "statusText": "Not Found",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "gone",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-A5EyVa5ZD8xRy595SluSU57+ObE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI returned an error.",
+        "bodyText": "ComfyUI returned an error."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        },
+        {
+          "url": "<mock>/view?filename=ComfyUI_00001_.png&subfolder=&type=output",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyPromptThrows": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyPromptThrows",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "binaryBody": false,
+          "throws": true
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "12",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c-WO5eZzuxb1snxNd5JbMXa/SEeSw\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "fetch failed",
+        "bodyText": "fetch failed"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        }
+      ]
+    },
+    "comfyErrorStatus": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyErrorStatus",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyErrorStatus",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{},\"status\":{\"status_str\":\"error\",\"messages\":[[\"execution_start\",{\"prompt_id\":\"gotavern-comfy-prompt-1\"}],[\"execution_error\",{\"node_type\":\"KSampler\",\"node_id\":3,\"exception_type\":\"RuntimeError\",\"exception_message\":\"CUDA out of memory\"}],[\"execution_error\",{\"node_type\":\"VAEDecode\"}]]}}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "125",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"7d-yVLIqL/JF7BkqemqIyGVc6Tk8lE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI generation did not succeed.\n\nKSampler [3] RuntimeError: CUDA out of memory\nVAEDecode [undefined] undefined: undefined",
+        "bodyText": "ComfyUI generation did not succeed.\n\nKSampler [3] RuntimeError: CUDA out of memory\nVAEDecode [undefined] undefined: undefined"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyErrorWithoutMessages": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyErrorWithoutMessages",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyErrorWithoutMessages",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{},\"status\":{\"status_str\":\"error\"}}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "35",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"23-QWiXzkTW7z7/F92kxcCgklsM43g\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI generation did not succeed.",
+        "bodyText": "ComfyUI generation did not succeed."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyNoOutputs": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyNoOutputs",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyNoOutputs",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{},\"status\":{\"status_str\":\"success\"}}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "48",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"30-MA4WFRVJ3LjPZWTJ7BaH6uvc4x8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI did not return any recognizable outputs.",
+        "bodyText": "ComfyUI did not return any recognizable outputs."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "comfyNoUrl": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "40",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-ExqyxZT2DUu6vctdI9W33XPrEYg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Url must be a string. Received undefined",
+        "bodyText": "Url must be a string. Received undefined"
+      },
+      "outbound": []
+    },
+    "comfyInvalidUrl": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "not a url",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"not a url\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-vtIvYJSrZ5HNvImfy92Jx/HTqsk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Invalid URL",
+        "bodyText": "Invalid URL"
+      },
+      "outbound": []
+    },
+    "comfyHistoryItemWithoutStatus": {
+      "route": "/api/sd/comfy/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "comfyHistoryItemWithoutStatus",
+          "match": "/prompt",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"prompt_id\":\"gotavern-comfy-prompt-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "comfyHistoryItemWithoutStatus",
+          "match": "/history/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"gotavern-comfy-prompt-1\":{\"outputs\":{\"9\":{\"images\":[{\"filename\":\"ComfyUI_00001_.png\",\"subfolder\":\"\",\"type\":\"output\"}]}}}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {},
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": null
+      },
+      "responseShape": {
+        "fields": [
+          "response.body",
+          "response.bodyText",
+          "response.headers.content-length",
+          "response.headers.etag"
+        ],
+        "reason": "the pinned handler reads `item.status.status_str` and throws a V8 TypeError (\"Cannot read properties of undefined (reading 'status_str')\") whose text is engine-version specific; GoTavern cannot reproduce V8 error text, so only the 500 status and the outbound count are compared and the body bytes stay null"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/prompt",
+          "method": "POST",
+          "headers": {},
+          "body": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+        },
+        {
+          "url": "<mock>/history/gotavern-comfy-prompt-1",
+          "method": "GET",
+          "headers": {},
+          "body": null
+        }
+      ]
+    },
+    "runpodNoKey": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [],
+      "secrets": {},
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-length": "11",
+          "content-type": "text/plain; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Bad Request",
+        "bodyText": "Bad Request"
+      },
+      "outbound": []
+    },
+    "runpodFirstPoll": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodFirstPoll",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\",\"status\":\"IN_QUEUE\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodFirstPoll",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\",\"status\":\"COMPLETED\",\"output\":{\"images\":[{\"filename\":\"preview.png\",\"data\":\"QUJD\",\"type\":\"base64\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodSecondPoll": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodSecondPoll",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\",\"status\":\"IN_QUEUE\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodSecondPoll",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\",\"status\":\"IN_PROGRESS\"}",
+          "binaryBody": false,
+          "times": 1
+        },
+        {
+          "run": "runpodSecondPoll",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\",\"status\":\"COMPLETED\",\"output\":{\"images\":[{\"filename\":\"preview.png\",\"data\":\"QUJD\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodWorkflowPassthrough": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\"}}},\"extra\":\"kept\"}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"input\\\":{\\\"workflow\\\":{\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\"}}},\\\"extra\\\":\\\"kept\\\"}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodWorkflowPassthrough",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodWorkflowPassthrough",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"output\":{\"images\":[{\"filename\":\"preview.png\",\"data\":\"QUJD\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\"}}},\"extra\":\"kept\"}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodWorkflowWrapped": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\": {\"class_type\": \"KSampler\"}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\": {\\\"class_type\\\": \\\"KSampler\\\"}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodWorkflowWrapped",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodWorkflowWrapped",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"output\":{\"images\":[{\"filename\":\"preview.png\",\"data\":\"QUJD\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\"}}}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodEmptyPromptObject": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{}"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{}\"}",
+      "mocks": [
+        {
+          "run": "runpodEmptyPromptObject",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodEmptyPromptObject",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"output\":{\"images\":[{\"filename\":\"preview.png\",\"data\":\"QUJD\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodFilenameNoExtension": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{}"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{}\"}",
+      "mocks": [
+        {
+          "run": "runpodFilenameNoExtension",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodFilenameNoExtension",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"output\":{\"images\":[{\"filename\":\"preview\",\"data\":\"QUJD\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "30",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1e-yj7e6tKSF1XL87Vl7uGLhZlV9No\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "png",
+          "data": "QUJD"
+        },
+        "bodyText": "{\"format\":\"png\",\"data\":\"QUJD\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodDataMissing": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{}"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{}\"}",
+      "mocks": [
+        {
+          "run": "runpodDataMissing",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodDataMissing",
+          "match": "/status/",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"output\":{\"images\":[{\"filename\":\"shot.jpg\"}]}}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "16",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"10-To01HBelf3OpldIOMoabjHUuHYk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": {
+          "format": "jpg"
+        },
+        "bodyText": "{\"format\":\"jpg\"}"
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodPromptFailed": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodPromptFailed",
+          "match": "/run",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"error\":\"queue dead\"}",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-A5EyVa5ZD8xRy595SluSU57+ObE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI returned an error.",
+        "bodyText": "ComfyUI returned an error."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}}}"
+        }
+      ]
+    },
+    "runpodStatusFailed": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "{\n                \"prompt\": {\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}\n            }"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"{\\n                \\\"prompt\\\": {\\\"3\\\":{\\\"class_type\\\":\\\"KSampler\\\",\\\"inputs\\\":{\\\"seed\\\":42,\\\"steps\\\":20,\\\"cfg\\\":7,\\\"sampler_name\\\":\\\"euler\\\",\\\"positive\\\":[\\\"6\\\",0]}},\\\"6\\\":{\\\"class_type\\\":\\\"CLIPTextEncode\\\",\\\"inputs\\\":{\\\"text\\\":\\\"a tree\\\"}}}\\n            }\"}",
+      "mocks": [
+        {
+          "run": "runpodStatusFailed",
+          "match": "/run",
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"id\":\"gotavern-job-1\"}",
+          "binaryBody": false
+        },
+        {
+          "run": "runpodStatusFailed",
+          "match": "/status/",
+          "status": 500,
+          "statusText": "Internal Server Error",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "nope",
+          "binaryBody": false
+        }
+      ],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "26",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"1a-A5EyVa5ZD8xRy595SluSU57+ObE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "ComfyUI returned an error.",
+        "bodyText": "ComfyUI returned an error."
+      },
+      "outbound": [
+        {
+          "url": "<mock>/run",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": "{\"input\":{\"workflow\":{\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"seed\":42,\"steps\":20,\"cfg\":7,\"sampler_name\":\"euler\",\"positive\":[\"6\",0]}},\"6\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"a tree\"}}}}}"
+        },
+        {
+          "url": "<mock>/status/gotavern-job-1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer synthetic-comfy-runpod-key"
+          },
+          "body": null
+        }
+      ]
+    },
+    "runpodNoUrl": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "prompt": "{}"
+      },
+      "requestBody": "{\"prompt\":\"{}\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-length": "40",
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"28-ExqyxZT2DUu6vctdI9W33XPrEYg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": "Url must be a string. Received undefined",
+        "bodyText": "Url must be a string. Received undefined"
+      },
+      "outbound": []
+    },
+    "runpodPromptNotJSON": {
+      "route": "/api/sd/comfyrunpod/generate",
+      "request": {
+        "url": "<mock>",
+        "prompt": "not a workflow"
+      },
+      "requestBody": "{\"url\":\"<mock>\",\"prompt\":\"not a workflow\"}",
+      "mocks": [],
+      "secrets": {
+        "api_key_comfy_runpod": [
+          {
+            "id": "sid-api_key_comfy_runpod",
+            "value": "synthetic-comfy-runpod-key",
+            "label": "api_key_comfy_runpod",
+            "active": true
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "body": null,
+        "bodyText": null
+      },
+      "responseShape": {
+        "fields": [
+          "response.body",
+          "response.bodyText",
+          "response.headers.content-length",
+          "response.headers.etag"
+        ],
+        "reason": "the pinned handler runs `JSON.parse(request.body.prompt)` and answers that SyntaxError message, whose text is V8 engine-version specific; only the 500 status and the zero outbound count are compared"
+      },
+      "outbound": []
+    }
+  }
+}
