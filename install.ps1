@@ -42,7 +42,18 @@ if ($Version -eq 'latest') {
 # there is no flag to drop here; that is stated rather than invented.
 $mirrorBaseUrl = $env:GOTAVERN_RELEASES_BASE_URL
 if ($mirrorBaseUrl) {
-    $baseUrl = $mirrorBaseUrl.TrimEnd('/')
+    # THE VARIABLE IS THE RELEASES ROOT, NOT THE FINAL BASE URL (the same contract as install.sh).
+    #
+    # Assigning the root directly asked a mirror for `<root>/checksums.txt`, which no mirror serves:
+    # the documented layout is `<root>/latest/download/` and `<root>/<tag>/`. install.sh carried the
+    # same defect until the qualification job ran the installer for the first time and reported
+    # "no usable GoTavern qual-a release metadata was found"; the fix is recorded in both files so the
+    # next reader does not reintroduce it from the other one.
+    if ($Version -eq 'latest') {
+        $baseUrl = "$($mirrorBaseUrl.TrimEnd('/'))/latest/download"
+    } else {
+        $baseUrl = "$($mirrorBaseUrl.TrimEnd('/'))/$Version"
+    }
 } else {
     $baseUrl = $defaultBaseUrl
 }

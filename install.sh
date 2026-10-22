@@ -86,7 +86,18 @@ fi
 # included.
 MIRROR_BASE_URL=${GOTAVERN_RELEASES_BASE_URL:-}
 if [ -n "$MIRROR_BASE_URL" ]; then
-    BASE_URL=${MIRROR_BASE_URL%/}
+    # THE VARIABLE IS THE RELEASES ROOT, NOT THE FINAL BASE URL.
+    #
+    # The first version assigned BASE_URL=${MIRROR_BASE_URL%/} directly, which dropped the
+    # `/latest/download` or `/<tag>` segment and asked a mirror for `<root>/checksums.txt` while the
+    # documented layout (and every real mirror) serves `<root>/<tag>/checksums.txt`. Nothing had ever
+    # executed the seam, so nothing caught it; the qualification job did, on its first run, with
+    # "no usable GoTavern qual-a release metadata was found".
+    if [ "$VERSION" = "latest" ]; then
+        BASE_URL="${MIRROR_BASE_URL%/}/latest/download"
+    else
+        BASE_URL="${MIRROR_BASE_URL%/}/$VERSION"
+    fi
 else
     BASE_URL=$DEFAULT_BASE_URL
 fi
