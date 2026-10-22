@@ -1,0 +1,127 @@
+name: GoTavern smoke metrics
+
+# RECORD THE RESOURCE NUMBERS, AND ASSERT ONLY THE ONE NUMBER THAT IS A CONTRACT.
+#
+# Release-acceptance checklist item 13 ("resource benchmark is recorded") had no harness anywhere in
+# the repository, so it was marked NOT GATED. This job is that harness: it builds the release binary
+# the way `release.yml` does, boots it twice over one data root, and records NAMED numbers into
+# `smoke-metrics.json` (uploaded as an artefact) next to one printed table.
+#
+# WHAT IS MEASURED
+#   coldStartToVersionMs   spawn -> first HTTP 200 from GET /version carrying the product's own version
+#                          record, over an EMPTY data root and with no config.yaml (a fresh install)
+#   warmStartToVersionMs   the same, after a graceful SIGTERM stop, over the SAME data root
+#   latency.version.*      N sequential GET /version requests; also .firstMs, because the first sample
+#                          pays connection setup on an otherwise reused keep-alive connection
+#   latency.root.*         the same for GET / (the HTML shell)
+#   freshInstall.files     files and bytes seeded under the data root by the cold boot
+#   memory.*.rssBytes      VmRSS after each boot, read from /proc (null, with a reason, off Linux)
+#   install.*              the staged install footprint and the seeded-tree delta after the warm boot
+#
+# THE ONLY ASSERTED NUMBER IS THE COLD-START CEILING (60 s), because it is the only one that is a
+# contract: a cold start past a generous ceiling is not a slow runner, it is a HANG, and shipping a
+# hang is a correctness failure. Everything else is REPORTED and not asserted --
+#   - warm start is expected to be faster, but that is a statement about the runner's page cache as
+#     much as about the product, so a threshold would flake;
+#   - single-request latency on a shared VM would encode the runner's noise into the release contract;
+#   - the product publishes no memory or seeded-size budget, so inventing one here would be a promise
+#     nobody can keep.
+# A genuine regression is still caught: the record carries the RUNNER IMAGE identity, so a number is
+# only ever compared against a number from the same image, and the artefact history makes a step
+# change visible. The script's own assertions are listed in `budgets.asserted` inside the record, and
+# a failure is written INTO the artefact as well as failing the job, so the numbers survive the red.
+#
+# WHERE IT RUNS, and why not on every push: this boots the server twice and pulls a Go build, which is
+# release infrastructure rather than a per-commit gate -- per-push CI must stay fast. Weekly schedule
+# plus manual dispatch, and NEITHER trigger is available before this file is on the default branch:
+# `schedule` only ever fires there, and `workflow_dispatch` answers "workflow not found on the default
+# branch" for a branch-only workflow (measured, not assumed). The harness was therefore proved before
+# landing by a TEMPORARY push trigger on its own lane branch, removed from this file afterwards: the
+# measured numbers in the lane report come from that run, and the first scheduled/dispatched run of
+# this exact file happens on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      requests:
+        description: 'Sequential requests per measured path'
+        required: false
+        default: '50'
+  schedule:
+    # Mondays, 05:23 UTC. An off-peak, non-round minute: GitHub delays or drops scheduled runs under
+    # load, and a round-hour cron is the most contended slot on the service.
+    - cron: '23 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-metrics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measure-linux-amd64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build the release binary and stage the release layout
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -eu
+          VERSION="smoke-${GITHUB_RUN_ID}"
+          rm -rf smoke-work
+          mkdir -p smoke-work/install
+          # The same flags release.yml uses, so the measured artefact is the shipped one.
+          go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
+            -o smoke-work/install/gotavern ./cmd/gotavern
+          # tokenizers/ is read from the INSTALL ROOT at runtime (it is not embedded). Leaving it out
+          # would measure a binary that silently takes the tokenizer fallback on every prompt -- a
+          # different product behaviour and a different memory footprint.
+          cp LICENSE THIRD_PARTY_NOTICES.txt smoke-work/install/
+          cp -R upstream/tokenizers smoke-work/install/tokenizers
+          test -x smoke-work/install/gotavern
+          test -d smoke-work/install/tokenizers
+          # A FRESH INSTALL means no config.yaml: the release archive contains none either, and the
+          # cold-start number is only meaningful if startup has to create it.
+          test ! -e smoke-work/install/config.yaml
+          ls -l smoke-work/install
+          smoke-work/install/gotavern version
+
+      - name: Measure cold start, warm restart, latency and the seeded tree
+        env:
+          REQUESTS: ${{ inputs.requests || '50' }}
+        run: |
+          set -eu
+          node scripts/smoke-metrics.mjs \
+            --binary smoke-work/install/gotavern \
+            --install-dir smoke-work/install \
+            --work-dir smoke-work \
+            --out smoke-metrics.json \
+            --requests "${REQUESTS}"
+
+      # ALWAYS: a red run's numbers and boot logs are the most valuable thing it produced. The record
+      # carries `verdict.assertionFailures`, so a failed artefact is not mistakable for a good one.
+      - name: Upload the record and the boot logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-metrics
+          path: |
+            smoke-metrics.json
+            smoke-work/logs/*.log
+          if-no-files-found: warn
+
+      - name: Print the record for the job log
+        if: always()
+        run: |
+          if [ -s smoke-metrics.json ]; then cat smoke-metrics.json; else echo "no record was written"; fi
