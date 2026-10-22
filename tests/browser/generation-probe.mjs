@@ -407,6 +407,14 @@ try {
         const entry = pendingRequests.get(response.request());
         if (entry) {
             entry.status = response.status();
+        // A reader looking at a 400 needs to know in one glance whether the credential travelled. Boolean
+        // only: the artifact must never carry the credential itself.
+        try {
+            const submitted = JSON.parse(entry.postData ?? '{}');
+            entry.proxyPasswordPresent = Boolean(submitted.proxy_password && String(submitted.proxy_password).length > 0);
+        } catch {
+            entry.proxyPasswordPresent = null;
+        }
         }
     });
     // THE BROWSER'S OWN TOKENIZER CALL, AS BYTES. A count the page computed is a number that two
@@ -414,6 +422,34 @@ try {
     // question (another model, another body). The differential needs the REQUEST (method, path, exact
     // POST body) and the RESPONSE body for every /api/tokenizers call, on both legs, so a 10-vs-9 can be
     // attributed to one leg and not guessed at.
+    // THE GENERATE EXCHANGE, REQUEST AND RESPONSE BODY. A 400 on this route is narrow enough that the body
+    // names which branch answered, and comparing the two legs' bodies decides whether a difference is the
+    // drive or the product. Recorded for every call, not only failures.
+    report.generateCalls = [];
+    const generateEntries = new Map();
+    page.on('request', request => {
+        if (!new URL(request.url()).pathname.endsWith('/chat-completions/generate')) return;
+        generateEntries.set(request, { method: request.method(), postData: request.postData() ?? null, status: null, responseBody: null });
+    });
+    page.on('response', async response => {
+        const entry = generateEntries.get(response.request());
+        if (!entry) return;
+        entry.status = response.status();
+        // A reader looking at a 400 needs to know in one glance whether the credential travelled. Boolean
+        // only: the artifact must never carry the credential itself.
+        try {
+            const submitted = JSON.parse(entry.postData ?? '{}');
+            entry.proxyPasswordPresent = Boolean(submitted.proxy_password && String(submitted.proxy_password).length > 0);
+        } catch {
+            entry.proxyPasswordPresent = null;
+        }
+        try {
+            entry.responseBody = (await response.text()).slice(0, 2000);
+        } catch (error) {
+            entry.responseBody = `unreadable: ${String(error.message ?? error)}`;
+        }
+        report.generateCalls.push(entry);
+    });
     report.tokenizerCalls = [];
     const tokenizerEntries = new Map();
     page.on('request', request => {
@@ -427,6 +463,14 @@ try {
         const entry = tokenizerEntries.get(response.request());
         if (!entry) return;
         entry.status = response.status();
+        // A reader looking at a 400 needs to know in one glance whether the credential travelled. Boolean
+        // only: the artifact must never carry the credential itself.
+        try {
+            const submitted = JSON.parse(entry.postData ?? '{}');
+            entry.proxyPasswordPresent = Boolean(submitted.proxy_password && String(submitted.proxy_password).length > 0);
+        } catch {
+            entry.proxyPasswordPresent = null;
+        }
         try {
             entry.responseBody = (await response.text()).slice(0, 4000);
         } catch (error) {
@@ -647,10 +691,13 @@ try {
         const { oai_settings } = await import('./scripts/openai.js');
         const secretsModule = await import('./scripts/secrets.js');
         // The custom OpenAI-compatible source needs a key in secret_state; a user would paste one.
-        await secretsModule.writeSecret(
-            probeSource === 'openrouter' ? secretsModule.SECRET_KEYS.OPENROUTER : secretsModule.SECRET_KEYS.CUSTOM,
-            'probe-synthetic-key',
-        );
+        const sourceSecretKey = {
+            openrouter: secretsModule.SECRET_KEYS.OPENROUTER,
+            claude: secretsModule.SECRET_KEYS.CLAUDE,
+            mistralai: secretsModule.SECRET_KEYS.MISTRALAI,
+            custom: secretsModule.SECRET_KEYS.CUSTOM,
+        }[probeSource];
+        await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
 
         await script.getCharacters();
         if (!Array.isArray(script.characters) || script.characters.length === 0) {
@@ -685,9 +732,20 @@ try {
         // the peer cannot travel in the request (its URL is a pinned literal with no request member), so the
         // legacy `custom_url` is left alone and the GoTavern leg is aimed by its seam below.
         oai_settings.chat_completion_source = probeSource;
+        // CLAUDE AND MISTRALAI ARE AIMED THROUGH THE FRONTEND'S OWN `reverse_proxy` SETTING, not a
+        // test-only seam: both read it (their provider-wire scenarios include a reverse-proxy variant), so
+        // the peer address travels the way a user's endpoint would and BOTH legs follow it.
         if (probeSource === 'openrouter') {
             oai_settings.openrouter_model = 'probe-model';
+        } else if (probeSource === 'claude') {
+            oai_settings.claude_model = 'probe-model';
+            oai_settings.reverse_proxy = mockUrl;
+        } else if (probeSource === 'mistralai') {
+            oai_settings.mistralai_model = 'probe-model';
+            oai_settings.reverse_proxy = mockUrl;
         } else if (captured) {
+            oai_settings.custom_url = mockUrl;
+        } else {
             oai_settings.custom_url = mockUrl;
         }
 
@@ -772,6 +830,77 @@ try {
         // key, so the drive presses the same control and waits for the status to change. Measured
         // first: without this, the real generation stopped right after GENERATION_AFTER_COMMANDS with
         // the composer untouched and no user message appended.
+        // CREDENTIALS GO THROUGH THE FIELD THE CONNECT HANDLER READS, not through the secrets API. openai.js
+        // :6082 reads `$(config.selector).val()`, writes the secret itself and updates `secret_state`; a
+        // drive that writes /api/secrets/write directly leaves the page's map stale (it is populated once at
+        // load, secrets.js:419), so the handler's `!secret_state[config.key]` guard fires and returns BEFORE
+        // any status call -- measured as an empty peer path log on both legs with no status request at all.
+        const sourceKeySelector = {
+            claude: '#api_key_claude',
+            mistralai: '#api_key_mistralai',
+            openrouter: '#api_key_openrouter',
+            custom: '#api_key_custom',
+        }[probeSource];
+        // THE PROXY FIELD IS TYPED, NOT ASSIGNED. `oai_settings.reverse_proxy` is written by the
+        // `#openai_reverse_proxy` handler (openai.js:6031); assigning the property directly left the connect
+        // guard `!secret_state[MISTRALAI] && (!proxy || !reverse_proxy)` (openai.js:6089) firing, which is
+        // why a validating source issued NO status call at all. Typing through the field is the user path
+        // and the handler writes the same property.
+        // THE DOM IS MEASURED BEFORE IT IS USED. Two rounds were spent guessing selectors; this records what
+        // the panel actually renders (the reverse-proxy field's real id/value, whether the per-source key
+        // field exists, and what the setting holds) so the next decision is a reading, not a guess.
+        globalThis.__probeDomDump = {
+            source: probeSource,
+            reverseProxySettingBefore: String(oai_settings.reverse_proxy ?? ''),
+            proxyFieldByIdExists: Boolean(document.querySelector('#openai_reverse_proxy')),
+            proxyFieldByIdValue: document.querySelector('#openai_reverse_proxy')?.value ?? null,
+            proxyInputsRendered: [...document.querySelectorAll('input[id*="proxy"], input[name*="proxy"]')].map(element => ({ id: element.id, name: element.name, value: String(element.value ?? '') })),
+            sourceKeySelector,
+            sourceKeyFieldExists: sourceKeySelector ? Boolean(document.querySelector(sourceKeySelector)) : false,
+        };
+        // (The #openai_reverse_proxy field is NOT typed: the DOM dump showed oai_settings.reverse_proxy already
+        // populated at click time while the field itself is a different control, so typing it is noise.)
+        globalThis.__probeDomDump.reverseProxySettingAfterType = String(oai_settings.reverse_proxy ?? '');
+        // THE PROXY ACCESS KEY IS THE CREDENTIAL THE SERVER ACTUALLY READS when a reverse proxy is set:
+        // chat-completions.js:881 `const apiKey = request.body.reverse_proxy ? request.body.proxy_password : readSecret(...)`.
+        // A source secret typed into #api_key_<source> therefore does NOT satisfy it, and the route answers
+        // 400 {"error":true} with no message -- measured identically on both legs. A user fills this field in
+        // the proxy panel, so the drive does the same.
+        const proxyAccessField = document.querySelector('#openai_proxy_access_key');
+        if (proxyAccessField) {
+            proxyAccessField.value = 'probe-synthetic-key';
+            proxyAccessField.dispatchEvent(new Event('input', { bubbles: true }));
+            proxyAccessField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const keyField = sourceKeySelector ? document.querySelector(sourceKeySelector) : null;
+        if (keyField) {
+            keyField.value = 'probe-synthetic-key';
+            keyField.dispatchEvent(new Event('input', { bubbles: true }));
+            keyField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        // THE PROXY CONFIRMATION DIALOG, INSTALLED BEFORE CONNECT. `getStatusOpen` (:4493-4506) runs
+        // `validateReverseProxy()` for MISTRALAI because `validateProxySources` contains it, and the SEND path
+        // runs the same guard again (:2849) for CLAUDE, which is in `noValidateSources` and therefore gets past
+        // connect. One dialog, two symptoms: no status request (connect) or a hang with the prompt assembled and
+        // no generate request (send). The button is `.popup-button-ok` on a `<dialog>` cloned from
+        // `#popup_template` (popup.js:255-256) -- NOT scoped under `#popup`, which is why a comma list scoped
+        // there matched nothing.
+        let popupClicks = 0;
+        const popupSeen = [];
+        const popupWatcher = setInterval(() => {
+            const okButton = document.querySelector('.popup-button-ok');
+            if (!okButton) return;
+            const dialog = okButton.closest('dialog') ?? okButton.parentElement;
+            if (popupSeen.length === 0 && dialog) {
+                popupSeen.push({ id: dialog.id, className: String(dialog.className), html: String(dialog.outerHTML ?? '').slice(0, 1200) });
+                globalThis.__probePopupDump = popupSeen;
+            }
+            if (typeof okButton.click === 'function') {
+                okButton.click();
+                popupClicks += 1;
+            }
+        }, 100);
+        globalThis.__probePopupWatcherInstalled = true;
         const connectButton = document.querySelector('#api_button_openai');
         if (connectButton) {
             connectButton.click();
@@ -779,6 +908,13 @@ try {
             const fallbackConnect = document.querySelector('#api_button_openai, .api_button[data-server-connect="openai"]');
             fallbackConnect?.click();
         }
+        // NO-VALIDATE SOURCES (openai.js:4459 `getStatusOpen`): claude, ai21, vertexai, perplexity, zai,
+        // minimax. For these the page sets a STATUS MESSAGE ("Key saved; press \"Test Message\" to verify.")
+        // and returns BEFORE the status route is called, so a drive that waits for a connected online_status
+        // waits for a state a user of these sources never reaches. Assert the state the page DOES reach and
+        // record its text; a real user's only verification is the first message, so the drive sends.
+        const NO_VALIDATE_SOURCES = ['claude', 'ai21', 'vertexai', 'perplexity', 'zai', 'minimax'];
+        const noValidate = NO_VALIDATE_SOURCES.includes(probeSource);
         const connectionDeadline = performance.now() + 30000;
         let onlineStatus = 'unknown';
         while (performance.now() < connectionDeadline) {
@@ -787,7 +923,13 @@ try {
             if (onlineStatus !== 'no_connection' && onlineStatus !== 'unknown') break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        if (onlineStatus === 'no_connection') {
+        if (noValidate) {
+            // Recorded, not synthesised: whatever the page itself says after the no-validate branch, plus
+            // the preconditions it implies, so the artifact can name the connect state.
+            const statusElement = document.querySelector('#online_status');
+            onlineStatus = String(statusElement?.textContent ?? onlineStatus);
+        }
+        if (!noValidate && onlineStatus === 'no_connection') {
             return { preconditions: { charactersLoaded: true, settingsReady: true, onlineStatus, connectButtonPresent: Boolean(connectButton) }, error: 'the frontend never reached a connected online_status; a send is silently ignored in that state' };
         }
         // WHICH MODELS THE PAGE ACCEPTED for the openrouter source: an empty or fallback-only list
@@ -795,7 +937,15 @@ try {
         // list whose connect path needs a call the peer does not answer.
         const modelOptionValues = [...document.querySelectorAll('#model_openrouter_select option')].map(option => String(option.value)).slice(0, 25);
         const modelOptionCount = document.querySelectorAll('#model_openrouter_select option').length;
+        // THE PROXY CONFIRMATION DIALOG (openai.js:2849 -> validateReverseProxy :537-563). `proxySupportedSources`
+        // includes CLAUDE and MISTRALAI, so `generate_data.reverse_proxy` IS sent; the send then awaits an
+        // accountStorage-gated confirm popup, and an unclicked popup looks exactly like a hang: the promise
+        // never settles, no provider request is issued, both legs identical, 60 s later the drive times out.
+        // A real user sees this dialog once and clicks Connect, so the drive clicks the same button instead of
+        // pre-setting `Proxy_SkipConfirm_<hash>` in accountStorage -- the popup path is the user's path.
+        // (the popup watcher is installed before the connect click above)
         const before = diagnostics();
+        before.popupWatcherInstalled = globalThis.__probePopupWatcherInstalled === true;
         before.modelOptionCount = modelOptionCount;
         before.modelOptionValues = modelOptionValues;
         // Preconditions a real user action implies. Asserted, not assumed: an unfaithful drive must
@@ -997,6 +1147,9 @@ try {
             chatDomMessages: document.querySelectorAll('#chat .mes').length,
             textareaValue: String(document.querySelector('#send_textarea')?.value ?? ''),
             tokenCountProbe,
+            popupClicks,
+            popupSeen,
+            popupClicks,
             emitPending: (globalThis.__probeEmitLog ?? []).filter(entry => entry.settled === false).map(entry => entry.name),
             renderSnapshots: renderSnapshots(),
             finalAssistantText: (() => {
@@ -1057,6 +1210,14 @@ try {
         report.failure = `Generate threw: ${outcome.error}`;
     }
 
+    // Read the measured DOM back out of the page, whatever the drive's outcome was: a failed drive still
+    // has to answer what the panel rendered.
+    try {
+        report.domDump = await page.evaluate(() => globalThis.__probeDomDump ?? null);
+        report.popupDump = await page.evaluate(() => globalThis.__probePopupDump ?? null);
+    } catch (error) {
+        report.domDumpError = String(error.message ?? error);
+    }
     report.streamState = outcome.postSend?.streamState ?? null;
     if (streamingMode) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the

@@ -118,6 +118,37 @@ if (openrouterGeneration) {
     const openrouterDiffs = Array.isArray(openrouterGeneration.bodyDifferences) ? openrouterGeneration.bodyDifferences.length : 0;
     console.log(`  generation-openrouter-comparison.json providerRequestEqual true, ${openrouterDiffs} documented body difference(s), ${openrouterBytes} B per leg`);
 }
+// ---- generation-mistral-comparison.json -------------------------------------------------------
+//
+// The MISTRALAI source measured end to end in the browser. Same checks as the OpenRouter generation
+// artifact, deliberately: a second source must not be held to a weaker standard.
+const mistralGeneration = read('generation-mistral-comparison.json');
+if (mistralGeneration) {
+    if (mistralGeneration.providerRequestEqual !== true) {
+        fail('generation-mistral-comparison.json', 'providerRequestEqual is not true, so the mistralai provider-wire claim is unsupported');
+    }
+    if (mistralGeneration.requestArrived?.gotavern !== true || mistralGeneration.requestArrived?.pinned !== true) {
+        fail('generation-mistral-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (mistralGeneration.milestoneEqual !== true) {
+        const reason = mistralGeneration.milestoneDifferenceReason;
+        if (typeof reason !== 'string' || reason.trim() === '') {
+            fail('generation-mistral-comparison.json', 'milestoneEqual is false with NO milestoneDifferenceReason recorded');
+        }
+    }
+    for (const [name, value] of Object.entries(mistralGeneration.guards ?? {})) {
+        if (value !== true) fail('generation-mistral-comparison.json', `guard ${name} is not true`);
+    }
+    // THE CREDENTIAL TRAVELLED, stated without carrying it: with a reverse proxy set the pinned route reads
+    // request.body.proxy_password and NOT the source secret, and answers a bare 400 {error:true} when it is
+    // absent. A reader looking at a future 400 needs this in one glance.
+    if (typeof mistralGeneration.proxyPasswordPresent?.gotavern !== 'boolean' || typeof mistralGeneration.proxyPasswordPresent?.pinned !== 'boolean') {
+        fail('generation-mistral-comparison.json', 'proxyPasswordPresent is not recorded as a boolean for both legs');
+    }
+    if (mistralGeneration.proxyPasswordPresent.gotavern !== true || mistralGeneration.proxyPasswordPresent.pinned !== true) {
+        fail('generation-mistral-comparison.json', 'proxyPasswordPresent is not true on both legs, so the credential did not travel and any 400 is about the credential');
+    }
+}
 // ---- streaming-openrouter-comparison.json -----------------------------------------------------
 //
 // The OpenRouter source's C surface: a streamed reply, a cancellation, and the non-stream control, each

@@ -282,6 +282,15 @@ const main = async () => {
             gotavern: { eventsBeforeClick: gotavern.eventsBeforeClick?.count ?? null, quiescence: gotavern.quiescence ?? null, settle: gotavern.settle ?? null },
             pinned: { eventsBeforeClick: pinned.eventsBeforeClick?.count ?? null, quiescence: pinned.quiescence ?? null, settle: pinned.settle ?? null },
         },
+        // DID THE CREDENTIAL TRAVEL? With a reverse proxy set the pinned server reads
+        // `request.body.proxy_password` and NOT the source secret (chat-completions.js:881), and answers a bare
+        // 400 {"error":true} when it is absent -- a fact this lane spent two rounds on. Recorded as a BOOLEAN
+        // and never as the value, so a reader looking at a 400 knows in one glance whether the credential was
+        // the problem, and the artifact cannot carry the credential itself.
+        proxyPasswordPresent: {
+            gotavern: (gotavern.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
+            pinned: (pinned.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
+        },
         guards: guards(gotavern, pinned),
         // One line, in the artifact itself, so the next reader does not assume this is the old window
         // rule: it is an INVOCATION-level assertion, and independent counting invocations are recorded
