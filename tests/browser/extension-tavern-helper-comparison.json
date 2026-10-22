@@ -1,0 +1,793 @@
+{
+  "schemaVersion": 1,
+  "question": "does the pinned frontend reach the same final state and make the same backend calls with Tavern Helper / JS-Slash-Runner installed on GoTavern and on pinned?",
+  "captures": {
+    "gotavern": "extension-tavern-helper-gotavern.json",
+    "pinned": "extension-tavern-helper-pinned.json"
+  },
+  "provenance": {
+    "extension": {
+      "name": "JS-Slash-Runner",
+      "commit": "837a6288135cde61522a9279173b98020f08807e",
+      "gotavernInstalledRevision": "837a6288135cde61522a9279173b98020f08807e",
+      "pinnedInstalledRevision": "837a6288135cde61522a9279173b98020f08807e",
+      "gotavernManifestVersion": "4.11.3",
+      "pinnedManifestVersion": "4.11.3"
+    }
+  },
+  "guards": {
+    "gotavernFailure": null,
+    "pinnedFailure": null,
+    "gotavernReachedUserState": true,
+    "pinnedReachedUserState": true,
+    "gotavernExtensionLoaded": true,
+    "pinnedExtensionLoaded": true,
+    "extensionRevisionMatches": true,
+    "faithful": true
+  },
+  "summary": {
+    "different-shape": 2,
+    "equal": 11,
+    "different-status": 2,
+    "missing-on-gotavern": 5,
+    "extra-on-gotavern": 1
+  },
+  "differenceCount": 10,
+  "differences": [
+    {
+      "method": "GET",
+      "path": "/api/extensions/discover",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-shape",
+      "body": {
+        "gotavernShape": {
+          "type": "array",
+          "length": 1,
+          "item": {
+            "type": "object",
+            "keys": {
+              "name": "string",
+              "type": "string"
+            }
+          }
+        },
+        "pinnedShape": {
+          "type": "array",
+          "length": 15,
+          "item": {
+            "type": "object",
+            "keys": {
+              "name": "string",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/backgrounds/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-status",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/backgrounds/folders",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/chats/recent",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/extensions/update",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 0
+      },
+      "status": {
+        "gotavern": [
+          500
+        ],
+        "pinned": []
+      },
+      "classification": "extra-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/horde/text-models",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-shape",
+      "body": {
+        "gotavernShape": {
+          "type": "array",
+          "length": 27,
+          "item": {
+            "type": "object",
+            "keys": {
+              "count": "number",
+              "eta": "number",
+              "is_whitelisted": "boolean",
+              "jobs": "number",
+              "name": "string",
+              "performance": "number",
+              "queued": "number",
+              "type": "string"
+            }
+          }
+        },
+        "pinnedShape": {
+          "type": "array",
+          "length": 28,
+          "item": {
+            "type": "object",
+            "keys": {
+              "baseline": "string",
+              "count": "number",
+              "description": "string",
+              "display_name": "string",
+              "eta": "number",
+              "is_whitelisted": "boolean",
+              "jobs": "number",
+              "model_name": "string",
+              "name": "string",
+              "nsfw": "boolean",
+              "parameters": "number",
+              "performance": "number",
+              "queued": "number",
+              "style": "string",
+              "tags": {
+                "type": "array",
+                "length": 1,
+                "item": "string"
+              },
+              "type": "string",
+              "version": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/image-metadata/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-replies/save",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/sd/comfy/workflows",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/get",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 2
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200,
+          200
+        ]
+      },
+      "classification": "different-status",
+      "body": null
+    }
+  ],
+  "finalState": {
+    "gotavern": {
+      "settingsReady": true,
+      "title": "SillyTavern",
+      "extensionContainerCount": 32,
+      "extensionSettingsPresent": true,
+      "characterListPresent": true,
+      "sendButtonPresent": true,
+      "quickReplyPresent": false
+    },
+    "pinned": {
+      "settingsReady": true,
+      "title": "SillyTavern",
+      "extensionContainerCount": 32,
+      "extensionSettingsPresent": true,
+      "characterListPresent": true,
+      "sendButtonPresent": true,
+      "quickReplyPresent": false
+    },
+    "equalFields": [
+      "characterListPresent",
+      "extensionContainerCount",
+      "extensionSettingsPresent",
+      "quickReplyPresent",
+      "sendButtonPresent",
+      "settingsReady",
+      "title"
+    ],
+    "differences": []
+  },
+  "consoleErrors": {
+    "gotavern": [
+      "Refused to apply style from 'http://127.0.0.1:54343/css/user.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Extension update failed 500 Internal Server Error Internal Server Error. Check the server logs for more details.",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pinned": []
+  },
+  "pageErrors": {
+    "gotavern": [],
+    "pinned": []
+  },
+  "rowsNote": "API and extension-asset calls are compared by method+path membership and status; JSON bodies are asserted on a bounded SHAPE skeleton, and a body with no skeleton is recorded but not asserted because each leg is a single run.",
+  "rows": [
+    {
+      "method": "GET",
+      "path": "/api/extensions/discover",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-shape",
+      "body": {
+        "gotavernShape": {
+          "type": "array",
+          "length": 1,
+          "item": {
+            "type": "object",
+            "keys": {
+              "name": "string",
+              "type": "string"
+            }
+          }
+        },
+        "pinnedShape": {
+          "type": "array",
+          "length": 15,
+          "item": {
+            "type": "object",
+            "keys": {
+              "name": "string",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/projects/novi028%2FJS-Slash-Runner/repository/files/manifest.json/raw",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-bytes"
+    },
+    {
+      "method": "GET",
+      "path": "/scripts/extensions/third-party/JS-Slash-Runner/dist/index.css",
+      "kind": "extension-asset",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-bytes"
+    },
+    {
+      "method": "GET",
+      "path": "/scripts/extensions/third-party/JS-Slash-Runner/dist/index.js",
+      "kind": "extension-asset",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-bytes"
+    },
+    {
+      "method": "GET",
+      "path": "/scripts/extensions/third-party/JS-Slash-Runner/lib/jsoneditor.js",
+      "kind": "extension-asset",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-bytes"
+    },
+    {
+      "method": "GET",
+      "path": "/scripts/extensions/third-party/JS-Slash-Runner/manifest.json",
+      "kind": "extension-asset",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/avatars/get",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/backgrounds/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-status",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/backgrounds/folders",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/characters/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chats/recent",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/extensions/update",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 0
+      },
+      "status": {
+        "gotavern": [
+          500
+        ],
+        "pinned": []
+      },
+      "classification": "extra-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/horde/status",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/horde/text-models",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "different-shape",
+      "body": {
+        "gotavernShape": {
+          "type": "array",
+          "length": 27,
+          "item": {
+            "type": "object",
+            "keys": {
+              "count": "number",
+              "eta": "number",
+              "is_whitelisted": "boolean",
+              "jobs": "number",
+              "name": "string",
+              "performance": "number",
+              "queued": "number",
+              "type": "string"
+            }
+          }
+        },
+        "pinnedShape": {
+          "type": "array",
+          "length": 28,
+          "item": {
+            "type": "object",
+            "keys": {
+              "baseline": "string",
+              "count": "number",
+              "description": "string",
+              "display_name": "string",
+              "eta": "number",
+              "is_whitelisted": "boolean",
+              "jobs": "number",
+              "model_name": "string",
+              "name": "string",
+              "nsfw": "boolean",
+              "parameters": "number",
+              "performance": "number",
+              "queued": "number",
+              "style": "string",
+              "tags": {
+                "type": "array",
+                "length": 1,
+                "item": "string"
+              },
+              "type": "string",
+              "version": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/image-metadata/all",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/quick-replies/save",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/sd/comfy/workflows",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 0,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "missing-on-gotavern",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/secrets/read",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 1
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/get",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 1,
+        "pinned": 2
+      },
+      "status": {
+        "gotavern": [
+          200
+        ],
+        "pinned": [
+          200,
+          200
+        ]
+      },
+      "classification": "different-status",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/save",
+      "kind": "api",
+      "occurrences": {
+        "gotavern": 2,
+        "pinned": 2
+      },
+      "status": {
+        "gotavern": [
+          200,
+          200
+        ],
+        "pinned": [
+          200,
+          200
+        ]
+      },
+      "classification": "equal",
+      "body": "equal-shape"
+    }
+  ]
+}

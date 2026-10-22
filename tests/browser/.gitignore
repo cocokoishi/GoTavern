@@ -21,3 +21,11 @@ cancel-gotavern.json
 cancel-pinned.json
 nonstream-gotavern.json
 nonstream-pinned.json
+# Per-run legs of the extension E2E (Tavern Helper / JS-Slash-Runner). Same reasoning as the legs above:
+# the committed artifact is extension-tavern-helper-comparison.json, which records the DIFFERENCES and
+# the guards. A committed leg here would be 60-210 KB of one run's evidence and invite treating a known
+# divergence as the expected value.
+extension-tavern-helper-gotavern.json
+extension-tavern-helper-pinned.json
+extension-littlewhitebox-gotavern.json
+extension-littlewhitebox-pinned.json
