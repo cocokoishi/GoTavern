@@ -474,6 +474,33 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 				}
 			}
 		}
+	case chatCompletionSourceWAI:
+		// chat-completions.js:2576. The base URL is derived from the request body, and the missing account id
+		// refuses with 400 {error:true} BEFORE the fetch -- that refusal is a labelled derivation in the test
+		// file because the harness has no provider traffic to record for it.
+		accountID, hasAccountID := pinnedWorkersAIAccountID(body)
+		if !hasAccountID {
+			return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+		}
+		apiURL = pinnedWorkersAIBaseURL(accountID)
+		secret, err := pinnedReadSecret(directories, pinnedWorkersAISecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+		if penalty, exists := body.member("repetition_penalty"); exists && !penalty.isUndefined() {
+			bodyParams.setMember("repetition_penalty", penalty)
+		}
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			format := nodeObject()
+			format.setMember("type", nodeString("json_schema"))
+			if value, hasValue := schema.member("value"); hasValue {
+				format.setMember("json_schema", value)
+			} else {
+				format.setMember("json_schema", nodeUndefined())
+			}
+			bodyParams.setMember("response_format", format)
+		}
 	case chatCompletionSourceGroq:
 		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
 		// body params of its own. Its one fold is a json_schema shape the shared response_format helper

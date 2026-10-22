@@ -1,0 +1,99 @@
+{
+    "schemaVersion":  1,
+    "name":  "workers-ai-stream",
+    "purpose":  "WORKERS_AI streaming: pins the SSE framing forwarded by the shared path against workers-ai-nonstream as the control.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "workers_ai",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_workers_ai":  [
+                                               {
+                                                   "id":  "probe-id-api_key_workers_ai",
+                                                   "value":  "synthetic-workers-ai-key",
+                                                   "label":  "api_key_workers_ai",
+                                                   "active":  true
+                                               }
+                                           ]
+                },
+    "expectedAuthorizationKey":  "synthetic-workers-ai-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://api.cloudflare.com/client/v4/accounts",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_WORKERS_AI_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://api.cloudflare.com/client/v4/accounts"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "workers_ai",
+                                 "workers_ai_account_id":  "probe-account",
+                                 "model":  "@cf/probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  true
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "text/event-stream"
+                                                       }
+                                                   ],
+                                       "stream":  [
+                                                      "data: {\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock \"},\"finish_reason\":null}]}\n\n",
+                                                      "data: {\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"reply\"},\"finish_reason\":null}]}\n\n",
+                                                      "data: {\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+                                                      "data: [DONE]\n\n"
+                                                  ]
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as the literal \"Bearer \u003csynthetic workers-ai key\u003e\"",
+                                            "reason":  "the scenario declines to store the key and records authorizationKeyVerified instead",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the ACCOUNTS PREFIX is replaced with \u003cmock\u003e; the account id segment and the /ai/v1 tail stay compared",
+                                            "reason":  "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded",
+                                            "reason":  "wall-clock measurement, differs every run",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}

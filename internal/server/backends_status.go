@@ -58,6 +58,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveNanoGPTChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceWAI {
+		runtime.serveWorkersAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceGroq {
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return

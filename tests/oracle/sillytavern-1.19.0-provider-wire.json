@@ -27,6 +27,9 @@
     },
     "GOTAVERN_SILICONFLOW_CHAT_URL": {
       "pinnedLiteral": "https://api.siliconflow.com/v1"
+    },
+    "GOTAVERN_WORKERS_AI_CHAT_URL": {
+      "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
     }
   },
   "scenarios": {
@@ -10544,6 +10547,1065 @@
       "goSeam": {
         "environmentVariable": "GOTAVERN_SILICONFLOW_CHAT_URL",
         "pinnedLiteral": "https://api.siliconflow.com/v1"
+      }
+    },
+    "workers-ai-account-escaping": {
+      "scenario": "workers-ai-account-escaping.json",
+      "purpose": "WORKERS_AI with an account id containing reserved characters: encodeURIComponent must turn acc/one?x=1 into acc%2Fone%3Fx%3D1 in the path. Without an input that carries them, an implementation that interpolates the raw value produces the same visible request on a plain id and the assertion would be decoration.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "acc/one?x=1",
+              "model": "@cf/probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "646f85ba3e0a363e0c165987d91f27624113f79f57ad7a0bceff33c2f6cd2c47"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/acc%2Fone%3Fx%3D1/ai/v1/chat/completions",
+            "rawPath": "/acc%2Fone%3Fx%3D1/ai/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "185"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"@cf/probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJAY2YvcHJvYmUtbW9kZWwiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 185,
+            "bodySha256": "0dc30a9159bd9aafb4dec04a1f5bbdbe7f4e1ba2819131aec6d8c0427747adef",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"93-TQ7q0j7mPH5GQFjRG4CwFbCUdxA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-openrouter",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
+      }
+    },
+    "workers-ai-error-status": {
+      "scenario": "workers-ai-error-status.json",
+      "purpose": "WORKERS_AI provider non-2xx: pins the browser-visible shape the shared path produces rather than a forwarded status.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "probe-account",
+              "model": "@cf/probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": true
+            },
+            "bodySha256": "11dcca4dc10acf56a0ac093ce7c8e05d99e51e48e95d61226162cf0aadda49bd"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/probe-account/ai/v1/chat/completions",
+            "rawPath": "/probe-account/ai/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "184"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"@cf/probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJAY2YvcHJvYmUtbW9kZWwiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjp0cnVlfQ==",
+            "bodyLength": 184,
+            "bodySha256": "3cd377051a6b5b37e653967e642bfaf5d59413a2f6b8812e85f1a34a7814e139",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 429,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
+      }
+    },
+    "workers-ai-json-schema": {
+      "scenario": "workers-ai-json-schema.json",
+      "purpose": "WORKERS_AI with repetition_penalty and json_schema: response_format is {type:\"json_schema\", json_schema:<the schema value itself>} -- NOT the {name,strict,schema} envelope other sources use, so the compared body names no wrapper keys.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "probe-account",
+              "model": "@cf/probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false,
+              "repetition_penalty": 1.1,
+              "json_schema": {
+                "name": "probe_schema",
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "bodySha256": "ede54b36762abf349a0707f6ab0b775b88fca78d03fff843af999845f873fe8c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/probe-account/ai/v1/chat/completions",
+            "rawPath": "/probe-account/ai/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "325"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"@cf/probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"repetition_penalty\":1.1,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"type\":\"object\",\"properties\":{\"answer\":{\"type\":\"string\"}}}}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJAY2YvcHJvYmUtbW9kZWwiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjpmYWxzZSwicmVwZXRpdGlvbl9wZW5hbHR5IjoxLjEsInJlc3BvbnNlX2Zvcm1hdCI6eyJ0eXBlIjoianNvbl9zY2hlbWEiLCJqc29uX3NjaGVtYSI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJhbnN3ZXIiOnsidHlwZSI6InN0cmluZyJ9fX19fQ==",
+            "bodyLength": 325,
+            "bodySha256": "66907410df74c89fab908c0843d71e4b44588178d20ec5ede86ef4176a019767",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"93-TQ7q0j7mPH5GQFjRG4CwFbCUdxA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-openrouter",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
+      }
+    },
+    "workers-ai-nonstream": {
+      "scenario": "workers-ai-nonstream.json",
+      "purpose": "WORKERS_AI, non-streaming: pins that the ACCOUNTS PREFIX plus the account id SEGMENT plus /ai/v1 is the base (the URL is derived from a request body value), api_key_workers_ai as the bearer, no header of its own, and no extra body member when repetition_penalty is absent.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "probe-account",
+              "model": "@cf/probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "78e3620c1ce6bc645571bcca5e58da64acc8a72ae0b87b1c93471bc7015bd9d0"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/probe-account/ai/v1/chat/completions",
+            "rawPath": "/probe-account/ai/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "185"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"@cf/probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJAY2YvcHJvYmUtbW9kZWwiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjpmYWxzZX0=",
+            "bodyLength": 185,
+            "bodySha256": "0dc30a9159bd9aafb4dec04a1f5bbdbe7f4e1ba2819131aec6d8c0427747adef",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"93-TQ7q0j7mPH5GQFjRG4CwFbCUdxA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-openrouter",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
+      }
+    },
+    "workers-ai-status": {
+      "scenario": "workers-ai-status.json",
+      "purpose": "WORKERS_AI /status: NOT the generic models GET. The arm requires the key AND the account id (400 for either, pre-fetch), GETs <prefix>/<accountId>/ai/models/search?task=Text+Generation&per_page=1000, and projects the reply to {data: result.map(m => ({...m, id: m.name}))} -- so the recorded response carries an id the provider never sent. The query and the projection are both compared.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/status",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "probe-account"
+            },
+            "bodySha256": "d47107d32b6fbc54f7bb2779c1618b210010b031968e9ded113626be725c6110"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "GET",
+            "rawTarget": "/probe-account/ai/models/search?task=Text+Generation&per_page=1000",
+            "rawPath": "/probe-account/ai/models/search",
+            "rawQuery": "task=Text+Generation&per_page=1000",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "",
+            "bodyBase64": "",
+            "bodyLength": 0,
+            "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"c2-0J5hQo5p8BPd7EHnY21JZcK4xLg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "data": [
+            {
+              "name": "@cf/probe/model-one",
+              "task": {
+                "name": "Text Generation"
+              },
+              "id": "@cf/probe/model-one"
+            },
+            {
+              "name": "@cf/probe/model-two",
+              "task": {
+                "name": "Text Generation"
+              },
+              "id": "@cf/probe/model-two"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
+      }
+    },
+    "workers-ai-stream": {
+      "scenario": "workers-ai-stream.json",
+      "purpose": "WORKERS_AI streaming: pins the SSE framing forwarded by the shared path against workers-ai-nonstream as the control.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "workers_ai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "workers_ai",
+              "workers_ai_account_id": "probe-account",
+              "model": "@cf/probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": true
+            },
+            "bodySha256": "11dcca4dc10acf56a0ac093ce7c8e05d99e51e48e95d61226162cf0aadda49bd"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/probe-account/ai/v1/chat/completions",
+            "rawPath": "/probe-account/ai/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "184"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"@cf/probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJAY2YvcHJvYmUtbW9kZWwiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjp0cnVlfQ==",
+            "bodyLength": 184,
+            "bodySha256": "3cd377051a6b5b37e653967e642bfaf5d59413a2f6b8812e85f1a34a7814e139",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": [
+          {
+            "event": null,
+            "data": "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock \"},\"finish_reason\":null}]}"
+          },
+          {
+            "event": null,
+            "data": "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"reply\"},\"finish_reason\":null}]}"
+          },
+          {
+            "event": null,
+            "data": "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}"
+          },
+          {
+            "event": null,
+            "data": "[DONE]"
+          }
+        ]
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers.authorization",
+            "rule": "compared as the literal \"Bearer <synthetic workers-ai key>\"",
+            "reason": "the scenario declines to store the key and records authorizationKeyVerified instead",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2577 apiKey = readSecret(request.user.directories, SECRET_KEYS.WORKERS_AI, request.body.secret_id)"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the ACCOUNTS PREFIX is replaced with <mock>; the account id segment and the /ai/v1 tail stay compared",
+            "reason": "WORKERS_AI derives its base from a REQUEST BODY VALUE: apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`. The seam is therefore the prefix only, and the account id is asserted as a path SEGMENT, because one combined literal would hide which part is pinned and which part is caller data.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2582 apiUrl = `${API_WORKERS_AI}/${encodeURIComponent(accountId)}/ai/v1`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded",
+            "reason": "wall-clock measurement, differs every run",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "Host",
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_WORKERS_AI_CHAT_URL",
+        "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
       }
     }
   }
