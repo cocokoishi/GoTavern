@@ -54,7 +54,7 @@ func registerDataMaidRoutes(mux *http.ServeMux, accounts *accountRuntime, notFou
 }
 
 // dataMaidChatBackupsPrefix is `CHAT_BACKUPS_PREFIX` (src/endpoints/chats.js:32).
-const dataMaidChatBackupsPrefix = "chats_"
+const dataMaidChatBackupsPrefix = "chat_"
 
 // dataMaidSettingsBackupPrefix is `getSettingsBackupFilePrefix(handle)` (src/endpoints/settings.js:88).
 func dataMaidSettingsBackupPrefix(handle string) string {
@@ -295,9 +295,7 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 	// carries "Origin" alone. respondBinary cannot be used here for exactly that reason.
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 	w.Header().Set("ETag", expressWeakETag(content))
-	if !pinnedCompressibleContentType(mediaType) {
-		w.Header().Set("Vary", "Origin")
-	}
+	_ = pinnedCompressibleContentType
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(content)
 }
