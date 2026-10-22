@@ -245,6 +245,25 @@ jobs:
         # It never touches the network: the seam points at 127.0.0.1 and assertion 6 proves it.
         run: bash scripts/qualify-install.sh "$PWD"
 
+      - name: Qualify install.ps1 against the same archives, under pwsh
+        # install.ps1 was executed by NOTHING. This runs it, for real, with `pwsh` on this runner,
+        # against the same loopback mirror and the SAME assertion set as the step above -- the mirror
+        # builder and every assertion are shared, so the two installers cannot drift apart in what they
+        # claim. The payload differs only as the formats differ: a zip with gotavern.exe at its root,
+        # built from the same staged tree the tar.gz holds.
+        #
+        # WHAT THIS DOES NOT COVER, and therefore leaves unexecuted, because these are Windows-only:
+        #   - Windows path separators and drive letters: Join-Path runs, the separator is never `\`;
+        #   - replacing a RUNNING gotavern.exe, which fails on Windows while the file is locked; nothing
+        #     in this job holds it open, so that branch cannot be reached here;
+        #   - the registry, shortcuts, `$env:LOCALAPPDATA`, Start Menu entries and elevation: install.ps1
+        #     does none of these, and this job cannot prove what it would do if it did;
+        #   - cmd.exe itself, so Start.cmd is asserted to be WRITTEN and to run gotavern.exe from its
+        #     own directory, but is never launched. The script prints a `skip:` line saying so.
+        # The exact same list is in scripts/qualify-install.sh's header and in docs/INSTALLATION.md
+        # section 3.1, so the claim, the coverage and the scheduling stay in one place.
+        run: bash scripts/qualify-install.sh --powershell "$PWD"
+
       - name: Report failure context
         if: failure()
         run: |

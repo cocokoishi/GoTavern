@@ -133,7 +133,16 @@ This is a **mirror / air-gapped install** feature, not a test hook, and it does 
 - a missing `checksums.txt`, a missing entry for the asset, or a mismatched digest each abort the install and install nothing;
 - when the variable is unset, every URL and flag is byte-identical to the previous behaviour.
 
-**Status of the two installers.** `install.sh` is executed by release qualification, which serves the archives a release build produced in the same run on loopback and then installs, runs, verifies, re-installs, upgrades and rolls back through it (`scripts/qualify-install.sh`). `install.ps1` carries the same mirror seam and the same `tokenizers/` requirement, but **nothing executes it**: it needs Windows PowerShell, which the Linux qualification runner does not have. It is therefore `partial` with that reason rather than claimed verified.
+**Status of the two installers.** BOTH are executed by release qualification, against a loopback mirror serving the archives a release build produced in the same run. scripts/qualify-install.sh qualifies install.sh; scripts/qualify-install.sh --powershell qualifies install.ps1 under pwsh with the SAME mirror builder and the SAME assertion set, so the two cannot drift apart in what they claim. Both are held to: the mirror served the metadata and archive requests (so an ignored seam shows up as a missing request rather than as a successful install from github.com), a tampered archive aborts and installs nothing, 	okenizers/ is installed beside the binary, ssets verify passes from the installed prefix before and after an upgrade, and a re-install and a rollback preserve a user file and config.yaml byte for byte.
+
+Running install.ps1 under pwsh on Linux does **not** execute its Windows-only behaviour, and those parts are named here rather than implied:
+
+- Windows path separators and drive letters: Join-Path runs, but the separator is never a \;
+- replacing a **running** gotavern.exe, which fails on Windows while the file is locked. Nothing in the qualification job holds the file open, so that branch cannot be reached there;
+- the registry, shortcuts, $env:LOCALAPPDATA, Start Menu entries and elevation: the installer does none of these, and neither the run nor this document can prove what it would do if it did;
+- cmd.exe itself, so Start.cmd is asserted to be written and to invoke gotavern.exe from its own directory, but it is never launched. The script prints a skip: line saying so.
+
+Two of those gaps have a size worth stating: the running-executable branch is the one Windows users actually hit on update, and Start.cmd's behaviour under cmd is unverified.
 
 ---
 
@@ -410,9 +419,9 @@ A native release is not ready merely because cross-compilation succeeded. CI mus
 | # | item | evidence |
 |---|---|---|
 | 1 | archive extracts and executable starts | GATED -- release-qualification.yml asserts contents and modes, then boots the extracted binary and requires /version |
-| 2 | installer latest/version-pinned download path works | GATED -- scripts/qualify-install.sh installs through a loopback mirror in BOTH forms and requires the mirror to have served the requests |
-| 3 | checksum verification rejects tampering | GATED -- a tampered archive must ABORT, name the mismatch, and install nothing |
-| 4 | re-install preserves an existing runtime fixture | GATED -- a second install over the same prefix must preserve a user file and config.yaml byte for byte, and assets verify must still pass after an upgrade |
+| 2 | installer latest/version-pinned download path works | GATED for BOTH installers -- `scripts/qualify-install.sh` (`install.sh`) and `scripts/qualify-install.sh --powershell` (`install.ps1` under `pwsh`) install through a loopback mirror in both the latest and the version-pinned form, and require the MIRROR to have served the requests |
+| 3 | checksum verification rejects tampering | GATED for BOTH installers -- a tampered archive must ABORT, name the mismatch, and install nothing, under `install.sh` and under `install.ps1` |
+| 4 | re-install preserves an existing runtime fixture | GATED for BOTH installers -- a second install over the same prefix must preserve a user file and config.yaml byte for byte, and `assets verify` must still pass after an upgrade, under `install.sh` and under `install.ps1` | an upgrade |
 | 5 | fresh empty runtime seeds the same pinned defaults as Node | GATED -- tests/oracle/sillytavern-1.19.0-fresh-start.json |
 | 6 | migrated standalone fixture boots | GATED -- `TestMigratedInstallIsEquivalentToPointingAtTheSource` runs `gotavern migrate --from` into a temp destination, then boots BOTH the destination and a pristine copy of the source root through the real startup chain and requires the two data trees to match (path, kind, size, SHA-256, five declared exclusions); `TestDocumentedForms` covers all four documented forms and `TestSourceIsNeverModified` requires the source byte-identical afterwards |
 | 7 | custom/absolute data-root migration boots | GATED -- the same test's absolute branch migrates a source whose `dataRoot` is an out-of-tree absolute path, requires `<dest>/data` to hold the copy and `<dest>/config.yaml` to be the source bytes with only that one scalar rewritten (`TestConfigKeepsUnknownKeysAndChangesOnlyDataRoot`), and boots it |
