@@ -602,10 +602,17 @@ const fixture = {
         '/api/sd/nanogpt/generate', '/api/sd/xai/generate', '/api/sd/aimlapi/generate-image',
         '/api/sd/sdcpp/generate', '/api/sd/drawthings/generate', '/api/sd/generate',
         '/api/sd/stability/generate', '/api/sd/workersai/generate',
+        // WAVE 5 IS RECORDED BY ITS OWN PROBE. `bfl` and `falai` submit a job, sleep `delay(2500)` and
+        // poll a URL the provider names, so their scenarios live in
+        // `tools/probe-sd-generate-wave5.mjs` / `sillytavern-1.19.0-sd-generate-wave5.json`. `scenarios`
+        // in THIS file is the replay list of its own test, and adding poll scenarios here would hand them
+        // to a peer with no `times` rule support, no wave-5 seam and no provider-URL rewriting. The routes
+        // are listed as implemented because they are implemented; their observations are in that file.
+        '/api/sd/bfl/generate', '/api/sd/falai/generate',
     ],
     notImplementedRoutes: [
-        '/api/sd/bfl/generate', '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
-        '/api/sd/falai/generate', '/api/sd/zai/generate',
+        '/api/sd/comfy/generate', '/api/sd/comfyrunpod/generate',
+        '/api/sd/zai/generate',
         '/api/sd/zai/generate-video',
     ],
     // STALE REASONS DELETED. `stability/generate` and `workersai/generate` were listed here with the
