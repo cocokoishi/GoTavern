@@ -150,7 +150,13 @@ jobs:
           set -eu
           # install.sh and install.ps1 both parse "<hash>  <asset>" from this file, so the format is
           # part of the installer contract rather than a convenience.
-          sha256sum ./*.tar.gz ./*.zip > checksums.txt
+          #
+          # THE FILENAME MUST NOT CARRY A "./" PREFIX. `sha256sum ./*.tar.gz` writes
+          # "./gotavern-linux-amd64.tar.gz", and install.sh matches with
+          # `awk '$2 == asset || $2 == "*" asset'`, so the prefixed form parses to no entry and the
+          # installer aborts on the user's machine with "checksums.txt does not contain an entry".
+          # Passing bare names keeps $2 equal to the asset name the installer requests.
+          sha256sum *.tar.gz *.zip > checksums.txt
           cat checksums.txt
 
       - name: Fail if a canonical asset name is missing
