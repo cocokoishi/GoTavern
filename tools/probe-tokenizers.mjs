@@ -62,6 +62,12 @@ const TIKTOKEN_FILES = [
 const CORE_INPUTS = [
     ['empty', ''],
     ['ascii', 'Hello, world!'],
+    // The exact string the BROWSER probe counts, which is why it is here. It does NOT separate the two
+    // OpenAI encodings: measured, gpt2 (r50k_base) and gpt-4/claude (cl100k_base) both tokenize it into
+    // the same three pieces, so the "this one can" claim that first stood here was wrong and is not
+    // repeated. Its value is that it is the input a real caller sends: a count regression on it is one
+    // a user sees.
+    ['probe_user_marker', 'probe user marker'],
     ['long_ascii', 'The quick brown fox jumps over the lazy dog. '.repeat(24)],
     ['cjk', '\u3053\u3093\u306b\u3061\u306f\u4e16\u754c'],
     ['emoji', '\ud83d\ude00\ud83e\udd16'],
@@ -111,14 +117,24 @@ const FULL_INPUTS = [
 ];
 const FULL_CORPUS_ROUTES = ['llama/encode', 'gpt2/encode', 'claude/encode'];
 const OPENAI_ENCODE_MODELS = [
-    'gpt-4', 'gpt-4o', 'gpt2', 'text-davinci-003', 'claude', 'llama3', 'llama', 'mistral', 'yi',
+    'gpt-4', 'gpt-3.5-turbo', 'gpt-4o', 'gpt2', 'text-davinci-003', 'claude', 'llama3', 'llama', 'mistral', 'yi',
     'gemma', 'jamba', 'qwen2', 'command-r', 'command-a', 'nemo', 'deepseek', 'nerdstash', 'unknown-model',
 ];
-const OPENAI_ENCODE_INPUTS = ['empty', 'ascii', 'cjk', 'emoji', 'special_endoftext', 'special_endofprompt', 'special_fim', 'added_llama3'];
+const OPENAI_ENCODE_INPUTS = ['empty', 'ascii', 'probe_user_marker', 'cjk', 'emoji', 'special_endoftext', 'special_endofprompt', 'special_fim', 'added_llama3'];
 const OPENAI_DECODE_MODELS = ['gpt-4', 'gpt-4o', 'gpt2', 'text-davinci-003', 'claude', 'llama3', 'llama', 'gemma', 'qwen2', 'deepseek'];
-const COUNT_MODELS = ['gpt-4', 'gpt-3.5-turbo-0301', 'gpt-4o', 'gpt2', 'claude', 'llama3', 'llama', 'gemma', 'deepseek', 'unknown-model'];
+const COUNT_MODELS = ['gpt-4', 'gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4o', 'gpt2', 'claude', 'llama3', 'llama', 'gemma', 'deepseek', 'unknown-model'];
 const COUNT_BODIES = [
     ['simple', [{ role: 'user', content: 'Hello, world!' }]],
+    // THE SHAPE THE FRONTEND ACTUALLY SENDS. `counterWrapperOpenAIAsync` builds `{ content: text }` --
+    // NO role -- and posts `[message]` with `full = true`, so the browser's count is
+    // 3 (per message) + encode(content) + 3 (padding). Every previously recorded case carried a role, so
+    // the per-property iteration was never exercised on the shape the browser uses; that is how a browser
+    // probe could disagree with a 908-case fixture while neither side was wrong about the cases it had.
+    ['content_only_probe_user_marker', [{ content: 'probe user marker' }]],
+    ['content_only_simple', [{ content: 'Hello, world!' }]],
+    ['content_only_two_messages', [{ content: 'probe system marker' }, { content: 'probe user marker' }]],
+    ['role_content_reversed', [{ content: 'probe user marker', role: 'user' }]],
+    ['probe_user_marker', [{ role: 'user', content: 'probe user marker' }]],
     ['with_name', [{ role: 'user', content: 'Hello', name: 'Bob' }]],
     ['system_and_user', [{ role: 'system', content: 'You are a helpful assistant.' }, { role: 'user', content: 'Hi' }]],
     ['cjk', [{ role: 'user', content: '\u3053\u3093\u306b\u3061\u306f\u4e16\u754c' }]],
