@@ -63,37 +63,37 @@
     "routes": [
       {
         "route": "POST /api/tokenizers/llama/encode",
-        "cases": 38,
+        "cases": 39,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nerdstash/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nerdstash_v2/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/mistral/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/yi/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/gemma/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/jamba/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
@@ -133,7 +133,7 @@
       },
       {
         "route": "POST /api/tokenizers/gpt2/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
@@ -143,37 +143,37 @@
       },
       {
         "route": "POST /api/tokenizers/claude/encode",
-        "cases": 33,
+        "cases": 34,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/llama3/encode",
-        "cases": 20,
+        "cases": 21,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/qwen2/encode",
-        "cases": 23,
+        "cases": 24,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/command-r/encode",
-        "cases": 23,
+        "cases": 24,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/command-a/encode",
-        "cases": 23,
+        "cases": 24,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/nemo/encode",
-        "cases": 23,
+        "cases": 24,
         "status": "recorded"
       },
       {
         "route": "POST /api/tokenizers/deepseek/encode",
-        "cases": 23,
+        "cases": 24,
         "status": "recorded"
       },
       {
@@ -213,7 +213,7 @@
       },
       {
         "route": "POST /api/tokenizers/openai/encode",
-        "cases": 144,
+        "cases": 171,
         "status": "recorded"
       },
       {
@@ -223,7 +223,7 @@
       },
       {
         "route": "POST /api/tokenizers/openai/count",
-        "cases": 180,
+        "cases": 253,
         "status": "recorded"
       },
       {
@@ -241,6 +241,7 @@
     "requiredCases": [
       "llama/encode#empty",
       "llama/encode#ascii",
+      "llama/encode#probe_user_marker",
       "llama/encode#long_ascii",
       "llama/encode#cjk",
       "llama/encode#emoji",
@@ -274,6 +275,7 @@
       "llama/encode#mixed",
       "nerdstash/encode#empty",
       "nerdstash/encode#ascii",
+      "nerdstash/encode#probe_user_marker",
       "nerdstash/encode#long_ascii",
       "nerdstash/encode#cjk",
       "nerdstash/encode#emoji",
@@ -307,6 +309,7 @@
       "nerdstash/encode#mixed",
       "nerdstash_v2/encode#empty",
       "nerdstash_v2/encode#ascii",
+      "nerdstash_v2/encode#probe_user_marker",
       "nerdstash_v2/encode#long_ascii",
       "nerdstash_v2/encode#cjk",
       "nerdstash_v2/encode#emoji",
@@ -340,6 +343,7 @@
       "nerdstash_v2/encode#mixed",
       "mistral/encode#empty",
       "mistral/encode#ascii",
+      "mistral/encode#probe_user_marker",
       "mistral/encode#long_ascii",
       "mistral/encode#cjk",
       "mistral/encode#emoji",
@@ -373,6 +377,7 @@
       "mistral/encode#mixed",
       "yi/encode#empty",
       "yi/encode#ascii",
+      "yi/encode#probe_user_marker",
       "yi/encode#long_ascii",
       "yi/encode#cjk",
       "yi/encode#emoji",
@@ -406,6 +411,7 @@
       "yi/encode#mixed",
       "gemma/encode#empty",
       "gemma/encode#ascii",
+      "gemma/encode#probe_user_marker",
       "gemma/encode#long_ascii",
       "gemma/encode#cjk",
       "gemma/encode#emoji",
@@ -439,6 +445,7 @@
       "gemma/encode#mixed",
       "jamba/encode#empty",
       "jamba/encode#ascii",
+      "jamba/encode#probe_user_marker",
       "jamba/encode#long_ascii",
       "jamba/encode#cjk",
       "jamba/encode#emoji",
@@ -472,6 +479,7 @@
       "jamba/encode#mixed",
       "gpt2/encode#empty",
       "gpt2/encode#ascii",
+      "gpt2/encode#probe_user_marker",
       "gpt2/encode#long_ascii",
       "gpt2/encode#cjk",
       "gpt2/encode#emoji",
@@ -505,6 +513,7 @@
       "gpt2/encode#mixed",
       "claude/encode#empty",
       "claude/encode#ascii",
+      "claude/encode#probe_user_marker",
       "claude/encode#long_ascii",
       "claude/encode#cjk",
       "claude/encode#emoji",
@@ -538,6 +547,7 @@
       "claude/encode#mixed",
       "llama3/encode#empty",
       "llama3/encode#ascii",
+      "llama3/encode#probe_user_marker",
       "llama3/encode#long_ascii",
       "llama3/encode#cjk",
       "llama3/encode#emoji",
@@ -553,6 +563,7 @@
       "llama3/encode#added_meta_start",
       "qwen2/encode#empty",
       "qwen2/encode#ascii",
+      "qwen2/encode#probe_user_marker",
       "qwen2/encode#long_ascii",
       "qwen2/encode#cjk",
       "qwen2/encode#emoji",
@@ -568,6 +579,7 @@
       "qwen2/encode#added_meta_start",
       "command-r/encode#empty",
       "command-r/encode#ascii",
+      "command-r/encode#probe_user_marker",
       "command-r/encode#long_ascii",
       "command-r/encode#cjk",
       "command-r/encode#emoji",
@@ -583,6 +595,7 @@
       "command-r/encode#added_meta_start",
       "command-a/encode#empty",
       "command-a/encode#ascii",
+      "command-a/encode#probe_user_marker",
       "command-a/encode#long_ascii",
       "command-a/encode#cjk",
       "command-a/encode#emoji",
@@ -598,6 +611,7 @@
       "command-a/encode#added_meta_start",
       "nemo/encode#empty",
       "nemo/encode#ascii",
+      "nemo/encode#probe_user_marker",
       "nemo/encode#long_ascii",
       "nemo/encode#cjk",
       "nemo/encode#emoji",
@@ -613,6 +627,7 @@
       "nemo/encode#added_meta_start",
       "deepseek/encode#empty",
       "deepseek/encode#ascii",
+      "deepseek/encode#probe_user_marker",
       "deepseek/encode#long_ascii",
       "deepseek/encode#cjk",
       "deepseek/encode#emoji",
@@ -737,14 +752,25 @@
       "deepseek/decode#out_of_range",
       "openai/encode#gpt-4#empty",
       "openai/encode#gpt-4#ascii",
+      "openai/encode#gpt-4#probe_user_marker",
       "openai/encode#gpt-4#cjk",
       "openai/encode#gpt-4#emoji",
       "openai/encode#gpt-4#special_endoftext",
       "openai/encode#gpt-4#special_endofprompt",
       "openai/encode#gpt-4#special_fim",
       "openai/encode#gpt-4#added_llama3",
+      "openai/encode#gpt-3.5-turbo#empty",
+      "openai/encode#gpt-3.5-turbo#ascii",
+      "openai/encode#gpt-3.5-turbo#probe_user_marker",
+      "openai/encode#gpt-3.5-turbo#cjk",
+      "openai/encode#gpt-3.5-turbo#emoji",
+      "openai/encode#gpt-3.5-turbo#special_endoftext",
+      "openai/encode#gpt-3.5-turbo#special_endofprompt",
+      "openai/encode#gpt-3.5-turbo#special_fim",
+      "openai/encode#gpt-3.5-turbo#added_llama3",
       "openai/encode#gpt-4o#empty",
       "openai/encode#gpt-4o#ascii",
+      "openai/encode#gpt-4o#probe_user_marker",
       "openai/encode#gpt-4o#cjk",
       "openai/encode#gpt-4o#emoji",
       "openai/encode#gpt-4o#special_endoftext",
@@ -753,6 +779,7 @@
       "openai/encode#gpt-4o#added_llama3",
       "openai/encode#gpt2#empty",
       "openai/encode#gpt2#ascii",
+      "openai/encode#gpt2#probe_user_marker",
       "openai/encode#gpt2#cjk",
       "openai/encode#gpt2#emoji",
       "openai/encode#gpt2#special_endoftext",
@@ -761,6 +788,7 @@
       "openai/encode#gpt2#added_llama3",
       "openai/encode#text-davinci-003#empty",
       "openai/encode#text-davinci-003#ascii",
+      "openai/encode#text-davinci-003#probe_user_marker",
       "openai/encode#text-davinci-003#cjk",
       "openai/encode#text-davinci-003#emoji",
       "openai/encode#text-davinci-003#special_endoftext",
@@ -769,6 +797,7 @@
       "openai/encode#text-davinci-003#added_llama3",
       "openai/encode#claude#empty",
       "openai/encode#claude#ascii",
+      "openai/encode#claude#probe_user_marker",
       "openai/encode#claude#cjk",
       "openai/encode#claude#emoji",
       "openai/encode#claude#special_endoftext",
@@ -777,6 +806,7 @@
       "openai/encode#claude#added_llama3",
       "openai/encode#llama3#empty",
       "openai/encode#llama3#ascii",
+      "openai/encode#llama3#probe_user_marker",
       "openai/encode#llama3#cjk",
       "openai/encode#llama3#emoji",
       "openai/encode#llama3#special_endoftext",
@@ -785,6 +815,7 @@
       "openai/encode#llama3#added_llama3",
       "openai/encode#llama#empty",
       "openai/encode#llama#ascii",
+      "openai/encode#llama#probe_user_marker",
       "openai/encode#llama#cjk",
       "openai/encode#llama#emoji",
       "openai/encode#llama#special_endoftext",
@@ -793,6 +824,7 @@
       "openai/encode#llama#added_llama3",
       "openai/encode#mistral#empty",
       "openai/encode#mistral#ascii",
+      "openai/encode#mistral#probe_user_marker",
       "openai/encode#mistral#cjk",
       "openai/encode#mistral#emoji",
       "openai/encode#mistral#special_endoftext",
@@ -801,6 +833,7 @@
       "openai/encode#mistral#added_llama3",
       "openai/encode#yi#empty",
       "openai/encode#yi#ascii",
+      "openai/encode#yi#probe_user_marker",
       "openai/encode#yi#cjk",
       "openai/encode#yi#emoji",
       "openai/encode#yi#special_endoftext",
@@ -809,6 +842,7 @@
       "openai/encode#yi#added_llama3",
       "openai/encode#gemma#empty",
       "openai/encode#gemma#ascii",
+      "openai/encode#gemma#probe_user_marker",
       "openai/encode#gemma#cjk",
       "openai/encode#gemma#emoji",
       "openai/encode#gemma#special_endoftext",
@@ -817,6 +851,7 @@
       "openai/encode#gemma#added_llama3",
       "openai/encode#jamba#empty",
       "openai/encode#jamba#ascii",
+      "openai/encode#jamba#probe_user_marker",
       "openai/encode#jamba#cjk",
       "openai/encode#jamba#emoji",
       "openai/encode#jamba#special_endoftext",
@@ -825,6 +860,7 @@
       "openai/encode#jamba#added_llama3",
       "openai/encode#qwen2#empty",
       "openai/encode#qwen2#ascii",
+      "openai/encode#qwen2#probe_user_marker",
       "openai/encode#qwen2#cjk",
       "openai/encode#qwen2#emoji",
       "openai/encode#qwen2#special_endoftext",
@@ -833,6 +869,7 @@
       "openai/encode#qwen2#added_llama3",
       "openai/encode#command-r#empty",
       "openai/encode#command-r#ascii",
+      "openai/encode#command-r#probe_user_marker",
       "openai/encode#command-r#cjk",
       "openai/encode#command-r#emoji",
       "openai/encode#command-r#special_endoftext",
@@ -841,6 +878,7 @@
       "openai/encode#command-r#added_llama3",
       "openai/encode#command-a#empty",
       "openai/encode#command-a#ascii",
+      "openai/encode#command-a#probe_user_marker",
       "openai/encode#command-a#cjk",
       "openai/encode#command-a#emoji",
       "openai/encode#command-a#special_endoftext",
@@ -849,6 +887,7 @@
       "openai/encode#command-a#added_llama3",
       "openai/encode#nemo#empty",
       "openai/encode#nemo#ascii",
+      "openai/encode#nemo#probe_user_marker",
       "openai/encode#nemo#cjk",
       "openai/encode#nemo#emoji",
       "openai/encode#nemo#special_endoftext",
@@ -857,6 +896,7 @@
       "openai/encode#nemo#added_llama3",
       "openai/encode#deepseek#empty",
       "openai/encode#deepseek#ascii",
+      "openai/encode#deepseek#probe_user_marker",
       "openai/encode#deepseek#cjk",
       "openai/encode#deepseek#emoji",
       "openai/encode#deepseek#special_endoftext",
@@ -865,6 +905,7 @@
       "openai/encode#deepseek#added_llama3",
       "openai/encode#nerdstash#empty",
       "openai/encode#nerdstash#ascii",
+      "openai/encode#nerdstash#probe_user_marker",
       "openai/encode#nerdstash#cjk",
       "openai/encode#nerdstash#emoji",
       "openai/encode#nerdstash#special_endoftext",
@@ -873,6 +914,7 @@
       "openai/encode#nerdstash#added_llama3",
       "openai/encode#unknown-model#empty",
       "openai/encode#unknown-model#ascii",
+      "openai/encode#unknown-model#probe_user_marker",
       "openai/encode#unknown-model#cjk",
       "openai/encode#unknown-model#emoji",
       "openai/encode#unknown-model#special_endoftext",
@@ -910,6 +952,11 @@
       "openai/decode#deepseek#out_of_range",
       "openai/decode#deepseek#empty",
       "openai/count#gpt-4#simple",
+      "openai/count#gpt-4#content_only_probe_user_marker",
+      "openai/count#gpt-4#content_only_simple",
+      "openai/count#gpt-4#content_only_two_messages",
+      "openai/count#gpt-4#role_content_reversed",
+      "openai/count#gpt-4#probe_user_marker",
       "openai/count#gpt-4#with_name",
       "openai/count#gpt-4#system_and_user",
       "openai/count#gpt-4#cjk",
@@ -926,7 +973,34 @@
       "openai/count#gpt-4#special_then_name",
       "openai/count#gpt-4#empty_array_then_name",
       "openai/count#gpt-4#object_body_long",
+      "openai/count#gpt-3.5-turbo#simple",
+      "openai/count#gpt-3.5-turbo#content_only_probe_user_marker",
+      "openai/count#gpt-3.5-turbo#content_only_simple",
+      "openai/count#gpt-3.5-turbo#content_only_two_messages",
+      "openai/count#gpt-3.5-turbo#role_content_reversed",
+      "openai/count#gpt-3.5-turbo#probe_user_marker",
+      "openai/count#gpt-3.5-turbo#with_name",
+      "openai/count#gpt-3.5-turbo#system_and_user",
+      "openai/count#gpt-3.5-turbo#cjk",
+      "openai/count#gpt-3.5-turbo#numeric_content",
+      "openai/count#gpt-3.5-turbo#null_content",
+      "openai/count#gpt-3.5-turbo#nested_content",
+      "openai/count#gpt-3.5-turbo#array_content",
+      "openai/count#gpt-3.5-turbo#empty_array_content",
+      "openai/count#gpt-3.5-turbo#empty_messages",
+      "openai/count#gpt-3.5-turbo#special_content",
+      "openai/count#gpt-3.5-turbo#object_body",
+      "openai/count#gpt-3.5-turbo#numeric_then_name",
+      "openai/count#gpt-3.5-turbo#array_then_name",
+      "openai/count#gpt-3.5-turbo#special_then_name",
+      "openai/count#gpt-3.5-turbo#empty_array_then_name",
+      "openai/count#gpt-3.5-turbo#object_body_long",
       "openai/count#gpt-3.5-turbo-0301#simple",
+      "openai/count#gpt-3.5-turbo-0301#content_only_probe_user_marker",
+      "openai/count#gpt-3.5-turbo-0301#content_only_simple",
+      "openai/count#gpt-3.5-turbo-0301#content_only_two_messages",
+      "openai/count#gpt-3.5-turbo-0301#role_content_reversed",
+      "openai/count#gpt-3.5-turbo-0301#probe_user_marker",
       "openai/count#gpt-3.5-turbo-0301#with_name",
       "openai/count#gpt-3.5-turbo-0301#system_and_user",
       "openai/count#gpt-3.5-turbo-0301#cjk",
@@ -944,6 +1018,11 @@
       "openai/count#gpt-3.5-turbo-0301#empty_array_then_name",
       "openai/count#gpt-3.5-turbo-0301#object_body_long",
       "openai/count#gpt-4o#simple",
+      "openai/count#gpt-4o#content_only_probe_user_marker",
+      "openai/count#gpt-4o#content_only_simple",
+      "openai/count#gpt-4o#content_only_two_messages",
+      "openai/count#gpt-4o#role_content_reversed",
+      "openai/count#gpt-4o#probe_user_marker",
       "openai/count#gpt-4o#with_name",
       "openai/count#gpt-4o#system_and_user",
       "openai/count#gpt-4o#cjk",
@@ -961,6 +1040,11 @@
       "openai/count#gpt-4o#empty_array_then_name",
       "openai/count#gpt-4o#object_body_long",
       "openai/count#gpt2#simple",
+      "openai/count#gpt2#content_only_probe_user_marker",
+      "openai/count#gpt2#content_only_simple",
+      "openai/count#gpt2#content_only_two_messages",
+      "openai/count#gpt2#role_content_reversed",
+      "openai/count#gpt2#probe_user_marker",
       "openai/count#gpt2#with_name",
       "openai/count#gpt2#system_and_user",
       "openai/count#gpt2#cjk",
@@ -978,6 +1062,11 @@
       "openai/count#gpt2#empty_array_then_name",
       "openai/count#gpt2#object_body_long",
       "openai/count#claude#simple",
+      "openai/count#claude#content_only_probe_user_marker",
+      "openai/count#claude#content_only_simple",
+      "openai/count#claude#content_only_two_messages",
+      "openai/count#claude#role_content_reversed",
+      "openai/count#claude#probe_user_marker",
       "openai/count#claude#with_name",
       "openai/count#claude#system_and_user",
       "openai/count#claude#cjk",
@@ -995,6 +1084,11 @@
       "openai/count#claude#empty_array_then_name",
       "openai/count#claude#object_body_long",
       "openai/count#llama3#simple",
+      "openai/count#llama3#content_only_probe_user_marker",
+      "openai/count#llama3#content_only_simple",
+      "openai/count#llama3#content_only_two_messages",
+      "openai/count#llama3#role_content_reversed",
+      "openai/count#llama3#probe_user_marker",
       "openai/count#llama3#with_name",
       "openai/count#llama3#system_and_user",
       "openai/count#llama3#cjk",
@@ -1012,6 +1106,11 @@
       "openai/count#llama3#empty_array_then_name",
       "openai/count#llama3#object_body_long",
       "openai/count#llama#simple",
+      "openai/count#llama#content_only_probe_user_marker",
+      "openai/count#llama#content_only_simple",
+      "openai/count#llama#content_only_two_messages",
+      "openai/count#llama#role_content_reversed",
+      "openai/count#llama#probe_user_marker",
       "openai/count#llama#with_name",
       "openai/count#llama#system_and_user",
       "openai/count#llama#cjk",
@@ -1029,6 +1128,11 @@
       "openai/count#llama#empty_array_then_name",
       "openai/count#llama#object_body_long",
       "openai/count#gemma#simple",
+      "openai/count#gemma#content_only_probe_user_marker",
+      "openai/count#gemma#content_only_simple",
+      "openai/count#gemma#content_only_two_messages",
+      "openai/count#gemma#role_content_reversed",
+      "openai/count#gemma#probe_user_marker",
       "openai/count#gemma#with_name",
       "openai/count#gemma#system_and_user",
       "openai/count#gemma#cjk",
@@ -1046,6 +1150,11 @@
       "openai/count#gemma#empty_array_then_name",
       "openai/count#gemma#object_body_long",
       "openai/count#deepseek#simple",
+      "openai/count#deepseek#content_only_probe_user_marker",
+      "openai/count#deepseek#content_only_simple",
+      "openai/count#deepseek#content_only_two_messages",
+      "openai/count#deepseek#role_content_reversed",
+      "openai/count#deepseek#probe_user_marker",
       "openai/count#deepseek#with_name",
       "openai/count#deepseek#system_and_user",
       "openai/count#deepseek#cjk",
@@ -1063,6 +1172,11 @@
       "openai/count#deepseek#empty_array_then_name",
       "openai/count#deepseek#object_body_long",
       "openai/count#unknown-model#simple",
+      "openai/count#unknown-model#content_only_probe_user_marker",
+      "openai/count#unknown-model#content_only_simple",
+      "openai/count#unknown-model#content_only_two_messages",
+      "openai/count#unknown-model#role_content_reversed",
+      "openai/count#unknown-model#probe_user_marker",
       "openai/count#unknown-model#with_name",
       "openai/count#unknown-model#system_and_user",
       "openai/count#unknown-model#cjk",
@@ -1152,6 +1266,7 @@
       "unauthorized#llama/encode",
       "llama/encode#json_null",
       "openai/count#gpt-4#string_body",
+      "openai/count#gpt-3.5-turbo#string_body",
       "openai/count#gpt-3.5-turbo-0301#string_body",
       "openai/count#gpt-4o#string_body",
       "openai/count#gpt2#string_body",
@@ -1235,6 +1350,48 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "llama/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/llama/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "85",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"55-u5bxRUjDb7suFPgOMG1F7D52Elg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          410,
+          915,
+          1404,
+          17456
+        ],
+        "count": 4,
+        "chunks": [
+          "▁pro",
+          "be",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -3407,6 +3564,48 @@
         ]
       }
     },
+    "nerdstash/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"53-UlpScGeQXSswHRk4BmoR+dSYvPQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1770,
+          869,
+          4171,
+          28206
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "nerdstash/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/nerdstash/encode",
@@ -5376,6 +5575,48 @@
         ]
       }
     },
+    "nerdstash_v2/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/nerdstash_v2/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "83",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"53-UlpScGeQXSswHRk4BmoR+dSYvPQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1770,
+          869,
+          4171,
+          28206
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "nerdstash_v2/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/nerdstash_v2/encode",
@@ -7340,6 +7581,46 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "mistral/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/mistral/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-eGbjazOnDgVOMg30ygh2sFaaJjc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          21227,
+          2188,
+          18844
+        ],
+        "count": 3,
+        "chunks": [
+          "▁probe",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -9482,6 +9763,46 @@
         ]
       }
     },
+    "yi/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/yi/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-IDPtCIk9qQqL6j0tVIbnUQchA0o\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          48445,
+          2942,
+          24189
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "yi/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/yi/encode",
@@ -11539,6 +11860,46 @@
         ]
       }
     },
+    "gemma/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/gemma/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-c1Z5BNXHOkzzwsBaM9xqMzOepQs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          50172,
+          2425,
+          24416
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "gemma/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/gemma/encode",
@@ -13447,6 +13808,46 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "jamba/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/jamba/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-rnyYquNhgcVOVdI2gYYHaqe2TUQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53029,
+          4065,
+          19094
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -15459,6 +15860,48 @@
         ]
       }
     },
+    "gpt2/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/gpt2/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-9I5GkeGK3DREux3FwsGyl5r0a5g\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1676,
+          1350,
+          2836,
+          18364
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "gpt2/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/gpt2/encode",
@@ -17442,6 +17885,46 @@
         ]
       }
     },
+    "claude/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/claude/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "72",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"48-32wu06beZQZsLyvYC1leda/u0w8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          18981,
+          1016,
+          9147
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "claude/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/claude/encode",
@@ -19395,6 +19878,46 @@
         ]
       }
     },
+    "llama3/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/llama3/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "llama3/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/llama3/encode",
@@ -20481,6 +21004,46 @@
         ]
       }
     },
+    "qwen2/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/qwen2/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-KElJwBstTKYm44j6QQN8hdYHrh0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          52329,
+          1196,
+          11134
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "qwen2/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/qwen2/encode",
@@ -21553,6 +22116,46 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "command-r/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/command-r/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-JiMfmX8xaXleRv6a22NkGfzQtZM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          68459,
+          5161,
+          40668
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -22665,6 +23268,46 @@
         ]
       }
     },
+    "command-a/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/command-a/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-JiMfmX8xaXleRv6a22NkGfzQtZM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          68459,
+          5161,
+          40668
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "command-a/encode#long_ascii": {
       "request": {
         "path": "/api/tokenizers/command-a/encode",
@@ -23771,6 +24414,46 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "nemo/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/nemo/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-cO8P6FGf9ufVz4VJE/MDYPWSwUc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          127335,
+          3330,
+          19028
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -24882,6 +25565,48 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "deepseek/encode#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/deepseek/encode",
+        "query": null,
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-McBIj3jfSWul0+I8KajW5km2Y1U\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1297,
+          2304,
+          3967,
+          26338
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          " user",
+          " marker"
         ]
       }
     },
@@ -29853,6 +30578,48 @@
         ]
       }
     },
+    "openai/encode#gpt-4#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#gpt-4#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -30099,6 +30866,372 @@
         ]
       }
     },
+    "openai/encode#gpt-3.5-turbo#empty": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": ""
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#ascii": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "Hello, world!"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "70",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"46-LRq2o+Tl6SGrKnbUBgA22pRc1LQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          9906,
+          11,
+          1917,
+          0
+        ],
+        "count": 4,
+        "chunks": [
+          "Hello",
+          ",",
+          " world",
+          "!"
+        ]
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#cjk": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "こんにちは世界"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "87",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"57-pMnWcqDprFIjXjjRLuxZAJ2a5Og\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          90115,
+          3574,
+          244,
+          98220
+        ],
+        "count": 4,
+        "chunks": [
+          "こんにちは",
+          "�",
+          "�",
+          "界"
+        ]
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#emoji": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "😀🤖"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "82",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"52-ZnX9SLKwPDhmxdfn04Zt/UlFVsM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          76460,
+          222,
+          9468,
+          97,
+          244
+        ],
+        "count": 5,
+        "chunks": [
+          "�",
+          "�",
+          "�",
+          "�",
+          "�"
+        ]
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#special_endoftext": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "a<|endoftext|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#special_endofprompt": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "a<|endofprompt|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#special_fim": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "a<|fim_prefix|>b"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "32",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"20-u50YXQSD83DyVkNuTIySnaOc+fM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [],
+        "count": 0,
+        "chunks": []
+      }
+    },
+    "openai/encode#gpt-3.5-turbo#added_llama3": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "text": "x<|begin_of_text|>y"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "109",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"6d-miYctqMdzMito77pcgxx7thuyuY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          87,
+          27,
+          91,
+          7413,
+          3659,
+          4424,
+          91,
+          29,
+          88
+        ],
+        "count": 9,
+        "chunks": [
+          "x",
+          "<",
+          "|",
+          "begin",
+          "_of",
+          "_text",
+          "|",
+          ">",
+          "y"
+        ]
+      }
+    },
     "openai/encode#gpt-4o#empty": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -30174,6 +31307,48 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#gpt-4o#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-PkqGK5e1ykfJnJp7+2U9+GND01I\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          74993,
+          1825,
+          22071
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -30511,6 +31686,48 @@
         ]
       }
     },
+    "openai/encode#gpt2#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#gpt2#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -30832,6 +32049,50 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#text-davinci-003#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "text-davinci-003"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-9I5GkeGK3DREux3FwsGyl5r0a5g\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1676,
+          1350,
+          2836,
+          18364
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          " user",
+          " marker"
         ]
       }
     },
@@ -31216,6 +32477,48 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#claude#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "claude"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "72",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"48-32wu06beZQZsLyvYC1leda/u0w8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          18981,
+          1016,
+          9147
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -31613,6 +32916,48 @@
         ]
       }
     },
+    "openai/encode#llama3#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama3"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#llama3#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -31975,6 +33320,50 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#llama#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "llama"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "85",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"55-u5bxRUjDb7suFPgOMG1F7D52Elg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          410,
+          915,
+          1404,
+          17456
+        ],
+        "count": 4,
+        "chunks": [
+          "▁pro",
+          "be",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -32386,6 +33775,48 @@
         ]
       }
     },
+    "openai/encode#mistral#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "mistral"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-eGbjazOnDgVOMg30ygh2sFaaJjc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          21227,
+          2188,
+          18844
+        ],
+        "count": 3,
+        "chunks": [
+          "▁probe",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "openai/encode#mistral#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -32785,6 +34216,48 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#yi#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "yi"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-IDPtCIk9qQqL6j0tVIbnUQchA0o\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          48445,
+          2942,
+          24189
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -33190,6 +34663,48 @@
         ]
       }
     },
+    "openai/encode#gemma#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "gemma"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-c1Z5BNXHOkzzwsBaM9xqMzOepQs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          50172,
+          2425,
+          24416
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
+        ]
+      }
+    },
     "openai/encode#gemma#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -33557,6 +35072,48 @@
           ",",
           "▁world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#jamba#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "jamba"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "77",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4d-rnyYquNhgcVOVdI2gYYHaqe2TUQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53029,
+          4065,
+          19094
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          "▁user",
+          "▁marker"
         ]
       }
     },
@@ -33948,6 +35505,48 @@
         ]
       }
     },
+    "openai/encode#qwen2#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "qwen2"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-KElJwBstTKYm44j6QQN8hdYHrh0\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          52329,
+          1196,
+          11134
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#qwen2#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -34307,6 +35906,48 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#command-r#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-r"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-JiMfmX8xaXleRv6a22NkGfzQtZM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          68459,
+          5161,
+          40668
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -34697,6 +36338,48 @@
         ]
       }
     },
+    "openai/encode#command-a#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "command-a"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-JiMfmX8xaXleRv6a22NkGfzQtZM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          68459,
+          5161,
+          40668
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#command-a#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -35084,6 +36767,48 @@
         ]
       }
     },
+    "openai/encode#nemo#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nemo"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "74",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"4a-cO8P6FGf9ufVz4VJE/MDYPWSwUc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          127335,
+          3330,
+          19028
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#nemo#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -35461,6 +37186,50 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#deepseek#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "80",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"50-McBIj3jfSWul0+I8KajW5km2Y1U\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          1297,
+          2304,
+          3967,
+          26338
+        ],
+        "count": 4,
+        "chunks": [
+          "pro",
+          "be",
+          " user",
+          " marker"
         ]
       }
     },
@@ -35850,6 +37619,48 @@
         ]
       }
     },
+    "openai/encode#nerdstash#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "nerdstash"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
+        ]
+      }
+    },
     "openai/encode#nerdstash#cjk": {
       "request": {
         "path": "/api/tokenizers/openai/encode",
@@ -36171,6 +37982,48 @@
           ",",
           " world",
           "!"
+        ]
+      }
+    },
+    "openai/encode#unknown-model#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/encode",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": {
+          "text": "probe user marker"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "73",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"49-tOkv+QErJErnhlIQqHw0PwLpEpI\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          53429,
+          1217,
+          11381
+        ],
+        "count": 3,
+        "chunks": [
+          "probe",
+          " user",
+          " marker"
         ]
       }
     },
@@ -37545,6 +39398,181 @@
         "token_count": 11
       }
     },
+    "openai/count#gpt-4#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-4#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-4#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#gpt-4#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-4#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
     "openai/count#gpt-4#with_name": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -38112,6 +40140,783 @@
         "token_count": 75
       }
     },
+    "openai/count#gpt-3.5-turbo#simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-y50htrAPWzwf76HYAyfcRQq7o8c\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 11
+      }
+    },
+    "openai/count#gpt-3.5-turbo#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-3.5-turbo#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-3.5-turbo#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#gpt-3.5-turbo#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-3.5-turbo#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-3.5-turbo#with_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "Hello",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-3.5-turbo#system_and_user": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Hi"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-BOh6K0BzhvR0fRZjiraQ6Hoz/NQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 18
+      }
+    },
+    "openai/count#gpt-3.5-turbo#cjk": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "こんにちは世界"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-y50htrAPWzwf76HYAyfcRQq7o8c\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 11
+      }
+    },
+    "openai/count#gpt-3.5-turbo#numeric_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#null_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": null
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#nested_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": {
+              "a": 1
+            }
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#array_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ]
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#empty_array_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": []
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#empty_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": []
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#gpt-3.5-turbo#special_content": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#object_body": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "not": "an array"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#gpt-3.5-turbo#numeric_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": 42,
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [
+              "x",
+              "y"
+            ],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#special_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "a<|endoftext|>b",
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gpt-3.5-turbo#empty_array_then_name": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": [],
+            "name": "Bob"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-3.5-turbo#object_body_long": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo"
+        },
+        "body": {
+          "not": "an array",
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-Kz2xjBbc8fJgJDk4HapYbtQeh2A\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 75
+      }
+    },
     "openai/count#gpt-3.5-turbo-0301#simple": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -38145,6 +40950,181 @@
       },
       "body": {
         "token_count": 21
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-DFkKsDZ8G5V6bfIj/NmEB+a0Twg\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 19
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-LlIJ+6u1oRO2NW3As4lDJO96qec\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 20
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-sq2YXtztVMcvhvU+rQHQYc83IhY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 26
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-LlIJ+6u1oRO2NW3As4lDJO96qec\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 20
+      }
+    },
+    "openai/count#gpt-3.5-turbo-0301#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-3.5-turbo-0301"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-LlIJ+6u1oRO2NW3As4lDJO96qec\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 20
       }
     },
     "openai/count#gpt-3.5-turbo-0301#with_name": {
@@ -38749,6 +41729,181 @@
         "token_count": 11
       }
     },
+    "openai/count#gpt-4o#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt-4o#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-4o#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#gpt-4o#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt-4o#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt-4o"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
     "openai/count#gpt-4o#with_name": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -39349,6 +42504,181 @@
       },
       "body": {
         "token_count": 11
+      }
+    },
+    "openai/count#gpt2#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#gpt2#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt2#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#gpt2#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#gpt2#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gpt2"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
       }
     },
     "openai/count#gpt2#with_name": {
@@ -39953,6 +43283,181 @@
         "token_count": 7
       }
     },
+    "openai/count#claude#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#claude#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#claude#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Cu75FXVFf2+/trG6Jr8XQHvwYUw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 8
+      }
+    },
+    "openai/count#claude#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#claude#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "claude"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
     "openai/count#claude#with_name": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -40555,6 +44060,181 @@
         "token_count": 6
       }
     },
+    "openai/count#llama3#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#llama3#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#llama3#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#llama3#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
+    "openai/count#llama3#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama3"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
     "openai/count#llama3#with_name": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -41132,6 +44812,181 @@
           {
             "role": "user",
             "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#llama#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#llama#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#llama#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#llama#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#llama#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "llama"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
           }
         ]
       },
@@ -41759,6 +45614,181 @@
         "token_count": 6
       }
     },
+    "openai/count#gemma#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-ixB7Z55p2f5TTFFQ4J3gYe1MQls\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 3
+      }
+    },
+    "openai/count#gemma#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#gemma#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vJEWLs2SYMNd8/cjDgcdIG5mtLs\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 7
+      }
+    },
+    "openai/count#gemma#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
+    "openai/count#gemma#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "gemma"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-or6cnU0iP1OHK+bJduD6xQWHhi8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 5
+      }
+    },
     "openai/count#gemma#with_name": {
       "request": {
         "path": "/api/tokenizers/openai/count",
@@ -42336,6 +46366,181 @@
           {
             "role": "user",
             "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#deepseek#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#deepseek#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-vt4xyCRA7jSrID30KZHm4hZ9sG8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 4
+      }
+    },
+    "openai/count#deepseek#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#deepseek#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-Axq2vQcZL4VT1SH2bb7BjCFDam8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 6
+      }
+    },
+    "openai/count#deepseek#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "deepseek"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
           }
         ]
       },
@@ -42961,6 +47166,181 @@
       },
       "body": {
         "token_count": 11
+      }
+    },
+    "openai/count#unknown-model#content_only_probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "17",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"11-rxjj5M1fi5C8jejDlnyp0/vbCE4\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 9
+      }
+    },
+    "openai/count#unknown-model#content_only_simple": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "content": "Hello, world!"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#unknown-model#content_only_two_messages": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "content": "probe system marker"
+          },
+          {
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-2wmTBMuHNB7svtycOOa+EO8oJfw\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 15
+      }
+    },
+    "openai/count#unknown-model#role_content_reversed": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "content": "probe user marker",
+            "role": "user"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
+      }
+    },
+    "openai/count#unknown-model#probe_user_marker": {
+      "request": {
+        "path": "/api/tokenizers/openai/count",
+        "query": {
+          "model": "unknown-model"
+        },
+        "body": [
+          {
+            "role": "user",
+            "content": "probe user marker"
+          }
+        ]
+      },
+      "status": 200,
+      "headers": {
+        "content-length": "18",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"12-hXYO7rVEwKNPOYyuYdI5wpRohSM\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "token_count": 10
       }
     },
     "openai/count#unknown-model#with_name": {
@@ -46281,6 +50661,10 @@
       "contentType": "text/html; charset=utf-8"
     },
     "openai/count#gpt-4#string_body": {
+      "status": 400,
+      "contentType": "text/html; charset=utf-8"
+    },
+    "openai/count#gpt-3.5-turbo#string_body": {
       "status": 400,
       "contentType": "text/html; charset=utf-8"
     },
