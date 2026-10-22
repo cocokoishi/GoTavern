@@ -513,7 +513,53 @@ if (groqGeneration) {
 
     console.log(`  generation-groq-comparison.json providerRequestEqual true, ${groqDiffs} documented body difference(s), ${groqPost?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs (proxy:false source: seam + redirect only)`);
 
-}// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
+}// ---- generation-siliconflow-comparison.json ------------------------------------------------
+//
+// The SILICONFLOW source measured end to end. Same checks as groq, because it is the same class of
+// source (apiSourceConfig proxy:false, host a pinned literal, reachable only through the seam plus
+// the pinned transport redirect, so proxyPasswordPresent must be FALSE on both legs). It adds the
+// one thing siliconflow does differently: its HOST is chosen by a BODY field, so the artifact must
+// say which endpoint the drive drove and the gate must see that, or a reader cannot tell which
+// host the numbers belong to.
+const siliconflowGeneration = read('generation-siliconflow-comparison.json');
+if (siliconflowGeneration) {
+    const label = 'generation-siliconflow-comparison.json';
+    if (siliconflowGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the siliconflow provider-wire claim is unsupported');
+    }
+    if (siliconflowGeneration.requestArrived?.gotavern !== true || siliconflowGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (siliconflowGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(siliconflowGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    // THE ONE THING THAT IS NOT A COPY OF GROQ: which endpoint was driven, and through what.
+    if (typeof siliconflowGeneration.driveParameters?.endpointMode !== 'string' || siliconflowGeneration.driveParameters.endpointMode.length === 0) {
+        fail(label, 'driveParameters.endpointMode is missing, so the artifact does not say which endpoint these numbers belong to');
+    }
+    if (siliconflowGeneration.driveParameters?.endpointControl !== '#siliconflow_endpoint') {
+        fail(label, 'driveParameters.endpointControl does not name the frontend control the drive used');
+    }
+    if (typeof siliconflowGeneration.driveParameters?.endpointBreadth !== 'string' || !siliconflowGeneration.driveParameters.endpointBreadth.includes('CN')) {
+        fail(label, 'driveParameters.endpointBreadth does not state that the CN endpoint is unmeasured');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (siliconflowGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(siliconflowGeneration.proxyPasswordPresent?.[leg])}, but siliconflow is proxy:false and the drive must reach the peer by seam and redirect`);
+        }
+        const requests = siliconflowGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + " " + request.path))}; the completion POST /chat/completions is missing`);
+        }
+    }
+    const post = (siliconflowGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === "POST");
+    console.log(`  generation-siliconflow-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, endpoint ${JSON.stringify(siliconflowGeneration.driveParameters.endpointMode)} via ${siliconflowGeneration.driveParameters.endpointControl} (CN endpoint unmeasured)`);
+}
+
+// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
 // own: a missing surface, a surface that is not proven, a leg that never reached the provider, or a
@@ -526,14 +572,15 @@ if (groqGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
     const isGroq = artifactName.includes('groq');
+    const isSiliconflow = artifactName.includes('siliconflow');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq;
+    const isOpenAI = isMistral || isGroq || isSiliconflow;
     const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];
@@ -596,8 +643,9 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     if (!abortState || abortState.gotavern?.framesWritten === undefined || abortState.pinned?.framesWritten === undefined || typeof abortState.note !== 'string') {
         fail(artifactName, 'cancellation.abortRenderState does not record both legs and its reason');
     }
+    const siliconflowLine = 'siliconflow (OpenAI-shaped like groq, proxy:false, endpoint chosen by a body field): both legs GET /models then POST /chat/completions, 15 paced frames; DEFAULT (global) endpoint only, CN unmeasured';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }

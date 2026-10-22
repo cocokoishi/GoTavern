@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai or groq, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq or siliconflow, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -373,7 +373,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -413,6 +413,12 @@ if (streamingMode || probeSource === 'groq') {
     if (probeSource === 'groq' && !external) {
         process.env.GOTAVERN_GROQ_CHAT_URL = `http://${mockAddress}`;
     }
+    // SILICONFLOW HAS TWO HOSTS and the BODY chooses between them, so the seam must match the endpoint
+    // the drive drives. The drive exercises the DEFAULT (global) endpoint through the frontend's own
+    // control and records which one, and this aims THAT endpoint's seam (siliconflow_chat.go:32-35).
+    if (probeSource === 'siliconflow' && !external) {
+        process.env.GOTAVERN_SILICONFLOW_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -422,6 +428,9 @@ if (streamingMode || probeSource === 'groq') {
     }
     if (probeSource === 'groq' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.groq.com/openai/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'siliconflow' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.siliconflow.com/v1', to: `http://${mockAddress}` }]));
     }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -761,6 +770,7 @@ try {
             claude: secretsModule.SECRET_KEYS.CLAUDE,
             mistralai: secretsModule.SECRET_KEYS.MISTRALAI,
             groq: secretsModule.SECRET_KEYS.GROQ,
+            siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
         }[probeSource];
         await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
@@ -806,6 +816,20 @@ try {
         } else if (probeSource === 'claude') {
             oai_settings.claude_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;
+        } else if (probeSource === 'siliconflow') {
+            // NO reverse_proxy: siliconflow is proxy:false. The ENDPOINT is a body field, and a user
+            // sets it with this control, so the drive drives the DEFAULT through the same control and
+            // records what it drove rather than writing the settings object directly.
+            oai_settings.siliconflow_model = 'probe-model';
+            const endpointSelect = document.querySelector('#siliconflow_endpoint');
+            if (!endpointSelect) {
+                return { status: 'not-driven', reason: 'no #siliconflow_endpoint control in the served frontend' };
+            }
+            const endpoints = [...endpointSelect.options].map(option => option.value);
+            const defaultEndpoint = endpointSelect.options[endpointSelect.selectedIndex]?.value ?? null;
+            endpointSelect.value = defaultEndpoint ?? 'global';
+            endpointSelect.dispatchEvent(new Event('input', { bubbles: true }));
+            globalThis.__siliconflowEndpoint = { mode: defaultEndpoint ?? 'global', available: endpoints, control: '#siliconflow_endpoint', via: 'input event' };
         } else if (probeSource === 'groq') {
             // NO reverse_proxy: groq is proxy:false, so setting one would be driving something a user
             // cannot, and the leg would reach the peer by a path the product does not offer.
@@ -1289,6 +1313,10 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
+    // WHICH ENDPOINT THIS DRIVE DROVE. siliconflow's host is chosen by a body field, so an artifact that
+    // does not say which endpoint was driven cannot be read: the seam aims one host and the drive must
+    // have selected it.
+    report.endpoint = await page.evaluate(() => globalThis.__siliconflowEndpoint ?? null);
     if (streamingMode) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the
         // stream before it finished (cancellation), and how many frames it wrote.
@@ -1333,7 +1361,7 @@ try {
                     framesWritten: request.framesWritten,
                 };
             });
-            report.peer = { kind: 'request-keyed', seam: { env: 'GOTAVERN_GROQ_CHAT_URL', value: process.env.GOTAVERN_GROQ_CHAT_URL ?? null } };
+            report.peer = { kind: 'request-keyed', seam: { env: probeSource === 'siliconflow' ? 'GOTAVERN_SILICONFLOW_CHAT_URL' : 'GOTAVERN_GROQ_CHAT_URL', value: (probeSource === 'siliconflow' ? process.env.GOTAVERN_SILICONFLOW_CHAT_URL : process.env.GOTAVERN_GROQ_CHAT_URL) ?? null } };
         } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.

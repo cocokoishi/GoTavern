@@ -327,8 +327,17 @@ const main = async () => {
             frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)',
             // THE RULE, IN ONE LINE, because the next reader will otherwise assume nearest-preceding and
             // reintroduce exactly the bug this lane fixed.
-            invocationPairing: 'a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails',
-            ...(process.env.PROBE_SOURCE === 'groq' ? {
+            invocationPairing: 'a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails',
+            // SILICONFLOW'S ENDPOINT IS A BODY FIELD, so the artifact must say which endpoint the drive
+            // drove and how: the drive selects the DEFAULT through the frontend's own control, and the
+            // seam aims that endpoint's host. The CN endpoint exists but is NOT exercised here.
+            ...(process.env.PROBE_SOURCE === 'siliconflow' ? {
+                endpointMode: gotavern.endpoint?.mode ?? null,
+                endpointControl: gotavern.endpoint?.control ?? null,
+                endpointsOffered: gotavern.endpoint?.available ?? null,
+                endpointBreadth: 'the DEFAULT (global) endpoint only. The CN endpoint is a supported second host and is not measured here, so this row does not claim endpoint breadth',
+            } : {}),
+            ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' ? {
                 pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
                 peerKeying: 'the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
             } : {}),
