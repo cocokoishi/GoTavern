@@ -365,10 +365,20 @@ func TestStartHeartbeatMatchesPinnedNodeLifecycle(t *testing.T) {
 	})
 
 	heartbeatPath := filepath.Join(running.CommandLine.Paths.RuntimeDataRoot, "heartbeat.json")
-	firstTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.Immediate.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
 	interval := time.Duration(fixture.Inputs.IntervalSeconds * float64(time.Second))
-	time.Sleep(interval * 4)
-	updatedTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.Immediate.FilePresent, fixture.Observations.Periodic.Keys, fixture.Observations.Immediate.Timestamp)
+	// AWAIT THE STATE, DO NOT SLEEP PAST IT. This used to read the file immediately after Start and
+	// then `time.Sleep(interval * 4)` before asserting the timestamp had changed, which makes the test
+	// a property of the runner's scheduler rather than of the heartbeat: the fixture's interval is
+	// 0.05 s, so a loaded CI runner can starve the writing goroutine past the sleep, and two writes can
+	// also land in the same millisecond. Measured: this test failed once in six consecutive runs of
+	// one lane (run 39734025480) and passed in the others, which is exactly the "flaky gate" shape that
+	// makes every other lane's red result untrustworthy.
+	//
+	// The heartbeat itself is unchanged and still observed the same way: the first write must APPEAR,
+	// and a LATER write must carry a GREATER timestamp. What changed is that both are awaited with a
+	// deadline instead of assumed to have happened after a fixed wait.
+	firstTimestamp := awaitHeartbeatAppearance(t, heartbeatPath, fixture.Observations.Immediate.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp, 30*time.Second)
+	updatedTimestamp := awaitHeartbeatChange(t, heartbeatPath, firstTimestamp, fixture.Observations.Periodic.Keys, fixture.Observations.Periodic.TimestampChanged, fixture.Observations.Immediate.FilePresent, fixture.Observations.Immediate.Timestamp, 30*time.Second, interval)
 	if !fixture.Observations.Periodic.TimestampChanged || updatedTimestamp <= firstTimestamp {
 		t.Fatalf("heartbeat timestamp changed from %d to %d; pinned Node changed=%t", firstTimestamp, updatedTimestamp, fixture.Observations.Periodic.TimestampChanged)
 	}
@@ -383,6 +393,47 @@ func TestStartHeartbeatMatchesPinnedNodeLifecycle(t *testing.T) {
 	afterShutdownTimestamp := readHeartbeatTimestamp(t, heartbeatPath, fixture.Observations.AfterShutdown.FilePresent, fixture.Observations.Immediate.Keys, fixture.Observations.Immediate.Timestamp)
 	if !fixture.Observations.AfterShutdown.TimestampUnchangedAfter || afterShutdownTimestamp != shutdownTimestamp {
 		t.Fatalf("heartbeat timestamp changed after Close returned: immediately %d; after waiting %d; pinned Node unchanged=%t", shutdownTimestamp, afterShutdownTimestamp, fixture.Observations.AfterShutdown.TimestampUnchangedAfter)
+	}
+}
+
+// awaitHeartbeatAppearance waits for the heartbeat file to exist and to hold a well-formed timestamp.
+// The pinned server writes it from an interval timer rather than before it starts listening, so "the
+// file is there the instant Start returns" is an assumption about scheduling, not about the product.
+func awaitHeartbeatAppearance(t *testing.T, heartbeatPath string, filePresent bool, expectedKeys []string, timestampType string, deadline time.Duration) int64 {
+	t.Helper()
+	limit := time.Now().Add(deadline)
+	for {
+		if _, err := os.Stat(heartbeatPath); err == nil {
+			return readHeartbeatTimestamp(t, heartbeatPath, filePresent, expectedKeys, timestampType)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat heartbeat file: %v", err)
+		}
+		if time.Now().After(limit) {
+			t.Fatalf("the heartbeat file never appeared within %s; pinned Node filePresent=%t", deadline, filePresent)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// awaitHeartbeatChange waits for a write carrying a timestamp GREATER than previous, up to deadline.
+// The wait is longer than the fixture interval on purpose: the assertion is "a later write happened",
+// and how many intervals that took is the scheduler's business, not the contract's.
+func awaitHeartbeatChange(t *testing.T, heartbeatPath string, previous int64, expectedKeys []string, timestampChanged bool, filePresent bool, timestampType string, deadline time.Duration, interval time.Duration) int64 {
+	t.Helper()
+	limit := time.Now().Add(deadline)
+	lastSeen := previous
+	for {
+		timestamp := readHeartbeatTimestamp(t, heartbeatPath, filePresent, expectedKeys, timestampType)
+		if timestamp > previous {
+			return timestamp
+		}
+		lastSeen = timestamp
+		if time.Now().After(limit) {
+			t.Fatalf("the heartbeat timestamp did not advance past %d within %s (last seen %d, fixture interval %s); pinned Node changed=%t", previous, deadline, lastSeen, interval, timestampChanged)
+		}
+		// Poll at a fraction of the interval so a 50 ms heartbeat cannot be missed between samples,
+		// with a floor so a tiny interval does not spin.
+		time.Sleep(max(interval/4, 5*time.Millisecond))
 	}
 }
 

@@ -202,26 +202,29 @@ Existing reverse-proxy/service configurations should generally need only an exec
 
 ## 6. Migrating an existing SillyTavern installation
 
-> **STATUS: `gotavern migrate` IS NOT IMPLEMENTED.** This section previously described it as "the
-> long-term canonical migration command" and listed its flags. A release audit found that the binary
-> has no such subcommand -- `gotavern` accepts only `start`, `version` and `assets verify` -- so the
-> text was promising a command a user cannot run. That is the same class of defect as a stale negative:
-> a documented capability with no implementation behind it. The corrected status is stated here rather
-> than removed, because the capabilities below remain REQUIRED for release and are tracked as their own
-> increment. Until then, migration is done by the transitional shell helper
-> (`scripts/migrate-from-sillytavern.sh`), which is itself not yet executed by any test.
+> **STATUS: `gotavern migrate` IS IMPLEMENTED**, with the limits named at the end of this section.
+> This is GoTavern PRODUCT behaviour, not SillyTavern parity: pinned SillyTavern has no `migrate`
+> subcommand, so there is no oracle to replay and nothing here is a compatibility claim about Node. What
+> is verified is the contract's own consequences: the source is never written, a migrated install
+> behaves like one pointed at the source, `--dry-run` writes nothing, a second run refuses by name,
+> plugins are reported and never copied, unknown config keys survive byte for byte, symlinks are
+> refused, and every documented form parses.
 
-The planned canonical migration command is cross-platform:
+Copy migration is cross-platform and lives in the binary:
 
 ```text
-gotavern migrate
+gotavern migrate --from /opt/SillyTavern --dest /opt/GoTavern
+gotavern migrate --source-config /path/config.yaml --source-data /mnt/st-data --dest /opt/GoTavern
+gotavern migrate --source-global --dest /opt/GoTavern
+gotavern migrate --from /opt/SillyTavern --dest /opt/GoTavern --dry-run
 ```
 
-The shell migration helper is transitional until this command covers the complete source matrix.
+`scripts/migrate-from-sillytavern.sh` remains the transitional shell helper for hosts where the binary
+cannot be run yet. It is not executed by any test; the binary is the tested path.
 
 ### Typical standalone clone
 
-Planned flow (see the status note above -- step 3 has no implementation today):
+Typical flow:
 
 ```text
 1. Download/install GoTavern into a different directory.
@@ -233,7 +236,7 @@ Planned flow (see the status note above -- step 3 has no implementation today):
 7. Keep the original source intact until satisfied.
 ```
 
-### Migration forms that must be supported
+### Migration forms
 
 The final migration tool supports explicit inputs such as:
 
@@ -279,7 +282,59 @@ Preflight symlinks. A copied installation must not silently retain links into th
 
 ### Node server plugins
 
-If the source has `plugins/`, migration reports them clearly. Arbitrary Node server plugins are not supported and are not counted as successfully migrated functionality.
+If the source has `plugins/`, migration reports them clearly. Arbitrary Node server plugins are not supported and are not counted as successfully migrated functionality. The command prints one line naming each plugin, never copies the
+directory, and creates no endpoint for it.
+
+### What `gotavern migrate` actually writes
+
+The destination layout is fixed, because a migration that guessed where a runtime lives would be a way
+to write somewhere the user did not name:
+
+| written | from |
+| --- | --- |
+| `<dest>/config.yaml` | the source config, with **only** its `dataRoot` changed |
+| `<dest>/data/` | the complete configured data root, wherever it lived |
+| `<dest>/certs/` | `<source>/certs` when it exists |
+| `<dest>/public/scripts/extensions/third-party/` | the global extension overlay when it exists |
+
+Nothing else is created. `node_modules`, `plugins/` and the source's own executable are never copied.
+
+The config copy is a **textual** edit of one scalar: unknown keys, ordering, quoting, comments and the
+file's line endings all survive, and the data root becomes `./data`. A parse-and-reserialize would
+rewrite the file its author wrote, which is why it is not done; the requirement that unknown keys
+survive is compared byte-wise in the tests, not by "it parses".
+
+After copying, every written tree is re-read and hashed against its source, so a short read, a skipped
+directory or a stray destination file fails the command instead of being reported as success.
+
+### Running it twice
+
+A second migration into a destination that already holds `config.yaml` or `data/` **refuses**, naming
+what is in the way. It does not merge and it does not silently overwrite. `--force` moves that state to
+`<dest>/.migrate-backup/` first and then reproduces the tree; a second `--force` refuses while that
+backup exists, so no forced run quietly discards the previous destination.
+
+### Preflight refusals
+
+Every one of these is a named error with nothing written to either side: no source, more than one
+source form, `--source-config` without `--source-data`, no `--dest`, an unknown flag, a source that is
+not a directory or has no `config.yaml`, a destination inside the source, a source inside the
+destination, a `dataRoot` that is not a simple scalar, an empty `dataRoot`, a `dataRoot` containing
+`..`, and any symlink in the copied trees.
+
+### Limits, stated so they are not mistaken for coverage
+
+- **Symlinks are refused, not resolved.** A preserved link would point back into the source tree the
+  user is about to delete, and following one would copy data from outside the tree the user named.
+  Dereference the links first if that is what you want.
+- **A running source is not detected.** The source is never written, but nothing checks that Node
+  SillyTavern is stopped; stop it first, or copy from a snapshot.
+- **Plugins are reported, never migrated** (hard rule 16).
+- **Not a baseline upgrade.** Migration copies bytes; what the pinned baseline changes on first start
+  happens after this command, not in it.
+- **Verified against the contract, not against Node.** Pinned SillyTavern has no `migrate`, so these
+  are contract derivations, except the equivalence test, which boots GoTavern over a pristine copy of
+  the source and over the migrated destination and requires the two data trees to match.
 
 ---
 
@@ -359,8 +414,8 @@ A native release is not ready merely because cross-compilation succeeded. CI mus
 | 3 | checksum verification rejects tampering | GATED -- a tampered archive must ABORT, name the mismatch, and install nothing |
 | 4 | re-install preserves an existing runtime fixture | GATED -- a second install over the same prefix must preserve a user file and config.yaml byte for byte, and assets verify must still pass after an upgrade |
 | 5 | fresh empty runtime seeds the same pinned defaults as Node | GATED -- tests/oracle/sillytavern-1.19.0-fresh-start.json |
-| 6 | migrated standalone fixture boots | NOT GATED -- gotavern migrate does not exist yet (section 6); the transitional shell helper is executed by no test |
-| 7 | custom/absolute data-root migration boots | NOT GATED -- same reason |
+| 6 | migrated standalone fixture boots | GATED -- `TestMigratedInstallIsEquivalentToPointingAtTheSource` runs `gotavern migrate --from` into a temp destination, then boots BOTH the destination and a pristine copy of the source root through the real startup chain and requires the two data trees to match (path, kind, size, SHA-256, five declared exclusions); `TestDocumentedForms` covers all four documented forms and `TestSourceIsNeverModified` requires the source byte-identical afterwards |
+| 7 | custom/absolute data-root migration boots | GATED -- the same test's absolute branch migrates a source whose `dataRoot` is an out-of-tree absolute path, requires `<dest>/data` to hold the copy and `<dest>/config.yaml` to be the source bytes with only that one scalar rewritten (`TestConfigKeepsUnknownKeysAndChangesOnlyDataRoot`), and boots it |
 | 8 | login and representative chat work | PARTIAL -- the browser differential covers login and the DOM; generation has provider-wire plus browser evidence for the CUSTOM source only |
 | 9 | semantic/provider-wire suite passes | GATED -- the provider-wire, backend, SD and provider fixtures replayed in go test ./... |
 | 10 | pinned Tavern Helper deep workflow passes | PARTIAL -- tests/browser/extension-tavern-helper-comparison.json is committed and gated: 21 rows equal on a release-faithful install, one known difference (/thumbnail, the Jimp boundary) |

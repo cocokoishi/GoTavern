@@ -15,6 +15,7 @@ import (
 
 	"github.com/cocokoishi/gotavern/internal/app"
 	"github.com/cocokoishi/gotavern/internal/assetmanifest"
+	"github.com/cocokoishi/gotavern/internal/migrate"
 	"github.com/cocokoishi/gotavern/upstream"
 )
 
@@ -99,6 +100,15 @@ func run(args []string) error {
 			return err
 		}
 		return nil
+	case "migrate":
+		// Copying a SillyTavern runtime is GoTavern product behaviour, not pinned parity: pinned has no
+		// `migrate` subcommand. The contract and its consequences live in internal/migrate and
+		// docs/INSTALLATION.md section 6. The source is never written; a refusal is a named error.
+		options, parseErr := migrate.ParseOptions(args[1:])
+		if parseErr != nil {
+			return parseErr
+		}
+		return migrate.Run(options, os.Stdout)
 	default:
 		if args[0] == "start" {
 			return runServer(args[1:])
@@ -228,6 +238,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  gotavern start [server options]")
 	fmt.Fprintln(os.Stderr, "  gotavern version [--json]")
 	fmt.Fprintln(os.Stderr, "  gotavern assets verify")
+	fmt.Fprintln(os.Stderr, "  gotavern migrate --from <sillytavern-root> --dest <dir> [--dry-run] [--force]")
 	fmt.Fprintln(os.Stderr, "  gotavern help")
 	fmt.Fprintln(os.Stderr, "")
 }
