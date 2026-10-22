@@ -13,6 +13,7 @@ package server
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -128,7 +129,7 @@ func TestPinnedNodeAssetsDownload(t *testing.T) {
 	closedAuthority := strings.TrimPrefix(closed.URL, "http://")
 	closed.Close()
 
-	if got := snapshotUserDataTree(t, userRoot, "assets")["assets"]; len(got) != len(fixture.State.Before) {
+	if got := assetsDownloadComparableTree(snapshotUserDataTree(t, userRoot, "assets")["assets"]); len(got) != len(fixture.State.Before) {
 		t.Fatalf("initial assets tree has %d entries, pinned Node had %d", len(got), len(fixture.State.Before))
 	}
 
@@ -141,7 +142,9 @@ func TestPinnedNodeAssetsDownload(t *testing.T) {
 			seedUserDataFile(t, dataRoot, relative, content)
 		}
 		peer.setRule(step.Upstream)
-		body := strings.ReplaceAll(step.BodyText, "<mock>", peer.authority())
+		// The fixture stores only the PORT as <mock>, so a scenario may use a different host that
+		// still reaches this peer (download.hostNotWhitelisted uses localhost, which resolves here).
+		body := strings.ReplaceAll(step.BodyText, "<mock>", peer.port())
 		request := httptest.NewRequest(http.MethodPost, "/api/assets/download", strings.NewReader(body))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("Cookie", sessionCookie)
@@ -176,7 +179,7 @@ func TestPinnedNodeAssetsDownload(t *testing.T) {
 			}
 		}
 
-		got := snapshotUserDataTree(t, userRoot, "assets")["assets"]
+		got := assetsDownloadComparableTree(snapshotUserDataTree(t, userRoot, "assets")["assets"])
 		compareUserDataTree(t, step.Name+"/assets", expected.Tree, got)
 	}
 
@@ -233,6 +236,76 @@ func TestAssetsDownloadTreatsANullBodyStatusAsAFailure(t *testing.T) {
 	}
 }
 
+// assetsDownloadComparableTree drops the entries under assets/temp, which the fixture classifies
+// `shape`: pinned unlinks the temp file after the response is sent, and on Windows that unlink races
+// the write stream's handle close, so the file survives in some runs and not others (the committed
+// fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none).
+// The temp DIRECTORY is kept, because ensureFoldersExist creates it deterministically. GoTavern's own
+// temp removal is deterministic and is asserted by TestAssetsDownloadRemovesTheTempPath.
+func assetsDownloadComparableTree(entries []userDataEntry) []userDataEntry {
+	filtered := make([]userDataEntry, 0, len(entries))
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Path, "temp/") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
+// TestAssetsDownloadRemovesTheTempPath is a LABELLED DERIVATION (AGENTS.md rule 4), not an oracle: no
+// fixture can record the pinned temp-file end state, because the pinned unlink races the write
+// stream's handle close on Windows (measured: one leaked entry in the committed fixture, none in
+// four re-records of the same input). The pinned SOURCE unlinks in both branches (assets.js:246 and
+// :253), so the deterministic Go behaviour asserted here is the intent of the pinned code, and the
+// fixture records the limitation instead of a value.
+func TestAssetsDownloadRemovesTheTempPath(t *testing.T) {
+	dataRoot := t.TempDir()
+	account := sdFixtureAccount{Handle: "default-user", Name: "Assets Download Probe", Admin: true}
+	handler, sessionCookie, token := contentRouteHandler(t, dataRoot, "gotavern-assets-download-temp-secret", account, []string{"127.0.0.1"})
+	peer := newAssetsDownloadPeer(t)
+	t.Cleanup(peer.close)
+	userRoot := userRootPath(dataRoot)
+
+	post := func(name, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/api/assets/download", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Cookie", sessionCookie)
+		request.Header.Set("X-CSRF-Token", token)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, want 200 (body %q)", name, recorder.Code, recorder.Body.String())
+		}
+		return recorder
+	}
+
+	// A stale temp file must not survive the request, and it must not block the write either.
+	seedUserDataFile(t, dataRoot, "assets/temp/one.mp3", "STALE-TEMP")
+	peer.setRule([]assetsDownloadUpstream{{Match: "/audio/one.mp3", Status: 200, Headers: map[string]string{"content-type": "audio/mpeg"}, Body: "FRESH"}})
+	post("stale temp", `{"url":"http://`+peer.authority()+`/audio/one.mp3","category":"bgm","filename":"one.mp3"}`)
+	if _, err := os.Stat(filepath.Join(userRoot, "assets", "temp", "one.mp3")); err == nil {
+		t.Fatal("the temp path survived a successful download")
+	}
+	written, err := os.ReadFile(filepath.Join(userRoot, "assets", "bgm", "one.mp3"))
+	if err != nil || string(written) != "FRESH" {
+		t.Fatalf("asset file = %q (err %v), want the downloaded bytes", written, err)
+	}
+
+	// The character branch answers the bytes and must leave no temp file behind either.
+	peer.setRule([]assetsDownloadUpstream{{Match: "/img/hero.png", Status: 200, Headers: map[string]string{"content-type": "image/png"}, Body: "PNG-DL"}})
+	recorder := post("character", `{"url":"http://`+peer.authority()+`/img/hero.png","category":"character","filename":"hero.png"}`)
+	if recorder.Body.String() != "PNG-DL" {
+		t.Fatalf("character body = %q, want the downloaded bytes", recorder.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(userRoot, "assets", "temp", "hero.png")); err == nil {
+		t.Fatal("the character branch left a temp file behind")
+	}
+	if _, err := os.Stat(filepath.Join(userRoot, "assets", "character", "hero.png")); err == nil {
+		t.Fatal("the character branch wrote the asset into the category directory")
+	}
+}
+
 // verifyAssetsDownloadFixture fails closed when the fixture stops covering what it claims: the four
 // guards, the forwarding steps, and a status that is actually compared for every step.
 func verifyAssetsDownloadFixture(t *testing.T, fixture assetsDownloadFixture) {
@@ -285,8 +358,18 @@ func verifyAssetsDownloadFixture(t *testing.T, fixture assetsDownloadFixture) {
 				t.Fatalf("%s: %q is neither compared nor shape-classified", name, key)
 			}
 		}
-		if len(observation.Comparison.Shape) != 0 {
-			t.Fatalf("%s: unexpected shape fields %v on a host-independent fixture", name, observation.Comparison.Shape)
+		// The fixture's only shape field is the temp-file end state. It must be declared WITH a reason,
+		// and no recorded tree may carry an entry under assets/temp: a shape field must not record a
+		// value, and a re-record that puts the racy file back must fail here rather than pass.
+		for _, key := range observation.Comparison.Shape {
+			if strings.TrimSpace(observation.Comparison.ShapeReason[key]) == "" {
+				t.Fatalf("%s: shape field %q has no reason", name, key)
+			}
+		}
+		for _, entry := range observation.Tree {
+			if strings.HasPrefix(entry.Path, "temp/") {
+				t.Fatalf("%s: the recorded tree carries the racy temp entry %q; the temp end state is shape and must record no value", name, entry.Path)
+			}
 		}
 	}
 }
@@ -306,7 +389,7 @@ func newAssetsDownloadPeer(t *testing.T) *assetsDownloadPeer {
 	peer.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		peer.mu.Lock()
 		rule := peer.rule
-		peer.requests = append(peer.requests, assetsDownloadCall{URL: r.URL.RequestURI(), Method: r.Method})
+		peer.requests = append(peer.requests, assetsDownloadCall{URL: "http://" + r.Host + r.URL.RequestURI(), Method: r.Method})
 		peer.mu.Unlock()
 		if rule == nil || rule.Throws {
 			// Drop the connection without a response, which is how the client sees a peer that
@@ -340,6 +423,16 @@ func (peer *assetsDownloadPeer) authority() string {
 	return strings.TrimPrefix(peer.server.URL, "http://")
 }
 
+// port is the ephemeral port the fixture stores as <mock>. Only the port is substituted, so a
+// scenario can name a different HOST (localhost) that still resolves to this peer.
+func (peer *assetsDownloadPeer) port() string {
+	_, port, err := net.SplitHostPort(peer.authority())
+	if err != nil {
+		return ""
+	}
+	return port
+}
+
 func (peer *assetsDownloadPeer) setRule(upstream []assetsDownloadUpstream) {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
@@ -357,10 +450,17 @@ func (peer *assetsDownloadPeer) setRule(upstream []assetsDownloadUpstream) {
 func (peer *assetsDownloadPeer) takeCalls() []assetsDownloadCall {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
+	// Normalise the port (and only the port) to <mock>, so a call to localhost and a call to
+	// 127.0.0.1 are each compared with the fixture's own host.
+	port := peer.port()
 	calls := make([]assetsDownloadCall, 0, len(peer.requests))
 	for _, request := range peer.requests {
+		normalized := request.URL
+		if port != "" {
+			normalized = strings.ReplaceAll(normalized, ":"+port, ":<mock>")
+		}
 		calls = append(calls, assetsDownloadCall{
-			URL:    "http://<mock>" + request.URL,
+			URL:    normalized,
 			Method: request.Method,
 		})
 	}

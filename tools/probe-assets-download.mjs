@@ -54,11 +54,13 @@ if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf
 
 const COOKIE_SECRET = 'gotavern-pinned-assets-download-cookie-secret';
 const FIXED_SECONDS = 1700000000;
-// The stub answers without a socket, so the authority in the scenario URL is a fixed constant
-// instead of an ephemeral port. It is stored as <mock> and the replay substitutes its own peer.
-const PINNED_AUTHORITY = '127.0.0.1:18080';
+// The stub answers without a socket, so the scenario URL carries a fixed PORT instead of an ephemeral
+// one. Only the port is stored as <mock>, so a scenario can use a different HOST that still reaches
+// the replay peer (localhost) while the port stays out of the comparison.
+const PINNED_PORT = '18080';
 const WHITELIST = ['127.0.0.1'];
-const mockURL = pathname => `http://${PINNED_AUTHORITY}${pathname}`;
+const mockURL = pathname => `http://127.0.0.1:${PINNED_PORT}${pathname}`;
+const replaceMockPort = value => value.split(':' + PINNED_PORT).join(':<mock>');
 
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
@@ -87,6 +89,22 @@ function snapshotTree(root, relative = '') {
     return entries;
 }
 
+// SHAPE FIELD, and the reason the tree drops the entries UNDER assets/temp.
+//
+// The pinned route's last act is `fs.unlinkSync(temp_path)` (assets.js:246 and :253). On Windows that
+// unlink races the write stream's handle close, so the temp FILE survives in some runs and not
+// others: measured, the committed fixture once recorded `temp/note.txt` while four consecutive
+// re-records of the same input produced no such entry at all. A racy value must not be recorded, so
+// every tree keeps the `temp` DIRECTORY (ensureFoldersExist creates it deterministically) and drops
+// its descendants. The category file, the response and the outbound count are still compared, and the
+// Go side's deterministic temp removal is asserted by a labelled derivation test
+// (TestAssetsDownloadRemovesTheTempPath) because no fixture can carry it.
+const TEMP_ENTRY_REASON = 'the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream\'s handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically.';
+
+function snapshotAssetsTree(root) {
+    return snapshotTree(root).filter(entry => !entry.path.startsWith('temp/'));
+}
+
 // Every step declares its own peer rules. `match` is a substring of the request URL, and each step
 // installs a fresh rule list, so no rule can answer a later step's request (AGENTS.md rule 20).
 const steps = [];
@@ -99,10 +117,11 @@ add({
 });
 add({
     name: 'download.hostNotWhitelisted',
-    // A valid absolute URL whose host is not in whitelistImportDomains. `.invalid` never resolves,
-    // so a Go implementation that fetched before this guard would be visible as a failed request
-    // rather than as a plausible download.
-    body: { url: 'http://blocked.invalid/one.mp3', category: 'bgm', filename: 'one.mp3' },
+    // A valid absolute URL whose host is not in whitelistImportDomains, but which RESOLVES to the
+    // replay peer: an implementation that fetched before this guard would then reach the peer and be
+    // caught by the outbound-count assertion. A non-resolving host (`.invalid`) cannot do that — the
+    // fetch would fail before any socket existed, so the count assertion could not fail.
+    body: { url: `http://localhost:${PINNED_PORT}/one.mp3`, category: 'bgm', filename: 'one.mp3' },
 });
 add({
     name: 'download.badCategory',
@@ -191,7 +210,7 @@ async function main() {
     try {
         const userRoot = server.userRoot;
         const assetsRoot = path.join(userRoot, 'assets');
-        const state = { before: snapshotTree(assetsRoot) };
+        const state = { before: snapshotAssetsTree(assetsRoot) };
         const observations = {};
         const inputs = [];
 
@@ -214,7 +233,7 @@ async function main() {
             const outbound = server.outbound();
             inputs.push({
                 name: step.name,
-                bodyText: body.split(PINNED_AUTHORITY).join('<mock>'),
+                bodyText: replaceMockPort(body),
                 upstream: step.upstream,
                 seed: step.seed,
             });
@@ -225,14 +244,14 @@ async function main() {
                 // the transport adds node-fetch's defaults and Host/Connection, so only the target
                 // and method are a property of the route.
                 outbound: outbound.map(request => ({
-                    url: request.url.split(PINNED_AUTHORITY).join('<mock>'),
+                    url: replaceMockPort(request.url),
                     method: request.method,
                 })),
-                tree: snapshotTree(assetsRoot),
+                tree: snapshotAssetsTree(assetsRoot),
                 comparison: {
                     compared: ['status', 'contentType', 'contentLength', 'etag', 'bodyText', 'bodyBase64', 'bodySha256', 'bodyLength', 'outbound', 'tree'],
-                    shape: [],
-                    shapeReason: {},
+                    shape: ['tree entries under assets/temp'],
+                    shapeReason: { 'tree entries under assets/temp': TEMP_ENTRY_REASON },
                 },
             };
         }
@@ -244,15 +263,16 @@ async function main() {
             oracle: { file: 'src/endpoints/assets.js', lines: { download: 190 } },
             conventions: {
                 steps: 'steps are an ordered ARRAY: every step snapshots the assets tree the next step starts from',
-                mock: `the peer authority ${PINNED_AUTHORITY} is stored as <mock> in inputs and outbound URLs; the replay substitutes its own peer`,
+                mock: `the peer PORT ${PINNED_PORT} is stored as <mock> in inputs and outbound URLs; the replay substitutes its own port, so a scenario can use a different HOST that still reaches the replay peer`,
                 refusals: 'a refusal records ZERO outbound requests; a forwarding step records exactly one, so a guard that fetched early cannot look correct',
                 filename: 'the filename guard answers status(400).send(message), so its body is TEXT and is compared as text; sendStatus branches answer the status phrase as text/plain',
                 mime: 'the character branch content type comes from mime.lookup of the temp filename',
+                temp: TEMP_ENTRY_REASON,
             },
             fixtureFields: {
                 compared: ['observations.*.status', 'observations.*.contentType', 'observations.*.contentLength', 'observations.*.etag', 'observations.*.bodyText', 'observations.*.bodyBase64', 'observations.*.bodySha256', 'observations.*.bodyLength', 'observations.*.outbound', 'observations.*.tree', 'state.before'],
-                shape: [],
-                shapeReason: {},
+                shape: ['observations.*.tree entries under assets/temp'],
+                shapeReason: { 'observations.*.tree entries under assets/temp': TEMP_ENTRY_REASON },
             },
             inputs: {
                 cookieSecret: COOKIE_SECRET,

@@ -13,10 +13,11 @@
   },
   "conventions": {
     "steps": "steps are an ordered ARRAY: every step snapshots the assets tree the next step starts from",
-    "mock": "the peer authority 127.0.0.1:18080 is stored as <mock> in inputs and outbound URLs; the replay substitutes its own peer",
+    "mock": "the peer PORT 18080 is stored as <mock> in inputs and outbound URLs; the replay substitutes its own port, so a scenario can use a different HOST that still reaches the replay peer",
     "refusals": "a refusal records ZERO outbound requests; a forwarding step records exactly one, so a guard that fetched early cannot look correct",
     "filename": "the filename guard answers status(400).send(message), so its body is TEXT and is compared as text; sendStatus branches answer the status phrase as text/plain",
-    "mime": "the character branch content type comes from mime.lookup of the temp filename"
+    "mime": "the character branch content type comes from mime.lookup of the temp filename",
+    "temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
   },
   "fixtureFields": {
     "compared": [
@@ -32,8 +33,12 @@
       "observations.*.tree",
       "state.before"
     ],
-    "shape": [],
-    "shapeReason": {}
+    "shape": [
+      "observations.*.tree entries under assets/temp"
+    ],
+    "shapeReason": {
+      "observations.*.tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+    }
   },
   "inputs": {
     "cookieSecret": "gotavern-pinned-assets-download-cookie-secret",
@@ -55,43 +60,43 @@
       },
       {
         "name": "download.hostNotWhitelisted",
-        "bodyText": "{\"url\":\"http://blocked.invalid/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
+        "bodyText": "{\"url\":\"http://localhost:<mock>/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.badCategory",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"nope\",\"filename\":\"one.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"nope\",\"filename\":\"one.mp3\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.invalidFilename",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"bad?name.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"bad?name.mp3\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.unsafeExtension",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"evil.php\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"evil.php\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.leadingDot",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\".hidden.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\".hidden.mp3\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.missingFilename",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"bgm\"}",
         "upstream": [],
         "seed": {}
       },
       {
         "name": "download.upstreamNotOk",
-        "bodyText": "{\"url\":\"http://<mock>/audio/missing.mp3\",\"category\":\"bgm\",\"filename\":\"missing.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/missing.mp3\",\"category\":\"bgm\",\"filename\":\"missing.mp3\"}",
         "upstream": [
           {
             "match": "/audio/missing.mp3",
@@ -106,7 +111,7 @@
       },
       {
         "name": "download.fetchRejected",
-        "bodyText": "{\"url\":\"http://<mock>/audio/rejected.mp3\",\"category\":\"bgm\",\"filename\":\"rejected.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/rejected.mp3\",\"category\":\"bgm\",\"filename\":\"rejected.mp3\"}",
         "upstream": [
           {
             "match": "/audio/rejected.mp3",
@@ -117,7 +122,7 @@
       },
       {
         "name": "download.ok.bgm",
-        "bodyText": "{\"url\":\"http://<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/one.mp3\",\"category\":\"bgm\",\"filename\":\"one.mp3\"}",
         "upstream": [
           {
             "match": "/audio/one.mp3",
@@ -132,7 +137,7 @@
       },
       {
         "name": "download.ok.characterPng",
-        "bodyText": "{\"url\":\"http://<mock>/img/hero.png\",\"category\":\"character\",\"filename\":\"hero.png\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/img/hero.png\",\"category\":\"character\",\"filename\":\"hero.png\"}",
         "upstream": [
           {
             "match": "/img/hero.png",
@@ -147,7 +152,7 @@
       },
       {
         "name": "download.ok.characterTxt",
-        "bodyText": "{\"url\":\"http://<mock>/img/note.txt\",\"category\":\"character\",\"filename\":\"note.txt\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/img/note.txt\",\"category\":\"character\",\"filename\":\"note.txt\"}",
         "upstream": [
           {
             "match": "/img/note.txt",
@@ -162,7 +167,7 @@
       },
       {
         "name": "download.tempReplaced",
-        "bodyText": "{\"url\":\"http://<mock>/audio/replace.mp3\",\"category\":\"bgm\",\"filename\":\"replace.mp3\"}",
+        "bodyText": "{\"url\":\"http://127.0.0.1:<mock>/audio/replace.mp3\",\"category\":\"bgm\",\"filename\":\"replace.mp3\"}",
         "upstream": [
           {
             "match": "/audio/replace.mp3",
@@ -207,8 +212,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.hostNotWhitelisted": {
@@ -235,8 +244,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.badCategory": {
@@ -263,8 +276,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.invalidFilename": {
@@ -334,8 +351,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.unsafeExtension": {
@@ -405,8 +426,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.leadingDot": {
@@ -476,8 +501,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.missingFilename": {
@@ -547,8 +576,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.upstreamNotOk": {
@@ -562,7 +595,7 @@
       "bodyLength": 21,
       "outbound": [
         {
-          "url": "http://<mock>/audio/missing.mp3",
+          "url": "http://127.0.0.1:<mock>/audio/missing.mp3",
           "method": "GET"
         }
       ],
@@ -623,8 +656,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.fetchRejected": {
@@ -638,7 +675,7 @@
       "bodyLength": 21,
       "outbound": [
         {
-          "url": "http://<mock>/audio/rejected.mp3",
+          "url": "http://127.0.0.1:<mock>/audio/rejected.mp3",
           "method": "GET"
         }
       ],
@@ -699,8 +736,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.ok.bgm": {
@@ -714,7 +755,7 @@
       "bodyLength": 2,
       "outbound": [
         {
-          "url": "http://<mock>/audio/one.mp3",
+          "url": "http://127.0.0.1:<mock>/audio/one.mp3",
           "method": "GET"
         }
       ],
@@ -781,8 +822,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.ok.characterPng": {
@@ -796,7 +841,7 @@
       "bodyLength": 6,
       "outbound": [
         {
-          "url": "http://<mock>/img/hero.png",
+          "url": "http://127.0.0.1:<mock>/img/hero.png",
           "method": "GET"
         }
       ],
@@ -863,8 +908,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.ok.characterTxt": {
@@ -878,7 +927,7 @@
       "bodyLength": 7,
       "outbound": [
         {
-          "url": "http://<mock>/img/note.txt",
+          "url": "http://127.0.0.1:<mock>/img/note.txt",
           "method": "GET"
         }
       ],
@@ -926,12 +975,6 @@
           "sha256": null
         },
         {
-          "path": "temp/note.txt",
-          "kind": "file",
-          "size": 7,
-          "sha256": "83e82f6d3d14795823a9e8f0ebb9d1e9bbd7339aacc9e92296931dda5a94f30b"
-        },
-        {
           "path": "vrm",
           "kind": "directory",
           "size": 0,
@@ -951,8 +994,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     },
     "download.tempReplaced": {
@@ -966,7 +1013,7 @@
       "bodyLength": 2,
       "outbound": [
         {
-          "url": "http://<mock>/audio/replace.mp3",
+          "url": "http://127.0.0.1:<mock>/audio/replace.mp3",
           "method": "GET"
         }
       ],
@@ -1039,8 +1086,12 @@
           "outbound",
           "tree"
         ],
-        "shape": [],
-        "shapeReason": {}
+        "shape": [
+          "tree entries under assets/temp"
+        ],
+        "shapeReason": {
+          "tree entries under assets/temp": "the pinned route unlinks assets/temp/<name> after the response is sent, which races the write stream's handle close on Windows: the file survives in some runs and not others (the committed fixture once recorded temp/note.txt; four consecutive re-records of the same input recorded none), so no value under assets/temp is host-independent. Entries under assets/temp are dropped from every recorded tree; the temp DIRECTORY is kept because ensureFoldersExist creates it deterministically."
+        }
       }
     }
   },
