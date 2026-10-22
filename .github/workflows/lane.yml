@@ -67,6 +67,11 @@ jobs:
           mkdir -p lane-binaries
           CGO_ENABLED=0 go build -trimpath -o lane-binaries/gotavern-linux-amd64 ./cmd/gotavern
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o lane-binaries/gotavern-windows-amd64.exe ./cmd/gotavern
+          # The provider-wire probe ALSO drives a recording mock provider, so a provider lane needs
+          # that binary as well. Building it here is what keeps the host out of the compile business
+          # for every provider differential, not only the one that asked for it.
+          CGO_ENABLED=0 go build -trimpath -o lane-binaries/mock-provider-linux-amd64 ./tools/mock-provider
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o lane-binaries/mock-provider-windows-amd64.exe ./tools/mock-provider
           ls -l lane-binaries
       - name: Upload the binaries for browser probes
         uses: actions/upload-artifact@v4

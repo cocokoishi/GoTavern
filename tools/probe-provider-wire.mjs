@@ -18,7 +18,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -598,14 +598,33 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
 
 // Build the mock provider once: spawning a binary keeps the probe's process
 // tree simple, so no grandchild can outlive the run.
-const mockBinary = path.join(mkdtempSync(path.join(os.tmpdir(), 'gotavern-mock-provider-')), process.platform === 'win32' ? 'mock-provider.exe' : 'mock-provider');
-execFileSync('go', ['build', '-o', mockBinary, './tools/mock-provider'], { cwd: repositoryRoot, stdio: 'inherit' });
+//
+// BINARIES MAY COME FROM THE LANE'S CI RUN INSTEAD OF A LOCAL BUILD. This host cannot usefully compile
+// Go (a full cache once filled a 149 GB disk), so a lane downloads the binaries its OWN run built from
+// the commit under test and points these variables at them. When a variable is unset the probe builds
+// it exactly as before, which is what the CI oracle job relies on.
+//
+// The binary that MUST correspond to the commit under test is the GoTavern one: the differential
+// exercises the code in this checkout, not an installed release. Both variables exist so a lane can
+// satisfy that with an artifact instead of a local compile.
+function resolveBinary(environmentVariable, buildRelativePath, fallbackName) {
+    const provided = process.env[environmentVariable];
+    if (provided) {
+        const resolved = path.resolve(provided);
+        if (!existsSync(resolved)) {
+            throw new Error(`${environmentVariable} points at ${resolved}, which does not exist`);
+        }
+        console.log(`${environmentVariable}: using ${resolved}`);
+        return resolved;
+    }
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'gotavern-build-'));
+    const binary = path.join(directory, process.platform === 'win32' ? `${fallbackName}.exe` : fallbackName);
+    execFileSync('go', ['build', '-o', binary, buildRelativePath], { cwd: repositoryRoot, stdio: 'inherit' });
+    return binary;
+}
 
-// The GoTavern binary under test, built from the working tree. The differential
-// must exercise the code in this checkout, not an installed release.
-const goTavernRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-gotavern-'));
-const goTavernBinary = path.join(goTavernRoot, process.platform === 'win32' ? 'gotavern.exe' : 'gotavern');
-execFileSync('go', ['build', '-o', goTavernBinary, './cmd/gotavern'], { cwd: repositoryRoot, stdio: 'inherit' });
+const mockBinary = resolveBinary('GOTAVERN_MOCK_PROVIDER_BINARY', './tools/mock-provider', 'mock-provider');
+const goTavernBinary = resolveBinary('GOTAVERN_BINARY', './cmd/gotavern', 'gotavern');
 
 const captures = {};
 for (const { file, definition } of scenarios) {
