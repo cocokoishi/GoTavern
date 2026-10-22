@@ -425,6 +425,87 @@ try {
     await page.goto(`${baseURL}/`);
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 60000 });
 
+    // INSTRUMENT BEFORE THE DRIVE, NOT IMMEDIATELY BEFORE THE CLICK.
+    //
+    // The observation used to start a few statements before `sendButton.click()`, which made the
+    // milestone counters depend on whether an ALREADY-RUNNING generation had finished by then. It
+    // had: the prompt manager's own dry generation (PromptManager.js:862-872 -> openai.js:707-713 ->
+    // Generate('normal', {}, true)) starts when the drive selects the chat-completion source/model,
+    // and on a slower leg its GENERATE_AFTER_DATA landed INSIDE the recorded window while on a
+    // faster leg it landed before the window opened. Measured on the recorded legs: both runs
+    // entered Generate exactly 3 times and called runGenerate 3 times, but the pinned window
+    // contained a second dry GENERATE_AFTER_DATA with NO dry GENERATION_STARTED -- i.e. a fragment
+    // of a Generate that had begun before the window. That is an observation-window race, not a
+    // product difference, and a window that can start mid-operation must not be recorded as if it
+    // were a state.
+    //
+    // So: attach the recorder here (page load), count in-flight Generate invocations, wait for the
+    // frontend to be idle before clicking a real user's send, and slice the reported events at the
+    // click. The counters then measure the send and its consequences on both legs.
+    await page.evaluate(async () => {
+        const { eventSource, event_types } = await import('./scripts/events.js');
+        const namesByValue = new Map(Object.entries(event_types).map(([eventName, eventValue]) => [eventValue, eventName]));
+        globalThis.__probeEmitLog = [];
+        globalThis.__probeInFlight = 0;
+        globalThis.__probeInFlightMax = 0;
+        globalThis.__probeCompletions = 0;
+        globalThis.__probeGenerates = [];
+        const originalEmit = eventSource.emit.bind(eventSource);
+        eventSource.emit = (eventValue, ...args) => {
+            const eventName = namesByValue.get(eventValue) ?? String(eventValue);
+            const entry = { name: eventName, t: Math.round(performance.now()), settled: false };
+            globalThis.__probeEmitLog.push(entry);
+            // In-flight accounting, derived from the pinned emitter arguments and the pinned
+            // control flow rather than from a guess:
+            //   script.js:4299  emit(GENERATION_STARTED, type, options, dryRun)  -> args[2] is dryRun
+            //   script.js:5318  emit(GENERATE_AFTER_DATA, generate_data, dryRun) -> args[1] is dryRun
+            //   script.js:5320  `if (dryRun) return Promise.resolve();` -- a DRY generation ends here,
+            //                   before finishGenerating(), so it never shows the stop button and never
+            //                   emits GENERATION_ENDED (that comes from hideStopButton(), script.js:3536).
+            // A real generation therefore ends with GENERATION_ENDED, a dry one with its
+            // GENERATE_AFTER_DATA; both are counted, so an idle frontend is inFlight === 0.
+            if (eventName === 'GENERATION_STARTED') {
+                globalThis.__probeInFlight += 1;
+                globalThis.__probeInFlightMax = Math.max(globalThis.__probeInFlightMax, globalThis.__probeInFlight);
+                globalThis.__probeGenerates.push({ event: 'started', dryRun: args[2] === true, t: entry.t });
+            } else if (eventName === 'GENERATION_ENDED') {
+                globalThis.__probeInFlight = Math.max(0, globalThis.__probeInFlight - 1);
+                globalThis.__probeCompletions += 1;
+                globalThis.__probeGenerates.push({ event: 'ended', dryRun: false, t: entry.t });
+            } else if (eventName === 'GENERATION_STOPPED') {
+                // An aborted send completes this way too (script.js:5618); GENERATION_ENDED still
+                // follows from hideStopButton(), but counting both keeps an abort from looking like
+                // a send that never finished.
+                globalThis.__probeCompletions += 1;
+                globalThis.__probeGenerates.push({ event: 'stopped', dryRun: false, t: entry.t });
+            } else if (eventName === 'GENERATE_AFTER_DATA' && args[1] === true) {
+                globalThis.__probeInFlight = Math.max(0, globalThis.__probeInFlight - 1);
+                globalThis.__probeGenerates.push({ event: 'dryData', dryRun: true, t: entry.t });
+            }
+            const result = originalEmit(eventValue, ...args);
+            if (result && typeof result.then === 'function') {
+                result.then(() => { entry.settled = true; }, () => { entry.settled = 'rejected'; });
+            } else {
+                entry.settled = true;
+            }
+            return result;
+        };
+        globalThis.__probeEvents = [];
+        for (const [name, value] of Object.entries(event_types)) {
+            if (!['GENERATION_STARTED', 'GENERATION_AFTER_COMMANDS', 'GENERATE_BEFORE_COMBINE_PROMPTS', 'GENERATE_AFTER_COMBINE_PROMPTS', 'CHAT_COMPLETION_PROMPT_READY', 'GENERATE_AFTER_DATA', 'CHAT_COMPLETION_SETTINGS_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED'].includes(name)) {
+                continue;
+            }
+            eventSource.on(value, (...args) => globalThis.__probeEvents.push({
+                name,
+                t: Math.round(performance.now()),
+                // GENERATION_STARTED(-ish) emits dryRun as the third argument; GENERATE_AFTER_DATA
+                // as the second. Recording it separates a prompt-assembly dry run from the real
+                // send, which is invisible if only the event name is kept.
+                dryRun: JSON.stringify(args.map(argument => (typeof argument === 'boolean' ? argument : (argument && typeof argument === 'object' ? Object.keys(argument).slice(0, 6) : typeof argument)))),
+            }));
+        }
+    });
+
     // Load the captured user configuration into the page before driving, when the fixture exists.
     const fixturePath = path.join(here, 'fixtures', 'custom-source-settings.json');
     let capturedSettings = null;
@@ -597,42 +678,50 @@ try {
             composer.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const sendButton = document.querySelector('#send_but');
-        // Record the frontend's own generation events. A run that reaches generate_after_data and
-        // then never issues a request is indistinguishable, from the request log alone, from one
-        // that never assembled a prompt at all; the event trail names the last stage that completed,
-        // and CHAT_COMPLETION_SETTINGS_READY is emitted immediately before the fetch.
-        const { eventSource, event_types } = await import('./scripts/events.js');
-        // Measurement only: wrap emit to record EVERY event name and whether its promise settles.
-        // An emitted-but-never-settled event is the await the real generation is stuck on, which the
-        // request log cannot show because the deadlock is purely in frontend promises.
-        const namesByValue = new Map(Object.entries(event_types).map(([eventName, eventValue]) => [eventValue, eventName]));
-        globalThis.__probeEmitLog = [];
-        const originalEmit = eventSource.emit.bind(eventSource);
-        eventSource.emit = (eventValue, ...args) => {
-            const eventName = namesByValue.get(eventValue) ?? String(eventValue);
-            const entry = { name: eventName, t: Math.round(performance.now()), settled: false };
-            globalThis.__probeEmitLog.push(entry);
-            const result = originalEmit(eventValue, ...args);
-            if (result && typeof result.then === 'function') {
-                result.then(() => { entry.settled = true; }, () => { entry.settled = 'rejected'; });
+        // The generation-event recorder is installed at PAGE LOAD (see the __probeEmitLog /
+        // __probeEvents installation above), not here: a recorder attached at this point captures a
+        // window that begins mid-operation when a dry generation is still running, which is exactly
+        // the difference the milestone counters used to record.
+        //
+        // QUIESCENCE BEFORE A SEND A USER COULD MAKE (AGENTS.md verification rule 10). The prompt
+        // manager's debounced re-render starts a dry generation by itself whenever the source, model
+        // or preset changes -- including the changes this drive makes. `render()` waits for
+        // `!is_send_press` (PromptManager.js:868) but does not block the send button, so a click
+        // issued mid-dry-run is a state a user cannot observe the outcome of: it interleaves two
+        // prompt assemblies. Wait for the idle state, and if it never arrives say so instead of
+        // recording a window that started mid-operation.
+        const quiescenceStarted = performance.now();
+        const quiescenceDeadline = quiescenceStarted + 60000;
+        let quiescentSince = null;
+        while (performance.now() < quiescenceDeadline) {
+            if ((globalThis.__probeInFlight ?? 0) === 0) {
+                if (quiescentSince === null) {
+                    quiescentSince = performance.now();
+                }
+                if (performance.now() - quiescentSince >= 500) {
+                    break;
+                }
             } else {
-                entry.settled = true;
+                quiescentSince = null;
             }
-            return result;
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        const quiesced = quiescentSince !== null && performance.now() - quiescentSince >= 500;
+        globalThis.__probeQuiescence = {
+            quiesced,
+            waitedMs: Math.round(performance.now() - quiescenceStarted),
+            inFlightMaxBeforeSend: globalThis.__probeInFlightMax ?? 0,
+            inFlightAtClick: globalThis.__probeInFlight ?? 0,
+            // Whole-drive lifecycle, INDEPENDENT of the reported window: every Generate invocation
+            // this page ran, dry or real. This is the number a reader needs in order to check
+            // whether a windowed counter is a difference of behaviour or of observation.
+            generateInvocationsBeforeSend: (globalThis.__probeGenerates ?? []).filter(entry => entry.event === 'started').length,
         };
-        globalThis.__probeEvents = [];
-        for (const [name, value] of Object.entries(event_types)) {
-            if (!['GENERATION_STARTED', 'GENERATION_AFTER_COMMANDS', 'GENERATE_BEFORE_COMBINE_PROMPTS', 'GENERATE_AFTER_COMBINE_PROMPTS', 'CHAT_COMPLETION_PROMPT_READY', 'GENERATE_AFTER_DATA', 'CHAT_COMPLETION_SETTINGS_READY', 'GENERATION_ENDED', 'GENERATION_STOPPED'].includes(name)) {
-                continue;
-            }
-            eventSource.on(value, (...args) => globalThis.__probeEvents.push({
-                name,
-                t: Math.round(performance.now()),
-                // GENERATION_STARTED(-ish) emits dryRun as the third argument; GENERATE_AFTER_DATA
-                // as the second. Recording it separates a prompt-assembly dry run from the real
-                // send, which is invisible if only the event name is kept.
-                dryRun: JSON.stringify(args.map(argument => (typeof argument === 'boolean' ? argument : (argument && typeof argument === 'object' ? Object.keys(argument).slice(0, 6) : typeof argument)))),
-            }));
+        if (!quiesced) {
+            return {
+                preconditions: { charactersLoaded: true, ...before, quiescence: globalThis.__probeQuiescence },
+                error: `the frontend was still running a generation when the send was due (in flight: ${globalThis.__probeInFlight ?? 0}); a click here would record a window that began mid-operation`,
+            };
         }
         // Incremental rendering is observed with a MutationObserver on the chat: each distinct text
         // state of the last message is a render event. A single-chunk (non-incremental) response and
@@ -655,6 +744,10 @@ try {
         }
         globalThis.__probeClickT = Date.now();
         globalThis.__probeClickPerf = Math.round(performance.now());
+        // The reported event window starts AT THE CLICK, and because the frontend was quiescent a
+        // moment ago no generation can straddle this boundary. Events recorded before it are kept as
+        // counts (report.eventsBeforeClick) so a reader can see what was excluded and why.
+        globalThis.__probeEventIndexAtClick = (globalThis.__probeEvents ?? []).length;
         sendButton.click();
 
         // Mode-aware settle. Non-streaming keeps the original fixed settle; streaming WAITS for the
@@ -701,6 +794,50 @@ try {
         } else {
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
+        // THE END OF THE WINDOW IS A STATE, NOT A SLEEP.
+        //
+        // The fixed 3 s settle above is enough on a fast leg and not on a slow one, and the milestone
+        // counters are read from the events recorded up to the end of the window. Measured: a pinned
+        // leg whose server was slower had rendered the reply but had NOT yet emitted GENERATION_ENDED
+        // when the fixed sleep expired, so the same drive produced generationEnded=0 there and 1 on
+        // GoTavern -- a difference in when the window closed, not in either server. The window is
+        // therefore closed the way it is opened (a state): the send must COMPLETE (GENERATION_ENDED
+        // or an aborted GENERATION_STOPPED), and the page must then be idle for longer than
+        // debounce_timeout.relaxed (1000 ms, constants.js) so a debounced prompt-manager re-render --
+        // the frontend's own dry generation, which is what the dry counters count -- starts and
+        // finishes INSIDE the window instead of falling off its end on one leg only.
+        const settleStarted = performance.now();
+        const settleDeadline = settleStarted + 60000;
+        let idleSince = null;
+        let settleInFlight = null;
+        while (performance.now() < settleDeadline) {
+            settleInFlight = globalThis.__probeInFlight ?? 0;
+            const completed = (globalThis.__probeCompletions ?? 0) >= 1;
+            if (completed && settleInFlight === 0) {
+                if (idleSince === null) {
+                    idleSince = performance.now();
+                }
+                if (performance.now() - idleSince >= 1500) {
+                    break;
+                }
+            } else {
+                idleSince = null;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const settledIdle = idleSince !== null && performance.now() - idleSince >= 1500;
+        globalThis.__probeSettle = {
+            settledIdle,
+            waitedMs: Math.round(performance.now() - settleStarted),
+            completions: globalThis.__probeCompletions ?? 0,
+            inFlightAtRead: settleInFlight,
+        };
+        if (!settledIdle) {
+            return {
+                preconditions: { charactersLoaded: true, ...before, settle: globalThis.__probeSettle },
+                error: `the send did not complete and settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}); the recorded window would end before the send did`,
+            };
+        }
         // Post-send measurement: whether the user message was appended (sendMessageAsUser got past
         // saveChatConditional) and whether a token count issued from the page can still complete.
         // This distinguishes "stuck inside sendMessageAsUser" from "never reached it".
@@ -740,7 +877,36 @@ try {
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
-    report.events = await page.evaluate(() => globalThis.__probeEvents ?? []);
+    // The reported window is [click, end]. A dry generation the drive's own setup started cannot
+    // straddle it, because the click waited for quiescence; whatever came before the click is
+    // retained as a count so the exclusion is visible instead of silent.
+    report.events = await page.evaluate(() => {
+        const all = globalThis.__probeEvents ?? [];
+        const index = globalThis.__probeEventIndexAtClick;
+        return typeof index === 'number' ? all.slice(index) : all;
+    });
+    report.eventsBeforeClick = await page.evaluate(() => {
+        const all = globalThis.__probeEvents ?? [];
+        const index = globalThis.__probeEventIndexAtClick;
+        const before = typeof index === 'number' ? all.slice(0, index) : [];
+        return { count: before.length, names: before.map(entry => entry.name) };
+    });
+    report.quiescence = await page.evaluate(() => globalThis.__probeQuiescence ?? null);
+    report.settle = await page.evaluate(() => globalThis.__probeSettle ?? null);
+    // Whole-drive Generate lifecycle, windowed counters excluded on purpose: this is the number that
+    // says whether two legs ran the same NUMBER of generations, independently of where a window fell.
+    report.generateLifecycle = await page.evaluate(() => {
+        const entries = globalThis.__probeGenerates ?? [];
+        const started = entries.filter(entry => entry.event === 'started');
+        return {
+            started: started.length,
+            dryStarted: started.filter(entry => entry.dryRun === true).length,
+            realStarted: started.filter(entry => entry.dryRun === false).length,
+            dryAfterData: entries.filter(entry => entry.event === 'dryData').length,
+            ended: entries.filter(entry => entry.event === 'ended').length,
+            invocations: started.map(entry => ({ dryRun: entry.dryRun, t: entry.t })),
+        };
+    });
     report.clickT = await page.evaluate(() => globalThis.__probeClickT ?? null);
     report.emitLog = await page.evaluate(() => (globalThis.__probeEmitLog ?? []).filter(entry => entry.t >= (globalThis.__probeClickPerf ?? 0) - 50));
     report.requestsAfterClick = report.requests.filter(entry => report.clickT !== null && entry.t >= report.clickT - 50);

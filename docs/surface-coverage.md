@@ -88,11 +88,22 @@ What the committed artifacts can support is a coherence check, and that is what 
 - a `compatible` row may not rest on an artifact whose core claim is false -- for generation that is
   `providerRequestEqual`, which is the provider wire this project promises to reproduce.
 
-**FIRST FINDING FROM THE GATE: `generation-comparison.json` records `milestoneEqual: false` and
-explains it nowhere.** The differing counter is `dryAfterData` (gotavern 1, pinned 2), inside the area
-this table calls `compatible`. Either the divergence is acceptable and needs a recorded reason, or it is
-a product difference. It is listed here rather than resolved, because a row may not keep a `compatible`
-claim while its own artifact records an unjustified difference.
+**THE GATE'S FIRST FINDING IS RESOLVED, and it was a probe defect rather than a product
+difference.** `generation-comparison.json` recorded `milestoneEqual: false` with no reason, counters
+`dryAfterData` gotavern 1 / pinned 2, inside the area this table calls `compatible`. The cause was the
+observation WINDOW: the probe attached its recorder a few statements before the send click, so on the
+slower leg the tail of the prompt-manager dry generation that the drive itself starts landed inside the
+window. The proof is not "the numbers look nicer now" -- it is that the pinned record held a dry
+`GENERATE_AFTER_DATA` with NO dry `GENERATION_STARTED`, which `script.js:4299/5318/5320` make impossible
+for an invocation the window contains; that both legs' own frontend logs recorded the same whole-drive
+count (4 invocations, 3 dry + 1 real); and that the same asymmetry moved to whichever leg was slower
+across the gen, cancel, stream and non-stream pairs. The probe now waits for quiescence before the send
+and closes the window at `GENERATION_ENDED` instead of a fixed sleep (a second, separately measured
+race: the pinned leg had rendered the reply but not yet emitted the event), the counters are equal, and
+the window is recorded under `surrounding` with the whole-drive count. `compare-generation-legs.mjs`
+now EXITS 1 on a false window guard, and this gate checks those guards in the COMMITTED artifact --
+without that second half a false guard could be committed and CI would stay green, which is the same
+"an artifact that cannot fail" shape as the finding itself.
 
 ## The cheapest next promotions
 

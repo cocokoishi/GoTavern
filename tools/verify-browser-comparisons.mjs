@@ -109,6 +109,41 @@ if (generation) {
                 `milestoneEqual is false with NO milestoneDifferenceReason recorded; differing counters: ${differing.join('; ') || '(none isolated)'}`);
         }
     }
+    // THE WINDOW GUARDS, checked HERE and not only in the compare script.
+    //
+    // compare-generation-legs.mjs exits 1 on a false guard, but that runs on the machine that
+    // produces the artifact; this job reads the COMMITTED artifact. Until this block existed a false
+    // guard could be committed and CI would stay green, because the only generation fields checked
+    // were providerRequestEqual and milestoneEqual -- the "an artifact that cannot fail" pattern this
+    // file exists to prevent. The finding that motivated them: `dryAfterData` gotavern=1 / pinned=2
+    // was a recording window that began mid-dry-run, not a server difference.
+    const generationGuards = [
+        'bothLegsQuiescedBeforeSend',
+        'bothLegsSettledAfterSend',
+        'bothWindowsHoldCompleteGenerations',
+        'sendWindowHoldsExactlyOneRealSendAndNoDryAssembly',
+    ];
+    if (!generation.guards || typeof generation.guards !== 'object') {
+        fail('generation-comparison.json', 'has no guards block, so a recording-window divergence cannot be told apart from a product one');
+    } else {
+        for (const guard of generationGuards) {
+            if (generation.guards[guard] !== true) {
+                fail('generation-comparison.json', `guards.${guard} is ${JSON.stringify(generation.guards[guard])}, must be true`);
+            }
+        }
+    }
+    // The whole-drive invocation count is what makes the windowed counters readable: without it a
+    // reader cannot tell a behaviour difference from a difference in where the window fell.
+    for (const leg of ['gotavern', 'pinned']) {
+        const whole = generation.surrounding?.[leg]?.wholeDrive;
+        if (!whole || typeof whole.started !== 'number') {
+            fail('generation-comparison.json', `surrounding.${leg}.wholeDrive is missing, so the windowed counters cannot be checked against the whole drive`);
+            continue;
+        }
+        if (typeof whole.realStarted !== 'number' || whole.realStarted < 1) {
+            fail('generation-comparison.json', `surrounding.${leg}.wholeDrive.realStarted is ${JSON.stringify(whole.realStarted)}, so that leg never ran a real generation`);
+        }
+    }
 }
 
 // ---- streaming-comparison.json ---------------------------------------------------------------

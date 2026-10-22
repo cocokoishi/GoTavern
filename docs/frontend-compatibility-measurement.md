@@ -780,3 +780,40 @@ for startup-scenario coverage of characters (`/api/characters/all`), chats (`/ap
 built-in extension files), quick replies (`save`) and SD workflows (`/api/sd/comfy/workflows`) —
 provided those rows say "startup scenario" rather than implying every operation in the area was
 driven. The thumbnail gaps are inventory `not implemented`, not E evidence for the assets domain.
+
+## 2026-10-21 (later) -- the dryAfterData divergence RESOLVED as a recording window, not a product difference
+
+The entry above recorded "one extra prompt-manager dry generation" on the pinned leg and left it
+unexplained. It is now measured and closed, and the answer was the observation window.
+
+- The ONLY emitter of `GENERATE_AFTER_DATA` is `script.js:5318`, inside `Generate`. `:4299` emits
+  `GENERATION_STARTED` unconditionally before any branch, and `:5320-5322` returns early for a dry run,
+  so a dry generation emits AFTER_DATA and never `GENERATION_ENDED`. The dry path is
+  `PromptManager.js:862-872` -> `openai.js:707-713` -> `Generate('normal', {}, true)`; the drive's own
+  source/model selection triggers one before the send, and `MESSAGE_RECEIVED` triggers one after it.
+- The superseded pinned leg recorded dry `GENERATION_STARTED 1` against dry `GENERATE_AFTER_DATA 2`,
+  which is impossible for a window that begins before the invocation it contains. The window had opened
+  a few statements before the send click, while the pre-send dry run was still running.
+- Both legs' own frontend logs recorded the SAME whole-drive count: `Generate entered` x3 and
+  `calling runGenerate` x3 in the earlier pair, and 4 invocations (3 dry + 1 real) in the final pair.
+  The 1-vs-2 asymmetry also moved to whichever leg was slower across the gen, cancel, stream and
+  non-stream pairs, which a server property cannot do.
+- The superseded artifact also described a send that never completed: both legs recorded
+  `500 POST /api/backends/chat-completions/generate` and `pageErrors: ["Got response status 500"]`,
+  because the drive kept `stream_openai` true while the mock answers one non-SSE JSON body. The send in
+  `generation-comparison.json` is now the NON-STREAMED one (7401 bytes, SHA-256 f6aba6d6...) with a
+  rendered reply on both legs; the streamed path is covered by `streaming-comparison.json`
+  (7400 bytes, SHA-256 d644f007...), which is untouched.
+- Fixes, all in the probe and the comparison: the recorder attaches at PAGE LOAD and counts in-flight
+  `Generate` invocations from the pinned emitter arguments; the drive waits for QUIESCENCE before the
+  send (a click mid-assembly is a state no user can act from) and closes the window at
+  `GENERATION_ENDED` instead of a 3 s sleep (a second race, measured: the pinned leg had rendered the
+  reply but not yet emitted the event, giving `generationEnded 0 vs 1`); excluded events are recorded
+  under `surrounding` with the whole-drive count. `compare-generation-legs.mjs` exits 1 on a false
+  window guard, and `tools/verify-browser-comparisons.mjs` now checks those guards in the COMMITTED
+  artifact as well.
+- Still unproven, and not to be repeated as fact: WHY the pinned leg is slower. It is measured only as
+  aggregate weight (412 vs 279 requests in one pair), and the extension line above is now the leading
+  candidate -- a release-shaped GoTavern stages built-in extensions by hand because
+  `/api/extensions/discover` lists none. The pre-send dry-run count also varies 1-2 across runs on one
+  leg (debounce coalescing), so it is recorded and never compared.
