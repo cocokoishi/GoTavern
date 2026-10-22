@@ -53,7 +53,7 @@ const (
 // `await delay(500)`) rather than recorded: a 100ms or 500ms duration cannot be bucketed on a host
 // this slow, so TestSDComfyGeneratePollIntervalsArePinned asserts the constants instead.
 const (
-	sdComfyLocalPollDelay  = 1 * time.Millisecond
+	sdComfyLocalPollDelay  = 100 * time.Millisecond
 	sdComfyRunPodPollDelay = 500 * time.Millisecond
 )
 
@@ -61,7 +61,7 @@ const (
 // `JSON.parse` of a non-JSON prompt, `data.prompt_id` on a null answer, `item.status.status_str` on a
 // history entry without status, and `await result.json()` on a non-JSON provider answer. The fixture
 // classifies those responses `shape` and compares only the status, so this text is not a claim of
-// parity â€” it is a named difference.
+// parity — it is a named difference.
 const sdComfyEngineMessageText = "ComfyUI returned an unparseable answer."
 
 func init() {
@@ -143,7 +143,7 @@ func sdComfySend(ctx context.Context, method, target string, extra []outbound.He
 
 // sdComfyDetached is the context the pinned fetches effectively run under: NO fetch in either handler
 // takes a signal. The pinned handlers create an AbortController and never pass its signal to anything,
-// which is exactly why the socket-close handler exists â€” the server keeps working after the caller
+// which is exactly why the socket-close handler exists — the server keeps working after the caller
 // goes away and asks ComfyUI to cancel through `/interrupt` or `/cancel/<jobId>`. Tying these calls to
 // `request.Context()` would abort the first in-flight request instead, so the poll would never see the
 // item the pinned loop would have seen. The inherited cost is the pinned one: an abandoned caller
@@ -198,7 +198,7 @@ func sdComfyQueryEncode(value string) string {
 	return builder.String()
 }
 
-// sdComfyWithQuery is `url.search = "?filename=â€¦"`: the query is replaced, never merged.
+// sdComfyWithQuery is `url.search = "?filename=…"`: the query is replaced, never merged.
 func sdComfyWithQuery(base, search string) (string, bool) {
 	parsed, ok := sdParseAbsoluteURL(base)
 	if !ok {
