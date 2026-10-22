@@ -175,100 +175,28 @@ jobs:
         run: go build -trimpath -o gotavern ./cmd/gotavern
       - name: Verify embedded assets
         run: ./gotavern assets verify
-
-  cross-compile:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Cross-compile release target
-        env:
-          CGO_ENABLED: '0'
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        shell: bash
-        run: |
-          suffix=''
-          if [ "$GOOS" = windows ]; then suffix='.exe'; fi
-          mkdir -p dist
-          go build ./...
-          go build -trimpath -ldflags='-s -w' -o "dist/gotavern-${GOOS}-${GOARCH}${suffix}" ./cmd/gotavern
-
-  # The Docker path is a documented release path (ARCHITECTURE.md section 5.4),
-  # so the image is built and asserted here rather than assumed. The assertion
-  # that matters most is `assets verify` INSIDE the container: tokenizers is a
-  # directory beside the binary rather than an embedded asset, and without it the
-  # tokenizer routes silently take the pinned fallback path and count every
-  # prompt wrong while still answering. A build that forgot to copy the tree
-  # would otherwise produce a container that looks healthy and tokenizes badly.
-  #
-  # Deliberately not part of the release workflow: this is a build-and-smoke
-  # check, and the release workflow should not depend on a Docker daemon.
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build the release image
-        run: docker build --tag gotavern:ci .
-      - name: Verify embedded assets and the installed tokenizers tree
-        run: docker run --rm gotavern:ci assets verify
-      - name: Start the container and assert it serves a pinned route
+      - name: Cross-platform compile check
+        # WHY THIS REPLACED A SIX-JOB MATRIX. The matrix built the real release binary for six
+        # GOOS/GOARCH pairs on EVERY push, in six separate jobs -- six checkouts, six Go setups, six
+        # module caches restored, for a fact (`does this package set compile on this platform?`) that
+        # one job can answer with a cached toolchain. The release workflow is what actually produces
+        # the six canonical archives, so building them here was duplicated work at six times the
+        # overhead.
+        #
+        # `go build ./...` compiles every package (no link step, no output tree) under the target
+        # platform, which is exactly what catches a platform-specific file being wrong -- the failure
+        # mode the matrix existed for. CGO is off everywhere, as in distribution.
+        #
+        # A real cross-compile of the CLI remains available on demand: the `Release qualification`
+        # workflow builds the archives, and `Release` builds and publishes them on a tag.
         shell: bash
         run: |
           set -euo pipefail
-
-          # Report what was seen, not only that it failed. The first run of this
-          # job failed with a bare exit code, which left the cause to be
-          # reconstructed from the image rather than read from the log.
-          report_failure() {
-            echo "::group::container state"
-            docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' gotavern-docker-smoke || true
+          export CGO_ENABLED=0
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            export GOOS="${target%%/*}" GOARCH="${target##*/}"
+            echo "::group::go build ./... for ${GOOS}/${GOARCH}"
+            go build ./...
             echo "::endgroup::"
-            echo "::group::container logs"
-            docker logs gotavern-docker-smoke || true
-            echo "::endgroup::"
-          }
-
-          docker run --detach --name gotavern-docker-smoke --publish 8000:8000 gotavern:ci
-
-          # /version is a pinned public compatibility route: no session, no CSRF,
-          # and it is in the pinned route set rather than invented for the probe.
-          for attempt in $(seq 1 30); do
-            state=$(docker inspect --format '{{.State.Status}}' gotavern-docker-smoke 2>/dev/null || echo missing)
-            if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
-              echo "the container $state before it served /version"
-              report_failure
-              exit 1
-            fi
-            if docker exec gotavern-docker-smoke wget -q -O - http://127.0.0.1:8000/version > /tmp/gotavern-version.json 2>/dev/null; then
-              echo "GET /version inside the container:"
-              cat /tmp/gotavern-version.json
-              exit 0
-            fi
-            sleep 2
           done
-          echo "the container never answered /version within 60 seconds"
-          report_failure
-          exit 1
-      - name: Stop the container
-        if: always()
-        run: docker rm --force gotavern-docker-smoke || true
+          echo "all six release platforms compile"

@@ -54,20 +54,27 @@ jobs:
         run: go build ./...
       - name: Vet
         run: go vet ./...
-      - name: Test
-        run: go test ./... -count=1
-      - name: Verify internal Go tests are not vacuous
-        # A `-run` that matches nothing reports `ok`, and a package that fails to COMPILE also stops
-        # the named test from running. Both have produced "green" results in this project, so the
-        # lane job names the oracle replay tests it actually saw run, when a fixture is present.
+      - name: Test, and prove the tests actually ran
+        # ONE test invocation, not two. The first version ran `go test ./... -count=1` and then a
+        # second `go test ./internal/server -v` just to count `=== RUN` lines; on this project's
+        # budget that is a duplicated full package compile and test for a number that can be counted
+        # in the same pass.
+        #
+        # The counting itself is not decoration: a `-run` that matches nothing reports `ok`, and a
+        # package that fails to COMPILE also produces no `=== RUN` line while the step can still look
+        # green in the caller's reading. Both have happened here.
         run: |
           set -euo pipefail
-          fixtures="$(git ls-files 'tests/oracle/*.json' | wc -l)"
-          echo "oracle fixtures present: $fixtures"
-          go test ./internal/server -count=1 -v 2>&1 | tee /tmp/server-tests.log >/dev/null
-          echo "internal/server tests executed: $(grep -c '^=== RUN' /tmp/server-tests.log)"
-          if [ "$(grep -c '^=== RUN' /tmp/server-tests.log)" -eq 0 ]; then
-            echo "no test executed in internal/server -- refusing to report success"
+          go test ./... -count=1 -v 2>&1 | tee /tmp/all-tests.log >/dev/null
+          executed="$(grep -c '^=== RUN' /tmp/all-tests.log || true)"
+          echo "tests executed: $executed"
+          grep -E '^(--- )?(FAIL|ok  )' /tmp/all-tests.log | tail -15 || true
+          if grep -q '^FAIL' /tmp/all-tests.log; then
+            echo "at least one package failed"
             exit 1
           fi
-          grep -E '^--- (PASS|FAIL)' /tmp/server-tests.log | tail -5
+          if [ "$executed" -eq 0 ]; then
+            echo "no test executed at all -- refusing to report success"
+            exit 1
+          fi
+
