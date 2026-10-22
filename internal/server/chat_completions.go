@@ -424,6 +424,22 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		if schema, schemaExists := body.member("json_schema"); schemaExists && pinnedJSTruthy(schema) {
 			bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
 		}
+	case chatCompletionSourceSiliconF:
+		// chat-completions.js:2566. The endpoint comes from the REQUEST BODY, and its one fold is
+		// setJsonObjectFormat, which is not a response_format shape but a response_format PLUS an appended
+		// message. The fold returns an error only when the schema cannot be pretty-printed, which pinned
+		// cannot reach because JSON.stringify of a parsed body always succeeds.
+		apiURL = pinnedSiliconFlowBaseURL(body)
+		secret, err := pinnedReadSecret(directories, pinnedSiliconFlowSecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
+				return nil, pinnedChatCompletionTransportFailure(foldErr)
+			}
+		}
 	case chatCompletionSourceGroq:
 		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
 		// body params of its own. Its one fold is a json_schema shape the shared response_format helper

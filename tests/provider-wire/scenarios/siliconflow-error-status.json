@@ -1,0 +1,93 @@
+{
+    "schemaVersion":  1,
+    "name":  "siliconflow-error-status",
+    "purpose":  "SILICONFLOW provider non-2xx: pins the browser-visible shape the shared path produces from a provider error rather than forwarding the provider status.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "siliconflow",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_siliconflow":  [
+                                                {
+                                                    "id":  "probe-id-api_key_siliconflow",
+                                                    "value":  "synthetic-siliconflow-key",
+                                                    "label":  "api_key_siliconflow",
+                                                    "active":  true
+                                                }
+                                            ]
+                },
+    "expectedAuthorizationKey":  "synthetic-siliconflow-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://api.siliconflow.com/v1",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_SILICONFLOW_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://api.siliconflow.com/v1"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "siliconflow",
+                                 "model":  "probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  true
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  429,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_exceeded\"}}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "the value is compared as the literal \"Bearer \u003csynthetic siliconflow key\u003e\", never as a recorded secret",
+                                            "reason":  "the scenario declines to store the key and records authorizationKeyVerified instead, so the assertion is that the planted value arrived",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2571 apiKey = readSecret(request.user.directories, SECRET_KEYS.SILICONFLOW, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the recorder origin is replaced with \u003cmock\u003e",
+                                            "reason":  "SILICONFLOW has no reverse_proxy and no custom_url: the branch assigns one of two hardcoded literals chosen by the REQUEST BODY field siliconflow_endpoint, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through the matching seam. The PATH is untouched and IS compared.",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2567-2570 apiUrl = siliconflow_endpoint === SILICONFLOW_ENDPOINT.CN ? API_SILICONFLOW_CN : API_SILICONFLOW"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded from the compared headers",
+                                            "reason":  "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}

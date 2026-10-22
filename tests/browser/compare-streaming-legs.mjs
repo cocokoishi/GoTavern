@@ -67,6 +67,10 @@ const compareMode = (gotavern, pinned, { expectClientDisconnected, expectStreamF
         // framesWrittenEqual (both legs applied the same number of chunks). The raw sequences stay in
         // `renderTexts` and their alignment in `renderTickAlignment`, for a reader to inspect.
         streamedRenderPrefixes: isPrefixSequence(streamedTexts(gotavern)) && isPrefixSequence(streamedTexts(pinned)),
+        // EQUAL AND EMPTY IS NOT A PASS. For a STREAM this can fail because of the PEER'S FRAMING: a claude
+        // stream the page cannot parse renders nothing and would otherwise compare equal on both legs.
+        finalTextNonEmpty: typeof gotavern.postSend?.finalAssistantText === 'string' && gotavern.postSend.finalAssistantText.length > 0
+            && typeof pinned.postSend?.finalAssistantText === 'string' && pinned.postSend.finalAssistantText.length > 0,
         pagesHaveNoErrors: (gotavern.pageErrors ?? []).length === 0 && (pinned.pageErrors ?? []).length === 0,
     };
     if (expectStreamFlag !== undefined) {

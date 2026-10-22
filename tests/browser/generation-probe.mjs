@@ -230,8 +230,12 @@ function startStreamingPeer(mode, protocol) {
             }));
             return;
         }
+        // CONTAINS, NOT STARTS-WITH. A source aimed through `reverse_proxy` reaches the peer as
+        // `//chat/completions` -- the pinned literal's trailing slash plus the appended path, the same quirk
+        // already documented for the openai reverse proxy -- and a startsWith check answers 404 to a request
+        // that is exactly right. Measured: `GET /models -> 200` then `POST //chat/completions -> 404`.
         const completionPath = protocol === 'anthropic' ? '/messages' : '/chat/completions';
-        if (request.method !== 'POST' || !request.url.startsWith(completionPath)) {
+        if (request.method !== 'POST' || !request.url.includes(completionPath)) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
             response.end('not found');
