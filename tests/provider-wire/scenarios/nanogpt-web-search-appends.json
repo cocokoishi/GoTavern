@@ -1,0 +1,94 @@
+{
+    "schemaVersion":  1,
+    "name":  "nanogpt-web-search-appends",
+    "purpose":  "NANOGPT with enable_web_search and an unsuffixed model: the compared body must carry \"probe-model:online\", the pair of nanogpt-online-already-suffixed.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "nanogpt",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_nanogpt":  [
+                                            {
+                                                "id":  "probe-id-api_key_nanogpt",
+                                                "value":  "synthetic-nanogpt-key",
+                                                "label":  "api_key_nanogpt",
+                                                "active":  true
+                                            }
+                                        ]
+                },
+    "expectedAuthorizationKey":  "synthetic-nanogpt-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://nano-gpt.com/api/v1",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_NANOGPT_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://nano-gpt.com/api/v1"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "nanogpt",
+                                 "model":  "probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  false,
+                                 "enable_web_search":  true
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as the literal \"Bearer \u003csynthetic nanogpt key\u003e\"",
+                                            "reason":  "the scenario declines to store the key and records authorizationKeyVerified instead",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2478 apiKey = readSecret(request.user.directories, SECRET_KEYS.NANOGPT, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the recorder origin is replaced with \u003cmock\u003e",
+                                            "reason":  "NANOGPT has no reverse_proxy and no custom_url: the branch assigns the hardcoded literal https://nano-gpt.com/api/v1, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH is untouched and IS compared.",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2477 apiUrl = API_NANOGPT"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded",
+                                            "reason":  "wall-clock measurement, differs every run",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}

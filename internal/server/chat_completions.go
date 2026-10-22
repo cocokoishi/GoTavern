@@ -440,6 +440,40 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 				return nil, pinnedChatCompletionTransportFailure(foldErr)
 			}
 		}
+	case chatCompletionSourceNG:
+		// chat-completions.js:2476. Four foldings, and the model mutation is the one a reader would assume
+		// works: `:online` is appended only when enable_web_search is truthy AND the model does not already
+		// end in it, so the already-suffixed scenario is the control that fails an unconditional append.
+		apiURL = pinnedNanoGPTBaseURL()
+		secret, err := pinnedReadSecret(directories, pinnedNanoGPTSecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+		if provider, exists := body.member("nanogpt_provider"); exists && pinnedJSTruthy(provider) {
+			customHeaders.setMember("X-Provider", provider)
+		}
+		if payg, exists := body.member("nanogpt_payg_override"); exists && pinnedJSTruthy(payg) {
+			customHeaders.setMember("X-Billing-Mode", nodeString("paygo"))
+			bodyParams.setMember("billing_mode", nodeString("paygo"))
+		}
+		if model, changed := pinnedNanoGPTModel(body); changed {
+			body.setMember("model", nodeString(model))
+		}
+		for _, key := range []string{"min_p", "top_a", "repetition_penalty"} {
+			if value, exists := body.member(key); exists && !value.isUndefined() {
+				bodyParams.setMember(key, value)
+			}
+		}
+		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+			if text, ok := effort.scalar.(string); ok {
+				if mapped, known := pinnedNanoGPTReasoningEffortMap[text]; known {
+					reasoning := nodeObject()
+					reasoning.setMember("effort", nodeString(mapped))
+					bodyParams.setMember("reasoning", reasoning)
+				}
+			}
+		}
 	case chatCompletionSourceGroq:
 		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
 		// body params of its own. Its one fold is a json_schema shape the shared response_format helper
