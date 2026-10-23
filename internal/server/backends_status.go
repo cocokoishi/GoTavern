@@ -84,6 +84,13 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceZai {
+		// Pinned has no ZAI arm and its chain's closing else answers 400 { error: true } without a
+		// provider call (chat-completions.js:2062-2065), so this is the pinned behaviour rather than
+		// the 501 "not written yet" the default below would give.
+		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return

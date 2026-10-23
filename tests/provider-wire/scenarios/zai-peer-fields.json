@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "zai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_zai": [
+      {
+        "id": "probe-id-api_key_zai",
+        "value": "synthetic-zai-key",
+        "label": "api_key_zai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-zai-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.z.ai/api/paas/v4",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.z.ai/api/paas/v4"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:2079 'Authorization': 'Bearer ' + apiKey (status) and the shared generate path"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>, the PATH is kept",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through GOTAVERN_ZAI_CHAT_URL, because the ZAI literals are pinned. The path is what distinguishes the two endpoint modes and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:94-95 the two literals, :2552 defaultApiUrl = body.zai_endpoint === ZAI_ENDPOINT.CODING ? https://api.z.ai/api/coding/paas/v4 : https://api.z.ai/api/paas/v4, :2553 new URL(reverse_proxy || defaultApiUrl).toString(); this scenario drives the common mode (https://api.z.ai/api/paas/v4)"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "zai-peer-fields",
+  "purpose": "ZAI with the peer sampling fields the shared path forwards (top_p, top_k, min_p, repetition_penalty, top_a) plus seed and stop, so the member set around the branch-specific ones is pinned rather than assumed.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "zai",
+      "model": "glm-4.6",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "stream": false,
+      "top_p": 0.8,
+      "top_k": 40,
+      "min_p": 0.05,
+      "repetition_penalty": 1.1,
+      "top_a": 0.2,
+      "seed": 11,
+      "stop": [
+        "PROBE_STOP"
+      ]
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-zai\",\"object\":\"chat.completion\",\"model\":\"glm-4.6\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock zai reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":4,\"total_tokens\":11}}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "zai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_zai": [
+      {
+        "id": "probe-id-api_key_zai",
+        "value": "synthetic-zai-key",
+        "label": "api_key_zai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-zai-key",
+  "transportRedirect": [],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.z.ai/api/paas/v4"
+  },
+  "normalization": {
+    "tier2": [],
+    "tier3": []
+  },
+  "name": "zai-status",
+  "purpose": "ZAI /status: pinned's status matrix has NO ZAI arm, and its chain ends at :2062-2065 answering 400 { error: true } WITHOUT calling the provider. The mock script is therefore EMPTY: any outbound request would be answered by the mock default and would appear in the recording as a request pinned never made, which is exactly the divergence this scenario exists to catch.",
+  "request": {
+    "path": "/api/backends/chat-completions/status",
+    "body": {
+      "chat_completion_source": "zai"
+    }
+  },
+  "mock": {
+    "responses": []
+  }
+}
