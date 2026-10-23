@@ -58,7 +58,7 @@ const (
 	minimaxChatEndpointCN = "cn"
 	// `request.body.model === 'M2-her' ? Math.min(max_tokens, 2048) : max_tokens`.
 	minimaxChatHerModel     = "M2-her"
-	minimaxChatHerMaxTokens = 4096
+	minimaxChatHerMaxTokens = 2048
 )
 
 func minimaxChatGlobalBaseURL() string {
@@ -219,7 +219,7 @@ func (runtime *accountRuntime) serveMinimaxChatCompletion(w http.ResponseWriter,
 			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 			return
 		}
-		respondMinimaxSendValue(w, http.StatusInternalServerError, parsed)
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 		return
 	}
 	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
