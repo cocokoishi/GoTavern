@@ -275,11 +275,11 @@ with socketserver.TCPServer(("127.0.0.1", 0), handler) as httpd:
     & pwsh -NoProfile -File $Installer -InstallDir $installDir -Version $newerTag *> $runningLog
     $runningStatus = $LASTEXITCODE
 
-    if ($runningStatus -ne 0) {
+    if ($runningStatus -eq 0) {
         Stop-QualificationServer
-        Fail ("MUTATION: expected the installer to REPLACE a running gotavern.exe (exit 0) and it refused (exit ${runningStatus})") @($runningLog)
+        Fail ("the installer REPLACED a running gotavern.exe (exit 0). That is not what docs/INSTALLATION.md and the installer's own throw message promise ('If GoTavern is currently running, stop it and re-run the installer'), so either the documented contract or the document is wrong -- this run cannot tell you which") @($runningLog)
     }
-    Ok "MUTATION: the installer replaced a RUNNING gotavern.exe (exit $runningStatus)"
+    Ok "the installer refuses to replace a RUNNING gotavern.exe (exit $runningStatus)"
 
     $runningText = Get-Content -LiteralPath $runningLog -Raw
     if ($runningText -notmatch [regex]::Escape('Could not replace')) { Fail 'the refusal does not name the replacement step' @($runningLog) }
