@@ -216,7 +216,14 @@ const main = async () => {
         } : {}),
         // OPENAI: the same seam/redirect pair as the generation artifact, and the same measured fact -- openai IS
         // proxy:true, so the absent reverse_proxy is a deliberate drive choice, not a control the frontend lacks.
-        ...(process.env.PROBE_SOURCE === 'openai' ? {
+        // See the generation comparator: xAI's route is the SETTING, the seam is a safety net, and
+        // proxyPasswordPresent true on both legs is what distinguishes this row from every seam-routed one.
+        ...(process.env.PROBE_SOURCE === 'xai' ? {
+            seamEnvVar: 'GOTAVERN_XAI_CHAT_URL',
+            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184), which is a path a user can take because xAI is proxy-capable',
+            seamUsage: 'safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but neither is the route this drive took; proxyPasswordPresent true on both legs is the evidence',
+            converterNote: 'xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content and deletes msg.name; a wrong port still yields a parseable body, so the provider bytes are the assertion',
+        } : {}),        ...(process.env.PROBE_SOURCE === 'openai' ? {
             seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
             proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true, so oai_settings.reverse_proxy was available and deliberately left unset; proxyPasswordPresent false on both legs is the measurement, not an assumption',
             pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the pinned leg at the same peer the seam aims the GoTavern leg at; without it the pinned server fetches api.openai.com and the peer log stays empty',

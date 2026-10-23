@@ -398,7 +398,17 @@ const main = async () => {
             // legs reached the peer through the GoTavern seam and the pinned transport redirect, not through a proxy
             // credential, so the comparison stays about the pinned provider-wire bytes rather than about which of two
             // available aiming mechanisms each leg happened to use.
-            ...(process.env.PROBE_SOURCE === 'openai' ? {
+            // XAI'S ROUTE IS THE SETTING, NOT THE SEAM, and the artifact must say so: for
+            // groq/siliconflow/nanogpt/deepseek the seam plus the redirect are the ONLY route to a peer,
+            // while xAI is proxy-capable and this drive carries the peer in `reverse_proxy` exactly as a
+            // user's endpoint would. proxyPasswordPresent true on both legs is the evidence -- a
+            // seam-routed leg sends no proxy_password and would record false.
+            ...(process.env.PROBE_SOURCE === 'xai' ? {
+                seamEnvVar: 'GOTAVERN_XAI_CHAT_URL',
+                peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184 `new URL(request.body.reverse_proxy || API_XAI)`), which is a path a user can take because xAI is proxy-capable',
+                seamUsage: 'safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are both aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but NEITHER is the route this drive took, and proxyPasswordPresent true on both legs is the evidence',
+                converterNote: 'xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content with the character or user name and DELETES msg.name -- not the semi_tools merger. A wrong port would still produce a parseable body, so the compared provider bytes are the assertion',
+            } : {}),            ...(process.env.PROBE_SOURCE === 'openai' ? {
                 seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
                 proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true (SECRET_KEYS.OPENAI, #api_key_openai), so oai_settings.reverse_proxy WAS available to this drive and was left unset on purpose; a reader must not conclude from the false that the frontend offers no proxy for openai',
                 pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the PINNED leg (the transport hook run-against-pinned.mjs installs) at the same peer the seam aims the GoTavern leg at. Without it the pinned server fetches api.openai.com, the peer log stays EMPTY, and an empty log reads exactly like a product hang.',
