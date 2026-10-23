@@ -372,11 +372,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-<<<<<<< HEAD
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'deepseek') {
-=======
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'openai') {
->>>>>>> origin/lane/openai-e2e
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'deepseek' || probeSource === 'openai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
