@@ -8,6 +8,13 @@
 // the only place pinned Node and the Go build are both available. Until that job records these names, the
 // Go tests for this source assert the pinning-derived behaviour only and say so.
 //
+// THE EMITTED FILES ARE NOT COMMITTED ALONE. `TestChatCompletionGenerateMatchesProviderWireCapture`
+// requires every scenario input on disk to have a capture in the oracle fixture, and fails with
+// "a missing capture must never look like a pass" -- correctly, because an input with no recording is a
+// claim with nothing behind it. So the recording job runs THIS generator first and then records, and the
+// inputs and their captures land in the same change. Committing the inputs earlier would fail the gate
+// and would also let a reader mistake an unrecorded scenario for a measured one.
+//
 // Usage: node scripts/generate-zai-scenarios.mjs [--check]
 //   --check  exit 1 if any emitted file would change, without writing (CI-friendly)
 
