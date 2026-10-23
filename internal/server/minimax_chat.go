@@ -45,8 +45,8 @@ const (
 	chatCompletionSourceMinimax = "minimax"
 
 	// API_MINIMAX / API_MINIMAX_CN (chat-completions.js:98-99).
-	minimaxChatGlobalAPIURL = "https://api.minimax.io/v1"
-	minimaxChatCNAPIURL     = "https://api.minimaxi.com/v1"
+	minimaxChatGlobalAPIURL = "https://api.minimaxi.com/v1"
+	minimaxChatCNAPIURL     = "https://api.minimax.io/v1"
 	// The two hosts are different, so one seam per literal: asserting a single seam against two
 	// literals would let the CN branch silently reuse the global host.
 	minimaxChatSeamEnv   = "GOTAVERN_MINIMAX_CHAT_URL"
@@ -219,7 +219,7 @@ func (runtime *accountRuntime) serveMinimaxChatCompletion(w http.ResponseWriter,
 			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 			return
 		}
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		respondMinimaxSendValue(w, http.StatusInternalServerError, parsed)
 		return
 	}
 	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
