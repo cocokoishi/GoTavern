@@ -10,10 +10,10 @@
   ],
   "question": "does the pinned frontend make the same startup requests and reach the same final page state on GoTavern and pinned?",
   "captures": {
-    "gotavernFirst": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\startup-gotavern-1.json",
-    "gotavernSecond": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\startup-gotavern-2.json",
-    "pinnedFirst": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\startup-pinned-1.json",
-    "pinnedSecond": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\startup-pinned-2.json"
+    "gotavernFirst": "startup-gotavern-1.json",
+    "gotavernSecond": "startup-gotavern-2.json",
+    "pinnedFirst": "startup-pinned-1.json",
+    "pinnedSecond": "startup-pinned-2.json"
   },
   "provenance": {
     "gotavern": {

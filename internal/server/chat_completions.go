@@ -465,14 +465,22 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 				bodyParams.setMember(key, value)
 			}
 		}
+		// chat-completions.js: `/auto/` is not in NANOGPT_REASONING_EFFORT_MAP, so the pinned lookup
+		// yields `undefined` -- and `bodyParams['reasoning'] = { effort: undefined }` still assigns the
+		// MEMBER. JSON.stringify then drops the undefined value and keeps the object, so a truthy but
+		// UNMAPPED effort emits `"reasoning": {}`: an empty object, not an absent member. Measured end
+		// to end: with reasoning_effort "auto" the pinned provider body was exactly 15 bytes longer
+		// than GoTavern's, and `,"reasoning":{}` is exactly 15 bytes. Omitting the member when the map
+		// misses is therefore a wire divergence, so the object is assigned whenever the effort is
+		// truthy and only its `effort` member depends on the map.
 		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+			reasoning := nodeObject()
 			if text, ok := effort.scalar.(string); ok {
 				if mapped, known := pinnedNanoGPTReasoningEffortMap[text]; known {
-					reasoning := nodeObject()
 					reasoning.setMember("effort", nodeString(mapped))
-					bodyParams.setMember("reasoning", reasoning)
 				}
 			}
+			bodyParams.setMember("reasoning", reasoning)
 		}
 	case chatCompletionSourceWAI:
 		// chat-completions.js:2576. The base URL is derived from the request body, and the missing account id

@@ -513,7 +513,56 @@ if (groqGeneration) {
 
     console.log(`  generation-groq-comparison.json providerRequestEqual true, ${groqDiffs} documented body difference(s), ${groqPost?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs (proxy:false source: seam + redirect only)`);
 
-}// ---- generation-siliconflow-comparison.json ------------------------------------------------
+}
+// ---- generation-nanogpt-comparison.json -------------------------------------------------------
+//
+// NANOGPT is the THIRD source in the same class as groq and siliconflow, and the class is what makes
+// its row different from every reverse-proxy row: openai.js:6053 marks it `proxy: false` with selector
+// '#api_key_nanogpt', so the frontend cannot be aimed at a recording peer through reverse_proxy AT ALL.
+// The seam (GOTAVERN_NANOGPT_CHAT_URL) plus the pinned transport redirect are the ONLY way both legs
+// reach one peer, which is why proxyPasswordPresent is recorded FALSE on both legs and ASSERTED here:
+// the false is the evidence for the row's shape, not an absence of evidence.
+//
+// It also has to say WHICH seam aimed its GoTavern leg (seamEnvVar), because a nanogpt artifact that
+// named the groq variable would describe a drive that did not happen.
+const nanogptGeneration = read('generation-nanogpt-comparison.json');
+if (nanogptGeneration) {
+    const label = 'generation-nanogpt-comparison.json';
+    if (nanogptGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the nanogpt provider-wire claim is unsupported');
+    }
+    if (nanogptGeneration.requestArrived?.gotavern !== true || nanogptGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (nanogptGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(nanogptGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    if (typeof nanogptGeneration.driveParameters?.invocationPairing !== 'string' || !nanogptGeneration.driveParameters.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule, so a reader would assume nearest-preceding again');
+    }
+    if (nanogptGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_NANOGPT_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(nanogptGeneration.driveParameters?.seamEnvVar)}, but this artifact must say which seam aimed its GoTavern leg`);
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (nanogptGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(nanogptGeneration.proxyPasswordPresent?.[leg])}, but nanogpt is proxy:false and the drive must reach the peer by seam and redirect, never by a reverse-proxy credential`);
+        }
+        if (!Array.isArray(nanogptGeneration.generationUnmatchedAfterData?.[leg]) || nanogptGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+        const requests = nanogptGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; nanogpt's drive must show its status call (GET /models) and the completion (POST /chat/completions)`);
+        }
+    }
+    const post = (nanogptGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-nanogpt-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs, seam ${nanogptGeneration.driveParameters.seamEnvVar} (proxy:false source: seam + redirect only)`);
+}
+
+// ---- generation-siliconflow-comparison.json ------------------------------------------------
 //
 // The SILICONFLOW source measured end to end. Same checks as groq, because it is the same class of
 // source (apiSourceConfig proxy:false, host a pinned literal, reachable only through the seam plus
@@ -559,49 +608,6 @@ if (siliconflowGeneration) {
     console.log(`  generation-siliconflow-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, endpoint ${JSON.stringify(siliconflowGeneration.driveParameters.endpointMode)} via ${siliconflowGeneration.driveParameters.endpointControl} (CN endpoint unmeasured)`);
 }
 
-// ---- generation-workersai-comparison.json --------------------------------------------------
-//
-// The WORKERS_AI source measured end to end. Same class as groq/siliconflow (proxy:false, peer only
-// through the seam plus the pinned redirect, so proxyPasswordPresent must be FALSE on both legs),
-// plus the one thing specific to it: the URL is built from a BODY value, so the artifact must say
-// which account id the drive drove and through which control, and the gate must see it.
-const workersaiGeneration = read('generation-workersai-comparison.json');
-if (workersaiGeneration) {
-    const label = 'generation-workersai-comparison.json';
-    if (workersaiGeneration.providerRequestEqual !== true) {
-        fail(label, 'providerRequestEqual is not true, so the workers_ai provider-wire claim is unsupported');
-    }
-    if (workersaiGeneration.requestArrived?.gotavern !== true || workersaiGeneration.requestArrived?.pinned !== true) {
-        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
-    }
-    if (workersaiGeneration.milestoneEqual !== true) {
-        fail(label, 'milestoneEqual is not true');
-    }
-    for (const [name, value] of Object.entries(workersaiGeneration.guards ?? {})) {
-        if (value !== true) fail(label, `guard ${name} is not true`);
-    }
-    if (typeof workersaiGeneration.driveParameters?.accountIdMode !== 'string' || workersaiGeneration.driveParameters.accountIdMode.length === 0) {
-        fail(label, 'driveParameters.accountIdMode is missing, so the artifact does not say which account id these numbers belong to');
-    }
-    if (workersaiGeneration.driveParameters?.accountIdControl !== '#workers_ai_account_id') {
-        fail(label, 'driveParameters.accountIdControl does not name the frontend control the drive used');
-    }
-    if (typeof workersaiGeneration.driveParameters?.peerPathShape !== 'string' || !workersaiGeneration.driveParameters.peerPathShape.includes('account id')) {
-        fail(label, 'driveParameters.peerPathShape does not state that the id travels in the path');
-    }
-    for (const leg of ["gotavern", "pinned"]) {
-        if (workersaiGeneration.proxyPasswordPresent?.[leg] !== false) {
-            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(workersaiGeneration.proxyPasswordPresent?.[leg])}, but workers_ai never consults reverse_proxy and the peer is reachable only by seam and redirect`);
-        }
-        const requests = workersaiGeneration.providerRequests?.[leg] ?? [];
-        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
-            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + " " + request.path))}; the completion POST is missing (expected /<account>/ai/v1/chat/completions)`);
-        }
-    }
-    const post = (workersaiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === "POST");
-    console.log(`  generation-workersai-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, account id ${JSON.stringify(workersaiGeneration.driveParameters.accountIdValue)} typed via ${workersaiGeneration.driveParameters.accountIdControl}`);
-}
-
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
@@ -615,16 +621,28 @@ if (workersaiGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-workersai-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
     const isGroq = artifactName.includes('groq');
     const isSiliconflow = artifactName.includes('siliconflow');
-    const isWorkersai = artifactName.includes('workersai');
+    // nanogpt is OpenAI-shaped like mistralai/groq/siliconflow: a model-list status call and a
+    // POST /chat/completions completion, served by the same request-keyed peer.
+    const isNanogpt = artifactName.includes('nanogpt');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow || isWorkersai;
+    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt;
+    if (isNanogpt) {
+        // NANOGPT'S proxy:false CLAIM IS CHECKED AGAINST A MEASURED BOOLEAN, not against this file's own
+        // prose: false on both legs is the evidence that neither leg reached the peer through a
+        // reverse-proxy credential.
+        for (const leg of ['gotavern', 'pinned']) {
+            if (streamingArtifact.proxyPasswordPresent?.[leg] !== false) {
+                fail(artifactName, `proxyPasswordPresent.${leg} is ${JSON.stringify(streamingArtifact.proxyPasswordPresent?.[leg])}, but nanogpt is proxy:false and both legs must reach the peer by seam and redirect`);
+            }
+        }
+    }
     const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];
@@ -688,9 +706,11 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
         fail(artifactName, 'cancellation.abortRenderState does not record both legs and its reason');
     }
     const siliconflowLine = 'siliconflow (OpenAI-shaped like groq, proxy:false, endpoint chosen by a body field): both legs GET /models then POST /chat/completions, 15 paced frames; DEFAULT (global) endpoint only, CN unmeasured';
-    const workersaiLine = 'workers_ai (OpenAI-shaped, proxy:false, URL built from a body account id): both legs GET /<account>/ai/models/search then POST /<account>/ai/v1/chat/completions, 15 paced frames; the id was typed through #workers_ai_account_id';
+    // NANOGPT IS OPENAI-SHAPED AND proxy:false, and its caption says so rather than falling through to
+    // the claude line, which would claim no /models call for a source that makes one.
+    const nanogptLine = 'nanogpt (OpenAI-shaped like groq and siliconflow, proxy:false, credential typed into #api_key_nanogpt): both legs GET /models?detailed=true then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isSiliconflow ? siliconflowLine : isWorkersai ? workersaiLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
@@ -699,7 +719,13 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
 // more carried it INSIDE a recorded popup HTML -- a field nobody compares, which is exactly where a
 // host-derived value survives review. Only `*-comparison.json` is swept: the per-run leg captures beside them
 // are gitignored by design and legitimately carry the ports of their own run.
-const hostDerivedPatterns = [/127\.0\.0\.1/, /localhost:\d+/, /\[::1\]/];
+// A LOOPBACK ADDRESS IS NOT THE ONLY HOST-DERIVED VALUE A RECORDING CAN CARRY. The first nanogpt
+// streaming artifact recorded its six INPUT paths, which on the machine that produced it read
+// `C:\Users\<user>\AppData\Local\Temp\...` -- a value that differs on every host and that no
+// loopback pattern sees. The sweep therefore covers the path classes AGENTS.md rule 18 names for
+// exactly this reason, and the artifacts are recorded with BARE input names so the paths never
+// appear in the first place.
+const hostDerivedPatterns = [/127\.0\.0\.1/, /localhost:\d+/, /\[::1\]/, /[A-Za-z]:\\\\/, /AppData/i, /\/home\//, /\/tmp\//, /\/Users\//, /\/root\//];
 for (const artifactFile of readdirSync(browserDir).filter((name) => name.endsWith("-comparison.json"))) {
     const artifactText = readFileSync(path.join(browserDir, artifactFile), "utf8");
     for (const hostDerivedPattern of hostDerivedPatterns) {

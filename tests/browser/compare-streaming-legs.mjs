@@ -177,21 +177,18 @@ const main = async () => {
     driveParameters: {
         streamFrameCount: process.env.PROBE_FRAME_COUNT ?? 'peer default (5 stream / 12 cancel)',
         customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
-        ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'workers_ai' ? {
+        ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' ? {
+            // NAMED PER SOURCE, for the same reason as the generation artifact: the seam that aimed
+            // this leg must be the one recorded.
+            seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
             // THE TWO FACTS A READER CANNOT RECONSTRUCT FROM THESE NUMBERS. Both were measured the hard
             // way in this lane, and they belong in the artifact rather than in a message about it.
-            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
+            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
             // SILICONFLOW'S ENDPOINT IS A BODY FIELD: the drive selects the DEFAULT through the
             // frontend's own control and the seam aims that host. The CN endpoint is not measured.
             ...(process.env.PROBE_SOURCE === 'siliconflow' ? {
                 endpointMode: 'global (selected through #siliconflow_endpoint, the control a user sets)',
                 endpointBreadth: 'the DEFAULT endpoint only; the CN host is a second supported endpoint and is not exercised by this drive',
-            } : {}),
-            // WORKERS_AI'S URL CARRIES THE ACCOUNT ID IN THE PATH: the drive types it into the frontend's
-            // own field, the seam replaces the accounts PREFIX only, and the peer sees the id.
-            ...(process.env.PROBE_SOURCE === 'workers_ai' ? {
-                accountIdMode: 'typed through #workers_ai_account_id, the control a user types it into',
-                peerPathShape: 'both legs asked the peer for /<account>/ai/models/search?task=Text+Generation&per_page=1000 then /<account>/ai/v1/chat/completions',
             } : {}),
             peerKeying: 'the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
         } : {}),
@@ -202,6 +199,15 @@ const main = async () => {
         cancellation,
         nonstream,
         compatibleReady: streaming.proven && cancellation.proven && nonstream.proven,
+    // DID THE CREDENTIAL TRAVEL, measured rather than asserted in prose. With a reverse proxy set the
+    // server reads body.proxy_password and NOT the source secret, so a source the frontend marks
+    // proxy:false must show FALSE on both legs -- which is the evidence that both legs reached the peer
+    // through the seam and the redirect rather than through a reverse-proxy credential. Recorded as a
+    // BOOLEAN from the streamed drives, never as the value.
+    proxyPasswordPresent: {
+        gotavern: (streamGotavern.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
+        pinned: (streamPinned.generateCalls ?? [])[0]?.proxyPasswordPresent ?? null,
+    },
         notes: [
             'The probe previously awaited response.clone().text() for EVERY response before returning it to the frontend, so a streamed generate response was fully buffered before the fetch promise resolved: incremental rendering was impossible to observe and an aborted stream observed an empty message. That was a probe defect on both legs (rule 10), fixed by skipping the clone read for text/event-stream and for the generate route. Earlier captures in this directory were taken with that defect; these captures are not.',
             'The peer records clientDisconnected only when the caller closes before the scripted stream finishes; it is the provider-side proof of cancellation.',

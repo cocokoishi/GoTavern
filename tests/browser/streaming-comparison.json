@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\stream-gotavern.json",
-    "streamPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\stream-pinned.json",
-    "cancelGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\cancel-gotavern.json",
-    "cancelPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\cancel-pinned.json",
-    "nonstreamGotavern": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\nonstream-gotavern.json",
-    "nonstreamPinned": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\tests\\browser\\nonstream-pinned.json"
+    "streamGotavern": "stream-gotavern.json",
+    "streamPinned": "stream-pinned.json",
+    "cancelGotavern": "cancel-gotavern.json",
+    "cancelPinned": "cancel-pinned.json",
+    "nonstreamGotavern": "nonstream-gotavern.json",
+    "nonstreamPinned": "nonstream-pinned.json"
   },
   "streaming": {
     "gotavern": {
