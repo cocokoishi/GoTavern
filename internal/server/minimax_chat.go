@@ -147,7 +147,7 @@ func pinnedMinimaxChatPlan(body orderedNodeJSON, directories startup.UserDirecto
 	if !pinnedJSTruthy(keyNode) {
 		// :1612-1615 `if (!apiKey) return response.status(400).send({ error: true });` -- outside
 		// the try, so no merge and no request happen.
-		return nil, pinnedChatCompletionJSONFailure(http.StatusNotImplemented, pinnedChatCompletionErrorFlag())
+		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 	requestBody, bodyErr := pinnedMinimaxChatBody(body)
 	if bodyErr != nil {
