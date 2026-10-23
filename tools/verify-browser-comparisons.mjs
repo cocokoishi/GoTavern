@@ -150,7 +150,27 @@ if (claudeGeneration) {
         const text = claudeGeneration.postSend?.[leg]?.finalAssistantText;
         if (typeof text !== 'string' || text.trim() === '') fail('generation-claude-comparison.json', `${leg}.finalAssistantText is empty, so the send rendered nothing`);
     }
-    if (typeof claudeGeneration.driveParameters?.mode !== 'string') fail('generation-claude-comparison.json', 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+    // CLAUDE IS NO-VALIDATE AND PROXY-CAPABLE, and both facts are asserted FROM THE ARTIFACT rather than from
+// prose: the seam must be named (it exists in the Go arm and is aimed as a safety net while the route is
+// the setting), and NO /models call may appear on either leg, because a status call is the harness bug
+// this record exists to avoid rather than a product finding.
+if (claudeGeneration) {
+    const post = (claudeGeneration.providerRequests?.gotavern ?? [])[0];
+    console.log(`  generation-claude-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, POST /messages on both legs with ZERO /models calls (claude is no-validate: the CONNECT path never validates), proxyPasswordPresent TRUE on both (the credential travelled as proxy_password through the reverse_proxy setting), seam ${claudeGeneration.driveParameters?.seamEnvVar} aimed as a safety net only`);
+}
+
+if (claudeGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_CLAUDE_CHAT_URL') {
+    fail('generation-claude-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(claudeGeneration.driveParameters?.seamEnvVar)}, but this artifact must name the seam the Go arm exports`);
+}
+for (const leg of ['gotavern', 'pinned']) {
+    const requests = claudeGeneration.requests?.[leg] ?? claudeGeneration.providerRequests?.[leg] ?? [];
+    const modelCalls = requests.filter(request => String(request.path ?? '').includes('/models'));
+    if (modelCalls.length !== 0) {
+        fail('generation-claude-comparison.json', `${leg} issued ${modelCalls.length} /models request(s); claude is a no-validate source and must never ask for a model list`);
+    }
+}
+
+if (typeof claudeGeneration.driveParameters?.mode !== 'string') fail('generation-claude-comparison.json', 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
 }
 // ---- generation-mistral-comparison.json -------------------------------------------------------
 //
@@ -1072,6 +1092,19 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
             }
         }
     }
+    if (artifactName.includes('claude')) {
+        // The streaming artifact must carry the same two facts as its generation counterpart; the /models
+        // assertion for this source is already enforced by the no-validate branch above.
+        if (streamingArtifact.driveParameters?.seamEnvVar !== 'GOTAVERN_CLAUDE_CHAT_URL') {
+            fail(artifactName, `driveParameters.seamEnvVar is ${JSON.stringify(streamingArtifact.driveParameters?.seamEnvVar)}, but this artifact must name the seam the Go arm exports`);
+        }
+        for (const leg of ['gotavern', 'pinned']) {
+            if (streamingArtifact.proxyPasswordPresent?.[leg] !== true) {
+                fail(artifactName, `proxyPasswordPresent.${leg} is ${JSON.stringify(streamingArtifact.proxyPasswordPresent?.[leg])}, but claude is proxy-capable and this drive carries the peer in reverse_proxy`);
+            }
+        }
+    }
+
     const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];

@@ -186,6 +186,14 @@ const main = async () => {
 
         // See the generation comparator: openrouter is proxy:false with a pinned literal, so the seam and
         // the redirect are the only route and proxyPasswordPresent false on both legs is the evidence.
+        // See the generation comparator: claude is proxy-capable and no-validate, so the peer travels in
+        // reverse_proxy and NO /models call may appear on either leg.
+        ...(process.env.PROBE_SOURCE === 'claude' ? {
+            seamEnvVar: 'GOTAVERN_CLAUDE_CHAT_URL',
+            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs, because claude is proxy-capable',
+            seamUsage: 'safety net only: the seam is aimed so a leg preferring the pinned literal cannot reach the real provider, but the route is the setting',
+            noValidate: 'claude must record ZERO /models calls on both legs; a status call is the harness bug, not a product finding',
+        } : {}),
         ...(process.env.PROBE_SOURCE === 'openrouter' ? {
             seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
             peerRoute: 'the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source',

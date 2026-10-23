@@ -291,6 +291,17 @@ const bodyDiff = (left, right) => {
     return differences;
 };
 
+// A REVERSE-PROXY DRIVE makes the frontend name the proxy URL in a confirm dialog, so the peer's
+// ephemeral origin lands in a recorded dump inside postSend. A mock origin is HARNESS-derived, not
+// product behaviour, and a committed artifact must not carry it: normalise rather than delete, so the
+// field still compares, and let driveParameters state that the normalisation happened.
+function normaliseMockOrigin(value) {
+    if (value === null || value === undefined) return value ?? null;
+    return JSON.parse(JSON.stringify(value, (key, inner) => (
+        typeof inner === 'string' ? inner.replace(/https?:\/\/127\.0\.0\.1:\d+/g, 'http://<mock>') : inner
+    )));
+}
+
 const main = async () => {
     const gotavern = JSON.parse(await fs.readFile(gotavernPath, 'utf8'));
     const pinned = JSON.parse(await fs.readFile(pinnedPath, 'utf8'));
@@ -339,6 +350,17 @@ const main = async () => {
             // plus the transport redirect are therefore the ONLY route to a peer, and
             // proxyPasswordPresent FALSE on both legs is the recorded evidence of that -- it is not a
             // tautology here because the field would be true if the drive had travelled as a proxy.
+            // CLAUDE IS PROXY-CAPABLE AND NO-VALIDATE. Its peer travels in the frontend's own
+            // reverse_proxy setting (so proxyPasswordPresent TRUE on both legs is the evidence the
+            // credential went as proxy_password), and it must NEVER ask for a model list -- a CONNECT
+            // button that validated would call /status, and the drive reaching /models would be the
+            // harness bug this record exists to avoid.
+            ...(process.env.PROBE_SOURCE === 'claude' ? {
+                seamEnvVar: 'GOTAVERN_CLAUDE_CHAT_URL',
+                peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs -- claude is proxy-capable, and a reverse-proxy drive is the route a user takes',
+                seamUsage: 'safety net only: GOTAVERN_CLAUDE_CHAT_URL exists in the Go arm and is aimed here so a leg preferring the pinned literal cannot reach the real provider, but the route this drive took is the setting, which is why proxyPasswordPresent is TRUE on both legs',
+                noValidate: 'claude is in the frontend noValidateSources list, so the CONNECT path never validates; this artifact must therefore record ZERO /models calls on BOTH legs',
+            } : {}),
             ...(process.env.PROBE_SOURCE === 'openrouter' ? {
                 seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
                 peerRoute: 'the seam on the GoTavern leg and the https://openrouter.ai/api/v1 transport redirect on the pinned leg -- openrouter has no reverse_proxy and no custom_url, so no request member can carry a peer',
@@ -403,7 +425,7 @@ const main = async () => {
             pinned: pinned.generateLifecycle?.invocations ?? null,
         },
         comparableMilestones: { gotavern: comparableMilestones(gotavern), pinned: comparableMilestones(pinned) },
-        postSend: { gotavern: gotavern.postSend ?? null, pinned: pinned.postSend ?? null },
+        postSend: { gotavern: normaliseMockOrigin(gotavern.postSend), pinned: normaliseMockOrigin(pinned.postSend) },
         bodyDifferences: bodyDiff(postBody(gotavern), postBody(pinned)),
     };
     comparison.providerRequestEqual =
