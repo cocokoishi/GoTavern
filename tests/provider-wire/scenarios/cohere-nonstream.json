@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "name": "cohere-nonstream",
+  "purpose": "COHERE source, NON-STREAMING: the plain control for the branch. Pins the pinned body's FLAT renamed members (top_k -> k, top_p -> p, stop -> stop_sequences), the two unconditional empty members (documents, tools), the always-present Boolean stream, the two-literal URL https://api.cohere.ai/v2 + /chat, and api_key_cohere as the Bearer token. The model does NOT end in 08-2024 here, so safety_mode is absent.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "cohere",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_cohere": [
+      {
+        "id": "probe-id-api_key_cohere",
+        "value": "synthetic-cohere-key",
+        "label": "api_key_cohere",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-cohere-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.cohere.ai/v2",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_COHERE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.cohere.ai/v2"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "cohere",
+      "model": "probe-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "top_k": 7,
+      "top_p": 0.9,
+      "stop": [
+        "\nprobe-end\n"
+      ],
+      "seed": 42,
+      "frequency_penalty": 0.1,
+      "presence_penalty": 0.2,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-cohere-chat\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"mock reply\"}]},\"finish_reason\":\"COMPLETE\"}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers.authorization",
+        "rule": "the value is compared as the literal \"Bearer <synthetic cohere key>\", never as a recorded secret",
+        "reason": "the scenario declares the key it plants, so the value is the contract (a wrong secret NAME would send a different or no token)",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:972 apiKey = readSecret(request.user.directories, SECRET_KEYS.COHERE, request.body.secret_id)"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "COHERE has NO reverse_proxy and NO custom_url: sendCohereRequest assigns the hardcoded literal API_COHERE_V2 and appends '/chat', so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH is untouched and IS compared, which is the part the pinned literal decides.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1039 apiUrl = API_COHERE_V2 + '/chat' (API_COHERE_V2 = 'https://api.cohere.ai/v2' at :77)"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

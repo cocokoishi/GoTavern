@@ -60,6 +60,11 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveDeepSeekChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceCohere {
+		// chat-completions.js:1805-1808 -- cohere DOES have a pinned status arm, unlike CLAUDE.
+		runtime.serveCohereChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceSiliconF {
 		runtime.serveSiliconFlowChatCompletionStatus(w, request, body, directories)
 		return
