@@ -223,6 +223,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
+			// :1592-1599: `response.send({error:true})` with no status, so a thrown fetch answers
+			// 200 {"error":true}. See chutes_chat.go.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -231,6 +237,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
 		// :424-439: the shared forwarder for a stream, the pinned rewrap for a buffered answer.
 		serveClaudeChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
+		// :1579-1599: the shared forwarder for a stream, the provider body passed through otherwise,
+		// and the PARSED provider body at 500 for a non-2xx answer. See chutes_chat.go.
+		serveChutesChatCompletionResponse(w, request, response, body)
 		return
 	}
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
@@ -376,6 +388,11 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// SEMI_TOOLS merge, addAssistantPrefix and addReasoningContentToToolCalls helpers. See
 		// deepseek_chat.go.
 		return pinnedDeepSeekPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceChutes {
+		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
+		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
+		return pinnedChutesPlan(body, directories)
 	}
 	if sourceName == chatCompletionSourceClaude {
 		// chat-completions.js:230 is NOT on the generic path: it builds its own body, URL and header

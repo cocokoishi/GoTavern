@@ -72,6 +72,12 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveWorkersAIChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceChutes {
+		// :1809-1811 sets the shared literal and secret with no header of its own, and the shared tail
+		// at :2092-2108 projects the models list. See chutes_chat.go.
+		runtime.serveChutesChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourcePollinations {
 		runtime.servePollinationsChatCompletionStatus(w, request, body, directories)
 		return

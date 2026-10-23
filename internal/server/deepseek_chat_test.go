@@ -494,3 +494,60 @@ func TestChatCompletionDeepSeekStreamHasNonStreamControl(t *testing.T) {
 		t.Fatalf("the streaming deltas spell %q but the non-stream control carries %q", streamed.String(), controlText)
 	}
 }
+
+// TestChatCompletionDeepSeekOmitsAbsentToolChoice pins the one member in this file that the pinned code
+// assigns STRAIGHT from request.body: `bodyParams['tool_choice'] = request.body.tool_choice`. When the
+// request carries no tool_choice the value is undefined and JSON.stringify DROPS it, so the provider body
+// must contain no tool_choice member at all. This package's encoder instead serialises nodeUndefined() as
+// the JSON literal null, so the previous code sent `"tool_choice":null` -- a member pinned never sends.
+// The same trap was found and fixed in chutes_chat.go; this test keeps deepseek from regressing, and it
+// would have failed against the old code.
+func TestChatCompletionDeepSeekOmitsAbsentToolChoice(t *testing.T) {
+	tools := `"tools":[{"type":"function","function":{"name":"probe_tool"}}]`
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "tools present, tool_choice ABSENT: no tool_choice member",
+			body: `{"messages":[{"role":"user","content":"probe"}],"model":"probe-model",` + tools + `}`,
+			want: "",
+		},
+		{
+			name: "tool_choice supplied: the member is carried",
+			body: `{"messages":[{"role":"user","content":"probe"}],"model":"probe-model",` + tools + `,"tool_choice":"auto"}`,
+			want: `"tool_choice":"auto"`,
+		},
+		{
+			name: "no tools at all: no tool_choice and no tools member",
+			body: `{"messages":[{"role":"user","content":"probe"}],"model":"probe-model"}`,
+			want: "",
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			body, err := decodeOrderedNodeJSON([]byte(testCase.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload, failure := pinnedDeepSeekPayload(body)
+			if failure != nil {
+				t.Fatalf("pinnedDeepSeekPayload answered %d instead of a body", failure.status)
+			}
+			encoded, err := marshalOrderedNodeJSON(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if testCase.want == "" {
+				if strings.Contains(string(encoded), `"tool_choice"`) {
+					t.Fatalf("provider body carries a tool_choice member pinned would drop: %s", encoded)
+				}
+				return
+			}
+			if !strings.Contains(string(encoded), testCase.want) {
+				t.Fatalf("provider body is missing %s: %s", testCase.want, encoded)
+			}
+		})
+	}
+}

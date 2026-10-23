@@ -207,10 +207,11 @@ func pinnedDeepSeekPayload(body orderedNodeJSON) (orderedNodeJSON, *pinnedChatCo
 			cleaned.array = append(cleaned.array, pinnedDeepSeekDropEmptyRequired(tool))
 		}
 		bodyParams.setMember("tools", cleaned)
-		if choice, exists := body.member("tool_choice"); exists {
+		// "bodyParams['tool_choice'] = request.body.tool_choice" with an ABSENT member: JSON.stringify drops
+		// an undefined value, while this package's encoder serialises nodeUndefined() as the JSON literal
+		// null, so setting it here wrote a member pinned never sends. Skip it unless present.
+		if choice, exists := body.member("tool_choice"); exists && !choice.isUndefined() {
 			bodyParams.setMember("tool_choice", choice)
-		} else {
-			bodyParams.setMember("tool_choice", nodeUndefined())
 		}
 	}
 	if pinnedJSTruthy(jsonSchema) {
