@@ -1,0 +1,103 @@
+{
+    "schemaVersion": 1,
+    "name": "aimlapi-stop",
+    "purpose": "AIMLAPI stop: a non-empty stop array is forwarded in the fold.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "aimlapi",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {
+        "api_key_aimlapi": [
+            {
+                "id": "probe-id-api_key_aimlapi",
+                "value": "synthetic-aimlapi-key",
+                "label": "api_key_aimlapi",
+                "active": true
+            }
+        ]
+    },
+    "expectedAuthorizationKey": "synthetic-aimlapi-key",
+    "transportRedirect": [
+        {
+            "from": "https://api.aimlapi.com/v1",
+            "to": "<mock>"
+        }
+    ],
+    "goSeam": {
+        "environmentVariable": "GOTAVERN_AIMLAPI_CHAT_URL",
+        "value": "<mock>",
+        "pinnedLiteral": "https://api.aimlapi.com/v1"
+    },
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "aimlapi",
+            "model": "aimlapi-probe",
+            "max_tokens": 96,
+            "stream": false,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "probe user marker"
+                }
+            ],
+            "temperature": 0.4,
+            "presence_penalty": 0.1,
+            "frequency_penalty": 0.2,
+            "top_p": 0.8,
+            "seed": 7,
+            "n": 1,
+            "stop": [
+                "PROBE_STOP"
+            ]
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"probe-aimlapi\",\"object\":\"chat.completion\",\"model\":\"aimlapi-probe\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock aimlapi reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":5,\"total_tokens\":14}}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers[host]",
+                "rule": "value replaced with <mock-authority>",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+                "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+            },
+            {
+                "path": "provider.requests[].headers[authorization]",
+                "rule": "the value is compared as the literal \"Bearer <synthetic aimlapi key>\", never as a recorded secret",
+                "reason": "the scenario declares the key it plants, so the value is the contract: a wrong secret NAME would send a different or no token.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:1291 readSecret(request.user.directories, SECRET_KEYS.AIMLAPI, request.body.secret_id), :1355 Authorization: Bearer + apiKey"
+            },
+            {
+                "path": "provider.requests[].url",
+                "rule": "the recorder origin is replaced with <mock>",
+                "reason": "AIMLAPI has NO reverse_proxy and NO custom_url: the branch assigns the hardcoded literal, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH is untouched and IS compared.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:88 API_AIMLAPI = https://api.aimlapi.com/v1, :1358 apiUrl + /chat/completions"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}

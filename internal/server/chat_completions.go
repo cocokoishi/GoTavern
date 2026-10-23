@@ -422,6 +422,12 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// on the same source name. See claude_chat.go.
 		return pinnedClaudePlan(body, directories)
 	}
+	if sourceName == chatCompletionSourceAimlapi {
+		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
+		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
+		// aimlapi_chat.go.
+		return pinnedAimlapiPlan(body, directories)
+	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 
 	var apiURL string
