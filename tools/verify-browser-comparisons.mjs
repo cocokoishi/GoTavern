@@ -661,6 +661,113 @@ if (siliconflowGeneration) {
     console.log(`  generation-siliconflow-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, endpoint ${JSON.stringify(siliconflowGeneration.driveParameters.endpointMode)} via ${siliconflowGeneration.driveParameters.endpointControl} (CN endpoint unmeasured)`);
 }
 
+// ---- generation-openai-comparison.json --------------------------------------------------------
+//
+// OPENAI, THE MOST IMPORTANT SOURCE, and the first one whose row had to state the OPPOSITE of the
+// groq/siliconflow/nanogpt class: apiSourceConfig marks openai `proxy: true` with selector
+// `#api_key_openai`, so the frontend DOES offer a reverse_proxy for it and this drive COULD have carried
+// the peer in the request. It deliberately did not -- the peer is reached by GOTAVERN_OPENAI_CHAT_URL on
+// the GoTavern leg and by PROBE_PINNED_REDIRECT_FILE on the pinned leg -- and `proxyPasswordPresent`
+// FALSE on both legs is the MEASUREMENT that says so, not an absence of evidence. The artifact must
+// therefore say `proxySettingDeliberatelyUnset`, because a reader who saw only the false would conclude
+// that openai has no proxy control at all.
+const openaiGeneration = read('generation-openai-comparison.json');
+if (openaiGeneration) {
+    const label = 'generation-openai-comparison.json';
+    if (openaiGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the openai provider-wire claim is unsupported');
+    }
+    if (openaiGeneration.requestArrived?.gotavern !== true || openaiGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (openaiGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(openaiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    const guardMeaning = openaiGeneration.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof guardMeaning !== 'string' || !guardMeaning.includes('non-dry invocation')) {
+        fail(label, 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    if (!Array.isArray(openaiGeneration.wholeDriveInvocations?.gotavern) || openaiGeneration.wholeDriveInvocations.gotavern.length === 0
+        || !Array.isArray(openaiGeneration.wholeDriveInvocations?.pinned) || openaiGeneration.wholeDriveInvocations.pinned.length === 0) {
+        fail(label, 'wholeDriveInvocations is missing a leg or is empty, so the send window was judged on a trail nobody recorded');
+    }
+
+    // ---- driveParameters: PRINTED for a reader and ENFORCED for the gate ----------------------
+    // The requirement this lane was given is that both artifacts CARRY driveParameters and that the
+    // gate both prints and enforces them. Each field below is a fact a reader cannot reconstruct from
+    // the numbers, so a missing one makes the artifact unreadable rather than merely terse.
+    const drive = openaiGeneration.driveParameters ?? {};
+    if (typeof drive.mode !== 'string') {
+        fail(label, 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+    }
+    if (typeof drive.invocationPairing !== 'string' || !drive.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule, so a reader would assume nearest-preceding again');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_OPENAI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_OPENAI_CHAT_URL; an artifact naming another source\'s seam describes a drive that did not happen`);
+    }
+    if (typeof drive.proxySettingDeliberatelyUnset !== 'string' || !drive.proxySettingDeliberatelyUnset.includes('proxy:true')) {
+        fail(label, 'driveParameters.proxySettingDeliberatelyUnset is missing or does not say that openai IS proxy:true, so a reader would read proxyPasswordPresent false as "openai has no proxy control"');
+    }
+    if (typeof drive.pinnedRedirectRequired !== 'string' || drive.pinnedRedirectRequired.trim() === '') {
+        fail(label, 'driveParameters.pinnedRedirectRequired is missing, so the artifact does not say how the pinned leg reached the peer');
+    }
+    if (typeof drive.peerKeying !== 'string' || drive.peerKeying.trim() === '') {
+        fail(label, 'driveParameters.peerKeying is missing, so the artifact does not say how the peer chose its answers');
+    }
+
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openaiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(openaiGeneration.proxyPasswordPresent?.[leg])}, but this drive reaches the peer by seam and redirect; a true means a reverse-proxy credential travelled, which is a different path than the one this row claims`);
+        }
+        if (!Array.isArray(openaiGeneration.generationUnmatchedAfterData?.[leg]) || openaiGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+        const requests = openaiGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; openai\'s drive must show its status call (GET /models) and the completion (POST /chat/completions)`);
+        }
+    }
+    const openaiPost = (openaiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    const openaiDiffs = Array.isArray(openaiGeneration.bodyDifferences) ? openaiGeneration.bodyDifferences.length : 0;
+    console.log(`  generation-openai-comparison.json providerRequestEqual true, ${openaiDiffs} documented body difference(s), ${openaiPost?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs, drive mode ${JSON.stringify(drive.mode)}, seam ${drive.seamEnvVar} (openai IS proxy:true; the proxy setting was deliberately left unset)`);
+}
+
+// ---- streaming-openai-comparison.json ---------------------------------------------------------
+//
+// The STREAMED drive for the same source, and the non-stream control that proves the stream is not the
+// only path. `compatibleReady` is the artifact\'s own verdict; the drive parameters are enforced here
+// for the same reason as in the generation artifact.
+const openaiStreaming = read('streaming-openai-comparison.json');
+if (openaiStreaming) {
+    const label = 'streaming-openai-comparison.json';
+    if (openaiStreaming.compatibleReady !== true) {
+        fail(label, 'compatibleReady is not true, so the streaming/cancellation claim for openai is unsupported');
+    }
+    const drive = openaiStreaming.driveParameters ?? {};
+    if (typeof drive.streamFrameCount !== 'string') {
+        fail(label, 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_OPENAI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_OPENAI_CHAT_URL`);
+    }
+    if (typeof drive.proxySettingDeliberatelyUnset !== 'string' || !drive.proxySettingDeliberatelyUnset.includes('proxy:true')) {
+        fail(label, 'driveParameters.proxySettingDeliberatelyUnset is missing or does not say that openai IS proxy:true');
+    }
+    if (typeof drive.pinnedRedirectRequired !== 'string' || drive.pinnedRedirectRequired.trim() === '') {
+        fail(label, 'driveParameters.pinnedRedirectRequired is missing');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openaiStreaming.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(openaiStreaming.proxyPasswordPresent?.[leg])}, but this drive reaches the peer by seam and redirect`);
+        }
+    }
+    console.log(`  streaming-openai-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
+}
+
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its

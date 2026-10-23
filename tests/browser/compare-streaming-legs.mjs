@@ -192,6 +192,14 @@ const main = async () => {
             } : {}),
             peerKeying: 'the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
         } : {}),
+        // OPENAI: the same seam/redirect pair as the generation artifact, and the same measured fact -- openai IS
+        // proxy:true, so the absent reverse_proxy is a deliberate drive choice, not a control the frontend lacks.
+        ...(process.env.PROBE_SOURCE === 'openai' ? {
+            seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
+            proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true, so oai_settings.reverse_proxy was available and deliberately left unset; proxyPasswordPresent false on both legs is the measurement, not an assumption',
+            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the pinned leg at the same peer the seam aims the GoTavern leg at; without it the pinned server fetches api.openai.com and the peer log stays empty',
+        } : {}),
+
     },
     question: 'do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?',
         captures: { streamGotavern: streamGotavernPath, streamPinned: streamPinnedPath, cancelGotavern: cancelGotavernPath, cancelPinned: cancelPinnedPath, nonstreamGotavern: nonstreamGotavernPath, nonstreamPinned: nonstreamPinnedPath },
