@@ -74,6 +74,9 @@ const SECRETS = {
 };
 
 const SEAMS = {
+    // OPENAI's status arm builds its URL from API_OPENAI, which is a pinned LITERAL, so its seam is
+    // the chat one (the same name its generate plan uses) rather than a backends one.
+    openai: 'GOTAVERN_OPENAI_CHAT_URL',
     multimodalPollinations: 'GOTAVERN_BACKENDS_POLLINATIONS_URL',
     multimodalAimlapi: 'GOTAVERN_BACKENDS_AIMLAPI_URL',
     multimodalNanogpt: 'GOTAVERN_BACKENDS_NANOGPT_URL',
@@ -85,6 +88,7 @@ const SEAMS = {
     multimodalWorkersAi: 'GOTAVERN_BACKENDS_WORKERSAI_URL',
 };
 const SEAM_DEFAULTS = {
+    [SEAMS.openai]: 'https://api.openai.com/v1',
     [SEAMS.multimodalPollinations]: 'https://gen.pollinations.ai',
     [SEAMS.multimodalAimlapi]: 'https://api.aimlapi.com',
     [SEAMS.multimodalNanogpt]: 'https://nano-gpt.com',
@@ -717,6 +721,67 @@ addScenario({
     name: 'status.custom.missingUrl',
     route: 'chat-completions/status',
     body: { chat_completion_source: 'custom' },
+});
+
+// ---- chat-completions/status (openai source) ------------------------------------------------
+// The OPENAI arm is chat-completions.js:1787-1790 and it was the one source in the ten we describe
+// as real whose Connect button could not succeed: the CUSTOM arm sits immediately below it and
+// shares the tail, so "custom is implemented" read as "the route is implemented".
+//
+// WHY THESE FIVE LIVE HERE AND NOT IN tests/provider-wire/scenarios: the provider-wire probe builds
+// the Go binary and drives both legs in one run, so a scenario cannot be born on a host where Go is
+// not built; and `status.openai.noKey` asserts ZERO outbound requests, which the provider-wire
+// replay refuses BY DESIGN ("capture records no provider request") -- the status route's own
+// evidence (`status.custom.*`) is in this fixture too.
+//
+// The arm takes its key from `proxy_password` when a reverse proxy is configured. That is the
+// claude/mistral/openai/deepseek/xai/moonshot side of the split; groq, siliconflow, nanogpt,
+// pollinations, electronhub, chutes, openrouter and aimlapi read the secret unconditionally.
+addScenario({
+    name: 'status.openai.ok',
+    route: 'chat-completions/status',
+    seam: SEAMS.openai,
+    secrets: { ...SECRETS, api_key_openai: 'probe-openai-key' },
+    body: { chat_completion_source: 'openai' },
+    upstream: [{ ...OK, path: '/v1/models', body: JSON.stringify({ object: 'list', data: [
+        { id: 'gpt-4o', object: 'model' }, { id: 'gpt-3.5-turbo', object: 'model' },
+    ] }) }],
+});
+addScenario({
+    name: 'status.openai.reverseProxy',
+    route: 'chat-completions/status',
+    // A body-URL variant: the URL comes from reverse_proxy, and the KEY from proxy_password even
+    // though api_key_openai is also present -- which is the branch, not a coincidence.
+    secrets: { ...SECRETS, api_key_openai: 'probe-openai-key' },
+    body: { chat_completion_source: 'openai', reverse_proxy: `${MOCK}/v1`, proxy_password: 'probe-proxy-password' },
+    upstream: [{ ...OK, path: '/v1/models', body: '{"data":[{"id":"proxy-model"}]}' }],
+});
+addScenario({
+    name: 'status.openai.reverseProxyNoPassword',
+    route: 'chat-completions/status',
+    // INHERITED PINNED QUIRK, reproduced and recorded rather than fixed: with a reverse proxy and no
+    // proxy_password the key is `undefined`, the :2067 guard is SKIPPED (reverse_proxy is truthy),
+    // and the provider receives `Authorization: Bearer undefined`.
+    body: { chat_completion_source: 'openai', reverse_proxy: MOCK },
+    upstream: [{ ...OK, path: '/models', body: '{"data":[]}' }],
+});
+addScenario({
+    name: 'status.openai.nonOk',
+    route: 'chat-completions/status',
+    seam: SEAMS.openai,
+    secrets: { ...SECRETS, api_key_openai: 'probe-openai-key' },
+    body: { chat_completion_source: 'openai' },
+    // :2143-2145 `statusResponse.send({error:true, data:{data:[]}})` -- NO status call, so the
+    // pinned answer is 200 even though the provider call failed.
+    upstream: [{ path: '/v1/models', status: 500, headers: { 'Content-Type': 'application/json' }, body: '{"error":"provider down"}' }],
+});
+addScenario({
+    name: 'status.openai.noKey',
+    route: 'chat-completions/status',
+    seam: SEAMS.openai,
+    // No api_key_openai anywhere in the secrets file: :2067 answers 400 {error:true} and makes NO
+    // request at all, which is the negative this scenario exists for.
+    body: { chat_completion_source: 'openai' },
 });
 // ---- CLAUDE has NO ARM in the status matrix ---------------------------------------------------
 //

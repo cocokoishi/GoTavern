@@ -59,6 +59,7 @@
       "password": ""
     },
     "seamDefaults": {
+      "GOTAVERN_OPENAI_CHAT_URL": "https://api.openai.com/v1",
       "GOTAVERN_BACKENDS_POLLINATIONS_URL": "https://gen.pollinations.ai",
       "GOTAVERN_BACKENDS_AIMLAPI_URL": "https://api.aimlapi.com",
       "GOTAVERN_BACKENDS_NANOGPT_URL": "https://nano-gpt.com",
@@ -2875,6 +2876,163 @@
         },
         "bodyText": "{\"chat_completion_source\":\"custom\"}",
         "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.openai.ok": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "openai"
+        },
+        "bodyText": "{\"chat_completion_source\":\"openai\"}",
+        "seam": "GOTAVERN_OPENAI_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_openai": "probe-openai-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"object\":\"list\",\"data\":[{\"id\":\"gpt-4o\",\"object\":\"model\"},{\"id\":\"gpt-3.5-turbo\",\"object\":\"model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.openai.reverseProxy": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "openai",
+          "reverse_proxy": "<mock>/v1",
+          "proxy_password": "probe-proxy-password"
+        },
+        "bodyText": "{\"chat_completion_source\":\"openai\",\"reverse_proxy\":\"<mock>/v1\",\"proxy_password\":\"probe-proxy-password\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_openai": "probe-openai-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"data\":[{\"id\":\"proxy-model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.openai.reverseProxyNoPassword": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "openai",
+          "reverse_proxy": "<mock>"
+        },
+        "bodyText": "{\"chat_completion_source\":\"openai\",\"reverse_proxy\":\"<mock>\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models",
+            "body": "{\"data\":[]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.openai.nonOk": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "openai"
+        },
+        "bodyText": "{\"chat_completion_source\":\"openai\"}",
+        "seam": "GOTAVERN_OPENAI_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_openai": "probe-openai-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/models",
+            "status": 500,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"error\":\"provider down\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.openai.noKey": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "openai"
+        },
+        "bodyText": "{\"chat_completion_source\":\"openai\"}",
+        "seam": "GOTAVERN_OPENAI_CHAT_URL",
         "secrets": {
           "api_key_chutes": "probe-chutes-key",
           "api_key_mistralai": "probe-mistral-key",
@@ -6052,6 +6210,184 @@
     },
     "status.custom.missingUrl": {
       "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.openai.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "99",
+      "etag": "W/\"63-vLGuJsHmkziF+4YcoPzrpkjMYTY\"",
+      "specialHeader": null,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"gpt-4o\",\"object\":\"model\"},{\"id\":\"gpt-3.5-turbo\",\"object\":\"model\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.openai.reverseProxy": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "31",
+      "etag": "W/\"1f-8m6o6aFASd4OoJMXlr9gzwNsnpM\"",
+      "specialHeader": null,
+      "body": "{\"data\":[{\"id\":\"proxy-model\"}]}",
+      "outbound": [
+        {
+          "url": "<mock>/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-proxy-password"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.openai.reverseProxyNoPassword": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "11",
+      "etag": "W/\"b-EFAlOux7Kcr/ZEgGkn2r+oFAbu4\"",
+      "specialHeader": null,
+      "body": "{\"data\":[]}",
+      "outbound": [
+        {
+          "url": "<mock>/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer undefined"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.openai.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "33",
+      "etag": "W/\"21-NQbeJ0P/RhIm5gdOvUHKlVFySCo\"",
+      "specialHeader": null,
+      "body": "{\"error\":true,\"data\":{\"data\":[]}}",
+      "outbound": [
+        {
+          "url": "https://api.openai.com/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-openai-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.openai.noKey": {
+      "status": 400,
       "contentType": "application/json; charset=utf-8",
       "contentLength": "14",
       "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",

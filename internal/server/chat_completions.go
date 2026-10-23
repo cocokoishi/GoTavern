@@ -389,7 +389,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 				apiKey = password
 			}
 		} else {
-			apiURL = pinnedOpenAIAPIURL
+			apiURL = pinnedOpenAIBaseURL()
 			secret, err := pinnedReadSecret(directories, "api_key_openai", pinnedSecretID(body))
 			if err != nil {
 				return nil, pinnedChatCompletionTransportFailure(err)

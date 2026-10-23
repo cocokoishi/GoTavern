@@ -38,6 +38,12 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		return
 	}
 	source, _ := sdBodyMember(body, "chat_completion_source").stringValue()
+	// Pinned's chain puts OPENAI first (chat-completions.js:1787); the order is not observable, but
+	// keeping it makes this dispatch readable against the pinned text.
+	if source == chatCompletionSourceOpenAI {
+		runtime.serveOpenAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceOpenRtr {
 		runtime.serveOpenRouterChatCompletionStatus(w, request, body, directories)
 		return

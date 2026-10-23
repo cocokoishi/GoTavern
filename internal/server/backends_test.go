@@ -102,6 +102,9 @@ func TestBackendsSeamDefaults(t *testing.T) {
 		"GOTAVERN_BACKENDS_WORKERSAI_URL":    backendsWorkersAIURL,
 		// The MISTRALAI status route builds its URL from the CHAT literal, not from a backends one.
 		"GOTAVERN_MISTRAL_CHAT_URL": pinnedMistralBaseURL,
+		// OPENAI is the same case: `new URL(reverse_proxy || API_OPENAI)` in the status arm and in
+		// the generate plan, so its seam is the chat one and its default is the pinned literal.
+		"GOTAVERN_OPENAI_CHAT_URL": pinnedOpenAIBaseURL,
 	}
 	if len(fixture.Inputs.SeamDefaults) != len(accessors) {
 		t.Fatalf("fixture records %d seam defaults, implementation has %d", len(fixture.Inputs.SeamDefaults), len(accessors))
