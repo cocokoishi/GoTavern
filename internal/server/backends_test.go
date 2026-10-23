@@ -107,6 +107,8 @@ func TestBackendsSeamDefaults(t *testing.T) {
 		"GOTAVERN_OPENAI_CHAT_URL": pinnedOpenAIBaseURL,
 		// DEEPSEEK shares the seam: its status route strips /beta from the same chat literal.
 		"GOTAVERN_DEEPSEEK_CHAT_URL": pinnedDeepSeekBaseURL,
+		// ELECTRONHUB uses one literal for both routes, so one seam serves the generate and status arms.
+		"GOTAVERN_ELECTRONHUB_CHAT_URL": pinnedElectronHubBaseURL,
 	}
 	if len(fixture.Inputs.SeamDefaults) != len(accessors) {
 		t.Fatalf("fixture records %d seam defaults, implementation has %d", len(fixture.Inputs.SeamDefaults), len(accessors))
