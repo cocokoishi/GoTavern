@@ -10,7 +10,17 @@ Stable releases provide three first-class paths:
 
 1. **One-line installer** (`install.sh` / `install.ps1`): downloads a prebuilt GitHub Release asset and verifies its checksum.
 2. **Manual GitHub Release download**: download the archive for the operating system/architecture, extract it, run `start.sh` / `Start.cmd` or the binary directly.
-3. **Container image**: NOT PUBLISHED YET. `docker.yml` builds and smoke-tests a local single-platform image; nothing pushes to a registry, so today the container path means building it yourself from the `Dockerfile` and mounting persistent runtime data.
+3. **Container image**: the PUBLISH PATH IS EXECUTED and gated, but no release tag has published it. `docker.yml`
+pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push (the only event that also moves `:latest`) and on a
+`workflow_dispatch` with `push_image=true`, which publishes the named `image_tag` and never `latest`. Dispatch run
+39907882256 is green and its last steps are the ones that matter: it pushed, then PULLED the reference back and ran
+`assets verify` inside the pulled copy, which makes the registry bytes the subject rather than the local daemon. The
+gate is proved to fail when verification cannot follow a push: mutation runs 39908260013 and 39908470507 (tag
+`dispatch-mutation-verify`) fail the pull-back step with `manifest unknown`, and after the report step was tightened
+the second of them also refuses to report the tag as published. MEASURED: the publish path and its gate, on
+linux/amd64. NOT COVERED: no `v*` tag exists (`git tag -l 'v*'` is empty as of 2026-10-23), so `:latest` has never
+been published and no user can pull a release image; a multi-architecture index is unexecuted; and the Windows
+installer behaviours are covered only by `release-qualification.yml` (see HANDOFF section 3).
 
 Building from source is a developer workflow and must never be required as an implicit fallback when a release asset is missing.
 

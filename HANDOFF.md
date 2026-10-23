@@ -30,7 +30,13 @@ paragraph is silently overwritten and fails the zero-diff gate.
 
 - **`compatible`**: THREE areas now -- chat-completions generation for the custom/OpenAI-compatible
   source (all five surfaces; its artifact was re-recorded after the `dryAfterData` red was traced to a
-  RECORDING WINDOW rather than to the product -- see section 5), **Backgrounds** and **Quick replies**,
+  RECORDING WINDOW rather than to the product -- see section 5). NINE FURTHER chat-completions sources are
+  measured on P, E and C without being promoted here, because promotion is a per-row decision and the
+  provider-wire fixture is the row they live in: OPENROUTER, CLAUDE, MISTRALAI, GROQ, SILICONFLOW, NANOGPT,
+  WORKERS_AI, DEEPSEEK (`POST /beta/chat/completions` asserted on both legs) and OPENAI (whose artifact
+  records `proxySettingDeliberatelyUnset` so its `proxyPasswordPresent: false` cannot be misread) --
+  `tests/browser/{generation,streaming}-{openrouter,claude,mistral,groq,siliconflow,nanogpt,workersai,deepseek,openai}-comparison.json`,
+  all gated by `tools/verify-browser-comparisons.mjs`. **Backgrounds** and **Quick replies**,
   both promoted once each browser drive ASSERTED its own gate (the Backgrounds panel that binds the
   upload handler, and `globalThis.quickReplyApi`). A drive that cannot reach its gate reports which
   precondition is missing instead of looking like a product gap.
@@ -68,10 +74,18 @@ documented PRIMARY install path produced a prefix whose own `assets verify` FAIL
 routes count every prompt ~25% high while still answering. Fixed (staged-and-swapped immutable
 directory, and an archive without it is refused).
 
-**Still not executed anywhere**: `install.ps1` (no PowerShell on a Linux runner), cross-baseline
-upgrades, replacing a binary under a running server, proxy/TLS against the real github.com path, and
-`gotavern migrate` -- which DOES NOT EXIST (docs/INSTALLATION.md section 6 now says so; its required
-capabilities are a tracked increment).
+**MEASURED (2026-10-23)**: `install.ps1` IS executed now, and by two different mechanisms. The
+`qualify-windows-amd64` job runs it ON WINDOWS -- step "Qualify install.ps1 ON WINDOWS (running exe,
+separators, registry, cmd.exe)", which is the four behaviours no other runner can reach -- and the
+`qualify-linux-amd64` job runs it under `pwsh` against a loopback mirror with the same assertion set
+`install.sh` is held to. Both jobs are green in run 39907640873, and the gate has teeth: the mutation run
+39908014487 fails it.
+
+**NOT COVERED (unexecuted as of 2026-10-23, each with its reason rather than a to-do)**: cross-baseline
+upgrade (an existing SillyTavern install migrated in place), replacing a binary under a RUNNING server,
+and proxy/TLS against the real github.com download path -- every installer run uses a loopback mirror,
+so no run has ever resolved a `releases/latest/download/...` URL over TLS. And `gotavern migrate` DOES
+NOT EXIST (docs/INSTALLATION.md section 6 says so; its required capabilities are a tracked increment).
 
 ## 4. The working model (this is what makes the CI budget survivable)
 
@@ -152,9 +166,11 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
    `isOpenRouterModelCacheable()` `/models` probe (deliberately deferred because it changes the request
    COUNT); Claude's caching helpers and `promptPlaceholder`; Mistral's `mistral.enablePrefix`.
 
-5. **The Windows-only installer behaviours** that no runner can execute -- replacing a RUNNING
-   `gotavern.exe` (the branch Windows users actually hit on update), path separators, registry/shortcuts,
-   `cmd.exe` -- remain named in three places and unverified everywhere.
+5. **The Windows-only installer behaviours** -- replacing a RUNNING `gotavern.exe` (the branch Windows
+   users actually hit on update), path separators, registry/shortcuts, `cmd.exe` -- are EXECUTED, by the
+   `qualify-windows-amd64` job in run 39907640873 (mutation 39908014487 fails it). What that measures is
+   `install.ps1` on a clean Windows runner; a host with an antivirus file lock, a non-admin shell or a
+   non-NTFS volume is NOT COVERED.
 
 6. **A cross-baseline upgrade** is still unexecuted, and so is a running-server replacement test.
 ## 7. Working agreements
@@ -164,3 +180,33 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 - Never run `tools/build-generated-lib.mjs` locally.
 - When a lane cannot be finished, contribute the READ you did (what you verified, what you corrected,
   what is still unread) rather than a stub. Several of the best findings arrived that way.
+
+## 8. The honest remaining gaps (2026-10-23, main 614d303)
+
+Six things are NOT covered. Each is a claim about THIS baseline with the reason it cannot be closed here,
+not a to-do list, and none of them is softened into "in progress".
+
+1. **The gemini body layer** (makersuite/vertexai). Both names exist only in the `pinnedChatCompletionSources`
+   map (`internal/server/chat_completions.go:86`), so the generate route answers 501 with zero outbound; the
+   request-body transform is UNMEASURED. A 501 here is the rule-17 marker, not a refusal.
+2. **Moonshot wiring.** A default URL constant exists (`backendsMoonshotDefaultURL`, `internal/server/backends.go:56`)
+   and the source is in the same map, but no generate arm is wired to it, so the same 501 applies. UNMEASURED.
+3. **Preset-level equivalence** (AGENTS rule 8: complex presets must produce equivalent final provider requests).
+   Measured today: per-source transforms on the scenarios `tests/oracle/sillytavern-1.19.0-provider-wire.json`
+   records (86 of them), and the browser drives, which submit ONE captured configuration
+   (`tests/browser/capture-settings.mjs`). No artifact drives a COMPLEX preset -- world info at depth, author's
+   note, stops, token budget interacting with the tokenizer -- through both legs and compares the final request
+   bytes. NOT COVERED, and the tokenizer-boundary gap is why: the request body that would be compared is partly a
+   function of exact token counting.
+4. **Cross-baseline upgrade.** No run has migrated an existing SillyTavern install in place; every qualification
+   run installs into a fresh prefix. NOT COVERED (HANDOFF section 3 names it, `docs/INSTALLATION.md` section 6
+   records that `gotavern migrate` does not exist yet).
+5. **The real github.com download path.** Every installer run resolves releases from a loopback mirror
+   (`GOTAVERN_RELEASES_BASE_URL` pointing at 127.0.0.1), which is what makes the run network-free and what leaves
+   proxy handling, TLS and GitHub's redirect behaviour UNMEASURED. Run 39907640873 proves the installer logic,
+   not the path.
+6. **Package-tag cleanup.** The registry carries dispatch-only tags (`dispatch-test`, `dispatch-mutation-verify`)
+   that no release owns, and no `v*` tag exists at all (`git tag -l 'v*'` is empty), so `:latest` has never been
+   published and no user can pull a release image. The gate that makes a publish claim honest is run
+   39907882256 (pull-back plus `assets verify` inside the pulled copy) with its mutation pair 39908260013 and
+   39908470507; what is missing is a real release tag, not the mechanism.
