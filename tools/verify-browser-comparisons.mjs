@@ -816,6 +816,199 @@ if (electronhubGeneration) {
     console.log(`  generation-electronhub-comparison.json providerRequestEqual true, ${(electronhubGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs`);
 }
 
+// ---- generation-aimlapi-comparison.json -------------------------------------------------------
+//
+// AIMLAPI, and the fact that makes its row different from the proxy:true rows: apiSourceConfig marks it
+// `proxy: false` (SECRET_KEYS.AIMLAPI, #api_key_aimlapi) AND its key guard is `!apiKey` with NO
+// reverse_proxy escape -- the route never reads that member at all (aimlapi_chat.go:24,152). So the peer
+// is UNREACHABLE through a reverse proxy for this source: the seam and the pinned redirect are the only
+// route, and `proxyPasswordPresent` false on both legs is a statement about the SOURCE, not a choice this
+// drive made. The artifact must say `proxyMemberSupport` for that reason: a reader who saw only the false
+// could not tell "unsupported" from "unused here".
+const aimlapiGeneration = read('generation-aimlapi-comparison.json');
+if (aimlapiGeneration) {
+    const label = 'generation-aimlapi-comparison.json';
+    if (aimlapiGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the aimlapi provider-wire claim is unsupported');
+    }
+    if (aimlapiGeneration.requestArrived?.gotavern !== true || aimlapiGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (aimlapiGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(aimlapiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    const guardMeaning = aimlapiGeneration.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof guardMeaning !== 'string' || !guardMeaning.includes('non-dry invocation')) {
+        fail(label, 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    const drive = aimlapiGeneration.driveParameters ?? {};
+    if (typeof drive.mode !== 'string') {
+        fail(label, 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+    }
+    if (typeof drive.invocationPairing !== 'string' || !drive.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AIMLAPI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AIMLAPI_CHAT_URL`);
+    }
+    if (typeof drive.proxyMemberSupport !== 'string' || !drive.proxyMemberSupport.includes('UNSUPPORTED') || !drive.proxyMemberSupport.includes('reverse_proxy')) {
+        fail(label, 'driveParameters.proxyMemberSupport is missing or does not state that the route NEVER READS reverse_proxy, so proxyPasswordPresent false cannot be read as "unused here"');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (aimlapiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(aimlapiGeneration.proxyPasswordPresent?.[leg])}, but aimlapi has no reverse_proxy escape and the drive must reach the peer by seam and redirect`);
+        }
+        if (!Array.isArray(aimlapiGeneration.generationUnmatchedAfterData?.[leg]) || aimlapiGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+        const requests = aimlapiGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; aimlapi's drive must show its status call and the completion (POST /chat/completions)`);
+        }
+    }
+    const post = (aimlapiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-aimlapi-comparison.json providerRequestEqual true, ${(aimlapiGeneration.bodyDifferences ?? []).length} documented body difference(s), ${post?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs (proxy:false source with NO reverse_proxy escape: seam + redirect only), seam ${drive.seamEnvVar}`);
+}
+
+// ---- streaming-aimlapi-comparison.json --------------------------------------------------------
+const aimlapiStreaming = read('streaming-aimlapi-comparison.json');
+if (aimlapiStreaming) {
+    const label = 'streaming-aimlapi-comparison.json';
+    if (aimlapiStreaming.compatibleReady !== true) {
+        fail(label, 'compatibleReady is not true, so the streaming/cancellation claim for aimlapi is unsupported');
+    }
+    const drive = aimlapiStreaming.driveParameters ?? {};
+    if (typeof drive.streamFrameCount !== 'string') {
+        fail(label, 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AIMLAPI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AIMLAPI_CHAT_URL`);
+    }
+    if (typeof drive.proxyMemberSupport !== 'string' || !drive.proxyMemberSupport.includes('UNSUPPORTED')) {
+        fail(label, 'driveParameters.proxyMemberSupport is missing from the streaming artifact');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (aimlapiStreaming.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(aimlapiStreaming.proxyPasswordPresent?.[leg])}, but aimlapi has no reverse_proxy escape`);
+        }
+    }
+    console.log(`  streaming-aimlapi-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
+}
+
+// ---- generation-ai21-comparison.json ----------------------------------------------------------
+//
+// AI21, and the fact the ai21 lane paid for: ITS HEADER SET IS NOT THE THREE HEADERS ITS OWN CODE NAMES.
+// The pinned request carries accept, content-type and authorization -- PLUS the accept-encoding and
+// user-agent node-fetch adds itself, PLUS a COMPUTED content-length, PLUS Host and Connection from the Go
+// client (ai21_chat.go:281-304). A comparison that diffed BODIES ONLY was green while the framed request
+// still differed, so this artifact records the FRAMING and this block ENFORCES it: the header NAME set of
+// each leg, the content-length each received, and whether it matches the body -- and never a header VALUE,
+// because `authorization` carries the key. `authorizationPresent` is a boolean for that reason.
+const ai21Generation = read('generation-ai21-comparison.json');
+if (ai21Generation) {
+    const label = 'generation-ai21-comparison.json';
+    if (ai21Generation.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the ai21 provider-wire claim is unsupported');
+    }
+    if (ai21Generation.requestArrived?.gotavern !== true || ai21Generation.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (ai21Generation.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(ai21Generation.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    const guardMeaning = ai21Generation.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof guardMeaning !== 'string' || !guardMeaning.includes('non-dry invocation')) {
+        fail(label, 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    const drive = ai21Generation.driveParameters ?? {};
+    if (typeof drive.mode !== 'string') fail(label, 'driveParameters.mode is missing');
+    if (typeof drive.invocationPairing !== 'string' || !drive.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AI21_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AI21_CHAT_URL`);
+    }
+
+    // ---- THE FRAMING, RECOMPUTED RATHER THAN TRUSTED -------------------------------------------
+    // requestFramingEqual is a RECORDED flag; a stale true next to a changed header list is exactly the
+    // failure this block exists to catch, so the two legs are compared here and the recorded flag must
+    // agree with the recomputation.
+    const framing = ai21Generation.requestFraming ?? {};
+    for (const leg of ['gotavern', 'pinned']) {
+        const entry = framing[leg];
+        if (!entry || !Array.isArray(entry.headerNames) || entry.headerNames.length === 0) {
+            fail(label, `requestFraming.${leg} is missing or names no header, so the request FRAMING was not recorded`);
+            continue;
+        }
+        if (entry.authorizationPresent !== true) {
+            fail(label, `requestFraming.${leg} does not record that authorization reached the peer, but ai21 sends its key as a bearer header`);
+        }
+        if (entry.contentLengthMatchesBody !== true) {
+            fail(label, `requestFraming.${leg} records content-length ${JSON.stringify(entry.receivedContentLength)} for a ${JSON.stringify(entry.bodyLength)}-byte body, so node-fetch\'s computed framing is not what arrived`);
+        }
+        // node-fetch adds these; a leg missing one is a framing difference the old body-only diff could not see.
+        for (const expected of ['accept', 'content-type', 'authorization', 'accept-encoding', 'user-agent', 'content-length']) {
+            if (!entry.headerNames.includes(expected)) {
+                fail(label, `requestFraming.${leg} does not carry ${JSON.stringify(expected)}; the pinned framing is the three headers ai21 names plus node-fetch\'s defaults plus a computed content-length`);
+            }
+        }
+    }
+    const left = framing.gotavern;
+    const right = framing.pinned;
+    if (left && right) {
+        const recomputed = JSON.stringify(left.headerNames) === JSON.stringify(right.headerNames)
+            && String(left.receivedContentLength) === String(right.receivedContentLength);
+        if (ai21Generation.requestFramingEqual !== recomputed) {
+            fail(label, `requestFramingEqual is ${JSON.stringify(ai21Generation.requestFramingEqual)} but the two legs recompute to ${JSON.stringify(recomputed)} -- the recorded flag disagrees with the recorded framing`);
+        }
+        if (!recomputed) {
+            fail(label, `the two legs were framed differently: ${JSON.stringify(left.headerNames)} / cl ${JSON.stringify(left.receivedContentLength)} against ${JSON.stringify(right.headerNames)} / cl ${JSON.stringify(right.receivedContentLength)}`);
+        }
+    }
+    if (typeof ai21Generation.framingNote !== 'string' || !ai21Generation.framingNote.includes('content-length')) {
+        fail(label, 'framingNote is missing or does not name the computed content-length, so a reader cannot tell what the framing comparison covered');
+    }
+    // THE CREDENTIAL MUST NOT BE IN THE ARTIFACT. A recorded Authorization value would be a leaked key in a
+    // committed file, so the block refuses one rather than trusting the recorder not to do it.
+    const serialized = JSON.stringify(ai21Generation);
+    if (/Bearer\s/i.test(serialized)) {
+        fail(label, 'records an Authorization VALUE (Bearer ...); the framing records header NAMES and a boolean, never a credential');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (ai21Generation.generationUnmatchedAfterData?.[leg]?.length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+    }
+    const post = (ai21Generation.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-ai21-comparison.json providerRequestEqual true, ${(ai21Generation.bodyDifferences ?? []).length} documented body difference(s), ${post?.bodyLength ?? 'unknown'} B per leg, requestFramingEqual ${ai21Generation.requestFramingEqual} over ${(left?.headerNames ?? []).length} header names with content-length ${left?.receivedContentLength ?? 'unknown'} matching the body on both legs (authorization present on both, its value never recorded)`);
+}
+
+// ---- streaming-ai21-comparison.json -----------------------------------------------------------
+const ai21Streaming = read('streaming-ai21-comparison.json');
+if (ai21Streaming) {
+    const label = 'streaming-ai21-comparison.json';
+    if (ai21Streaming.compatibleReady !== true) {
+        fail(label, 'compatibleReady is not true, so the streaming/cancellation claim for ai21 is unsupported');
+    }
+    const drive = ai21Streaming.driveParameters ?? {};
+    if (typeof drive.streamFrameCount !== 'string') fail(label, 'driveParameters.streamFrameCount is missing');
+    if (drive.seamEnvVar !== 'GOTAVERN_AI21_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AI21_CHAT_URL`);
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (ai21Streaming.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(ai21Streaming.proxyPasswordPresent?.[leg])}, but ai21 is proxy:false and reaches the peer by seam and redirect`);
+        }
+    }
+    console.log(`  streaming-ai21-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
+}
+
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its

@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes or electronhub, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub', 'aimlapi', 'ai21'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes, electronhub, aimlapi or ai21, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -381,7 +381,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'deepseek' || probeSource === 'openai') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'aimlapi' || probeSource === 'ai21' || probeSource === 'deepseek' || probeSource === 'openai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -471,6 +471,17 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     if (probeSource === 'electronhub' && !external) {
         process.env.GOTAVERN_ELECTRONHUB_CHAT_URL = `http://${mockAddress}`;
     }
+    // AIMLAPI'S BASE IS THE PINNED LITERAL https://api.aimlapi.com/v1 (aimlapi_chat.go:53), replaceable only by
+    // this seam (aimlapi_chat.go:54). No request member carries a base for this source, so both legs are aimed
+    // here and by the redirect below.
+    if (probeSource === 'aimlapi' && !external) {
+        process.env.GOTAVERN_AIMLAPI_CHAT_URL = `http://${mockAddress}`;
+    }
+    // AI21'S BASE IS THE PINNED LITERAL https://api.ai21.com/studio/v1 (ai21_chat.go:42), replaceable only by
+    // this seam (ai21_chat.go:43).
+    if (probeSource === 'ai21' && !external) {
+        process.env.GOTAVERN_AI21_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -499,6 +510,12 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
     if (probeSource === 'electronhub' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.electronhub.ai/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'aimlapi' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.aimlapi.com/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'ai21' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.ai21.com/studio/v1', to: `http://${mockAddress}` }]));
     }
     if (probeSource === 'deepseek' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.deepseek.com', to: `http://${mockAddress}` }]));
@@ -846,6 +863,8 @@ try {
             cohere: secretsModule.SECRET_KEYS.COHERE,
             chutes: secretsModule.SECRET_KEYS.CHUTES,
             electronhub: secretsModule.SECRET_KEYS.ELECTRONHUB,
+            aimlapi: secretsModule.SECRET_KEYS.AIMLAPI,
+            ai21: secretsModule.SECRET_KEYS.AI21,
             deepseek: secretsModule.SECRET_KEYS.DEEPSEEK,
         openai: secretsModule.SECRET_KEYS.OPENAI,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
@@ -929,6 +948,18 @@ try {
             // the product does not offer, so the peer is reached by seam + redirect and the artifact states
             // that the setting is UNSUPPORTED, not merely unused.
             oai_settings.electronhub_model = 'probe-model';
+        } else if (probeSource === 'aimlapi') {
+            // AIMLAPI IS proxy:false AND ITS KEY GUARD HAS NO reverse_proxy ESCAPE AT ALL (aimlapi_chat.go:24,152
+            // -- the guard is `!apiKey` and the route never consults `reverse_proxy`), so a user cannot aim this
+            // source with a proxy and neither can this drive. The peer is reached by the GoTavern seam and the
+            // pinned transport redirect, which is why proxyPasswordPresent must come out FALSE on BOTH legs: that
+            // false is the measurement that the route read no reverse-proxy credential, not an absence of evidence.
+            oai_settings.aimlapi_model = 'probe-model';
+        } else if (probeSource === 'ai21') {
+            // AI21 IS proxy:false in apiSourceConfig and is a NO-VALIDATE source (openai.js:4459): the frontend
+            // never asks it for a model list, so the peer sees ONLY the completion POST. The peer answers by
+            // REQUEST, which is what makes a single-call source work at all.
+            oai_settings.ai21_model = 'probe-model';
         } else if (probeSource === 'deepseek') {
             // Deepseek HONOURS reverse_proxy in pinned, but this drive does NOT set one: the peer is
             // reached through the seam on the Go leg and the transport redirect on the pinned leg, so
@@ -1459,6 +1490,12 @@ try {
                 return {
                     method: request.method,
                     path: request.path,
+                    // THE FRAMING, for the artifacts that record it: header NAMES only. No value is
+                    // recorded, because `authorization` carries the source key and a committed artifact must
+                    // never hold one; content-length IS recorded because node-fetch COMPUTES it from the body
+                    // and a body-only diff hides it.
+                    headerNames: Object.keys(request.headers ?? {}).sort(),
+                    receivedContentLength: request.headers?.['content-length'] ?? null,
                     bodyLength: request.bodyLength,
                     body: request.body,
                     bodySha256: request.bodySha256,
@@ -1477,6 +1514,8 @@ try {
                 cohere: 'GOTAVERN_COHERE_CHAT_URL',
                 chutes: 'GOTAVERN_CHUTES_CHAT_URL',
                 electronhub: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
+                aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL',
+                ai21: 'GOTAVERN_AI21_CHAT_URL',
                 deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
             };
             const seamEnv = seamEnvBySource[probeSource] ?? null;
