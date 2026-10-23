@@ -346,7 +346,10 @@ const main = async () => {
                 endpointsOffered: gotavern.endpoint?.available ?? null,
                 endpointBreadth: 'the DEFAULT (global) endpoint only. The CN endpoint is a supported second host and is not measured here, so this row does not claim endpoint breadth',
             } : {}),
-            ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
+                ...(process.env.PROBE_SOURCE === 'chutes' ? {
+                sourceShape: "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy.",
+            } : {}),
+        ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
                 // NAMED PER SOURCE: a nanogpt artifact that told a reader GOTAVERN_GROQ_CHAT_URL aims
                 // its GoTavern leg would be describing a drive that did not happen.
                 seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,

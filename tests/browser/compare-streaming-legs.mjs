@@ -177,6 +177,9 @@ const main = async () => {
     driveParameters: {
         streamFrameCount: process.env.PROBE_FRAME_COUNT ?? 'peer default (5 stream / 12 cancel)',
         customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
+            ...(process.env.PROBE_SOURCE === 'chutes' ? {
+                sourceShape: "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy.",
+            } : {}),
         ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
             // NAMED PER SOURCE, for the same reason as the generation artifact: the seam that aimed
             // this leg must be the one recorded.

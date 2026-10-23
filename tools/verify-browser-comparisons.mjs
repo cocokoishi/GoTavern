@@ -768,6 +768,30 @@ if (openaiStreaming) {
     console.log(`  streaming-openai-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
 }
 
+// ---- generation-chutes-comparison.json ----------------------------
+//
+// CHUTES measured end to end. Both legs reach one peer through the seam plus the pinned
+// transport redirect (proxy:false), so proxyPasswordPresent must be FALSE on both legs.
+const chutesGeneration = read('generation-chutes-comparison.json');
+if (chutesGeneration) {
+    const label = 'generation-chutes-comparison.json';
+    if (chutesGeneration.providerRequestEqual !== true) fail(label, 'providerRequestEqual is not true');
+    if (chutesGeneration.requestArrived?.gotavern !== true || chutesGeneration.requestArrived?.pinned !== true) fail(label, 'requestArrived is not true on both legs');
+    if (chutesGeneration.milestoneEqual !== true) fail(label, 'milestoneEqual is not true');
+    for (const [guard, value] of Object.entries(chutesGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${guard} is not true`);
+    }
+    if (typeof chutesGeneration.driveParameters?.sourceShape !== 'string' || chutesGeneration.driveParameters.sourceShape.length === 0) {
+        fail(label, 'driveParameters.sourceShape is missing, so the artifact does not state what this source is recorded for');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (chutesGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(chutesGeneration.proxyPasswordPresent?.[leg])}, but this source is proxy:false and the peer is reachable only by seam and redirect`);
+        }
+    }
+    console.log(`  generation-chutes-comparison.json providerRequestEqual true, ${(chutesGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs`);
+}
+
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
@@ -781,11 +805,13 @@ if (openaiStreaming) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
     const isGroq = artifactName.includes('groq');
+    const isChutes = artifactName.includes('chutes');
+    const isElectronhub = artifactName.includes('electronhub');
     const isSiliconflow = artifactName.includes('siliconflow');
     // nanogpt is OpenAI-shaped like mistralai/groq/siliconflow: a model-list status call and a
     // POST /chat/completions completion, served by the same request-keyed peer.
@@ -794,7 +820,7 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     const isDeepseek = artifactName.includes('deepseek');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek;
+    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek || isChutes || isElectronhub;
     if (isNanogpt) {
         // NANOGPT'S proxy:false CLAIM IS CHECKED AGAINST A MEASURED BOOLEAN, not against this file's own
         // prose: false on both legs is the evidence that neither leg reached the peer through a
@@ -872,8 +898,10 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     // the claude line, which would claim no /models call for a source that makes one.
     const nanogptLine = 'nanogpt (OpenAI-shaped like groq and siliconflow, proxy:false, credential typed into #api_key_nanogpt): both legs GET /models?detailed=true then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
     const deepseekLine = 'deepseek (OpenAI-shaped, /beta kept on the completion path, credential typed into #api_key_deepseek): both legs GET /models then POST /beta/chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs even though the source HONOURS reverse_proxy, because this drive sets none';
+    const chutesLine = 'chutes (OpenAI-shaped, proxy:false, messages forwarded verbatim with top_k/logit_bias): both legs GET /models then POST /chat/completions, 15 paced frames, cancellation reached the provider';
+    const electronhubLine = 'electronhub (OpenAI-shaped, NO reverse_proxy support at all): both legs GET /models then POST /chat/completions, 15 paced frames; proxyPasswordPresent false because the route never consults the setting';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isChutes ? chutesLine : isElectronhub ? electronhubLine : isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
