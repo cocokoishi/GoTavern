@@ -1,0 +1,93 @@
+{
+    "schemaVersion":  1,
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "minimax",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_minimax":  [
+                                            {
+                                                "label":  "api_key_minimax",
+                                                "active":  true,
+                                                "id":  "probe-id-api_key_minimax",
+                                                "value":  "synthetic-minimax-key"
+                                            }
+                                        ]
+                },
+    "expectedAuthorizationKey":  "synthetic-minimax-key",
+    "transportRedirect":  [
+                              {
+                                  "to":  "\u003cmock\u003e",
+                                  "from":  "https://api.minimax.io/v1"
+                              }
+                          ],
+    "goSeam":  {
+                   "pinnedLiteral":  "https://api.minimax.io/v1",
+                   "environmentVariable":  "GOTAVERN_MINIMAX_CHAT_URL",
+                   "value":  "\u003cmock\u003e"
+               },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the credential itself is asserted by expectedAuthorizationKey",
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+                                            "reason":  "a credential value is not a contract, but which credential the branch sends is"
+                                        },
+                                        {
+                                            "rule":  "the recorder origin is replaced with \u003cmock\u003e",
+                                            "path":  "provider.requests[].url",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+                                            "reason":  "the source says where it sends; the PATH and the query stay compared"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "rule":  "excluded from the compared headers",
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())",
+                                            "reason":  "it measures wall-clock time and differs on every run"
+                                        }
+                                    ]
+                      },
+    "name":  "minimax-max-tokens-clamp",
+    "purpose":  "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+    "request":  {
+                    "body":  {
+                                 "chat_completion_source":  "minimax",
+                                 "model":  "M2-her",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  9000,
+                                 "temperature":  0.5,
+                                 "stream":  false
+                             },
+                    "path":  "/api/backends/chat-completions/generate"
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "body":  "{\"id\":\"probe\",\"object\":\"chat.completion\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}",
+                                       "headers":  [
+                                                       {
+                                                           "value":  "application/json",
+                                                           "name":  "Content-Type"
+                                                       }
+                                                   ]
+                                   }
+                               ]
+             }
+}
