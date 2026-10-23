@@ -60,6 +60,12 @@ The project uses the pinned Node SillyTavern server as an oracle and compares mo
 
 Real pinned extension probes include Tavern Helper / JS-Slash-Runner and the standard-SillyTavern-API portion of LittleWhiteBox. See [`docs/extension-route-coverage.md`](docs/extension-route-coverage.md).
 
+Some fixtures can only be recorded on Linux. A source can land its scenario inputs without captures; CI's
+oracle job re-records on the runner and publishes the difference as a patch. See
+[`docs/oracle-record-loop.md`](docs/oracle-record-loop.md) for the loop, the two hazards that invalidate a
+patch, and `scripts/apply-oracle-rerecord.mjs`, which performs the mechanical part and refuses on every
+condition a human would otherwise have to check.
+
 ## Development
 
 Read [`AGENTS.md`](AGENTS.md) before making implementation changes. Phase 0 inventory/differential infrastructure is mandatory before broad endpoint implementation.
