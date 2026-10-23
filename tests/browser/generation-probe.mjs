@@ -220,7 +220,11 @@ function startStreamingPeer(mode, protocol) {
     const server = http.createServer((request, response) => {
         const pathEntry = { method: request.method, path: request.url, status: null };
         state.paths.push(pathEntry);
-        if (request.method === 'GET' && request.url.startsWith('/models')) {
+        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
+        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
+        // online_status and the send was silently refused, on a source whose Go arm is not in question.
+        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
+        if (request.method === 'GET' && request.url.includes('/models')) {
             pathEntry.status = 200;
             // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
             // ever needed a bare id; the openrouter source populates a real model list from it and will not
@@ -251,7 +255,11 @@ function startStreamingPeer(mode, protocol) {
         // builds its target from a scheme-less base, so the request line arrives as `//chat/completions`
         // and a prefix test 404s a completely correct request -- which then looks like a product defect
         // on both legs and a missing surface in the artifact.
-        if (request.method !== 'POST' || !request.url.includes(completionPath)) {
+        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
+        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
+        // product one. The predicate admits either shape and the peer's own path log still shows exactly
+        // which one arrived, so nothing is inferred.
+        if (request.method !== 'POST' || !(request.url.includes(completionPath) || request.url.includes('/chat'))) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
             response.end('not found');
