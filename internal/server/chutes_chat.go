@@ -71,7 +71,7 @@ func pinnedChutesStatusURL() string { return sdURLJoin(pinnedChutesBaseURL(), "/
 // pinnedChutesCatchFailure is the pinned catch for this transform: `response.send({error:true})` with no
 // status, i.e. 200.
 func pinnedChutesCatchFailure() *pinnedChatCompletionFailure {
-	return &pinnedChatCompletionFailure{status: http.StatusOK, payload: pinnedChatCompletionErrorFlag()}
+	return pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlag())
 }
 
 // pinnedChutesPayload builds the provider body in the pinned literal member order.
