@@ -100,7 +100,7 @@ func TestVertexAIAuthMatrix(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			directories := geminiAuthDirectories(t, testCase.secrets)
-			result, err := pinnedVertexAIAuth(decodeChutesBody(t, testCase.body), directories)
+			result, err := pinnedVertexAIAuth(decodeGeminiAuthBody(t, testCase.body), directories)
 			if testCase.message != "" {
 				if err == nil {
 					t.Fatalf("expected the pinned failure %q, got header %q type %q", testCase.message, result.AuthHeader, result.AuthType)
@@ -172,4 +172,16 @@ func TestVertexAIAuthFailureShape(t *testing.T) {
 	if contentType := recorder.Header().Get("Content-Type"); contentType != "application/json; charset=utf-8" {
 		t.Fatalf("content type = %q", contentType)
 	}
+}
+
+// decodeGeminiAuthBody decodes a request body for the auth table. It is local to this file on purpose: the
+// helper in chutes_chat_test.go belongs to a branch that is not on main, and a test that depends on another
+// lane's file would compile only where both lanes are present.
+func decodeGeminiAuthBody(t *testing.T, text string) orderedNodeJSON {
+	t.Helper()
+	value, err := decodeOrderedNodeJSON([]byte(text))
+	if err != nil {
+		t.Fatalf("decode %s: %v", text, err)
+	}
+	return value
 }
