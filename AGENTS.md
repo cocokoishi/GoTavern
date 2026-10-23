@@ -348,8 +348,14 @@ domain.
 The development machine is weak. Spend its cycles on the work only it can do, and let GitHub
 Actions spend the rest.
 
-- **Locally:** `go build ./...`, gofmt, and `go test -count=1` for the PACKAGES you changed. That is
-  the loop you need while writing code.
+- **Locally, first, always:** `node scripts/dev-verify.mjs`. It classifies your changed files against
+  `origin/main`, picks the smallest falsifying set (gofmt in LF form, `go build ./...`, the changed package's
+  tests, the browser gate when its artifacts moved), runs it, and prints what it decided and why. Measured on
+  this host: `go build ./...` 9.1 s, a targeted package test 19 s, the whole Go suite 116 s. The GitHub round
+  trip was never required to find a compile error; believing it was is what made this project's loop slow.
+  `docs/development-loop.md` lists the tiers and, more importantly, what ONLY the oracle can decide.
+- **Also locally when needed:** `go test -count=1` for the packages you changed, and the script's `--full`
+  flag (116 s) after touching a shared surface.
 - **In CI:** the full `go test ./...`, `go vet ./...`, `gotavern assets verify`, every cross-compile,
   and `tools/build-generated-lib.mjs` — which re-records every oracle fixture and regenerates the
   inventories on Linux and then requires a zero diff.
