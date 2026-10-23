@@ -1,23 +1,36 @@
 name: GoTavern Docker image
 
-# The Docker path is a documented release path (ARCHITECTURE.md 5.4) and it was previously part of
-# every push's CI. It is a build-and-smoke job -- it assembles the image and asserts `assets verify`
-# INSIDE it, because `tokenizers/` is a directory beside the binary rather than an embedded asset and a
-# container that forgot it answers tokenizer routes from the pinned fallback while still looking
-# healthy -- and none of that can change unless the image's own inputs change.
+# The Docker path is a documented release path (ARCHITECTURE.md 5.4) and it is TWO claims that must
+# not be confused:
 #
-# So it runs when the image could differ and on demand, not on every commit:
+#   BUILD + VERIFY  -- assemble the image, assert `assets verify` INSIDE it, and smoke a pinned route.
+#   PUBLISH         -- push the image that was just verified to a registry, then PULL IT BACK and run
+#                      `assets verify` again on the pulled reference.
+#
+# Only the second claim may say an image EXISTs, and it runs only for a version tag or an explicit
+# dispatch input -- so a green build on a branch is never read as "there is a published image". The
+# publish step pushes the image from THIS job's daemon, so the bytes that were verified are the bytes
+# that were pushed; and a `Verify the pulled reference` step re-checks the registry copy, because
+# "docker push succeeded" is not the same claim as "the registry now serves an image that verifies".
+#
+# The assertion that matters is `docker run --rm <image> assets verify`: `tokenizers/` is a directory
+# beside the binary rather than an embedded asset, so a container that forgot it answers tokenizer
+# routes from the pinned fallback while still looking healthy. The smoke test after it exercises a
+# PINNED compatibility route (/version), not a GoTavern-invented one.
+#
+# It runs when the image could differ and on demand, not on every commit:
 #   - pushes that touch the Dockerfile, .dockerignore, docker-compose or the installer scripts;
 #   - a weekly schedule, which catches drift in the base image and in the pinned Node/npm used by the
 #     upstream asset build;
-#   - workflow_dispatch, for a deliberate check before a release.
-#
-# The assertion that matters is `docker run --rm <image> assets verify`, and the smoke test after it
-# exercises a PINNED compatibility route (/version), not a GoTavern-invented one.
+#   - workflow_dispatch, for a deliberate check before a release. `push_image=true` publishes to
+#     `image_tag` (default `dispatch-test`) so the publish path ITSELF can be exercised without
+#     touching `latest`: a dispatch never publishes `latest`, and a dispatch with push_image=false
+#     publishes nothing at all.
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -27,9 +40,21 @@ on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
+    inputs:
+      push_image:
+        description: 'Publish this image to the registry (never publishes :latest)'
+        required: false
+        default: false
+        type: boolean
+      image_tag:
+        description: 'Tag to publish when push_image is true'
+        required: false
+        default: 'dispatch-test'
+        type: string
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: docker-${{ github.ref }}
@@ -38,12 +63,18 @@ concurrency:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    env:
+      # ghcr.io/<owner>/<repo> -- lowercased because a registry reference may not carry capitals.
+      IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Build the release image
         run: docker build --tag gotavern:ci .
+
       - name: Verify embedded assets and the installed tokenizers tree
         run: docker run --rm gotavern:ci assets verify
+
       - name: Start the container and assert it serves a pinned route
         shell: bash
         run: |
@@ -82,6 +113,136 @@ jobs:
           echo "the container never answered /version within 60 seconds"
           report_failure
           exit 1
+
       - name: Stop the container
         if: always()
         run: docker rm --force gotavern-docker-smoke || true
+
+      # ---- P U B L I S H ------------------------------------------------------------------------
+      # `github.ref_type == 'tag'` publishes the tag and `latest`; a dispatch publishes ONLY the
+      # caller's tag. Nothing else may push, so a main-branch build cannot overwrite a release tag.
+      - name: Decide what may be published
+        id: publishable
+        shell: bash
+        run: |
+          set -eu
+          tag=''
+          publish='false'
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+            publish='true'
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${{ inputs.push_image }}" = "true" ]; then
+            tag="${{ inputs.image_tag }}"
+            publish='true'
+          fi
+          if [ -n "$tag" ] && ! printf '%s' "$tag" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'; then
+            echo "refusing to publish an invalid image tag: '$tag'" >&2
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+          if [ "$publish" = "true" ]; then
+            echo "this run MAY publish ${IMAGE_REPOSITORY}:${tag}"
+          else
+            echo "this run publishes NOTHING (ref_type=${GITHUB_REF_TYPE}, event=${GITHUB_EVENT_NAME})"
+          fi
+
+      - name: Log in to the registry
+        if: steps.publishable.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "${GH_TOKEN}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Tag and push the image this job verified
+        id: push
+        if: steps.publishable.outputs.publish == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.publishable.outputs.tag }}
+        run: |
+          set -eu
+          repository="$(printf '%s' "${IMAGE_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          reference="${repository}:${TAG}"
+          docker tag gotavern:ci "${reference}"
+          docker push "${reference}"
+          published="${reference}"
+          # `latest` is a RELEASE alias and only a version tag may move it. A dispatch with
+          # push_image=true publishes its own tag and leaves `latest` where it is.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            docker tag gotavern:ci "${repository}:latest"
+            docker push "${repository}:latest"
+            published="${published} ${repository}:latest"
+          fi
+          echo "reference=${reference}" >> "$GITHUB_OUTPUT"
+          echo "published=${published}" >> "$GITHUB_OUTPUT"
+          echo "pushed: ${published}"
+
+      - name: Verify the PULLED reference, not the local daemon
+        # "docker push succeeded" is not "the registry serves an image that verifies". This removes
+        # the local image, pulls the pushed reference back and runs the asset assertion inside it, so
+        # a digest that lost tokenizers/ cannot be reported as published.
+        #
+        # `id` is load-bearing: the summary step below asks for THIS step's outcome, because a push
+        # that landed in a registry nobody verified is neither "published" nor "nothing happened".
+        id: verify
+        if: steps.publishable.outputs.publish == 'true'
+        shell: bash
+        env:
+          REFERENCE: ${{ steps.push.outputs.reference }}
+        run: |
+          set -eu
+          docker image rm --force gotavern:ci
+          docker pull "${REFERENCE}"
+          docker run --rm "${REFERENCE}" assets verify
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${REFERENCE}" 2>/dev/null || true)"
+          echo "pulled and verified: ${digest:-<no RepoDigest reported>}"
+
+      - name: Report what was published
+        # THE ONLY PLACE THIS WORKFLOW CLAIMS AN IMAGE EXISTS.
+        #
+        # It requires THREE facts, not two: something was pushed, the push named a reference, AND the
+        # pull-back verification step SUCCEEDED. The first version asked only the first two, and a
+        # mutation run proved the hole -- the verify step failed with "manifest unknown" and this
+        # summary still printed "published: ghcr.io/...". A push that no verification followed is its
+        # own state and is reported as such, so neither a green nor a red run can overstate what the
+        # registry holds.
+        if: always()
+        shell: bash
+        env:
+          PUBLISH: ${{ steps.publishable.outputs.publish }}
+          PUBLISHED: ${{ steps.push.outputs.published }}
+          REFERENCE: ${{ steps.push.outputs.reference }}
+          VERIFIED: ${{ steps.verify.outcome }}
+        run: |
+          set -eu
+          if [ "${PUBLISH}" = "true" ] && [ "${VERIFIED}" = "success" ] && [ -n "${PUBLISHED}" ]; then
+            {
+              echo "## Published image"
+              echo
+              echo '```'
+              printf '%s\n' "${PUBLISHED}"
+              echo '```'
+              echo
+              echo "Pulled back and verified with \`assets verify\` inside the image."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "published: ${PUBLISHED}"
+          elif [ -n "${PUBLISHED}" ]; then
+            {
+              echo "## PUSHED BUT NOT VERIFIED -- do not treat this as a published image"
+              echo
+              echo '```'
+              printf '%s\n' "${PUBLISHED}"
+              echo '```'
+              echo
+              echo "The registry holds this reference, but the pull-back \`assets verify\` did not succeed (outcome: ${VERIFIED:-none})."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "PUSHED BUT NOT VERIFIED: ${PUBLISHED} (verify outcome: ${VERIFIED:-none})"
+            exit 1
+          else
+            {
+              echo "## NOT published"
+              echo
+              echo "This run built and verified an image but published nothing (ref_type=${GITHUB_REF_TYPE}, event=${GITHUB_EVENT_NAME})."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "NOT published (ref_type=${GITHUB_REF_TYPE}, event=${GITHUB_EVENT_NAME})"
+          fi
