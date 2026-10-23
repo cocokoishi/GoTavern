@@ -1,0 +1,97 @@
+{
+    "schemaVersion":  1,
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "moonshot",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_moonshot":  [
+                                             {
+                                                 "label":  "api_key_moonshot",
+                                                 "active":  true,
+                                                 "id":  "probe-id-api_key_moonshot",
+                                                 "value":  "synthetic-moonshot-key"
+                                             }
+                                         ]
+                },
+    "expectedAuthorizationKey":  "synthetic-moonshot-key",
+    "transportRedirect":  [
+                              {
+                                  "to":  "\u003cmock\u003e",
+                                  "from":  "https://api.moonshot.ai/v1"
+                              }
+                          ],
+    "goSeam":  {
+                   "pinnedLiteral":  "https://api.moonshot.ai/v1",
+                   "environmentVariable":  "GOTAVERN_MOONSHOT_CHAT_URL",
+                   "value":  "\u003cmock\u003e"
+               },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the credential itself is asserted by expectedAuthorizationKey",
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2540 apiKey = request.body.reverse_proxy ? request.body.proxy_password : readSecret(request.user.directories, SECRET_KEYS.MOONSHOT, request.body.secret_id)",
+                                            "reason":  "a credential value is not a contract, but which credential the branch sends is"
+                                        },
+                                        {
+                                            "rule":  "the recorder origin is replaced with \u003cmock\u003e",
+                                            "path":  "provider.requests[].url",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2539 apiUrl = new URL(request.body.reverse_proxy || API_MOONSHOT).toString()",
+                                            "reason":  "MOONSHOT has a reverse_proxy member, so the pinned leg is redirected at the transport layer and the Go leg through its seam; the PATH stays compared"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "rule":  "excluded from the compared headers",
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())",
+                                            "reason":  "it measures wall-clock time and differs on every run"
+                                        }
+                                    ]
+                      },
+    "name":  "moonshot-nonstream",
+    "purpose":  "MOONSHOT, default mode: thinking is DISABLED (include_reasoning absent) and the trailing assistant turn gains `partial: true` from addAssistantPrefix, because the message list has no tools and ends on an assistant turn.",
+    "request":  {
+                    "body":  {
+                                 "chat_completion_source":  "moonshot",
+                                 "model":  "probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  },
+                                                  {
+                                                      "role":  "assistant",
+                                                      "content":  "probe prefill"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  false
+                             },
+                    "path":  "/api/backends/chat-completions/generate"
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "body":  "{\"id\":\"probe-moonshot\",\"object\":\"chat.completion\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}",
+                                       "headers":  [
+                                                       {
+                                                           "value":  "application/json",
+                                                           "name":  "Content-Type"
+                                                       }
+                                                   ]
+                                   }
+                               ]
+             }
+}
