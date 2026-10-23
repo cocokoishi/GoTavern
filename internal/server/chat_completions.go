@@ -847,38 +847,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		apiKey = secret
 		customHeaders = pinnedOpenRouterHeaders()
 		pinnedChatCompletionOpenRouterBodyParams(&bodyParams, body)
-	case chatCompletionSourceZai:
-		// chat-completions.js:2551. The ENDPOINT is a request body field with two literals that differ
-		// only in PATH, the key comes from proxy_password when a reverse proxy is set and from
-		// api_key_zai otherwise, the branch owns one header, and it always sends `thinking`.
-		reverseProxy, hasReverseProxy := body.member("reverse_proxy")
-		if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
-			reverseProxyUsed = true
-			normalized, ok := pinnedJSURLString(reverseProxy)
-			if !ok {
-				// `new URL(value)` throws for anything that is not an absolute URL, and the pinned
-				// catch answers 502 -- the same shape the OPENAI case reproduces.
-				return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
-			}
-			apiURL = normalized
-			if password, exists := body.member("proxy_password"); exists {
-				apiKey = password
-			}
-		} else {
-			apiURL = pinnedZAIBaseURL(body)
-			secret, err := pinnedReadSecret(directories, pinnedZAISecretKey, pinnedSecretID(body))
-			if err != nil {
-				return nil, pinnedChatCompletionTransportFailure(err)
-			}
-			apiKey = secret
-		}
-		customHeaders.setMember("Accept-Language", nodeString(pinnedZAIHeaderLanguage))
-		bodyParams.setMember("thinking", pinnedZAIThinking(body))
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
-				return nil, pinnedChatCompletionTransportFailure(foldErr)
-			}
-		}
+
 	default:
 		if pinnedChatCompletionSources[sourceName] {
 			// A pinned source whose transport this route does not implement.
