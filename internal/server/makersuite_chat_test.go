@@ -482,3 +482,134 @@ func (value orderedNodeJSON) mustMemberForTest(key string) orderedNodeJSON {
 	member, _ := value.member(key)
 	return member
 }
+
+// pinnedGoogleMemberKeys returns the member names of an object in their stored order.
+func pinnedGoogleMemberKeys(value orderedNodeJSON) []string {
+	keys := make([]string, 0, len(value.object))
+	for _, entry := range value.object {
+		keys = append(keys, entry.key)
+	}
+	return keys
+}
+
+// TestGeminiBodyCompositionOrder pins the ONE thing a value-by-value comparison cannot: the member ORDER of
+// the provider body (:624-666). JSON.stringify emits members in creation order, so a body with every value
+// correct and the members in a different order is a different provider request -- and the safetySettings
+// difference between the two sources (VERTEX_SAFETY appended at :569) rides the same assertion.
+func TestGeminiBodyCompositionOrder(t *testing.T) {
+	body := `{
+		"model": "gemini-2.5-pro",
+		"messages": [{"role": "user", "content": "probe user marker"}],
+		"max_tokens": 128,
+		"temperature": 0.4,
+		"use_sysprompt": true,
+		"tools": [{"type": "function", "function": {"name": "probe_tool", "parameters": {"type": "object", "properties": {"a": {"type": "string"}}}}}],
+		"tool_choice": "required"
+	}`
+	messages := `[{"role":"system","content":"probe system marker"},{"role":"user","content":"probe user marker"}]`
+	body = strings.Replace(body, `"messages": [{"role": "user", "content": "probe user marker"}]`, `"messages": `+messages, 1)
+	decoded, err := decodeOrderedNodeJSON([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	makerSuite := pinnedGoogleBody(decoded, false)
+	if got, want := strings.Join(pinnedGoogleMemberKeys(makerSuite), ","), "contents,safetySettings,generationConfig,systemInstruction,tools,toolConfig"; got != want {
+		t.Fatalf("makersuite member order = %q\nwant                   %q", got, want)
+	}
+	vertex := pinnedGoogleBody(decoded, true)
+	if got, want := strings.Join(pinnedGoogleMemberKeys(vertex), ","), "contents,safetySettings,generationConfig,systemInstruction,tools,toolConfig"; got != want {
+		t.Fatalf("vertex member order = %q\nwant                %q", got, want)
+	}
+
+	// safetySettings: GEMINI_SAFETY alone for makersuite, GEMINI_SAFETY + VERTEX_SAFETY for vertex (:569).
+	makerSuiteSafety, _ := makerSuite.member("safetySettings")
+	vertexSafety, _ := vertex.member("safetySettings")
+	if len(makerSuiteSafety.array) != 5 {
+		t.Fatalf("makersuite safetySettings has %d entries, want the five GEMINI_SAFETY entries", len(makerSuiteSafety.array))
+	}
+	if len(vertexSafety.array) != 10 {
+		t.Fatalf("vertex safetySettings has %d entries, want GEMINI_SAFETY plus the five VERTEX_SAFETY entries", len(vertexSafety.array))
+	}
+	lastCategory, _ := vertexSafety.array[9].member("category")
+	if category, _ := lastCategory.stringValue(); category != "HARM_CATEGORY_JAILBREAK" {
+		t.Fatalf("the last vertex safety entry is %q; VERTEX_SAFETY must be APPENDED after GEMINI_SAFETY", category)
+	}
+
+	// tools and toolConfig travel together, and tool_choice:required becomes mode ANY (:641-663).
+	toolConfig, exists := makerSuite.member("toolConfig")
+	if !exists {
+		t.Fatal("a body with tools and tool_choice has no toolConfig")
+	}
+	functionCallingConfig, _ := toolConfig.member("functionCallingConfig")
+	mode, _ := functionCallingConfig.member("mode")
+	if text, _ := mode.stringValue(); text != "ANY" {
+		t.Fatalf("tool_choice required produced mode %q, want ANY", text)
+	}
+
+	// systemInstruction is present because use_sysprompt is truthy, the model is not an image model and is
+	// not gemma-3 (:565, :630-632), and its parts carry the extracted system text.
+	systemInstruction, exists := makerSuite.member("systemInstruction")
+	if !exists {
+		t.Fatal("use_sysprompt with a normal model produced no systemInstruction")
+	}
+	parts, _ := systemInstruction.member("parts")
+	if len(parts.array) != 1 {
+		t.Fatalf("systemInstruction has %d parts, want the one extracted system turn", len(parts.array))
+	}
+}
+
+// TestGeminiSystemInstructionGate is the gate as its own table: EVERY way the pinned condition can be false
+// must drop the member, and a false systemInstruction with an empty parts array must drop it too (:630).
+func TestGeminiSystemInstructionGate(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{
+			name: "use_sysprompt truthy, ordinary model: the instruction is sent",
+			body: `{"model":"gemini-2.5-pro","use_sysprompt":true,"messages":[{"role":"system","content":"probe system"},{"role":"user","content":"probe user"}]}`,
+			want: true,
+		},
+		{
+			name: "use_sysprompt absent: dropped",
+			body: `{"model":"gemini-2.5-pro","messages":[{"role":"system","content":"probe system"},{"role":"user","content":"probe user"}]}`,
+			want: false,
+		},
+		{
+			name: "use_sysprompt false: dropped",
+			body: `{"model":"gemini-2.5-pro","use_sysprompt":false,"messages":[{"role":"system","content":"probe system"},{"role":"user","content":"probe user"}]}`,
+			want: false,
+		},
+		{
+			name: "gemma-3 suppresses it even when the flag is set",
+			body: `{"model":"gemma-3-27b-it","use_sysprompt":true,"messages":[{"role":"system","content":"probe system"},{"role":"user","content":"probe user"}]}`,
+			want: false,
+		},
+		{
+			name: "image modality suppresses it: request_images on an image generation model",
+			body: `{"model":"gemini-2.5-flash-image","use_sysprompt":true,"request_images":true,"messages":[{"role":"system","content":"probe system"},{"role":"user","content":"probe user"}]}`,
+			want: false,
+		},
+		{
+			name: "no system turn at all: an empty parts array drops it",
+			body: `{"model":"gemini-2.5-pro","use_sysprompt":true,"messages":[{"role":"user","content":"probe user"}]}`,
+			want: false,
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			decoded, err := decodeOrderedNodeJSON([]byte(testCase.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload := pinnedGoogleBody(decoded, false)
+			_, exists := payload.member("systemInstruction")
+			if exists != testCase.want {
+				keys := strings.Join(pinnedGoogleMemberKeys(payload), ",")
+				t.Fatalf("systemInstruction present = %t, want %t (members: %s)", exists, testCase.want, keys)
+			}
+		})
+	}
+}

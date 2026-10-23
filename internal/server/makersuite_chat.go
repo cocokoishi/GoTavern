@@ -74,10 +74,15 @@ func pinnedVertexAIBaseURL() string {
 // pinnedVertexAIHost is `region === 'global' ? 'https://aiplatform.googleapis.com'
 // : 'https://' + region + '-aiplatform.googleapis.com'` (:693-695, :718-722).
 func pinnedVertexAIHost(region string) string {
+	// The VERTEXAI seam belongs HERE as well as on the proxy base: the express and service-account modes
+	// build their host from the region and ignore the base literal entirely, so without this a differential
+	// for those two modes cannot exist at all -- the Go leg would reach the real Google host while the
+	// pinned leg was redirected at the transport layer. With no seam set the pinned host is returned
+	// verbatim, so the recorded behaviour is unchanged.
 	if region == "global" {
-		return "https://aiplatform.googleapis.com"
+		return sdSeamURL(pinnedVertexAISeamEnv, "https://aiplatform.googleapis.com")
 	}
-	return "https://" + region + "-aiplatform.googleapis.com"
+	return sdSeamURL(pinnedVertexAISeamEnv, "https://"+region+"-aiplatform.googleapis.com")
 }
 
 // pinnedGoogleResponseType is `stream ? 'streamGenerateContent' : 'generateContent'` (:680).
@@ -835,4 +840,62 @@ func pinnedGoogleConvertPrompt(messages orderedNodeJSON, model string, useSysPro
 		contents.array = append(contents.array, entry)
 	}
 	return contents, systemInstruction
+}
+
+// pinnedGoogleModel is `String(request.body.model)` (:488).
+func pinnedGoogleModel(body orderedNodeJSON) string {
+	member, exists := body.member("model")
+	if !exists {
+		return "undefined"
+	}
+	text, err := pinnedJSStringValue(member)
+	if err != nil {
+		return "undefined"
+	}
+	return text
+}
+
+// pinnedGoogleBody is getGeminiBody (:502-667) in the pinned member order:
+//
+//	contents, safetySettings, generationConfig, [systemInstruction], [tools], [toolConfig]
+//
+// The order is the contract: JSON.stringify emits members in creation order, so a body assembled in a
+// different order is a different provider request even when every value matches. The two gates that make
+// the optional members optional are pinned too: `systemInstruction` needs useSystemPrompt AND a non-empty
+// parts array, and `tools` plus `toolConfig` both hang off a non-empty tools array.
+func pinnedGoogleBody(body orderedNodeJSON, useVertexAI bool) orderedNodeJSON {
+	model := pinnedGoogleModel(body)
+	generationConfig := pinnedGoogleGenerationConfig(body, model)
+	imageModality := pinnedGoogleApplyImageModality(&generationConfig, body, model)
+	// `useSystemPrompt = !enableImageModality && !isGemma3 && request.body.use_sysprompt` (:565).
+	useSystemPrompt := !imageModality && !pinnedGoogleGemma3.MatchString(model) && pinnedJSTruthy(sdBodyMember(body, "use_sysprompt"))
+	pinnedGoogleApplyThinkingConfig(&generationConfig, body, model, useVertexAI)
+
+	contents, systemInstruction := pinnedGoogleConvertPrompt(
+		sdBodyMember(body, "messages"), model, useSystemPrompt, pinnedAI21PromptNames(body))
+
+	// `safetySettings = [...GEMINI_SAFETY, ...(useVertexAi ? VERTEX_SAFETY : [])]` (:569).
+	safetySettings := make([]googleSafetySetting, 0, len(googleGeminiSafety)+len(googleVertexSafety))
+	safetySettings = append(safetySettings, googleGeminiSafety...)
+	if useVertexAI {
+		safetySettings = append(safetySettings, googleVertexSafety...)
+	}
+
+	payload := nodeObject()
+	payload.setMember("contents", contents)
+	payload.setMember("safetySettings", googleSafetyArray(safetySettings))
+	payload.setMember("generationConfig", generationConfig)
+	if useSystemPrompt {
+		if parts, exists := systemInstruction.member("parts"); exists && parts.kind == 'a' && len(parts.array) > 0 {
+			payload.setMember("systemInstruction", systemInstruction)
+		}
+	}
+	tools := pinnedGoogleTools(body, model, imageModality)
+	if tools.kind == 'a' && len(tools.array) > 0 {
+		payload.setMember("tools", tools)
+		if toolConfig, ok := pinnedGoogleToolConfig(body); ok {
+			payload.setMember("toolConfig", toolConfig)
+		}
+	}
+	return payload
 }
