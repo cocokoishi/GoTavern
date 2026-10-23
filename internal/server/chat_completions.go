@@ -211,6 +211,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
+			// :870-877: the catch calls `response.send({error:true})` with NO status, so a thrown fetch answers
+			// 200 {"error":true} rather than the shared 502.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
 			// :956-962: the MISTRAL route's catch uses `response.send` with NO status, so a thrown
 			// fetch answers 200 {"error":true}. Answering 500 here would be a different contract.
@@ -377,6 +383,11 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 // body for the sources this route implements.
 func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (*outbound.Request, *pinnedChatCompletionFailure) {
 	sourceName := pinnedChatCompletionSourceName(body)
+	if sourceName == chatCompletionSourceAI21 {
+		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
+		// error mapping. See ai21_chat.go.
+		return pinnedAI21Plan(body, directories)
+	}
 	if sourceName == chatCompletionSourceMistral {
 		// chat-completions.js:881 is its own transform, a sibling of the CLAUDE branch: its own body
 		// order, its own seed/stop coercions, its own message converter and three error observables of
