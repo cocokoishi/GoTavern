@@ -183,6 +183,14 @@ const main = async () => {
             ...(process.env.PROBE_SOURCE === 'electronhub' ? {
                 sourceShape: "ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: its route is a bare literal and always reads the ELECTRONHUB secret, so a request carrying a proxy is IGNORED rather than proxied. `proxyPasswordPresent: false` on both legs therefore means UNSUPPORTED, not unused, and the artifact says so because a reader would otherwise read the false as \"proxy available and untouched\".",
             } : {}),
+
+        // See the generation comparator: openrouter is proxy:false with a pinned literal, so the seam and
+        // the redirect are the only route and proxyPasswordPresent false on both legs is the evidence.
+        ...(process.env.PROBE_SOURCE === 'openrouter' ? {
+            seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
+            peerRoute: 'the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source',
+            proxyPasswordMeaning: 'proxyPasswordPresent false on BOTH legs is the evidence that seam plus redirect were the only route to the peer',
+        } : {}),
         ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
             // NAMED PER SOURCE, for the same reason as the generation artifact: the seam that aimed
             // this leg must be the one recorded.

@@ -95,6 +95,18 @@ if (openrouterGeneration) {
     if (openrouterGeneration.requestArrived?.gotavern !== true || openrouterGeneration.requestArrived?.pinned !== true) {
         fail('generation-openrouter-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
     }
+    // OPENROUTER IS proxy:false WITH A PINNED LITERAL: no request member can carry a peer, so the seam and
+    // the transport redirect are the only route. proxyPasswordPresent FALSE on both legs is the recorded
+    // evidence of that, and a true would mean the drive had started travelling as a proxy -- which would
+    // make the artifact describe a different source than the one it names.
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openrouterGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail('generation-openrouter-comparison.json', `proxyPasswordPresent.${leg} is ${JSON.stringify(openrouterGeneration.proxyPasswordPresent?.[leg])}, but openrouter is proxy:false and both legs must reach the peer by seam and redirect`);
+        }
+    }
+    if (openrouterGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_OPENROUTER_CHAT_URL') {
+        fail('generation-openrouter-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(openrouterGeneration.driveParameters?.seamEnvVar)}, but this artifact must name the only seam that can aim its GoTavern leg`);
+    }
     if (openrouterGeneration.milestoneEqual !== true) {
         fail('generation-openrouter-comparison.json', 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
     }
@@ -218,6 +230,18 @@ if (openrouterStreaming) {
         fail('streaming-openrouter-comparison.json', 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
     }
     console.log(`  streaming-openrouter-comparison.json compatibleReady true, three surfaces proven, cancellation clientDisconnected on both legs`);
+    // OPENROUTER IS proxy:false WITH A PINNED LITERAL, so the seam and the transport redirect are the only
+    // route and proxyPasswordPresent FALSE on both legs is the recorded evidence. This lives in the DEDICATED
+    // block because this artifact is not in the artifactName loop; a copy of the assertion placed there
+    // never ran for it, which a surviving mutation showed (the flip passed the gate).
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openrouterStreaming.proxyPasswordPresent?.[leg] !== false) {
+            fail('streaming-openrouter-comparison.json', `proxyPasswordPresent.${leg} is ${JSON.stringify(openrouterStreaming.proxyPasswordPresent?.[leg])}, but openrouter is proxy:false and both legs must reach the peer by seam and redirect`);
+        }
+    }
+    if (openrouterStreaming.driveParameters?.seamEnvVar !== 'GOTAVERN_OPENROUTER_CHAT_URL') {
+        fail('streaming-openrouter-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(openrouterStreaming.driveParameters?.seamEnvVar)}, but this artifact must name the only seam that can aim its GoTavern leg`);
+    }
     if (openrouterStreaming.compatibleReady !== true) {
         fail('streaming-openrouter-comparison.json', 'compatibleReady is not true, so no compatible claim may cite this artifact');
     }

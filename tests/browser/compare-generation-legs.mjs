@@ -334,6 +334,17 @@ const main = async () => {
             // WORKERS_AI'S URL IS BUILT FROM A BODY VALUE, so the artifact must say which account id the
             // drive drove and through which control, or the numbers cannot be read back against the
             // prefix the seam replaced.
+            // OPENROUTER IS `proxy: false` AND ITS URL IS A PINNED LITERAL with no request member that
+            // can carry a peer (unlike CUSTOM's custom_url and unlike the proxy-capable sources). The seam
+            // plus the transport redirect are therefore the ONLY route to a peer, and
+            // proxyPasswordPresent FALSE on both legs is the recorded evidence of that -- it is not a
+            // tautology here because the field would be true if the drive had travelled as a proxy.
+            ...(process.env.PROBE_SOURCE === 'openrouter' ? {
+                seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
+                peerRoute: 'the seam on the GoTavern leg and the https://openrouter.ai/api/v1 transport redirect on the pinned leg -- openrouter has no reverse_proxy and no custom_url, so no request member can carry a peer',
+                proxyPasswordMeaning: 'proxyPasswordPresent false on BOTH legs is the EVIDENCE that the seam and the redirect were the only route; a true would mean the drive had started travelling as a proxy and the artifact would no longer describe a proxy:false source',
+                pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional: without it the pinned leg fetches the real provider and an empty peer log reads like a product hang',
+            } : {}),
             ...(process.env.PROBE_SOURCE === 'workers_ai' ? {
                 accountIdMode: gotavern.accountId?.mode ?? null,
                 accountIdControl: gotavern.accountId?.control ?? null,
