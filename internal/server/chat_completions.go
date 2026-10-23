@@ -278,6 +278,137 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		return
 	}
 
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
+		// :1592-1599: `response.send({error:true})` with no status, so a thrown fetch answers
+		// 200 {"error":true}. See chutes_chat.go.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
+		// :1579-1599: the shared forwarder for a stream, the provider body passed through otherwise,
+		// and the PARSED provider body at 500 for a non-2xx answer. See chutes_chat.go.
+		serveChutesChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceChutes {
+		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
+		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
+		return pinnedChutesPlan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
+		// :870-877: the catch calls `response.send({error:true})` with NO status, so a thrown fetch answers
+		// 200 {"error":true} rather than the shared 502.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
+		// :853-867: the shared forwarder for a stream, the provider body passed through on 2xx, and the PARSED
+		// provider body at 500 for a non-2xx answer.
+		serveAI21ChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceAI21 {
+		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
+		// error mapping. See ai21_chat.go.
+		return pinnedAI21Plan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
+		// :1056-1062: the same `response.send` without a status, so a thrown fetch answers
+		// 200 {"error":true} rather than the shared path's 502 {"error":{message}}.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
+		// :1041-1062: the shared forwarder for a stream, the provider body passed through otherwise, the
+		// PARSED provider body at 500 for a non-2xx answer. See cohere_chat.go.
+		serveCohereChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceCohere {
+		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
+		// converter and its own three error observables. See cohere_chat.go.
+		return pinnedCoherePlan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
+		// :1491-1497: the route's own catch calls response.send with no status, so a thrown fetch answers
+		// 200 {"error":true} rather than the generic 502 or CLAUDE's 500.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
+		// :1478-1490: the shared forwarder for a stream, the provider body passed through otherwise.
+		serveElectronHubChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceElectronHub {
+		// chat-completions.js:1394 forwards the messages VERBATIM and rebuilds the rest of the body, with
+		// top_k/logit_bias of its own and no reverse_proxy support at all. See electronhub_chat.go.
+		return pinnedElectronHubPlan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
+		// :1385-1391: aimlapi's catch is `response.send({ error: true })` with NO status, so a thrown
+		// fetch answers 200 {"error":true} -- the same contract as MISTRAL and DEEPSEEK.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
+		// :1359-1382: the shared forwarder for a stream WITHOUT an ok-check, the PARSED provider body at
+		// 500 for a non-stream non-2xx, the provider body passed through otherwise.
+		serveAimlapiChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceAimlapi {
+		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
+		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
+		// aimlapi_chat.go.
+		return pinnedAimlapiPlan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
+		// :1274-1281: xAI's catch also uses `response.send` with NO status, so a THROWN fetch is
+		// 200 {"error":true}. Only a provider's OWN non-2xx answer becomes a 500.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
+		// :1261-1272: the shared forwarder for a stream, the provider body passed through otherwise,
+		// and the PARSED provider body at 500 for a non-2xx answer.
+		serveXAIChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceXAI {
+		// chat-completions.js:1183 is its own transform: its own member order, its own message
+		// converter (convertXAIMessages, which renames rather than merges), its own effort mapping and
+		// its own json_schema fold. See xai_chat.go.
+		return pinnedXAIPlan(body, directories)
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
+		// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
+		// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
+		failure := pinnedAzureOpenAICatch(err)
+		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
+		// :1751-1773: the shared forwarder for a stream, the parsed provider body for a 2xx answer, and
+		// 500 with the parsed body (or {error:{message:statusText}}) for a non-2xx answer.
+		serveAzureOpenAIChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if sourceName == chatCompletionSourceAzure {
+		// chat-completions.js:1687 is its own transform: a CALLER-SUPPLIED base URL composed through
+		// `new URL`, an AZURE_OPENAI_KEYS body that never carries `model`, an `api-key` header instead of a
+		// Bearer token, and three response observables of its own. See azure_openai_chat.go.
+		return pinnedAzureOpenAIPlan(body, directories)
+	}
+	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
+	// max_tokens clamp and its own non-2xx shape), so it is dispatched BEFORE the shared plan. It has
+	// to be before: pinnedChatCompletionPlan answers 501 for a source it does not plan, so reaching
+	// that call first is what made this lane report 501 for a source it had just implemented.
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
+		runtime.serveMinimaxChatCompletion(w, request, body, directories)
+		return
+	}
+
 	if pinnedChatCompletionStreams(body) {
 		forwardPinnedChatCompletionStream(w, request, response)
 		return
@@ -709,6 +840,38 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		apiKey = secret
 		customHeaders = pinnedOpenRouterHeaders()
 		pinnedChatCompletionOpenRouterBodyParams(&bodyParams, body)
+	case chatCompletionSourceZai:
+		// chat-completions.js:2551. The ENDPOINT is a request body field with two literals that differ
+		// only in PATH, the key comes from proxy_password when a reverse proxy is set and from
+		// api_key_zai otherwise, the branch owns one header, and it always sends `thinking`.
+		reverseProxy, hasReverseProxy := body.member("reverse_proxy")
+		if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
+			reverseProxyUsed = true
+			normalized, ok := pinnedJSURLString(reverseProxy)
+			if !ok {
+				// `new URL(value)` throws for anything that is not an absolute URL, and the pinned
+				// catch answers 502 -- the same shape the OPENAI case reproduces.
+				return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
+			}
+			apiURL = normalized
+			if password, exists := body.member("proxy_password"); exists {
+				apiKey = password
+			}
+		} else {
+			apiURL = pinnedZAIBaseURL(body)
+			secret, err := pinnedReadSecret(directories, pinnedZAISecretKey, pinnedSecretID(body))
+			if err != nil {
+				return nil, pinnedChatCompletionTransportFailure(err)
+			}
+			apiKey = secret
+		}
+		customHeaders.setMember("Accept-Language", nodeString(pinnedZAIHeaderLanguage))
+		bodyParams.setMember("thinking", pinnedZAIThinking(body))
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
+				return nil, pinnedChatCompletionTransportFailure(foldErr)
+			}
+		}
 	default:
 		if pinnedChatCompletionSources[sourceName] {
 			// A pinned source whose transport this route does not implement.

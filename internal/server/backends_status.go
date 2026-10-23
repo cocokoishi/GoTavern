@@ -102,6 +102,52 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceZai {
+		// Pinned has no ZAI arm and its chain's closing else answers 400 { error: true } without a
+		// provider call (chat-completions.js:2062-2065), so this is the pinned behaviour rather than
+		// the 501 "not written yet" the default below would give.
+		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceChutes {
+		// :1809-1811 sets the shared literal and secret with no header of its own, and the shared tail
+		// at :2092-2108 projects the models list. See chutes_chat.go.
+		runtime.serveChutesChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceCohere {
+		// chat-completions.js:1805-1808 -- cohere DOES have a pinned status arm, unlike CLAUDE.
+		runtime.serveCohereChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceElectronHub {
+		runtime.serveElectronHubChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceAimlapi {
+		// chat-completions.js:1832-1835: the shared tail with aimlapi's literal, key and AIMLAPI_HEADERS.
+		runtime.serveAimlapiChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceXAI {
+		runtime.serveXAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceAzure {
+		// :1934-2011 is NOT part of the shared tail: that arm returns on every path (two provider calls and
+		// its own 400/500 wording), so it neither reaches the :2067 key guard nor the :2072 fetch. See
+		// azure_openai_chat.go.
+		runtime.serveAzureOpenAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceMinimax {
+		// MINIMAX has NO arm in the pinned status chain either (src/endpoints/backends/
+		// chat-completions.js:1778-2065 mentions it nowhere), so a status request reaches the
+		// chain's final else and answers 400 {error:true} with zero outbound -- exactly the CLAUDE
+		// case above. Answering 501 now that the source is implemented would be the wrong gap.
+		runtime.serveMinimaxChatCompletionStatus(w)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return
