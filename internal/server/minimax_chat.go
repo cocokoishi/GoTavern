@@ -58,7 +58,7 @@ const (
 	minimaxChatEndpointCN = "cn"
 	// `request.body.model === 'M2-her' ? Math.min(max_tokens, 2048) : max_tokens`.
 	minimaxChatHerModel     = "M2-her"
-	minimaxChatHerMaxTokens = 2048
+	minimaxChatHerMaxTokens = 4096
 )
 
 func minimaxChatGlobalBaseURL() string {
@@ -87,7 +87,14 @@ func minimaxNodeNull() orderedNodeJSON {
 
 // pinnedMinimaxChatBody builds the pinned request body, member order included.
 func pinnedMinimaxChatBody(body orderedNodeJSON) (orderedNodeJSON, error) {
-	messages := sdBodyMember(body, "messages")
+	messages, mergeErr := backendsPostProcessPrompt(
+		sdBodyMember(body, "messages"),
+		"merge_tools",
+		backendsPromptNamesFor(body),
+	)
+	if mergeErr != nil {
+		return orderedNodeJSON{}, mergeErr
+	}
 	requestBody := nodeObject()
 	requestBody.setMember("messages", messages)
 	for _, key := range []string{"model", "temperature"} {
