@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "vertexai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_vertexai": [
+      {
+        "id": "probe-id-api_key_vertexai",
+        "value": "synthetic-vertex-key",
+        "label": "api_key_vertexai",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://us-central1-aiplatform.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_VERTEXAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://us-central1-aiplatform.googleapis.com"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "In proxy mode the base comes from the request body, so the recorder origin is the reverse_proxy value itself; that is the credential-placement case this scenario exists for.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:464 apiUrl = new URL(reverse_proxy || API_VERTEX_AI); :687-728 the three auth modes"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "vertexai-proxy",
+  "purpose": "VERTEXAI proxy mode: reverse_proxy supplies BOTH the base and the credential (`Authorization: Bearer <proxy_password>`, :44-49 and :724-727), and the URL carries only ?alt=sse when streaming -- there is no ?key= in this mode.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "vertexai",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "model": "gemini-2.5-pro",
+      "max_tokens": 128,
+      "stream": false,
+      "reverse_proxy": "<mock>",
+      "proxy_password": "proxy-pass"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14}}"
+      }
+    ]
+  }
+}

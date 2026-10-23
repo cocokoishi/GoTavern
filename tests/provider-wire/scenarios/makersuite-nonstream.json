@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "makersuite",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_makersuite": [
+      {
+        "id": "probe-id-api_key_makersuite",
+        "value": "synthetic-makersuite-key",
+        "label": "api_key_makersuite",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://generativelanguage.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://generativelanguage.googleapis.com"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_MAKERSUITE is a pinned literal, so the GoTavern leg reaches the recorder through its seam and the pinned leg through this transport redirect. The PATH and the ?key= parameter are untouched and ARE compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "makersuite-nonstream",
+  "purpose": "GOOGLE AI STUDIO default: contents from the shared prompt converter, systemInstruction because use_sysprompt is set, safetySettings = GEMINI_SAFETY only, and generationConfig in the pinned member order. The api key travels as the ?key= QUERY parameter -- this source attaches NO Authorization header (:484 assigns authHeader and never uses it).",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "makersuite",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "model": "gemini-2.5-pro",
+      "max_tokens": 128,
+      "temperature": 0.4,
+      "top_p": 0.8,
+      "top_k": 40,
+      "seed": 7,
+      "stop": [
+        "PROBE_STOP"
+      ],
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14}}"
+      }
+    ]
+  }
+}
