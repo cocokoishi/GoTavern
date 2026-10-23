@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow or nanogpt, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt or deepseek, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -373,7 +373,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'deepseek') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -427,6 +427,14 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     if (probeSource === 'nanogpt' && !external) {
         process.env.GOTAVERN_NANOGPT_CHAT_URL = `http://${mockAddress}`;
     }
+    // DEEPSEEK'S HOST IS A PINNED LITERAL for the generate route: pinned strips `/beta` and appends
+    // `/chat/completions`, so the Go leg is aimed with its own seam and the pinned leg with a redirect on
+    // the ORIGIN (which covers both `/chat/completions` and the `/beta/models` status call). The peer
+    // matches by `includes` on the completion path, so the Go leg's `/beta` prefix and pinned's absence of
+    // it are both answerable -- a strict equality match would 404 one of them.
+    if (probeSource === 'deepseek' && !external) {
+        process.env.GOTAVERN_DEEPSEEK_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -442,6 +450,9 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
     if (probeSource === 'nanogpt' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://nano-gpt.com/api/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'deepseek' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.deepseek.com', to: `http://${mockAddress}` }]));
     }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -783,6 +794,7 @@ try {
             groq: secretsModule.SECRET_KEYS.GROQ,
             siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
             nanogpt: secretsModule.SECRET_KEYS.NANOGPT,
+            deepseek: secretsModule.SECRET_KEYS.DEEPSEEK,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
         }[probeSource];
         await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
@@ -852,6 +864,13 @@ try {
             // by a path a user cannot take. The model is the panel's own select, which the status call
             // that Connect makes is what fills.
             oai_settings.nanogpt_model = 'probe-model';
+        } else if (probeSource === 'deepseek') {
+            // Deepseek HONOURS reverse_proxy in pinned, but this drive does NOT set one: the peer is
+            // reached through the seam on the Go leg and the transport redirect on the pinned leg, so
+            // proxyPasswordPresent stays false on both and the artifact says the peer was reached WITHOUT
+            // a reverse-proxy credential. Driving a reverse proxy instead would make that recorded false
+            // impossible and would hide which route the legs actually took.
+            oai_settings.deepseek_model = 'probe-model';
         } else if (probeSource === 'mistralai') {
             oai_settings.mistralai_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;
@@ -952,6 +971,7 @@ try {
             mistralai: '#api_key_mistralai',
             openrouter: '#api_key_openrouter',
             nanogpt: '#api_key_nanogpt',
+            deepseek: '#api_key_deepseek',
             custom: '#api_key_custom',
         }[probeSource];
         // THE PROXY FIELD IS TYPED, NOT ASSIGNED. `oai_settings.reverse_proxy` is written by the
@@ -1386,6 +1406,7 @@ try {
                 siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL',
                 groq: 'GOTAVERN_GROQ_CHAT_URL',
                 nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL',
+                deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
             };
             const seamEnv = seamEnvBySource[probeSource] ?? null;
             report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
