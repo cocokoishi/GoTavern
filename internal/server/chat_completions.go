@@ -189,6 +189,15 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		return
 	}
 
+	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
+	// max_tokens clamp and its own non-2xx shape), so it is dispatched BEFORE the shared plan. It has
+	// to be before: pinnedChatCompletionPlan answers 501 for a source it does not plan, so reaching
+	// that call first is what made this lane report 501 for a source it had just implemented.
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
+		runtime.serveMinimaxChatCompletion(w, request, body, directories)
+		return
+	}
+
 	plan, failure := pinnedChatCompletionPlan(body, directories, runtime.options.CookieSecret)
 	if failure != nil {
 		if failure.payload == nil {
@@ -196,14 +205,6 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			return
 		}
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
-		return
-	}
-
-	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
-	// max_tokens clamp and its own non-2xx shape), so it is dispatched before the shared plan
-	// rather than forced through it: see minimax_chat.go.
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
-		runtime.serveMinimaxChatCompletion(w, request, body, directories)
 		return
 	}
 
