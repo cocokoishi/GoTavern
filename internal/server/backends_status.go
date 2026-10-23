@@ -84,6 +84,11 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceAimlapi {
+		// chat-completions.js:1832-1835: the shared tail with aimlapi's literal, key and AIMLAPI_HEADERS.
+		runtime.serveAimlapiChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return

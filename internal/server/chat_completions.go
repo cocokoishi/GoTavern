@@ -223,6 +223,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
+			// :1385-1391: aimlapi's catch is `response.send({ error: true })` with NO status, so a thrown
+			// fetch answers 200 {"error":true} -- the same contract as MISTRAL and DEEPSEEK.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -242,6 +248,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveDeepSeekChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
+		// :1359-1382: the shared forwarder for a stream WITHOUT an ok-check, the PARSED provider body at
+		// 500 for a non-stream non-2xx, the provider body passed through otherwise.
+		serveAimlapiChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -382,6 +394,12 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// set, and has its own response mapping, so it delegates here and the response side branches
 		// on the same source name. See claude_chat.go.
 		return pinnedClaudePlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceAimlapi {
+		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
+		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
+		// aimlapi_chat.go.
+		return pinnedAimlapiPlan(body, directories)
 	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 
