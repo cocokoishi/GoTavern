@@ -281,12 +281,17 @@ func TestChatCompletionElectronHubPlanFoldedMembers(t *testing.T) {
 func electronHubTestDirectories(t *testing.T) startup.UserDirectories {
 	t.Helper()
 	root := t.TempDir()
+	// writeSDSecrets writes <dataRoot>/<handle>/secrets.json with os.WriteFile, which does NOT create
+	// the parent, and pinnedReadSecret then reads <directories["root"]>/secrets.json -- so the user
+	// directory has to exist first and has to be what "root" points at.
+	userDirectory := filepath.Join(root, "probe")
+	if err := os.MkdirAll(userDirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	writeSDSecrets(t, root, "probe", map[string]string{
 		"api_key_electronhub": "synthetic-electronhub-key",
 	})
-	// writeSDSecrets writes <dataRoot>/<handle>/secrets.json, while pinnedReadSecret reads
-	// <directories["root"]>/secrets.json, so what "root" must point at is the USER directory.
-	return startup.UserDirectories{"root": filepath.Join(root, "probe")}
+	return startup.UserDirectories{"root": userDirectory}
 }
 
 // TestChatCompletionElectronHubSeamDefault pins the seam default to the recorded literal and the path
