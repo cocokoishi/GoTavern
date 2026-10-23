@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "name": "cohere-error-status",
+  "purpose": "COHERE source, provider NON-2XX: pins that a non-2xx answer is replaced by the PARSED PROVIDER BODY at status 500 (:1046-1051) and NOT by the shared path's {error:{message},quota_error} envelope at 200. The provider status chosen is 429 so the capture also shows that this route does NOT translate a rate limit into quota_error.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "cohere",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_cohere": [
+      {
+        "id": "probe-id-api_key_cohere",
+        "value": "synthetic-cohere-key",
+        "label": "api_key_cohere",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-cohere-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.cohere.ai/v2",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_COHERE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.cohere.ai/v2"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "cohere",
+      "model": "probe-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 429,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"message\":\"rate limited\"}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers.authorization",
+        "rule": "the value is compared as the literal \"Bearer <synthetic cohere key>\", never as a recorded secret",
+        "reason": "the scenario declares the key it plants, so the value is the contract (a wrong secret NAME would send a different or no token)",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:972 apiKey = readSecret(request.user.directories, SECRET_KEYS.COHERE, request.body.secret_id)"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "COHERE has NO reverse_proxy and NO custom_url: sendCohereRequest assigns the hardcoded literal API_COHERE_V2 and appends '/chat', so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH is untouched and IS compared, which is the part the pinned literal decides.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1039 apiUrl = API_COHERE_V2 + '/chat' (API_COHERE_V2 = 'https://api.cohere.ai/v2' at :77)"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

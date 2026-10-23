@@ -223,6 +223,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
+			// :1056-1062: the same `response.send` without a status, so a thrown fetch answers
+			// 200 {"error":true} rather than the shared path's 502 {"error":{message}}.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -242,6 +248,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveDeepSeekChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
+		// :1041-1062: the shared forwarder for a stream, the provider body passed through otherwise, the
+		// PARSED provider body at 500 for a non-2xx answer. See cohere_chat.go.
+		serveCohereChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -370,6 +382,11 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// order, its own seed/stop coercions, its own message converter and three error observables of
 		// its own. See mistral_chat.go.
 		return pinnedMistralPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceCohere {
+		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
+		// converter and its own three error observables. See cohere_chat.go.
+		return pinnedCoherePlan(body, directories)
 	}
 	if sourceName == chatCompletionSourceDeepSeek {
 		// chat-completions.js:1071 is its own transform, with the message side riding the SHARED
