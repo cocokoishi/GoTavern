@@ -181,6 +181,10 @@ jobs:
         # "docker push succeeded" is not "the registry serves an image that verifies". This removes
         # the local image, pulls the pushed reference back and runs the asset assertion inside it, so
         # a digest that lost tokenizers/ cannot be reported as published.
+        #
+        # `id` is load-bearing: the summary step below asks for THIS step's outcome, because a push
+        # that landed in a registry nobody verified is neither "published" nor "nothing happened".
+        id: verify
         if: steps.publishable.outputs.publish == 'true'
         shell: bash
         env:
@@ -194,18 +198,24 @@ jobs:
           echo "pulled and verified: ${digest:-<no RepoDigest reported>}"
 
       - name: Report what was published
-        # THE ONLY PLACE THIS WORKFLOW CLAIMS AN IMAGE EXISTS, and it runs only after the push AND
-        # the pull-back verification succeeded. Every other branch says NOT published, so a green
-        # build can never be read as a published artefact.
+        # THE ONLY PLACE THIS WORKFLOW CLAIMS AN IMAGE EXISTS.
+        #
+        # It requires THREE facts, not two: something was pushed, the push named a reference, AND the
+        # pull-back verification step SUCCEEDED. The first version asked only the first two, and a
+        # mutation run proved the hole -- the verify step failed with "manifest unknown" and this
+        # summary still printed "published: ghcr.io/...". A push that no verification followed is its
+        # own state and is reported as such, so neither a green nor a red run can overstate what the
+        # registry holds.
         if: always()
         shell: bash
         env:
           PUBLISH: ${{ steps.publishable.outputs.publish }}
           PUBLISHED: ${{ steps.push.outputs.published }}
           REFERENCE: ${{ steps.push.outputs.reference }}
+          VERIFIED: ${{ steps.verify.outcome }}
         run: |
           set -eu
-          if [ "${PUBLISH}" = "true" ] && [ -n "${PUBLISHED}" ]; then
+          if [ "${PUBLISH}" = "true" ] && [ "${VERIFIED}" = "success" ] && [ -n "${PUBLISHED}" ]; then
             {
               echo "## Published image"
               echo
@@ -216,6 +226,18 @@ jobs:
               echo "Pulled back and verified with \`assets verify\` inside the image."
             } >> "$GITHUB_STEP_SUMMARY"
             echo "published: ${PUBLISHED}"
+          elif [ -n "${PUBLISHED}" ]; then
+            {
+              echo "## PUSHED BUT NOT VERIFIED -- do not treat this as a published image"
+              echo
+              echo '```'
+              printf '%s\n' "${PUBLISHED}"
+              echo '```'
+              echo
+              echo "The registry holds this reference, but the pull-back \`assets verify\` did not succeed (outcome: ${VERIFIED:-none})."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "PUSHED BUT NOT VERIFIED: ${PUBLISHED} (verify outcome: ${VERIFIED:-none})"
+            exit 1
           else
             {
               echo "## NOT published"
