@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "perplexity",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_perplexity": [
+      {
+        "id": "probe-id-api_key_perplexity",
+        "value": "synthetic-perplexity-key",
+        "label": "api_key_perplexity",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-perplexity-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.perplexity.ai",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_PERPLEXITY_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.perplexity.ai"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; presence and scheme are the contract and the value is asserted by expectedAuthorizationKey.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:2680 Authorization: Bearer + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>, the PATH is kept",
+        "reason": "API_PERPLEXITY is a pinned literal, so the pinned leg reaches the recorder through the transport redirect and the Go leg through GOTAVERN_PERPLEXITY_CHAT_URL. The path /chat/completions IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:78 API_PERPLEXITY = https://api.perplexity.ai, :2423 apiUrl = API_PERPLEXITY, :2628 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "A measurement of elapsed wall-clock time differs on every run; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "perplexity-stream",
+  "purpose": "PERPLEXITY streaming: the shared forwarder, with reasoning_effort copied from the request and the STRICT message processing applied before the body is assembled.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "perplexity",
+      "model": "sonar",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "stream": true,
+      "reasoning_effort": "high"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-perplexity\",\"object\":\"chat.completion\",\"model\":\"sonar\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock perplexity reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":4,\"total_tokens\":12}}"
+      }
+    ]
+  }
+}
