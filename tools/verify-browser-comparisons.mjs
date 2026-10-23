@@ -562,6 +562,59 @@ if (nanogptGeneration) {
     console.log(`  generation-nanogpt-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs, seam ${nanogptGeneration.driveParameters.seamEnvVar} (proxy:false source: seam + redirect only)`);
 }
 
+// ---- generation-deepseek-comparison.json ------------------------------------------------------
+//
+// DEEPSEEK is the first source whose provider path carries a SUFFIX the seam must preserve. Pinned's
+// generate URL is `API_DEEPSEEK` = https://api.deepseek.com/beta (:86) plus /chat/completions, while its
+// status call strips /beta (:1823) and asks the host root for /models. The Go seam REPLACES the whole
+// base rather than its origin (deepseek_chat.go:58), so the first recording of this drive aimed it at the
+// bare peer and produced `/chat/completions` on the Go leg against `/beta/chat/completions` on the pinned
+// leg. That difference was the HARNESS, not the product, and the probe now aims
+// GOTAVERN_DEEPSEEK_CHAT_URL at `<peer>/beta` so both legs record the production path.
+//
+// It also HONOURS reverse_proxy, unlike groq/siliconflow/nanogpt. This drive deliberately sets none, so
+// proxyPasswordPresent false on both legs is a measured fact about the route taken rather than a
+// tautology about a source that could not use a proxy at all.
+const deepseekGeneration = read('generation-deepseek-comparison.json');
+if (deepseekGeneration) {
+    const label = 'generation-deepseek-comparison.json';
+    if (deepseekGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the deepseek provider-wire claim is unsupported');
+    }
+    if (deepseekGeneration.requestArrived?.gotavern !== true || deepseekGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (deepseekGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(deepseekGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    if (typeof deepseekGeneration.driveParameters?.invocationPairing !== 'string' || !deepseekGeneration.driveParameters.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule, so a reader would assume nearest-preceding again');
+    }
+    if (deepseekGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_DEEPSEEK_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(deepseekGeneration.driveParameters?.seamEnvVar)}, but this artifact must say which seam aimed its GoTavern leg`);
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (deepseekGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(deepseekGeneration.proxyPasswordPresent?.[leg])}, but this drive reaches the peer by seam and redirect and sets no reverse proxy; a true would mean the recorded route is not the route described`);
+        }
+        if (!Array.isArray(deepseekGeneration.generationUnmatchedAfterData?.[leg]) || deepseekGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+        const requests = deepseekGeneration.providerRequests?.[leg] ?? [];
+        // THE /beta PREFIX IS ASSERTED, not merely recorded: it is the one path element that separates
+        // this source from every other OpenAI-shaped row, and an aim that lost it would still produce a
+        // 200 from a permissive peer.
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/beta/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; deepseek's completion must be POST /beta/chat/completions`);
+        }
+    }
+    const post = (deepseekGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-deepseek-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, POST /beta/chat/completions on both legs, proxyPasswordPresent false on both (reverse_proxy honoured by the source, unused by the drive), seam ${deepseekGeneration.driveParameters.seamEnvVar}`);
+}
+
 // ---- generation-siliconflow-comparison.json ------------------------------------------------
 //
 // The SILICONFLOW source measured end to end. Same checks as groq, because it is the same class of
@@ -621,7 +674,7 @@ if (siliconflowGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
@@ -630,9 +683,11 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     // nanogpt is OpenAI-shaped like mistralai/groq/siliconflow: a model-list status call and a
     // POST /chat/completions completion, served by the same request-keyed peer.
     const isNanogpt = artifactName.includes('nanogpt');
+    // deepseek is OpenAI-shaped like the rest, with /beta kept on the completion path.
+    const isDeepseek = artifactName.includes('deepseek');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt;
+    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek;
     if (isNanogpt) {
         // NANOGPT'S proxy:false CLAIM IS CHECKED AGAINST A MEASURED BOOLEAN, not against this file's own
         // prose: false on both legs is the evidence that neither leg reached the peer through a
@@ -709,8 +764,9 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     // NANOGPT IS OPENAI-SHAPED AND proxy:false, and its caption says so rather than falling through to
     // the claude line, which would claim no /models call for a source that makes one.
     const nanogptLine = 'nanogpt (OpenAI-shaped like groq and siliconflow, proxy:false, credential typed into #api_key_nanogpt): both legs GET /models?detailed=true then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
+    const deepseekLine = 'deepseek (OpenAI-shaped, /beta kept on the completion path, credential typed into #api_key_deepseek): both legs GET /models then POST /beta/chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs even though the source HONOURS reverse_proxy, because this drive sets none';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
