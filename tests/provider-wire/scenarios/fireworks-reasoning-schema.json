@@ -1,0 +1,106 @@
+{
+    "schemaVersion":  1,
+    "name":  "fireworks-reasoning-schema",
+    "purpose":  "FIREWORKS with reasoning_effort and json_schema: reasoning_effort is copied, and json_schema folds to the FULL {name, description, schema, strict} envelope (unlike NANOGPT/WORKERS_AI/POLLINATIONS-authenticated shapes), with strict defaulting to true.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "fireworks",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_fireworks":  [
+                                              {
+                                                  "id":  "probe-id-api_key_fireworks",
+                                                  "value":  "synthetic-fireworks-key",
+                                                  "label":  "api_key_fireworks",
+                                                  "active":  true
+                                              }
+                                          ]
+                },
+    "expectedAuthorizationKey":  "synthetic-fireworks-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://api.fireworks.ai/inference/v1",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_FIREWORKS_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://api.fireworks.ai/inference/v1"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "fireworks",
+                                 "model":  "accounts/fireworks/models/probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  false,
+                                 "reasoning_effort":  "high",
+                                 "json_schema":  {
+                                                     "name":  "probe_schema",
+                                                     "description":  "probe description",
+                                                     "value":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "answer":  {
+                                                                                                     "type":  "string"
+                                                                                                 }
+                                                                                  }
+                                                               }
+                                                 }
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the planted value is verified by expectedAuthorizationKey",
+                                            "reason":  "a credential is not a contract",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2456 apiKey = readSecret(request.user.directories, SECRET_KEYS.FIREWORKS, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the literal is replaced with \u003cmock\u003e",
+                                            "reason":  "FIREWORKS has no reverse_proxy and no custom_url, so the pinned leg reaches the recorder through the transport redirect and the Go leg through its own seam",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2455 apiUrl = API_FIREWORKS"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded from the compared headers",
+                                            "reason":  "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}

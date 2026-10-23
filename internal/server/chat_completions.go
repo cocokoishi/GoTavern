@@ -189,7 +189,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		return
 	}
 
-	plan, failure := pinnedChatCompletionPlan(body, directories)
+	plan, failure := pinnedChatCompletionPlan(body, directories, runtime.options.CookieSecret)
 	if failure != nil {
 		if failure.payload == nil {
 			serveStatusText(w, failure.status)
@@ -351,7 +351,7 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 
 // pinnedChatCompletionPlan resolves the pinned target selection and request
 // body for the sources this route implements.
-func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
+func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (*outbound.Request, *pinnedChatCompletionFailure) {
 	sourceName := pinnedChatCompletionSourceName(body)
 	if sourceName == chatCompletionSourceMistral {
 		// chat-completions.js:881 is its own transform, a sibling of the CLAUDE branch: its own body
@@ -531,6 +531,45 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 				}
 				format.setMember("json_schema", inner)
 				bodyParams.setMember("response_format", format)
+			}
+		}
+	case chatCompletionSourceFW:
+		// chat-completions.js:2454. The affinity header is NOT built here: its key is the install's cookie
+		// secret, so the plan takes it from the runtime's cookie secret at send time (see the note in
+		// fireworks_chat.go) rather than from a constant this function could invent.
+		apiURL = pinnedFireworksBaseURL()
+		secret, err := pinnedReadSecret(directories, pinnedFireworksSecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+			bodyParams.setMember("reasoning_effort", effort)
+		}
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			format := nodeObject()
+			format.setMember("type", nodeString("json_schema"))
+			inner := nodeObject()
+			if name, hasName := schema.member("name"); hasName {
+				inner.setMember("name", name)
+			}
+			if description, hasDescription := schema.member("description"); hasDescription {
+				inner.setMember("description", description)
+			}
+			if value, hasValue := schema.member("value"); hasValue {
+				inner.setMember("schema", value)
+			}
+			strict := nodeBool(true)
+			if value, hasStrict := schema.member("strict"); hasStrict && !value.isUndefined() && !value.isNull() {
+				strict = value
+			}
+			inner.setMember("strict", strict)
+			format.setMember("json_schema", inner)
+			bodyParams.setMember("response_format", format)
+		}
+		if chatID, exists := body.member("chat_id"); exists && pinnedJSTruthy(chatID) {
+			if text, err := pinnedJSStringValue(chatID); err == nil && text != "" {
+				customHeaders.setMember("x-session-affinity", nodeString(pinnedFireworksAffinity(affinityKey, text)))
 			}
 		}
 	case chatCompletionSourceGroq:

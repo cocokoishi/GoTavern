@@ -204,14 +204,14 @@ func TestChatCompletionGroqIsNotTheDefaultRefusal(t *testing.T) {
 	if decodeErr != nil {
 		t.Fatal(decodeErr)
 	}
-	if _, failure := pinnedChatCompletionPlan(body, directories); failure != nil && failure.status == 501 {
+	if _, failure := pinnedChatCompletionPlan(body, directories, ""); failure != nil && failure.status == 501 {
 		t.Fatal("groq is answered by the default 501 branch; its plan case is missing")
 	}
 	unimplemented, unimplementedErr := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"ai21","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if unimplementedErr != nil {
 		t.Fatal(unimplementedErr)
 	}
-	if _, failure := pinnedChatCompletionPlan(unimplemented, directories); failure == nil || failure.status != 501 {
+	if _, failure := pinnedChatCompletionPlan(unimplemented, directories, ""); failure == nil || failure.status != 501 {
 		t.Fatalf("a source this lane does not implement must answer 501, got %+v", failure)
 	}
 }

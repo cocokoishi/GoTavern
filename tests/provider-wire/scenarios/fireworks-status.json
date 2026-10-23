@@ -1,0 +1,79 @@
+{
+    "schemaVersion":  1,
+    "name":  "fireworks-status",
+    "purpose":  "FIREWORKS /status: a literal OUTSIDE the API base (api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue\u0026pageSize=200), its own seam, and a PROJECTION: entries with contextLength \u003e 0 and kind !== EMBEDDING_MODEL become {id,name,context_length,supports_tools,supports_image_input}, plus a fast-router duplicate whose name gains \" (fast)\". The mock carries both a filtered-out embedding and a zero-context model so the filter is observable.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "fireworks",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_fireworks":  [
+                                              {
+                                                  "id":  "probe-id-api_key_fireworks",
+                                                  "value":  "synthetic-fireworks-key",
+                                                  "label":  "api_key_fireworks",
+                                                  "active":  true
+                                              }
+                                          ]
+                },
+    "expectedAuthorizationKey":  "synthetic-fireworks-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue\u0026pageSize=200",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_FIREWORKS_STATUS_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue\u0026pageSize=200"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/status",
+                    "body":  {
+                                 "chat_completion_source":  "fireworks"
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"models\":[{\"name\":\"accounts/fireworks/models/probe-model\",\"displayName\":\"Probe Model\",\"contextLength\":8192,\"kind\":\"HF_BASE_MODEL\",\"supportsTools\":true,\"supportsImageInput\":false},{\"name\":\"accounts/fireworks/models/glm-5p2\",\"displayName\":\"GLM 5p2\",\"contextLength\":4096,\"kind\":\"HF_BASE_MODEL\",\"supportsTools\":false,\"supportsImageInput\":false},{\"name\":\"accounts/fireworks/models/embed-only\",\"displayName\":\"Embed\",\"contextLength\":512,\"kind\":\"EMBEDDING_MODEL\",\"supportsTools\":false,\"supportsImageInput\":false},{\"name\":\"accounts/fireworks/models/no-context\",\"displayName\":\"NoCtx\",\"contextLength\":0,\"kind\":\"HF_BASE_MODEL\",\"supportsTools\":false,\"supportsImageInput\":false}]}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the planted value is verified by expectedAuthorizationKey",
+                                            "reason":  "a credential is not a contract",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2456 apiKey = readSecret(request.user.directories, SECRET_KEYS.FIREWORKS, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the literal is replaced with \u003cmock\u003e",
+                                            "reason":  "FIREWORKS has no reverse_proxy and no custom_url, so the pinned leg reaches the recorder through the transport redirect and the Go leg through its own seam",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:2455 apiUrl = API_FIREWORKS"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded from the compared headers",
+                                            "reason":  "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}

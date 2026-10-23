@@ -236,14 +236,14 @@ func TestChatCompletionWorkersAIIsNotTheDefaultRefusal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, failure := pinnedChatCompletionPlan(body, directories); failure != nil && failure.status == 501 {
+	if _, failure := pinnedChatCompletionPlan(body, directories, ""); failure != nil && failure.status == 501 {
 		t.Fatal("workers_ai is answered by the default 501 branch; its plan case is missing")
 	}
 	unimplemented, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"ai21","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, failure := pinnedChatCompletionPlan(unimplemented, directories); failure == nil || failure.status != 501 {
+	if _, failure := pinnedChatCompletionPlan(unimplemented, directories, ""); failure == nil || failure.status != 501 {
 		t.Fatalf("a source this lane does not implement must answer 501, got %+v", failure)
 	}
 }
@@ -258,7 +258,7 @@ func workersAIPlanForTest(t *testing.T, rawBody string) (*outbound.Request, *pin
 	if decodeErr != nil {
 		t.Fatal(decodeErr)
 	}
-	return pinnedChatCompletionPlan(body, directories)
+	return pinnedChatCompletionPlan(body, directories, "")
 }
 
 func workersAITestDirectories(t *testing.T) (startup.UserDirectories, error) {
