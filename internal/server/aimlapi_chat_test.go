@@ -330,7 +330,7 @@ func TestChatCompletionAimlapiIsNot501WhileAnUnportedSourceIs(t *testing.T) {
 		t.Fatalf("aimlapi status = %d, want its own 400 (a 501 means the branch is not dispatched)", aimlapi.Code)
 	}
 	cohere := postSecretsRoute(t, handler, "/api/backends/chat-completions/generate",
-		`{"chat_completion_source":"cohere","model":"m","messages":[{"role":"user","content":"probe"}]}`)
+		`{"chat_completion_source":"cometapi","model":"m","messages":[{"role":"user","content":"probe"}]}`)
 	if cohere.Code != http.StatusNotImplemented {
 		t.Fatalf("an unported source status = %d, want 501 so the gap stays visible", cohere.Code)
 	}

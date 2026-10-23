@@ -204,7 +204,7 @@ func TestChatCompletionAI21IsNoLonger501(t *testing.T) {
 		t.Fatal("ai21 is answered by the default 501 branch; its own plan is missing")
 	}
 	// ELECTRONHUB is a real pinned source this lane does not implement: it must still answer 501.
-	unimplemented, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"electronhub","model":"m","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
+	unimplemented, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"cometapi","model":"m","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -492,7 +492,7 @@ func TestChatCompletionAzureOpenAIIsNotTheDefaultRefusal(t *testing.T) {
 		t.Fatalf("plan = %+v, want a request to the composed azure endpoint", request)
 	}
 
-	unimplemented, unimplementedErr := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"ai21","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
+	unimplemented, unimplementedErr := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"cometapi","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if unimplementedErr != nil {
 		t.Fatal(unimplementedErr)
 	}

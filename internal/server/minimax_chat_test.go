@@ -138,7 +138,7 @@ func TestMinimaxChatIsNotA501Gap(t *testing.T) {
 		{
 			// A pinned source with no transport here: the visible gap, and no request.
 			name:       "a source with no arm stays a gap",
-			body:       `{"chat_completion_source":"ai21","model":"probe-model","messages":[]}`,
+			body:       `{"chat_completion_source":"cometapi","model":"probe-model","messages":[]}`,
 			wantStatus: http.StatusNotImplemented,
 			wantBody:   "Not Implemented",
 		},

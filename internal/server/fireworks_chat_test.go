@@ -234,7 +234,7 @@ func TestChatCompletionFireworksIsNotTheDefaultRefusal(t *testing.T) {
 	if _, failure := pinnedChatCompletionPlan(body, directories, pinnedWireCookieSecret); failure != nil && failure.status == 501 {
 		t.Fatal("fireworks is answered by the default 501 branch; its plan case is missing")
 	}
-	unimplemented, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"ai21","model":"m","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
+	unimplemented, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"cometapi","model":"m","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}

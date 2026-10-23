@@ -188,7 +188,7 @@ func TestChutesStatusIsNotA501Gap(t *testing.T) {
 		wantOutbound int
 	}{
 		{name: "chutes reaches its status arm", body: `{"chat_completion_source":"chutes"}`, wantStatus: http.StatusOK, wantOutbound: 1},
-		{name: "a source with no arm stays a gap", body: `{"chat_completion_source":"ai21"}`, wantStatus: http.StatusNotImplemented, wantOutbound: 0},
+		{name: "a source with no arm stays a gap", body: `{"chat_completion_source":"cometapi"}`, wantStatus: http.StatusNotImplemented, wantOutbound: 0},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			peer.Reset(nil)

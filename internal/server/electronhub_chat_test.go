@@ -452,7 +452,7 @@ func TestChatCompletionElectronHubIsNot501WhileAnUnportedSourceStillIs(t *testin
 
 	// `cohere` is a PINNED source this lane did not port: it must still answer 501, and it must not
 	// reach the provider at all.
-	unported := `{"chat_completion_source":"cohere","model":"probe/model","messages":[{"role":"user","content":"probe"}],"max_tokens":64,"stream":false}`
+	unported := `{"chat_completion_source":"cometapi","model":"probe/model","messages":[{"role":"user","content":"probe"}],"max_tokens":64,"stream":false}`
 	status, _, text, _, _ = driveChatCompletionScenario(t, scenario, origin, cookie, token, unported)
 	if status != http.StatusNotImplemented {
 		t.Fatalf("cohere answered %d (%q), want 501 so the unported bucket stays distinguishable", status, text)

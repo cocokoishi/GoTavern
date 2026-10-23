@@ -633,7 +633,7 @@ func TestChatCompletionXAIIsNotTheDefaultRefusal(t *testing.T) {
 	if _, failure := pinnedChatCompletionPlan(body, directories, ""); failure != nil && failure.status == http.StatusNotImplemented {
 		t.Fatal("xai is answered by the default 501 branch; its plan case is missing")
 	}
-	unimplemented, unimplementedErr := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"ai21","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
+	unimplemented, unimplementedErr := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"cometapi","model":"probe-model","messages":[{"role":"user","content":"x"}],"max_tokens":8,"stream":false}`))
 	if unimplementedErr != nil {
 		t.Fatal(unimplementedErr)
 	}
