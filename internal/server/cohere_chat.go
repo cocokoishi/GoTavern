@@ -447,7 +447,7 @@ func (runtime *accountRuntime) serveCohereChatCompletionStatus(w http.ResponseWr
 		reverseProxyTruthy = true
 	}
 	if !pinnedJSTruthy(keyNode) && !reverseProxyTruthy {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

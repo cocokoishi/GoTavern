@@ -106,7 +106,7 @@ func (runtime *accountRuntime) serveSiliconFlowChatCompletionStatus(w http.Respo
 		reverseProxyTruthy = true
 	}
 	if key == "" && !reverseProxyTruthy {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

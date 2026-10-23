@@ -450,12 +450,17 @@ func TestChatCompletionElectronHubIsNot501WhileAnUnportedSourceStillIs(t *testin
 		t.Fatalf("the provider received %d request(s), want exactly 1", len(recorded.Requests))
 	}
 
-	// `cohere` is a PINNED source this lane did not port: it must still answer 501, and it must not
-	// reach the provider at all.
-	unported := `{"chat_completion_source":"cometapi","model":"probe/model","messages":[{"role":"user","content":"probe"}],"max_tokens":64,"stream":false}`
+	// THE DURABLE CONTROL: an UNKNOWN source name, not a real source that a later lane can implement.
+	// Pinned's generate chain closes with `else -> status(400).send({ error: true })`
+	// (chat-completions.js:2594-2597). This row used to name `cometapi` and said `cohere` in its
+	// message; both are real pinned sources, and the message had already drifted from the body.
+	unported := `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `","model":"probe/model","messages":[{"role":"user","content":"probe"}],"max_tokens":64,"stream":false}`
 	status, _, text, _, _ = driveChatCompletionScenario(t, scenario, origin, cookie, token, unported)
-	if status != http.StatusNotImplemented {
-		t.Fatalf("cohere answered %d (%q), want 501 so the unported bucket stays distinguishable", status, text)
+	if status != http.StatusBadRequest {
+		t.Fatalf("an unknown source name answered %d (%q), want the pinned chain's 400", status, text)
+	}
+	if text != `{"error":true}` {
+		t.Fatalf("an unknown source name answered %q, want the pinned {\"error\":true}", text)
 	}
 	if recorded := recorder.Recording(); len(recorded.Requests) != 1 {
 		t.Fatalf("the unported source reached the provider (%d requests total)", len(recorded.Requests))

@@ -675,10 +675,16 @@ func TestChatCompletionXAIStatusIsNotA501Gap(t *testing.T) {
 			wantOutbound: 1,
 		},
 		{
-			name:         "a source with no arm stays a gap",
-			body:         `{"chat_completion_source":"ai21"}`,
-			wantStatus:   http.StatusNotImplemented,
-			wantBody:     "Not Implemented",
+			// THE DURABLE CONTROL: an UNKNOWN name, never a real source that a later lane can
+			// implement. Pinned's generate chain closes with `else -> status(400).send({ error: true })`
+			// (chat-completions.js:2594-2597), so 400 is the pinned answer and 501 is this route's
+			// deliberate divergence for a KNOWN source it has not ported -- a distinction that only
+			// holds while the two cases use different KINDS of name. reverse_proxy points at the peer,
+			// so an unknown name that wrongly fell into a provider arm would be visible as a request.
+			name:         "an unknown source name answers the chain's 400 and reaches no provider",
+			body:         `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `","reverse_proxy":"` + mockOrigin + `"}`,
+			wantStatus:   http.StatusBadRequest,
+			wantBody:     `{"error":true}`,
 			wantOutbound: 0,
 		},
 	} {

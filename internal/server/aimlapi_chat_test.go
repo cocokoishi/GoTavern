@@ -329,10 +329,17 @@ func TestChatCompletionAimlapiIsNot501WhileAnUnportedSourceIs(t *testing.T) {
 		// request never reached the aimlapi arm.
 		t.Fatalf("aimlapi status = %d, want its own 400 (a 501 means the branch is not dispatched)", aimlapi.Code)
 	}
-	cohere := postSecretsRoute(t, handler, "/api/backends/chat-completions/generate",
-		`{"chat_completion_source":"cometapi","model":"m","messages":[{"role":"user","content":"probe"}]}`)
-	if cohere.Code != http.StatusNotImplemented {
-		t.Fatalf("an unported source status = %d, want 501 so the gap stays visible", cohere.Code)
+	// THE DURABLE CONTROL: an UNKNOWN name answers the pinned chain's 400 (:2594-2597), not this
+	// route's 501. The 501-for-a-known-unported-source claim is asserted against the registry in
+	// chat_completion_control_test.go instead, because a control naming a real source rots the day that
+	// source lands -- which is exactly what happened to the status half of this test below.
+	unknown := postSecretsRoute(t, handler, "/api/backends/chat-completions/generate",
+		`{"chat_completion_source":"`+pinnedUnknownChatCompletionSource+`","model":"m","messages":[{"role":"user","content":"probe"}]}`)
+	if unknown.Code != http.StatusBadRequest {
+		t.Fatalf("an unknown source name status = %d, want the pinned chain's 400", unknown.Code)
+	}
+	if unknown.Body.String() != `{"error":true}` {
+		t.Fatalf("an unknown source name body = %q, want the pinned {\"error\":true}", unknown.Body.String())
 	}
 
 	// The status route: aimlapi has a pinned arm (:1832), so it must leave the 501 branch as well.
@@ -343,8 +350,15 @@ func TestChatCompletionAimlapiIsNot501WhileAnUnportedSourceIs(t *testing.T) {
 	if statusAimlapi.Code != http.StatusBadRequest {
 		t.Fatalf("aimlapi status-route status = %d, want its own 400 without a key", statusAimlapi.Code)
 	}
-	statusCohere := postSecretsRoute(t, handler, "/api/backends/chat-completions/status", `{"chat_completion_source":"cohere"}`)
-	if statusCohere.Code != http.StatusNotImplemented {
-		t.Fatalf("an unported source status-route status = %d, want 501", statusCohere.Code)
+	// This used to name `cohere` and expect 501. COHERE IS IMPLEMENTED (backends_status.go dispatches
+	// serveCohereChatCompletionStatus, and the pinned matrix has a cohere status arm), so the row had
+	// become "assert that an implemented source is unimplemented" and failed with 400. The durable
+	// control is an UNKNOWN name, which pinned's status chain answers with 400 (:2062-2065).
+	statusUnknown := postSecretsRoute(t, handler, "/api/backends/chat-completions/status", `{"chat_completion_source":"`+pinnedUnknownChatCompletionSource+`"}`)
+	if statusUnknown.Code != http.StatusBadRequest {
+		t.Fatalf("an unknown source name status-route status = %d, want the pinned chain's 400", statusUnknown.Code)
+	}
+	if statusUnknown.Body.String() != `{"error":true}` {
+		t.Fatalf("an unknown source name status-route body = %q, want the pinned {\"error\":true}", statusUnknown.Body.String())
 	}
 }

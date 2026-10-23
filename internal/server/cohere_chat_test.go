@@ -406,7 +406,17 @@ func TestChatCompletionCohereFoldsAreAppliedToAProviderShapedBody(t *testing.T) 
 	directories := cohereTestDirectories(t, "probe-cohere-key")
 	request := coherePlanRequest(t, `{"chat_completion_source":"cohere","model":"command-r-plus-08-2024","messages":[{"role":"user","content":"probe user marker"}],"top_k":11,"top_p":0.75,"stop":["\nprobe-stop\n"],"tools":[{"type":"function","function":{"name":"probe_tool","parameters":{"$schema":"http://json-schema.org/draft-07/schema#","type":"object"}}}],"json_schema":{"name":"probe_schema","description":"probe schema","value":{"type":"object","properties":{"answer":{"type":"string"}}}}}`, directories)
 	body := coherePlanBody(t, request)
-	want := []string{"stream", "model", "messages", "documents", "tools", "safety_mode", "response_format"}
+	// SOURCE-DERIVED MEMBER ORDER, and labelled as such: no cohere GENERATE capture exists in
+	// tests/oracle (checked), so the order comes from the pinned object literal at
+	// chat-completions.js:1001-1014 -- stream, model, messages, temperature, max_tokens, k, p, seed,
+	// stop_sequences, frequency_penalty, presence_penalty, documents, tools -- plus the two
+	// conditional members appended after it (safety_mode at :1017, response_format at :1022).
+	//
+	// `k` and `p` are the pinned aliases `k: request.body.top_k` and `p: request.body.top_p` (:1003-1004),
+	// and THIS CASE supplies top_k/top_p, so they are present. The members absent here
+	// (temperature, max_tokens, seed, frequency_penalty, presence_penalty) are the ones this body
+	// leaves undefined, which JSON.stringify drops.
+	want := []string{"stream", "model", "messages", "k", "p", "stop_sequences", "documents", "tools", "safety_mode", "response_format"}
 	if got := cohereBodyKeysOf(t, body); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("member order = %v, want %v", got, want)
 	}

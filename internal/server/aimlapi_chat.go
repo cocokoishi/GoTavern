@@ -258,7 +258,7 @@ func (runtime *accountRuntime) serveAimlapiChatCompletionStatus(w http.ResponseW
 		reverseProxyTruthy = true
 	}
 	if key == "" && !reverseProxyTruthy {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

@@ -188,7 +188,10 @@ func TestChutesStatusIsNotA501Gap(t *testing.T) {
 		wantOutbound int
 	}{
 		{name: "chutes reaches its status arm", body: `{"chat_completion_source":"chutes"}`, wantStatus: http.StatusOK, wantOutbound: 1},
-		{name: "a source with no arm stays a gap", body: `{"chat_completion_source":"cometapi"}`, wantStatus: http.StatusNotImplemented, wantOutbound: 0},
+		// THE DURABLE CONTROL: an UNKNOWN name. Pinned's status chain closes with
+		// `else -> status(400).send({ error: true })` (:2062-2065), and `cometapi` -- the source this
+		// row used to name -- is a real pinned source that can be implemented.
+		{name: "an unknown source name answers the chain's 400", body: `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `"}`, wantStatus: http.StatusBadRequest, wantOutbound: 0},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			peer.Reset(nil)

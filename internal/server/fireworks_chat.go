@@ -84,7 +84,7 @@ func (runtime *accountRuntime) serveFireworksChatCompletionStatus(w http.Respons
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

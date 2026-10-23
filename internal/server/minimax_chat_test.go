@@ -136,11 +136,14 @@ func TestMinimaxChatIsNotA501Gap(t *testing.T) {
 			wantBody:   `{"error":true}`,
 		},
 		{
-			// A pinned source with no transport here: the visible gap, and no request.
-			name:       "a source with no arm stays a gap",
-			body:       `{"chat_completion_source":"cometapi","model":"probe-model","messages":[]}`,
-			wantStatus: http.StatusNotImplemented,
-			wantBody:   "Not Implemented",
+			// THE DURABLE CONTROL: an UNKNOWN name, not a real source some later lane implements.
+			// Pinned's generate chain closes with `else -> status(400).send({ error: true })`
+			// (chat-completions.js:2594-2597). The 501-for-a-known-unported-source half is asserted
+			// against the registry in chat_completion_control_test.go, so neither half can rot.
+			name:       "an unknown source name answers the chain's 400",
+			body:       `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `","model":"probe-model","messages":[]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `{"error":true}`,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

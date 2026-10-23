@@ -61,16 +61,27 @@ func TestChatCompletionGenerateRejectsSourcesItCannotServe(t *testing.T) {
 			wantType:   "application/json; charset=utf-8",
 		},
 		{
-			// A pinned source whose transport is not implemented here. The
-			// status is deliberately not the pinned provider call: a fabricated
-			// success would be worse than a visible gap.
+			// AN UNKNOWN SOURCE NAME answers the pinned chain's own 400 {"error":true}
+			// (chat-completions.js:2594-2597), which is what makes the 501 below MEANINGFUL: the two
+			// differ in status, body and content type, so a route that answered either one to
+			// everything fails one of them.
 			//
-			// CLAUDE used to be this case. It is implemented now (claude_chat.go), and with no key
-			// stored it answers the pinned 400 {"error":true} of chat-completions.js:235-238 instead,
-			// so the case moved to a source that is still unimplemented and the CLAUDE refusal has its
-			// own test (TestChatCompletionClaudeMissingKeyIsRefusedBeforeTheFetch).
-			name:       "pinned source without a transport",
-			body:       `{"chat_completion_source":"ai21","model":"probe-model","messages":[]}`,
+			// This row used to be the 501 case, first naming whichever source was unimplemented and
+			// then CLAUDE, which landed and turned it into "assert that an implemented source is
+			// unimplemented". A real source name can always land; an unknown one cannot.
+			name:       "unknown source name",
+			body:       `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `","model":"probe-model","messages":[]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `{"error":true}`,
+			wantType:   "application/json; charset=utf-8",
+		},
+		{
+			// A KNOWN pinned source whose transport is not implemented here. The status is
+			// deliberately not the pinned provider call: a fabricated success would be worse than a
+			// visible gap. This half is driven by the registry (pinnedUnportedChatCompletionSources) in
+			// chat_completion_control_test.go, so it follows the list instead of naming a source here.
+			name:       "known pinned source without a transport",
+			body:       `{"chat_completion_source":"cometapi","model":"probe-model","messages":[]}`,
 			wantStatus: http.StatusNotImplemented,
 			wantBody:   "Not Implemented",
 			wantType:   "text/plain; charset=utf-8",

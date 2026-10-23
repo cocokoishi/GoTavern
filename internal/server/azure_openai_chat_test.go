@@ -304,10 +304,15 @@ func TestChatCompletionAzureOpenAIPlanFoldedMembers(t *testing.T) {
 		ordered [][2]string
 	}{
 		{
-			name:    "the keys list decides membership AND order, and model/top_k/user never reach the provider",
-			body:    base + `,"stream":false,"max_tokens":64,"messages":[{"role":"user","content":"x"}],"model":"gpt-4o","top_k":5,"user":"probe-user"}`,
-			want:    []string{`"messages":[{"role":"user","content":"x"}]`, `"max_tokens":64`, `"stream":false`},
-			reject:  []string{`"model"`, `"top_k"`, `"user"`, `"prompt"`, `"reasoning_effort"`},
+			name: "the keys list decides membership AND order, and model/top_k/user never reach the provider",
+			body: base + `,"stream":false,"max_tokens":64,"messages":[{"role":"user","content":"x"}],"model":"gpt-4o","top_k":5,"user":"probe-user"}`,
+			want: []string{`"messages":[{"role":"user","content":"x"}]`, `"max_tokens":64`, `"stream":false`},
+			// `"user":` and not `"user"`: AZURE_OPENAI_KEYS (src/constants.js:440-457) has no
+			// `model`, `top_k` or `user`, so those MEMBERS are dropped -- but the value of
+			// `messages[].role` IS the string "user", and the `want` list above requires it. A
+			// rejection of the bare token therefore forbade what the same case required, which is
+			// not an arm defect but an over-broad assertion: it could never pass.
+			reject:  []string{`"model"`, `"top_k"`, `"user":`, `"prompt"`, `"reasoning_effort"`},
 			ordered: [][2]string{{`"messages"`, `"max_tokens"`}, {`"max_tokens"`, `"stream"`}},
 		},
 		{
