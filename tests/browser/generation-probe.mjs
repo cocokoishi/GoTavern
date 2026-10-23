@@ -433,7 +433,13 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     // matches by `includes` on the completion path, so the Go leg's `/beta` prefix and pinned's absence of
     // it are both answerable -- a strict equality match would 404 one of them.
     if (probeSource === 'deepseek' && !external) {
-        process.env.GOTAVERN_DEEPSEEK_CHAT_URL = `http://${mockAddress}`;
+        // THE SEAM TARGET CARRIES `/beta`, because the seam REPLACES the whole base rather than its
+        // origin (internal/server/deepseek_chat.go:58, and the status base strips `/beta` at :64).
+        // Measured the other way first: with the bare origin the Go leg asked the peer for
+        // `/chat/completions` while the pinned leg asked for `/beta/chat/completions`, so the two legs
+        // recorded DIFFERENT provider paths and the difference was the harness, not the product --
+        // production Go uses the pinned literal, which has `/beta`.
+        process.env.GOTAVERN_DEEPSEEK_CHAT_URL = `http://${mockAddress}/beta`;
     }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
