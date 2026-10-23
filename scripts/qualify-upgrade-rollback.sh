@@ -393,11 +393,48 @@ ok "the OLDER release boots over state the NEWER release wrote and answers /vers
 stop_server
 
 snapshot_runtime "$PREFIX" > "$WORK_ROOT/runtime-after-rollback-boot.txt"
-if ! diff -u "$WORK_ROOT/runtime-after-newer-write.txt" "$WORK_ROOT/runtime-after-rollback-boot.txt" >"$WORK_ROOT/runtime-diff-after-rollback-boot.txt" 2>&1; then
-    cat "$WORK_ROOT/runtime-diff-after-rollback-boot.txt" >&2
-    fail "the older release's startup modified runtime state written by the newer release"
+
+# WHAT IS ALLOWED TO CHANGE HERE, and why it is not a weakening. Pinned startup WRITES A TIMESTAMPED
+# SETTINGS BACKUP on every start (data/default-user/backups/settings_<user>_<stamp>.json), so a strict
+# "nothing may differ" comparison fails on the pinned server's own behaviour, which is what the first run
+# of this job reported. The assertion is therefore split by KIND of change, which is stricter than a
+# whole-file diff: anything MODIFIED or REMOVED fails outright, and an ADDED file is accepted only if its
+# path is exactly that backup shape -- so an older release that rewrote a chat, a card, settings or
+# config.yaml, or that dropped a new file of its own, still fails and still names the path.
+# THE PATH IS EVERYTHING AFTER THE FIRST SPACE RUN, not `$2`: runtime paths really do contain spaces
+# ("tavern day.jpg", "Probe Card From Newer.json"), and field-splitting on them silently truncated the
+# path, which would have made a change to such a file invisible. Blank lines are skipped for the same
+# reason: a trailing newline would otherwise be reported as an added file.
+awk 'NF < 2 { next }
+     NR == FNR { hash = $1; sub(/^[^ ]+ +/, ""); known[$0] = hash; next }
+     { hash = $1; sub(/^[^ ]+ +/, ""); path = $0
+       if (!(path in known)) { print "added " path }
+       else { if (known[path] != hash) print "changed " path; seen[path] = 1 } }
+     END { for (path in known) if (!(path in seen)) print "removed " path }' \
+    "$WORK_ROOT/runtime-after-newer-write.txt" "$WORK_ROOT/runtime-after-rollback-boot.txt" \
+    | LC_ALL=C sort > "$WORK_ROOT/runtime-classified-changes.txt"
+
+if grep -q '^changed ' "$WORK_ROOT/runtime-classified-changes.txt"; then
+    grep '^changed ' "$WORK_ROOT/runtime-classified-changes.txt" >&2
+    fail "the older release's startup MODIFIED runtime state written by the newer release (paths above)"
 fi
-ok "the older release's startup left that state unchanged"
+if grep -q '^removed ' "$WORK_ROOT/runtime-classified-changes.txt"; then
+    grep '^removed ' "$WORK_ROOT/runtime-classified-changes.txt" >&2
+    fail "the older release's startup REMOVED runtime state written by the newer release (paths above)"
+fi
+ADDED=$(grep '^added ' "$WORK_ROOT/runtime-classified-changes.txt" || true)
+ADDED_COUNT=$(printf '%s' "$ADDED" | grep -c '^added ' || true)
+if [ "${ADDED_COUNT:-0}" -gt 0 ]; then
+    UNEXPECTED=$(printf '%s\n' "$ADDED" | grep -v '^added ./data/default-user/backups/settings_.*\.json$' || true)
+    if [ -n "$UNEXPECTED" ]; then
+        printf '%s\n' "$UNEXPECTED" >&2
+        fail "the older release's startup added file(s) that are not a pinned settings backup (paths above)"
+    fi
+fi
+ok "the older release's startup changed nothing and removed nothing; it added ${ADDED_COUNT:-0} file(s), all of them the pinned timestamped settings backup"
+
+echo
+echo "ok: all cross-baseline update and rollback assertions passed"
 
 # ---- 11. the mirror served every request: the seam was honoured, not bypassed ----------------
 
