@@ -72,7 +72,8 @@
       "GOTAVERN_BACKENDS_MOONSHOT_URL": "https://api.moonshot.ai",
       "GOTAVERN_BACKENDS_WORKERSAI_URL": "https://api.cloudflare.com",
       "GOTAVERN_MISTRAL_CHAT_URL": "https://api.mistral.ai/v1",
-      "GOTAVERN_DEEPSEEK_CHAT_URL": "https://api.deepseek.com/beta"
+      "GOTAVERN_DEEPSEEK_CHAT_URL": "https://api.deepseek.com/beta",
+      "GOTAVERN_ELECTRONHUB_CHAT_URL": "https://api.electronhub.ai/v1"
     },
     "scenarios": {
       "multimodal.pollinations.ok": {
@@ -3516,6 +3517,67 @@
             "body": "{\"object\":\"list\",\"data\":[{\"id\":\"deepseek-probe-chat\",\"object\":\"model\"}]}"
           }
         ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.electronhub.ok": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "electronhub"
+        },
+        "bodyText": "{\"chat_completion_source\":\"electronhub\"}",
+        "seam": "GOTAVERN_ELECTRONHUB_CHAT_URL",
+        "secrets": {
+          "api_key_electronhub": "probe-electronhub-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/models",
+            "body": "{\"object\":\"list\",\"data\":[{\"id\":\"probe/model\",\"object\":\"model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.electronhub.nonOk": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "electronhub"
+        },
+        "bodyText": "{\"chat_completion_source\":\"electronhub\"}",
+        "seam": "GOTAVERN_ELECTRONHUB_CHAT_URL",
+        "secrets": {
+          "api_key_electronhub": "probe-electronhub-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/models",
+            "status": 401,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"message\":\"probe unauthorized\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.electronhub.noKey": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "electronhub"
+        },
+        "bodyText": "{\"chat_completion_source\":\"electronhub\"}",
+        "seam": "GOTAVERN_ELECTRONHUB_CHAT_URL",
+        "secrets": {},
+        "upstream": [],
         "replayed": true,
         "peer": "mock"
       },
@@ -7257,6 +7319,108 @@
           "body": ""
         }
       ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.electronhub.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "64",
+      "etag": "W/\"40-KB2Ueib9hXk99lQY40sc+kWUisM\"",
+      "specialHeader": null,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"probe/model\",\"object\":\"model\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.electronhub.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "33",
+      "etag": "W/\"21-NQbeJ0P/RhIm5gdOvUHKlVFySCo\"",
+      "specialHeader": null,
+      "body": "{\"error\":true,\"data\":{\"data\":[]}}",
+      "outbound": [
+        {
+          "url": "https://api.electronhub.ai/v1/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-electronhub-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.electronhub.noKey": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
       "comparison": {
         "compared": [
           "status",
