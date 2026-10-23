@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "name": "azure-openai-status-nonok",
+  "purpose": "AZURE_OPENAI source, /status with a provider NON-2XX on the models call: the arm ECHOES the provider's status (unlike the shared tail, which answers 200 {error:true,data:{data:[]}}) and substitutes its own mapped message for 400/401/403/404, so the provider body and the shared envelope are both absent. The probe POST is never sent.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "azure_openai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_azure_openai": [
+      {
+        "id": "probe-id-api_key_azure_openai",
+        "value": "synthetic-azure-key",
+        "label": "api_key_azure_openai",
+        "active": true
+      }
+    ]
+  },
+  "expectedApiKey": {
+    "header": "api-key",
+    "value": "synthetic-azure-key"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/status",
+    "body": {
+      "chat_completion_source": "azure_openai",
+      "azure_base_url": "http://<mock>",
+      "azure_deployment_name": "probe-deployment",
+      "azure_api_version": "2024-02-15-preview"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 401,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"error\":{\"message\":\"probe unauthorized\",\"type\":\"invalid_request_error\"}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recording peer's origin is supplied in the request body (azure_base_url = http://<mock>), so only the PATH and QUERY are the compared contract",
+        "reason": "AZURE_OPENAI has NO pinned base URL and its status arm builds both URLs from the request body (:1944-1948), so both legs are aimed at the peer by the DRIVER.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1944-1948 new URL('/openai/models', azure_base_url) and new URL(`/openai/deployments/${azure_deployment_name}/chat/completions`, azure_base_url), each with api-version"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

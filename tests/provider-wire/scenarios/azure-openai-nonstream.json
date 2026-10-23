@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "name": "azure-openai-nonstream",
+  "purpose": "AZURE_OPENAI source, NON-STREAMING: the control for azure-openai-stream. Pins what the branch does that the shared path does not: the base URL is CALLER DATA (azure_base_url plus a deployment path and ?api-version=), the body is the AZURE_OPENAI_KEYS list IN THE CONSTANT'S ORDER so the scrambled request order and the extra members (model, top_k, user) do not reach the provider, and the credential is the api-key header (recorded verbatim here; it is the synthetic probe value this scenario declares, and the Authorization header must be ABSENT). `model` is absent because the deployment name in the URL is the model, and `reasoning_effort` is dropped because gpt-4o is outside OPENAI_REASONING_EFFORT_MODELS.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "azure_openai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_azure_openai": [
+      {
+        "id": "probe-id-api_key_azure_openai",
+        "value": "synthetic-azure-key",
+        "label": "api_key_azure_openai",
+        "active": true
+      }
+    ]
+  },
+  "expectedApiKey": {
+    "header": "api-key",
+    "value": "synthetic-azure-key"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "azure_openai",
+      "azure_base_url": "http://<mock>",
+      "azure_deployment_name": "probe-deployment",
+      "azure_api_version": "2024-02-15-preview",
+      "stream": false,
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "model": "gpt-4o",
+      "top_k": 40,
+      "reasoning_effort": "high",
+      "seed": 7,
+      "stop": [
+        "PROBE_STOP"
+      ],
+      "user": "probe-user"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-azure\",\"object\":\"chat.completion\",\"model\":\"probe-deployment\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock azure reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":5,\"total_tokens\":14}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recording peer's origin is supplied in the request body (azure_base_url = http://<mock>), so only the PATH and QUERY are the compared contract",
+        "reason": "AZURE_OPENAI has NO pinned base URL: chat-completions.js:1689 reads azure_base_url from the request body, so both legs are aimed at the peer by the DRIVER, not by a seam or a transport redirect, and rawTarget is compared exactly.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1700-1702 new URL(`/openai/deployments/${azure_deployment_name}/chat/completions`, azure_base_url) + api-version"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
