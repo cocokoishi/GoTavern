@@ -238,7 +238,10 @@ func TestChatCompletionAimlapiMissingKeyIsRefusedBeforeTheFetch(t *testing.T) {
 	t.Cleanup(peer.Close)
 	t.Setenv(pinnedAimlapiSeamEnv, peer.URL)
 
-	handler := aimlapiSeededHandler(t)
+	// NO secret is seeded here: that is the whole point of the test. (An earlier version seeded one and
+	// then asserted 400, which the route correctly answered with 200 because the key was present -- a test
+	// defect the lane CI caught, not a product one.)
+	handler := unseededAimlapiHandler(t)
 	response := postSecretsRoute(t, handler, "/api/backends/chat-completions/generate",
 		`{"chat_completion_source":"aimlapi","model":"m","messages":[{"role":"user","content":"probe"}]}`)
 	if response.Code != http.StatusBadRequest {
@@ -277,6 +280,17 @@ func TestChatCompletionAimlapiTransportFailureAnswers200(t *testing.T) {
 	if body := strings.TrimSpace(response.Body.String()); body != `{"error":true}` {
 		t.Fatalf("body = %q, want {\"error\":true}", body)
 	}
+}
+
+// unseededAimlapiHandler builds a handler over a fresh data root with NO aimlapi secret, so the key
+// refusal is reachable.
+func unseededAimlapiHandler(t *testing.T) http.Handler {
+	t.Helper()
+	dataRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dataRoot, "default-user", "backups"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
 }
 
 // aimlapiSeededHandler builds a handler over a fresh data root that already carries the aimlapi secret,
