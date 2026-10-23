@@ -39,6 +39,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: 'Commit/branch/tag whose release is treated as the OLDER one in the cross-baseline update/rollback job'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -351,3 +357,110 @@ jobs:
           Write-Host '::group::running processes'
           Get-Process gotavern -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path | Format-Table | Out-String | Write-Host
           Write-Host '::endgroup::'
+
+  qualify-upgrade-rollback:
+    # THE CROSS-BASELINE LEG, which is the one release question nothing had ever executed: every other
+    # job in this workflow builds its archives from ONE commit, so "update" and "rollback" moved the
+    # version string and nothing else. This job builds TWO archives from TWO DIFFERENT COMMITS and then
+    # installs, updates and rolls back through the REAL installer against the loopback mirror --
+    # asserting after every step that the binary is the one the archive carries, that `assets verify`
+    # passes from the prefix, and that config.yaml, data/, extensions/ and certs/ survive byte for byte,
+    # INCLUDING the state the newer release writes before the rollback reads it back.
+    #
+    # BASELINE_REF is a commit, not a tag, because no release has been published yet: it is pinned to the
+    # tokenizer-vendoring commit, which is the oldest tree whose archive is installable (install.sh
+    # refuses an archive without tokenizers/) and 367 commits behind the candidate. The vendored asset
+    # trees happen to be IDENTICAL between the two (measured at runtime and printed by the script), so
+    # what this pair exercises is a binary, BUILD-INFO and version difference over shared assets; the
+    # script says so in its own `ok:` line instead of implying an asset-level difference that is not
+    # there. Override with the workflow_dispatch input once an older RELEASE tag exists.
+    runs-on: ubuntu-latest
+    env:
+      BASELINE_REF: ${{ inputs.baseline_ref || '540175910d7693bc137c55a7c934a999b822b73c' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The baseline commit must exist locally for the worktree below; the default depth-1 clone
+          # would make `git worktree add <baseline>` fail, which is the kind of setup error that reads
+          # as a product failure.
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build the OLDER release from the baseline commit
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -eu
+          mkdir -p dist
+          baseline_sha=$(git rev-parse --verify "${BASELINE_REF}^{commit}")
+          older_tag="upg-older-$(git rev-parse --short=12 "$baseline_sha")"
+          test "$baseline_sha" != "$(git rev-parse HEAD)" || { echo "the baseline ref resolves to HEAD, so there is no cross-baseline pair" >&2; exit 1; }
+          git worktree add --detach "$RUNNER_TEMP/baseline" "$baseline_sha"
+          stage="$RUNNER_TEMP/stage-older"
+          rm -rf "$stage"; mkdir -p "$stage"
+          ( cd "$RUNNER_TEMP/baseline" && go build -trimpath -ldflags="-s -w -X main.version=${older_tag}" -o "$stage/gotavern" ./cmd/gotavern )
+          cp "$RUNNER_TEMP/baseline/LICENSE" "$RUNNER_TEMP/baseline/THIRD_PARTY_NOTICES.txt" "$RUNNER_TEMP/baseline/start.sh" "$stage/"
+          cp -R "$RUNNER_TEMP/baseline/upstream/tokenizers" "$stage/tokenizers"
+          {
+            echo "GoTavern release ${older_tag}"
+            echo "baseline ${baseline_sha}"
+            echo
+            "$stage/gotavern" version || true
+          } > "$stage/BUILD-INFO.txt"
+          chmod +x "$stage/gotavern" "$stage/start.sh"
+          tar -czf "dist/gotavern-older.tar.gz" -C "$stage" .
+          test -s dist/gotavern-older.tar.gz
+          echo "older=$older_tag baseline=${baseline_sha}"
+          echo "OLDER_SHA=${baseline_sha}" >> "$GITHUB_ENV"
+
+      - name: Build the NEWER release from this commit
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -eu
+          newer_tag="upg-newer-$(git rev-parse --short=12 HEAD)"
+          stage="$RUNNER_TEMP/stage-newer"
+          rm -rf "$stage"; mkdir -p "$stage"
+          go build -trimpath -ldflags="-s -w -X main.version=${newer_tag}" -o "$stage/gotavern" ./cmd/gotavern
+          # EXACTLY the file set release.yml stages, so the archives under test are the archives that
+          # would ship.
+          cp LICENSE THIRD_PARTY_NOTICES.txt start.sh "$stage/"
+          cp -R upstream/tokenizers "$stage/tokenizers"
+          {
+            echo "GoTavern release ${newer_tag}"
+            echo "candidate $(git rev-parse HEAD)"
+            echo
+            "$stage/gotavern" version || true
+          } > "$stage/BUILD-INFO.txt"
+          chmod +x "$stage/gotavern" "$stage/start.sh"
+          tar -czf "dist/gotavern-newer.tar.gz" -C "$stage" .
+          test -s dist/gotavern-newer.tar.gz
+          echo "newer=$newer_tag candidate=$(git rev-parse HEAD)"
+
+      - name: Qualify the cross-baseline update and rollback
+        run: bash scripts/qualify-upgrade-rollback.sh dist
+
+      - name: Report failure context
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::cross-baseline logs"
+          for log in "$RUNNER_TEMP"/gotavern-upgrade-*/installer-*.log "$RUNNER_TEMP"/gotavern-upgrade-*/server-*.log "$RUNNER_TEMP"/gotavern-upgrade-*/mirror.log; do
+            if [ -f "$log" ]; then
+              echo "--- $log ---"
+              tail -80 "$log"
+            fi
+          done
+          echo "::endgroup::"
+          echo "::group::installed prefix"
+          for prefix in "$RUNNER_TEMP"/gotavern-upgrade-*/install-root; do
+            if [ -d "$prefix" ]; then
+              find "$prefix" -maxdepth 2 -mindepth 1 -printf '%y %p\n' | sort | head -100
+            fi
+          done
+          echo "::endgroup::"
