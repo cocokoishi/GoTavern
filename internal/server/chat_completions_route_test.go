@@ -95,6 +95,20 @@ func TestChatCompletionGenerateRejectsSourcesItCannotServe(t *testing.T) {
 			wantBody:   `{"error":true}`,
 			wantType:   "application/json; charset=utf-8",
 		},
+		{
+			// PERPLEXITY reaches the SHARED guard (:2615) because :2424 reads its secret
+			// unconditionally and never assigns it from proxy_password, so an unconfigured server
+			// answers 400 {"error":true} and makes NO provider request. This row is why deleting the
+			// `perplexity-missing-key` scenario loses nothing: the harness refuses a capture with zero
+			// provider requests, so the route observable is asserted here instead of pretending to be a
+			// recording. The test server has no peer, so a route that tried to fetch would answer
+			// something else and fail this row.
+			name:       "perplexity without a key",
+			body:       `{"chat_completion_source":"perplexity","model":"sonar","messages":[{"role":"user","content":"probe"}]}`,
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `{"error":true}`,
+			wantType:   "application/json; charset=utf-8",
+		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			status, header, text, _, _ := driveChatCompletionScenario(t, scenario, origin, cookie, token, testCase.body)

@@ -17,8 +17,11 @@ package server
 //	        if (!apiKey && !request.body.reverse_proxy && source !== CUSTOM) return 400 { error: true }
 //	    -- which PERPLEXITY does reach, because :2424 reads the secret unconditionally and never assigns
 //	    it from `proxy_password`. A missing key therefore answers 400 { error: true } and no provider
-//	    request is made; it does NOT reach the provider. That is a DERIVATION from :2615 + :2424, and the
-//	    scenario `perplexity-missing-key` exists to record it (the capture lands with the recording).
+//	    request is made; it does NOT reach the provider. That is a DERIVATION from :2615 + :2424, and it
+//	    stays one: the provider-wire harness refuses a capture with zero provider requests, so a scenario
+//	    for it would fail at record time rather than prove anything. TestChatCompletionPerplexityMissingKey
+//	    IsReturnedNotRefused asserts the returned empty key at plan level, and
+//	    TestChatCompletionPerplexityMissingKeyAnswers400WithNoOutbound asserts the observable at the route.
 //
 // The branch's four members, and the two places a sibling differs in a way worth naming:
 //
