@@ -192,7 +192,7 @@ jobs:
         run: |
           set -eu
           docker image rm --force gotavern:ci
-          docker pull "${REFERENCE}-does-not-exist"
+          docker pull "${REFERENCE}"
           docker run --rm "${REFERENCE}" assets verify
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${REFERENCE}" 2>/dev/null || true)"
           echo "pulled and verified: ${digest:-<no RepoDigest reported>}"
