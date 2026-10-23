@@ -199,6 +199,14 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		return
 	}
 
+	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
+	// max_tokens clamp and its own non-2xx shape), so it is dispatched before the shared plan
+	// rather than forced through it: see minimax_chat.go.
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
+		runtime.serveMinimaxChatCompletion(w, request, body, directories)
+		return
+	}
+
 	// No client-side timeout: the pinned fetch has none, and a provider that
 	// never answers must leave the caller waiting rather than be invented away.
 	// Cancellation still tears the upstream connection down, because the

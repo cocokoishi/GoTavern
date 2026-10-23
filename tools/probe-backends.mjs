@@ -59,6 +59,11 @@ const PINNED_PEER = 'http://backend-peer.example';
 // The localhost-rewrite scenarios need a port that is closed on the pinned side and points at the
 // replay's own mock on the Go side; the fixture stores the marker <port> and substitutes per run.
 const MOCK_PORT_MARKER = '<port>';
+// Three SSE frames for the streamed minimax scenario; the reply is forwarded frame for frame, so the
+// concatenated body is what the backends capture compares.
+const MINIMAX_STREAM_BODY = 'data: {"id":"probe-minimax","choices":[{"index":0,"delta":{"role":"assistant","content":"mock minimax reply"},"finish_reason":null}]}\n\n'
+    + 'data: {"id":"probe-minimax","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n'
+    + 'data: [DONE]\n\n';
 const PINNED_PORT = '59999';
 
 const SECRETS = {
@@ -77,6 +82,10 @@ const SEAMS = {
     // OPENAI's status arm builds its URL from API_OPENAI, which is a pinned LITERAL, so its seam is
     // the chat one (the same name its generate plan uses) rather than a backends one.
     openai: 'GOTAVERN_OPENAI_CHAT_URL',
+    // MINIMAX's generate branch has TWO hardcoded hosts chosen by the request body, so it has two
+    // seams: one seam asserted against two literals would let the CN branch reuse the global host.
+    minimaxChat: 'GOTAVERN_MINIMAX_CHAT_URL',
+    minimaxChatCN: 'GOTAVERN_MINIMAX_CHAT_CN_URL',
     multimodalPollinations: 'GOTAVERN_BACKENDS_POLLINATIONS_URL',
     multimodalAimlapi: 'GOTAVERN_BACKENDS_AIMLAPI_URL',
     multimodalNanogpt: 'GOTAVERN_BACKENDS_NANOGPT_URL',
@@ -89,6 +98,8 @@ const SEAMS = {
 };
 const SEAM_DEFAULTS = {
     [SEAMS.openai]: 'https://api.openai.com/v1',
+    [SEAMS.minimaxChat]: 'https://api.minimax.io/v1',
+    [SEAMS.minimaxChatCN]: 'https://api.minimaxi.com/v1',
     [SEAMS.multimodalPollinations]: 'https://gen.pollinations.ai',
     [SEAMS.multimodalAimlapi]: 'https://api.aimlapi.com',
     [SEAMS.multimodalNanogpt]: 'https://nano-gpt.com',
@@ -722,6 +733,144 @@ addScenario({
     name: 'status.custom.missingUrl',
     route: 'chat-completions/status',
     body: { chat_completion_source: 'custom' },
+});
+
+// ---- minimax: the two zero-outbound branches ------------------------------------------------
+// MINIMAX has NO arm in the pinned status chain, so its status request reaches the chain final else
+// and answers 400 {error:true} without any request -- the claude case. And its generate branch
+// refuses a request with no api_key_minimax BEFORE the try, so that is zero outbound too. Both are
+// recorded HERE rather than in tests/provider-wire/scenarios because that replay refuses a capture
+// with no provider request ("capture for %q records no provider request"), and "zero requests" is
+// exactly what these branches assert.
+addScenario({
+    name: 'status.minimax.noBranch',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'minimax' },
+});
+addScenario({
+    name: 'status.minimax.reverseProxy',
+    route: 'chat-completions/status',
+    // A reverse_proxy changes nothing: there is no minimax arm to read it, so the answer is still
+    // 400 {error:true} with zero outbound (the same pair claude's two scenarios record).
+    body: { chat_completion_source: 'minimax', reverse_proxy: `${MOCK}/v1` },
+});
+// WHY THE MINIMAX GENERATE EVIDENCE IS IN THIS FIXTURE rather than tests/provider-wire/scenarios:
+// that probe builds the Go binary itself and drives both legs in one run, which cannot happen on a
+// host where Go is not built; this probe records the PINNED leg only. For a source whose whole job
+// is the shape of one request, the outbound wire (target, header set, exact body) is the contract,
+// and that is what this fixture compares. The response side is compared too (status, content type,
+// length, ETag, body).
+//
+// The five generate scenarios are the folded members, one each: the merge_tools fold with
+// tools/tool_choice/stop/top_p/temperature (nonStream), the CN endpoint switch (cnEndpoint), the
+// M2-her clamp (m2HerClamp), the streamed reply (stream, the non-stream control is nonStream), and
+// the provider non-2xx shape (nonOk).
+addScenario({
+    name: 'minimaxChat.nonStream',
+    route: 'chat-completions/generate',
+    seam: SEAMS.minimaxChat,
+    secrets: { ...SECRETS, api_key_minimax: 'probe-minimax-key' },
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'abab6.5s-chat',
+        // Two consecutive user messages: MiniMax rejects them ("invalid chat setting (2013)"), so the
+        // pinned branch folds them with postProcessPrompt(..., MERGE_TOOLS) and the fold is visible
+        // in the provider body.
+        messages: [
+            { role: 'system', content: 'probe system marker' },
+            { role: 'user', content: 'probe user marker one' },
+            { role: 'user', content: 'probe user marker two' },
+        ],
+        max_tokens: 512,
+        temperature: 0.5,
+        top_p: 0.9,
+        stop: ['\nProbe:'],
+        stream: false,
+        tools: [{ type: 'function', function: { name: 'probe_tool', description: 'probe tool', parameters: { type: 'object', properties: {} } } }],
+        tool_choice: 'auto',
+        // Neither reaches the provider: the pinned body is a fixed member list.
+        frequency_penalty: 0.25,
+        presence_penalty: 0.5,
+    },
+    upstream: [{ ...OK, path: '/v1/chat/completions', body: JSON.stringify({ id: 'probe-minimax', model: 'abab6.5s-chat', choices: [{ index: 0, message: { role: 'assistant', content: 'mock minimax reply' }, finish_reason: 'stop' }] }) }],
+});
+addScenario({
+    name: 'minimaxChat.cnEndpoint',
+    route: 'chat-completions/generate',
+    // `minimax_endpoint === 'cn'` moves the HOST (api.minimaxi.com), which is why the CN seam is a
+    // second seam rather than a path suffix on the first.
+    seam: SEAMS.minimaxChatCN,
+    secrets: { ...SECRETS, api_key_minimax: 'probe-minimax-key' },
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'abab6.5s-chat',
+        messages: [{ role: 'user', content: 'probe user marker' }],
+        max_tokens: 128,
+        stream: false,
+        minimax_endpoint: 'cn',
+    },
+    upstream: [{ ...OK, path: '/v1/chat/completions', body: JSON.stringify({ id: 'probe-minimax-cn', choices: [{ index: 0, message: { role: 'assistant', content: 'mock cn reply' }, finish_reason: 'stop' }] }) }],
+});
+addScenario({
+    name: 'minimaxChat.m2HerClamp',
+    route: 'chat-completions/generate',
+    // `max_tokens: model === 'M2-her' ? Math.min(max_tokens, 2048) : max_tokens` -- 4096 must reach
+    // the provider as 2048.
+    seam: SEAMS.minimaxChat,
+    secrets: { ...SECRETS, api_key_minimax: 'probe-minimax-key' },
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'M2-her',
+        messages: [{ role: 'user', content: 'probe user marker' }],
+        max_tokens: 4096,
+        stream: false,
+    },
+    upstream: [{ ...OK, path: '/v1/chat/completions', body: JSON.stringify({ id: 'probe-minimax-her', choices: [{ index: 0, message: { role: 'assistant', content: 'mock her reply' }, finish_reason: 'stop' }] }) }],
+});
+addScenario({
+    name: 'minimaxChat.stream',
+    route: 'chat-completions/generate',
+    // The streamed path calls forwardFetchResponse with NO ok check and sets no content type, so the
+    // upstream frames arrive intact. The non-stream control is minimaxChat.nonStream.
+    seam: SEAMS.minimaxChat,
+    secrets: { ...SECRETS, api_key_minimax: 'probe-minimax-key' },
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'abab6.5s-chat',
+        messages: [{ role: 'user', content: 'probe user marker' }],
+        max_tokens: 96,
+        stream: true,
+    },
+    upstream: [{ ...OK, path: '/v1/chat/completions', headers: { 'Content-Type': 'text/event-stream' }, body: MINIMAX_STREAM_BODY }],
+});
+addScenario({
+    name: 'minimaxChat.nonOk',
+    route: 'chat-completions/generate',
+    // `tryParse(errorText) ?? {error:true}` at status 500: the PARSED provider body comes back at
+    // 500, not the shared 200 {error:{message}} envelope and not the provider's own status.
+    seam: SEAMS.minimaxChat,
+    secrets: { ...SECRETS, api_key_minimax: 'probe-minimax-key' },
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'abab6.5s-chat',
+        messages: [{ role: 'user', content: 'probe user marker' }],
+        max_tokens: 32,
+        stream: false,
+    },
+    upstream: [{ path: '/v1/chat/completions', status: 429, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_resp: { status_code: 1002, status_msg: 'probe rate limit' } }) }],
+});
+addScenario({
+    name: 'minimaxChat.noKey',
+    route: 'chat-completions/generate',
+    // No api_key_minimax in the secrets file: :1612-1615 answers 400 {error:true} before the try,
+    // so the messages are never folded and no request is made.
+    body: {
+        chat_completion_source: 'minimax',
+        model: 'abab6.5s-chat',
+        messages: [{ role: 'user', content: 'probe user marker' }],
+        max_tokens: 32,
+        stream: false,
+    },
 });
 
 // ---- chat-completions/status (openai source) ------------------------------------------------

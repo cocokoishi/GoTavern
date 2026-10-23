@@ -105,6 +105,10 @@ func TestBackendsSeamDefaults(t *testing.T) {
 		// OPENAI is the same case: `new URL(reverse_proxy || API_OPENAI)` in the status arm and in
 		// the generate plan, so its seam is the chat one and its default is the pinned literal.
 		"GOTAVERN_OPENAI_CHAT_URL": pinnedOpenAIBaseURL,
+		// MINIMAX's generate branch has TWO hardcoded hosts chosen by the request body
+		// (`minimax_endpoint === 'cn'`), so it needs one seam per literal.
+		"GOTAVERN_MINIMAX_CHAT_URL":    minimaxChatGlobalBaseURL,
+		"GOTAVERN_MINIMAX_CHAT_CN_URL": minimaxChatCNBaseURL,
 		// DEEPSEEK shares the seam: its status route strips /beta from the same chat literal.
 		"GOTAVERN_DEEPSEEK_CHAT_URL": pinnedDeepSeekBaseURL,
 	}

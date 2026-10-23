@@ -84,6 +84,14 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceMinimax {
+		// MINIMAX has NO arm in the pinned status chain either (src/endpoints/backends/
+		// chat-completions.js:1778-2065 mentions it nowhere), so a status request reaches the
+		// chain's final else and answers 400 {error:true} with zero outbound -- exactly the CLAUDE
+		// case above. Answering 501 now that the source is implemented would be the wrong gap.
+		runtime.serveMinimaxChatCompletionStatus(w)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return
