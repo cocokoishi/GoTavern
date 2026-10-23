@@ -438,7 +438,13 @@ func pinnedGoogleToolConfig(body orderedNodeJSON) (orderedNodeJSON, bool) {
 		return nodeUndefined(), false
 	}
 	config := nodeObject()
-	if text, err := pinnedJSStringValue(toolChoice); err == nil {
+	// `typeof toolChoice === 'string'` is checked BEFORE the object branch: a stringified object is
+	// "[object Object]", so trying the string form first would swallow a specific-function choice.
+	if toolChoice.kind == 's' {
+		text, err := pinnedJSStringValue(toolChoice)
+		if err != nil {
+			return nodeUndefined(), false
+		}
 		switch text {
 		case "none":
 			config.setMember("mode", nodeString("NONE"))
@@ -518,3 +524,315 @@ func pinnedGoogleContains(list []string, value string) bool {
 // system-prompt collapse and the trailing-prefill rewrite for the newest models) and builds the
 // `systemInstruction` the body carries. Until it is ported, `pinnedGoogleBody` REFUSES rather than emitting a
 // body without contents, because a request with an empty message array would be a fabricated success.
+
+// pinnedGoogleConvertPrompt is convertGooglePrompt (src/prompt-converters.js) read to its END: the role
+// rewriting, the system-prompt collapse with the example-name fixups, the part conversion (text, tool_calls ->
+// functionCall, tool_call_id -> functionResponse, data-URL image/video/audio -> inlineData with the gemini-3
+// mediaResolution), the Gemini-3 thought-signature bypass for function calls and image-model turns, and the
+// consecutive same-role merge that appends a text part to the previous one with "\n\n".
+var pinnedGoogleDataURLMime = regexp.MustCompile(`data:([^;]+)`)
+var pinnedGoogleGemini3 = regexp.MustCompile(`gemini-3`)
+var pinnedGoogleGemini25 = regexp.MustCompile(`gemini-2\.5`)
+var pinnedGoogleImageModel = regexp.MustCompile(`-image`)
+
+const (
+	pinnedGoogleSkipSignatureMagic = "skip_thought_signature_validator"
+	pinnedGoogleUnknownToolName    = "unknown"
+)
+
+var pinnedGoogleMediaResolution = map[string]string{
+	"low":  "media_resolution_low",
+	"high": "media_resolution_high",
+}
+
+// pinnedGooglePart is one converted content part, kept as an ordered node so member order is preserved.
+type pinnedGooglePart = orderedNodeJSON
+
+func pinnedGoogleStringPart(text string) pinnedGooglePart {
+	part := nodeObject()
+	part.setMember("text", nodeString(text))
+	return part
+}
+
+// pinnedGoogleAddDataURLPart appends an inlineData part for a `data:` URL, with the gemini-3 media resolution
+// when the caller supplied a detail level the pinned table knows.
+func pinnedGoogleAddDataURLPart(parts *[]pinnedGooglePart, url string, defaultMimeType string, detail string, model string) {
+	if !strings.HasPrefix(url, "data:") {
+		return
+	}
+	header := url
+	base64Data := ""
+	if index := strings.Index(url, ","); index >= 0 {
+		header = url[:index]
+		base64Data = url[index+1:]
+	}
+	mimeType := defaultMimeType
+	if match := pinnedGoogleDataURLMime.FindStringSubmatch(header); match != nil {
+		mimeType = match[1]
+	}
+	inlineData := nodeObject()
+	inlineData.setMember("mimeType", nodeString(mimeType))
+	inlineData.setMember("data", nodeString(base64Data))
+	part := nodeObject()
+	part.setMember("inlineData", inlineData)
+	if pinnedGoogleGemini3.MatchString(model) {
+		if level, known := pinnedGoogleMediaResolution[detail]; known {
+			mediaResolution := nodeObject()
+			mediaResolution.setMember("level", nodeString(level))
+			part.setMember("mediaResolution", mediaResolution)
+		}
+	}
+	*parts = append(*parts, part)
+}
+
+// pinnedGoogleConvertPrompt returns the `contents` array and the `system_instruction` object.
+func pinnedGoogleConvertPrompt(messages orderedNodeJSON, model string, useSysPrompt bool, names pinnedAI21Names) (orderedNodeJSON, orderedNodeJSON) {
+	list := make([]orderedNodeJSON, 0, len(messages.array))
+	for _, message := range messages.array {
+		list = append(list, message)
+	}
+
+	sysPrompt := make([]string, 0, len(list))
+	if useSysPrompt {
+		for len(list) > 1 {
+			role, _ := pinnedJSStringValue(mustMember(list[0], "role"))
+			if role != "system" {
+				break
+			}
+			content, _ := pinnedJSStringValue(mustMember(list[0], "content"))
+			if name, hasName := list[0].member("name"); hasName {
+				if text, err := pinnedJSStringValue(name); err == nil {
+					if names.userName != "" && text == "example_user" && !strings.HasPrefix(content, names.userName+": ") {
+						content = names.userName + ": " + content
+					}
+					if names.charName != "" && text == "example_assistant" && !strings.HasPrefix(content, names.charName+": ") && !names.startsWithGroupName(content) {
+						content = names.charName + ": " + content
+					}
+				}
+			}
+			sysPrompt = append(sysPrompt, content)
+			list = list[1:]
+		}
+	}
+	instructionParts := nodeArray()
+	for _, text := range sysPrompt {
+		instructionParts.array = append(instructionParts.array, pinnedGoogleStringPart(text))
+	}
+	systemInstruction := nodeObject()
+	systemInstruction.setMember("parts", instructionParts)
+
+	toolNameMap := map[string]string{}
+	contents := nodeArray()
+	for index, message := range list {
+		role, _ := pinnedJSStringValue(mustMember(message, "role"))
+		switch role {
+		case "system", "tool":
+			role = "user"
+		case "assistant":
+			if pinnedGoogleNoPrefillModel.MatchString(model) && index == len(list)-1 {
+				// A trailing model turn is a prefill, which the newest models reject.
+				role = "user"
+			} else {
+				role = "model"
+			}
+		}
+
+		contentParts := make([]orderedNodeJSON, 0)
+		if content, hasContent := message.member("content"); hasContent && content.kind == 'a' {
+			contentParts = append(contentParts, content.array...)
+		} else {
+			text, _ := pinnedJSStringValue(mustMember(message, "content"))
+			part := nodeObject()
+			if toolCalls, hasToolCalls := message.member("tool_calls"); hasToolCalls && toolCalls.kind == 'a' && len(toolCalls.array) > 0 {
+				part.setMember("type", nodeString("tool_calls"))
+				part.setMember("tool_calls", toolCalls)
+			} else if toolCallID, hasToolCallID := message.member("tool_call_id"); hasToolCallID {
+				if idText, err := pinnedJSStringValue(toolCallID); err == nil && idText != "" {
+					part.setMember("type", nodeString("tool_call_id"))
+					part.setMember("tool_call_id", toolCallID)
+					part.setMember("content", nodeString(text))
+				} else {
+					part.setMember("type", nodeString("text"))
+					part.setMember("text", nodeString(text))
+				}
+			} else {
+				part.setMember("type", nodeString("text"))
+				part.setMember("text", nodeString(text))
+			}
+			contentParts = append(contentParts, part)
+		}
+
+		// The name is prefixed into every TEXT part, then dropped from the message.
+		if name, hasName := message.member("name"); hasName {
+			nameText, _ := pinnedJSStringValue(name)
+			for i, part := range contentParts {
+				partType, _ := pinnedJSStringValue(mustMember(part, "type"))
+				if partType != "text" {
+					continue
+				}
+				text, _ := pinnedJSStringValue(mustMember(part, "text"))
+				if nameText == "example_user" {
+					if names.userName != "" && !strings.HasPrefix(text, names.userName+": ") {
+						text = names.userName + ": " + text
+					}
+				} else if nameText == "example_assistant" {
+					if names.charName != "" && !strings.HasPrefix(text, names.charName+": ") && !names.startsWithGroupName(text) {
+						text = names.charName + ": " + text
+					}
+				} else if !strings.HasPrefix(text, nameText+": ") {
+					text = nameText + ": " + text
+				}
+				part.setMember("text", nodeString(text))
+				contentParts[i] = part
+			}
+		}
+
+		parts := make([]pinnedGooglePart, 0, len(contentParts))
+		for _, part := range contentParts {
+			partType, _ := pinnedJSStringValue(mustMember(part, "type"))
+			switch partType {
+			case "text":
+				text, _ := pinnedJSStringValue(mustMember(part, "text"))
+				parts = append(parts, pinnedGoogleStringPart(text))
+			case "tool_call_id":
+				id, _ := pinnedJSStringValue(mustMember(part, "tool_call_id"))
+				name := pinnedGoogleUnknownToolName
+				if mapped, known := toolNameMap[id]; known {
+					name = mapped
+				}
+				response := nodeObject()
+				response.setMember("name", nodeString(name))
+				content, _ := pinnedJSStringValue(mustMember(part, "content"))
+				response.setMember("content", nodeString(content))
+				functionResponse := nodeObject()
+				functionResponse.setMember("name", nodeString(name))
+				functionResponse.setMember("response", response)
+				converted := nodeObject()
+				converted.setMember("functionResponse", functionResponse)
+				parts = append(parts, converted)
+			case "tool_calls":
+				calls := mustMember(part, "tool_calls")
+				for _, call := range calls.array {
+					function := mustMember(call, "function")
+					callName, _ := pinnedJSStringValue(mustMember(function, "name"))
+					args := nodeUndefined()
+					if raw, hasRaw := function.member("arguments"); hasRaw {
+						if text, err := pinnedJSStringValue(raw); err == nil {
+							if parsed, ok := decodeOrderedNodeJSON([]byte(text)); ok == nil {
+								args = parsed
+							} else {
+								args = raw
+							}
+						} else {
+							args = raw
+						}
+					}
+					functionCall := nodeObject()
+					functionCall.setMember("name", nodeString(callName))
+					if !args.isUndefined() {
+						functionCall.setMember("args", args)
+					}
+					converted := nodeObject()
+					converted.setMember("functionCall", functionCall)
+					if signature, hasSignature := call.member("signature"); hasSignature && pinnedJSTruthy(signature) {
+						converted.setMember("thoughtSignature", signature)
+					}
+					parts = append(parts, converted)
+					if id, err := pinnedJSStringValue(mustMember(call, "id")); err == nil {
+						toolNameMap[id] = callName
+					}
+				}
+			case "image_url":
+				url := ""
+				detail := ""
+				if holder, ok := part.member("image_url"); ok {
+					url, _ = pinnedJSStringValue(mustMember(holder, "url"))
+					detail, _ = pinnedJSStringValue(mustMember(holder, "detail"))
+				}
+				pinnedGoogleAddDataURLPart(&parts, url, "image/png", detail, model)
+			case "video_url":
+				url := ""
+				detail := ""
+				if holder, ok := part.member("video_url"); ok {
+					url, _ = pinnedJSStringValue(mustMember(holder, "url"))
+					detail, _ = pinnedJSStringValue(mustMember(holder, "detail"))
+				}
+				pinnedGoogleAddDataURLPart(&parts, url, "video/mp4", detail, model)
+			case "audio_url":
+				url := ""
+				if holder, ok := part.member("audio_url"); ok {
+					url, _ = pinnedJSStringValue(mustMember(holder, "url"))
+				}
+				pinnedGoogleAddDataURLPart(&parts, url, "audio/mpeg", "", model)
+			}
+		}
+
+		// Gemini 3: a functionCall needs a thought signature, and an image model's model turn does too.
+		if pinnedGoogleGemini3.MatchString(model) || pinnedGoogleGemini25.MatchString(model) {
+			signature, hasSignature := message.member("signature")
+			for i, part := range parts {
+				if hasSignature && pinnedJSTruthy(signature) {
+					if text, ok := part.member("text"); ok && !text.isUndefined() {
+						part.setMember("thoughtSignature", signature)
+						parts[i] = part
+					}
+				} else if pinnedGoogleGemini3.MatchString(model) {
+					if _, isCall := part.member("functionCall"); isCall {
+						if _, hasThought := part.member("thoughtSignature"); !hasThought {
+							part.setMember("thoughtSignature", nodeString(pinnedGoogleSkipSignatureMagic))
+							parts[i] = part
+						}
+					}
+					if pinnedGoogleImageModel.MatchString(model) && role == "model" {
+						_, isText := part.member("text")
+						_, isInline := part.member("inlineData")
+						if isText || isInline {
+							if _, hasThought := part.member("thoughtSignature"); !hasThought {
+								part.setMember("thoughtSignature", nodeString(pinnedGoogleSkipSignatureMagic))
+								parts[i] = part
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Merge consecutive messages with the same role.
+		if index > 0 && len(contents.array) > 0 {
+			previous, _ := pinnedJSStringValue(mustMember(contents.array[len(contents.array)-1], "role"))
+			if previous == role {
+				previousParts := mustMember(contents.array[len(contents.array)-1], "parts")
+				for _, part := range parts {
+					if text, isText := part.member("text"); isText && !text.isUndefined() {
+						merged := false
+						for j, existing := range previousParts.array {
+							if existingText, ok := existing.member("text"); ok {
+								value, _ := pinnedJSStringValue(existingText)
+								addition, _ := pinnedJSStringValue(text)
+								existing.setMember("text", nodeString(value+"\n\n"+addition))
+								previousParts.array[j] = existing
+								merged = true
+								break
+							}
+						}
+						if merged {
+							continue
+						}
+					}
+					previousParts.array = append(previousParts.array, part)
+				}
+				contents.array[len(contents.array)-1].setMember("parts", previousParts)
+				continue
+			}
+		}
+		entry := nodeObject()
+		entry.setMember("role", nodeString(role))
+		entryParts := nodeArray()
+		for _, part := range parts {
+			entryParts.array = append(entryParts.array, part)
+		}
+		entry.setMember("parts", entryParts)
+		contents.array = append(contents.array, entry)
+	}
+	return contents, systemInstruction
+}
