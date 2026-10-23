@@ -264,6 +264,13 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
+			// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
+			// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
+			failure := pinnedAzureOpenAICatch(err)
+			respondOrderedNodeJSON(w, failure.status, *failure.payload)
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -299,24 +306,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	}
 
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
-		// :1592-1599: `response.send({error:true})` with no status, so a thrown fetch answers
-		// 200 {"error":true}. See chutes_chat.go.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
 		// :1579-1599: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer. See chutes_chat.go.
 		serveChutesChatCompletionResponse(w, request, response, body)
 		return
 	}
 
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
-		// :870-877: the catch calls `response.send({error:true})` with NO status, so a thrown fetch answers
-		// 200 {"error":true} rather than the shared 502.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
 		// :853-867: the shared forwarder for a stream, the provider body passed through on 2xx, and the PARSED
 		// provider body at 500 for a non-2xx answer.
@@ -325,12 +320,6 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	}
 
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
-		// :1056-1062: the same `response.send` without a status, so a thrown fetch answers
-		// 200 {"error":true} rather than the shared path's 502 {"error":{message}}.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
 		// :1041-1062: the shared forwarder for a stream, the provider body passed through otherwise, the
 		// PARSED provider body at 500 for a non-2xx answer. See cohere_chat.go.
 		serveCohereChatCompletionResponse(w, request, response, body)
@@ -338,23 +327,11 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	}
 
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
-		// :1491-1497: the route's own catch calls response.send with no status, so a thrown fetch answers
-		// 200 {"error":true} rather than the generic 502 or CLAUDE's 500.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
 		// :1478-1490: the shared forwarder for a stream, the provider body passed through otherwise.
 		serveElectronHubChatCompletionResponse(w, request, response, body)
 		return
 	}
 
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
-		// :1385-1391: aimlapi's catch is `response.send({ error: true })` with NO status, so a thrown
-		// fetch answers 200 {"error":true} -- the same contract as MISTRAL and DEEPSEEK.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
 		// :1359-1382: the shared forwarder for a stream WITHOUT an ok-check, the PARSED provider body at
 		// 500 for a non-stream non-2xx, the provider body passed through otherwise.
@@ -363,25 +340,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	}
 
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
-		// :1274-1281: xAI's catch also uses `response.send` with NO status, so a THROWN fetch is
-		// 200 {"error":true}. Only a provider's OWN non-2xx answer becomes a 500.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
 		// :1261-1272: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveXAIChatCompletionResponse(w, request, response, body)
 		return
 	}
 
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
-		// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
-		// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
-		failure := pinnedAzureOpenAICatch(err)
-		respondOrderedNodeJSON(w, failure.status, *failure.payload)
-		return
-	}
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
 		// :1751-1773: the shared forwarder for a stream, the parsed provider body for a 2xx answer, and
 		// 500 with the parsed body (or {error:{message:statusText}}) for a non-2xx answer.

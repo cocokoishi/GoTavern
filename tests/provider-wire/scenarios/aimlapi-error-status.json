@@ -70,7 +70,7 @@
     "normalization": {
         "tier2": [
             {
-                "path": "provider.requests[].headers[host]",
+                "path": "provider.requests[].headers[Host]",
                 "rule": "value replaced with <mock-authority>",
                 "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
                 "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
