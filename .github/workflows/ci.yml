@@ -17,6 +17,10 @@ on:
         description: 'Comma-separated probe scripts to re-record, or empty for EVERY probe'
         required: false
         default: ''
+      oracle_concurrency:
+        description: 'Probe parallelism for this run; empty uses the generator default (3).'
+        required: false
+        default: ''
 permissions:
   contents: read
 
@@ -193,6 +197,7 @@ jobs:
         # covers every fixture, so a narrowed run is cheaper, not weaker.
         env:
           GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
+          GOTAVERN_ORACLE_CONCURRENCY: ${{ inputs.oracle_concurrency }}
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Capture the Linux re-record for retrieval
         # WHY THIS EXISTS. Some fixtures CANNOT be recorded faithfully on the Windows development host.
