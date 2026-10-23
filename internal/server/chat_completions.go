@@ -831,6 +831,27 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		apiKey = secret
 		customHeaders = pinnedOpenRouterHeaders()
 		pinnedChatCompletionOpenRouterBodyParams(&bodyParams, body)
+	case chatCompletionSourcePerplexity:
+		// chat-completions.js:2422-2437 is the SHARED path, so this source supplies its contribution
+		// rather than taking the plan over: the literal base, the PERPLEXITY secret, and two members
+		// (reasoning_effort copied when present, and a json_schema shape with no name/strict) plus a
+		// STRICT postProcessPrompt that mutates the body's messages. See perplexity_chat.go.
+		perplexityURL, perplexityKey, perplexityFailure := pinnedPerplexitySourceConfig(&body, &bodyParams, directories, affinityKey)
+		if perplexityFailure != nil {
+			return nil, perplexityFailure
+		}
+		apiURL = perplexityURL
+		apiKey = perplexityKey
+	case chatCompletionSourceMoonshot:
+		// chat-completions.js:2531-2542 is an arm INSIDE the shared openai-compatible path, so it runs
+		// BEFORE the shared assembly: it mutates the body's messages (the appended schema message, or a
+		// `partial` mark) and the assembly copies those messages afterwards. See moonshot_chat.go.
+		apiURL = pinnedChatCompletionMoonshotURLFor(body)
+		apiKey = pinnedChatCompletionMoonshotKeyFor(body, directories)
+		customHeaders = nodeObject()
+		if moonshotErr := pinnedChatCompletionMoonshotBodyParams(&bodyParams, &body); moonshotErr != nil {
+			return nil, pinnedChatCompletionTransportFailure(moonshotErr)
+		}
 
 	default:
 		if pinnedChatCompletionSources[sourceName] {

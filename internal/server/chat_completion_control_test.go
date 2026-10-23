@@ -26,6 +26,7 @@ var pinnedClaimedChatCompletionSources = []string{
 	"openai", "custom", "openrouter", "claude", "mistralai", "deepseek",
 	"groq", "siliconflow", "nanogpt", "workers_ai", "pollinations", "fireworks",
 	"zai", "chutes", "ai21", "cohere", "electronhub", "aimlapi", "xai", "azure_openai",
+	"perplexity", "moonshot",
 }
 
 // pinnedUnportedChatCompletionSources are the pinned sources with NO transport here. perplexity and moonshot
@@ -50,7 +51,10 @@ var pinnedRouteLevelChatCompletionSources = []string{"minimax"}
 // status at :2062-2065 -- so 400 is the pinned behaviour, not a fallback.
 const pinnedUnknownChatCompletionSource = "probe-unknown-source"
 
-var pinnedUnportedChatCompletionSources = []string{"perplexity", "moonshot", "cometapi", "vertexai", "makersuite"}
+// PERPLEXITY and MOONSHOT were moved OUT of this list when they landed: they now plan a request, so the
+// invariant above holds for them instead. What remains here is the Gemini pair (whose URL layer is in but
+// whose body layer is not) and COMETAPI, which pinned refuses upstream.
+var pinnedUnportedChatCompletionSources = []string{"cometapi", "vertexai", "makersuite"}
 
 func startupUserDirectoriesEmpty() startup.UserDirectories { return startup.UserDirectories{} }
 

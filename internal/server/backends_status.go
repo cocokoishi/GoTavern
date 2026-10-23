@@ -165,6 +165,12 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveMinimaxChatCompletionStatus(w)
 		return
 	}
+	if source == chatCompletionSourceMoonshot {
+		// :1848-1851 assigns the URL and the key with the reverse_proxy split and no header of its own,
+		// then falls through to the shared GET /models tail. See moonshot_chat.go.
+		runtime.serveMoonshotChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	// 501 IS FOR A SOURCE THE PINNED MATRIX KNOWS AND THIS ROUTE DOES NOT PORT YET, and for nothing
 	// else. An UNKNOWN name must reach the pinned closing else below, which answers 400 {"error":true}
 	// with no provider call (chat-completions.js:2062-2065) -- the same answer the generate chain gives
