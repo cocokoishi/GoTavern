@@ -262,7 +262,17 @@ jobs:
         #     own directory, but is never launched. The script prints a `skip:` line saying so.
         # The exact same list is in scripts/qualify-install.sh's header and in docs/INSTALLATION.md
         # section 3.1, so the claim, the coverage and the scheduling stay in one place.
+        #
+        # ALL FOUR ARE EXECUTED BY THE qualify-windows-amd64 JOB BELOW, on a Windows runner:
+        # scripts/qualify-install-windows.ps1 starts the installed server, runs the installer over it
+        # and asserts the refusal contract (non-zero exit, the message naming the running case, the
+        # process alive, the exe byte-identical, no staging file left, /version still answering), then
+        # stops it and asserts the update DOES replace the binary; it launches Start.cmd through
+        # cmd.exe; it asserts the install path is a real backslash-separated Windows path; and it
+        # asserts the installer registered nothing and created no shortcut, as a negative check. The
+        # list above is therefore THIS JOB'S scope, not the project's remaining gap.
         run: bash scripts/qualify-install.sh --powershell "$PWD"
+
 
       - name: Report failure context
         if: failure()
@@ -275,3 +285,69 @@ jobs:
           echo "::group::data root tree"
           find data-root -maxdepth 4 -printf '%y %p\n' 2>/dev/null | sort | head -200 || true
           echo "::endgroup::"
+
+  qualify-windows-amd64:
+    # THE WINDOWS-ONLY INSTALLER BEHAVIOURS, EXECUTED. A Linux runner cannot reach them: there is no
+    # image lock on a running gotavern.exe, no `cmd.exe`, and no registry or Start Menu. This job runs
+    # install.ps1 on Windows, over a server it started itself, and every assertion lives in
+    # scripts/qualify-install-windows.ps1 -- including the negative ones, so "the installer registers
+    # nothing" is measured rather than assumed.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build two Windows staged trees with different immutable bytes
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          set -eu
+          for variant in older newer; do
+            rm -rf "stage-$variant"
+            mkdir -p "stage-$variant"
+            # Two DIFFERENT versions, so "the update replaced the binary" is a byte difference and not
+            # a re-extraction of the same file.
+            go build -trimpath -ldflags="-s -w -X main.version=winqual-$variant" \
+              -o "stage-$variant/gotavern.exe" ./cmd/gotavern
+            cp LICENSE THIRD_PARTY_NOTICES.txt Start.cmd "stage-$variant/"
+            cp -R upstream/tokenizers "stage-$variant/tokenizers"
+            {
+              echo "GoTavern windows qualification $variant"
+              echo "target windows"
+              echo
+              ./"stage-$variant/gotavern.exe" version || true
+            } > "stage-$variant/BUILD-INFO.txt"
+            test ! -e "stage-$variant/config.yaml"
+            test ! -e "stage-$variant/data"
+          done
+          older_hash=$(sha256sum stage-older/gotavern.exe | cut -d' ' -f1)
+          newer_hash=$(sha256sum stage-newer/gotavern.exe | cut -d' ' -f1)
+          test "$older_hash" != "$newer_hash" || { echo "the two staged binaries are identical" >&2; exit 1; }
+          ls -l stage-older/gotavern.exe stage-newer/gotavern.exe
+
+      - name: Qualify install.ps1 ON WINDOWS (running exe, separators, registry, cmd.exe)
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/qualify-install-windows.ps1 -DistDir "$PWD"
+
+      - name: Report failure context
+        if: failure()
+        shell: pwsh
+        run: |
+          Write-Host '::group::windows installer logs'
+          Get-ChildItem ([System.IO.Path]::GetTempPath()) -Directory -Filter 'gotavern-qualify-win-*' -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object {
+              Get-ChildItem $_.FullName -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host "--- $($_.Name) ---"
+                Get-Content -LiteralPath $_.FullName -Tail 80 -ErrorAction SilentlyContinue
+              }
+            }
+          Write-Host '::endgroup::'
+          Write-Host '::group::running processes'
+          Get-Process gotavern -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path | Format-Table | Out-String | Write-Host
+          Write-Host '::endgroup::'
