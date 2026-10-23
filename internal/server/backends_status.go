@@ -84,6 +84,13 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceAzure {
+		// :1934-2011 is NOT part of the shared tail: that arm returns on every path (two provider calls and
+		// its own 400/500 wording), so it neither reaches the :2067 key guard nor the :2072 fetch. See
+		// azure_openai_chat.go.
+		runtime.serveAzureOpenAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return

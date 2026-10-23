@@ -223,6 +223,13 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
+			// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
+			// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
+			failure := pinnedAzureOpenAICatch(err)
+			respondOrderedNodeJSON(w, failure.status, *failure.payload)
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -242,6 +249,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveDeepSeekChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
+		// :1751-1773: the shared forwarder for a stream, the parsed provider body for a 2xx answer, and
+		// 500 with the parsed body (or {error:{message:statusText}}) for a non-2xx answer.
+		serveAzureOpenAIChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -382,6 +395,12 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// set, and has its own response mapping, so it delegates here and the response side branches
 		// on the same source name. See claude_chat.go.
 		return pinnedClaudePlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceAzure {
+		// chat-completions.js:1687 is its own transform: a CALLER-SUPPLIED base URL composed through
+		// `new URL`, an AZURE_OPENAI_KEYS body that never carries `model`, an `api-key` header instead of a
+		// Bearer token, and three response observables of its own. See azure_openai_chat.go.
+		return pinnedAzureOpenAIPlan(body, directories)
 	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 
