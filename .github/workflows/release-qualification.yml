@@ -367,16 +367,20 @@ jobs:
     # passes from the prefix, and that config.yaml, data/, extensions/ and certs/ survive byte for byte,
     # INCLUDING the state the newer release writes before the rollback reads it back.
     #
-    # BASELINE_REF is a commit, not a tag, because no release has been published yet: it is pinned to the
-    # tokenizer-vendoring commit, which is the oldest tree whose archive is installable (install.sh
-    # refuses an archive without tokenizers/) and 367 commits behind the candidate. The vendored asset
-    # trees happen to be IDENTICAL between the two (measured at runtime and printed by the script), so
-    # what this pair exercises is a binary, BUILD-INFO and version difference over shared assets; the
-    # script says so in its own `ok:` line instead of implying an asset-level difference that is not
-    # there. Override with the workflow_dispatch input once an older RELEASE tag exists.
+    # BASELINE_REF is a commit, not a tag, because no release has been published yet. It is pinned to
+    # d00d99b -- "Add the release workflow and the third-party notices the archives need" -- which is the
+    # OLDEST commit that can produce a release archive at all: release.yml stages LICENSE,
+    # THIRD_PARTY_NOTICES.txt, start.sh and upstream/tokenizers, and the tokenizer-vendoring commit 133
+    # commits earlier has no THIRD_PARTY_NOTICES.txt, so the release workflow at that commit would have
+    # failed exactly as the first run of this job did ("cp: cannot stat ... THIRD_PARTY_NOTICES.txt").
+    # 189 commits behind the candidate. The vendored asset trees are IDENTICAL between the two (measured
+    # at runtime and printed by the script), so this pair exercises a binary, BUILD-INFO and version
+    # difference over shared assets; the script reports which answer it got instead of implying an
+    # asset-level difference that is not there. Override with the workflow_dispatch input once an older
+    # RELEASE tag exists.
     runs-on: ubuntu-latest
     env:
-      BASELINE_REF: ${{ inputs.baseline_ref || '540175910d7693bc137c55a7c934a999b822b73c' }}
+      BASELINE_REF: ${{ inputs.baseline_ref || 'd00d99b87fc2fbd1ffd218c5ce160d07f27c47ef' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -400,6 +404,14 @@ jobs:
           older_tag="upg-older-$(git rev-parse --short=12 "$baseline_sha")"
           test "$baseline_sha" != "$(git rev-parse HEAD)" || { echo "the baseline ref resolves to HEAD, so there is no cross-baseline pair" >&2; exit 1; }
           git worktree add --detach "$RUNNER_TEMP/baseline" "$baseline_sha"
+          # The staged file set is release.yml's, and a baseline that cannot produce it is not an older
+          # RELEASE -- it is a commit. Name what is missing rather than dying in a later cp.
+          for required in LICENSE THIRD_PARTY_NOTICES.txt start.sh upstream/tokenizers cmd/gotavern/main.go; do
+            test -e "$RUNNER_TEMP/baseline/$required" || {
+              echo "the baseline commit $baseline_sha does not carry $required, so no release archive could be built from it (release.yml at that commit would fail the same way). Pick a baseline with the full staged file set." >&2
+              exit 1
+            }
+          done
           stage="$RUNNER_TEMP/stage-older"
           rm -rf "$stage"; mkdir -p "$stage"
           ( cd "$RUNNER_TEMP/baseline" && go build -trimpath -ldflags="-s -w -X main.version=${older_tag}" -o "$stage/gotavern" ./cmd/gotavern )
