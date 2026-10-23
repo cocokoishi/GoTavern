@@ -69,6 +69,13 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveClaudeChatCompletionStatus(w, body)
 		return
 	}
+	// MAKERSUITE has its OWN status shape (:1908-1933): its own URL, `{data: models}` instead of the shared
+	// envelope, and a 200 `{error:true, bypass:true, data:{data:[]}}` on every failure but a missing key.
+	// VERTEXAI has NO arm and must keep falling through to the shared 400 {"error":true}.
+	if source == chatCompletionSourceMakerSuite {
+		runtime.serveMakerSuiteChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceMistral {
 		runtime.serveMistralChatCompletionStatus(w, request, body, directories)
 		return

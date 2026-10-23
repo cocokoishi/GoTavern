@@ -27,6 +27,10 @@ var pinnedClaimedChatCompletionSources = []string{
 	"groq", "siliconflow", "nanogpt", "workers_ai", "pollinations", "fireworks",
 	"zai", "chutes", "ai21", "cohere", "electronhub", "aimlapi", "xai", "azure_openai",
 	"perplexity", "moonshot",
+	// MAKERSUITE and VERTEXAI landed with the Google transport (google_chat.go): one pinned function, two URL
+	// shapes and two different credential-failure shapes. They left the unported list on the same commit, which
+	// is what makes the 501 assertion continue to mean "not written yet" rather than "written but unlisted".
+	"makersuite", "vertexai",
 }
 
 // pinnedUnportedChatCompletionSources are the pinned sources with NO transport here. perplexity and moonshot
@@ -51,10 +55,7 @@ var pinnedRouteLevelChatCompletionSources = []string{"minimax"}
 // status at :2062-2065 -- so 400 is the pinned behaviour, not a fallback.
 const pinnedUnknownChatCompletionSource = "probe-unknown-source"
 
-// PERPLEXITY and MOONSHOT were moved OUT of this list when they landed: they now plan a request, so the
-// invariant above holds for them instead. What remains here is the Gemini pair (whose URL layer is in but
-// whose body layer is not) and COMETAPI, which pinned refuses upstream.
-var pinnedUnportedChatCompletionSources = []string{"cometapi", "vertexai", "makersuite"}
+var pinnedUnportedChatCompletionSources = []string{"cometapi"}
 
 func startupUserDirectoriesEmpty() startup.UserDirectories { return startup.UserDirectories{} }
 

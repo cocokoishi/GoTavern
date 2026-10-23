@@ -214,6 +214,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	// outbound client watches this request's context.
 	response, err := outbound.SendStreaming(request.Context(), *plan, 0)
 	if err != nil {
+		if _, isGoogle := pinnedGoogleSourceName(body); isGoogle {
+			// :787-791: the shared Google catch answers 500 {"error":true} while the headers are unsent,
+			// not the generic 502, and it does so for BOTH sources.
+			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+			return
+		}
 		if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
 			// :441-446: the CLAUDE route's own catch answers 500 {"error":true} while the headers have
 			// not been sent, NOT the generic 502 {"error":{message}}.
@@ -359,6 +365,13 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	// that call first is what made this lane report 501 for a source it had just implemented.
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
 		runtime.serveMinimaxChatCompletion(w, request, body, directories)
+		return
+	}
+
+	if useVertexAI, isGoogle := pinnedGoogleSourceName(body); isGoogle {
+		// :740-786: the shared forwarder for a stream; otherwise the candidate checks, the two 200-shaped
+		// {error:{message}} answers and the {choices, responseContent} rewrap.
+		serveGoogleChatCompletionResponse(w, request, response, body, useVertexAI)
 		return
 	}
 
@@ -558,6 +571,18 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
 		// aimlapi_chat.go.
 		return pinnedAimlapiPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceMakerSuite {
+		// chat-completions.js:454-792 is the GOOGLE transport. The key travels as a QUERY parameter and NO
+		// Authorization header is attached, because the pinned `authHeader` is assigned at :484 and never used
+		// on this path. See google_chat.go.
+		return pinnedGooglePlan(body, directories, false)
+	}
+	if sourceName == chatCompletionSourceVertexAI {
+		// The SAME pinned function with useVertexAi true: the credential moves into the Authorization header
+		// for the proxy and full modes, express mode keeps it in the query, and the failure shape carries a
+		// message (:471-474 vs :479-482). See google_chat.go.
+		return pinnedGooglePlan(body, directories, true)
 	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 
