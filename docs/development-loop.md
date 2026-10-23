@@ -17,6 +17,33 @@ tens of minutes for a verdict it could have had in seconds. Measured on the deve
 
 So the toolchain is not the bottleneck. The oracle is, and only for the things only it can decide.
 
+## The division of labour: this host is the worker, Actions is the gate
+
+Measured on this host with a warm cache, after one cold run:
+
+| work | this host (2-core) | GitHub x86 runner |
+|---|---|---|
+| `go build ./cmd/gotavern`, nothing changed | **2.95 s** | 11.2 s step + 10.3 s setup-go + 262 MB cache restore |
+| one provider's tests (`-run Xai`, warm) | **3.1 s** | — |
+| `go test ./internal/outbound` (warm) | **1.37 s** | — |
+| `go test ./internal/server` (whole package) | **95.2 s** | 38.1 s |
+| `go test ./...` (whole suite) | **123.0 s** | 56.4 s |
+| one cold run, modules not yet downloaded | 72–78 s | — |
+| the whole `verify` job, door to door | — | **158 s** |
+
+Two conclusions that decide the design, and they point in opposite directions:
+
+- **Incrementally, this host wins by an order of magnitude.** A warm provider edit costs ~6 s here against a
+  158 s round trip through the runner. That is the loop an agent should actually use.
+- **At full width, the runner wins.** The whole suite is 2.2× slower here, and the six-platform cross-compile
+  is a gate, not a development step. Copying the CI job onto this host would be slower AND would prove the same
+  thing, so the fast tier deliberately does neither.
+
+Therefore: `scripts/dev-verify.mjs` builds `./cmd/gotavern` (the artifact that ships) rather than `./...`, runs the
+changed package's tests rather than the suite, derives a `-run <Provider>` pattern when exactly one provider
+changed (95 s → 3 s), and formats only the files you touched. It escalates to `./...` only when a shared surface
+moved, and it never pretends to have checked a fixture.
+
 ## Tiers
 
 **Tier 0 — seconds.** `node scripts/dev-verify.mjs`. It classifies your changed files, picks the smallest

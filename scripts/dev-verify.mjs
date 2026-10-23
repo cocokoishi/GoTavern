@@ -228,15 +228,35 @@ function classify(files) {
     decision.probes = [...new Set(decision.probes)].filter(Boolean);
 
     // Shared surfaces or an unattributable change widen the Go check to the whole repository.
-    const goScope = decision.escalations.length > 0 || touchedPackages.size > 3 ? './...' : [...touchedPackages].map(p => (p === 'cmd' ? './cmd/...' : `./internal/${p}/`));
-    if (goScope.length > 0 && goFiles.length > 0) {
-        if (Array.isArray(goScope)) {
-            // Targeted: the provider's own tests first, then the whole package if the provider is shared.
-            for (const scope of goScope) addCheck(`go-test:${scope}`, 'the package that changed', `go test ${scope} -count=1`);
-            addCheck('go-build', 'the module must compile', 'go build ./...');
-        } else {
+    //
+    // WHAT THIS DELIBERATELY DOES NOT DO, and why the widening rule is not "be safe":
+    //   go test ./...      123 s here against 56 s on the x86 runner -- the local host loses on the whole
+    //                      suite, so paying it per iteration would be slower than CI.
+    //   six-platform build  the runner does it once as a gate; locally it buys nothing an agent can act on.
+    //   assets verify / oracle   not local decisions at all.
+    // A provider edit therefore runs that package's tests, and the module is proved to COMPILE by building
+    // the artifact that actually ships (./cmd/gotavern, 2.95 s warm) rather than every package's binary.
+    const escalated = decision.escalations.length > 0 || touchedPackages.size > 3;
+    const goScope = escalated ? './...' : [...touchedPackages].map(p => (p === 'cmd' ? './cmd/...' : `./internal/${p}/`));
+    if (goFiles.length > 0 && (escalated || goScope.length > 0)) {
+        if (escalated) {
             addCheck(`go-test:${goScope}`, 'a shared surface changed, so every package is in scope', `go test ${goScope} -count=1`);
-            addCheck('go-build', 'the module must compile', 'go build ./...');
+            addCheck('go-build', 'a shared surface changed; every package must still compile', 'go build ./...');
+        } else {
+            for (const scope of goScope) {
+                // A per-source transport edit gets a -run pattern when one can be derived, because the
+                // whole internal/server package is 95 s here: the pattern turns it into ~20 s.
+                const provider = decision.providers.length === 1 ? decision.providers[0] : null;
+                if (provider && scope === './internal/server/') {
+                    const pattern = provider.replace(/(^|_)([a-z])/g, (_m, _s, c) => c.toUpperCase());
+                    if (/^[A-Za-z]+$/.test(pattern)) {
+                        addCheck(`go-test:${scope}-run:${pattern}`, `only ${provider}'s own tests can be affected (the whole package is 95 s here)`, `go test ${scope} -run ${pattern} -count=1`);
+                        continue;
+                    }
+                }
+                addCheck(`go-test:${scope}`, 'the package that changed', `go test ${scope} -count=1`);
+            }
+            addCheck('go-build', 'the artifact that ships must compile', 'go build ./cmd/gotavern');
         }
     }
 
@@ -256,11 +276,15 @@ function run(command) {
     }
 }
 
-function gofmtCheck() {
+function gofmtCheck(changedGoFiles) {
     // A local `gofmt -l` reports every file on Windows because the working tree is CRLF while gofmt
     // formats LF. The committed bytes are what CI judges, so compare the LF form instead of trusting
     // the plain command -- the same correction that let a real formatting failure through once.
-    const files = git(['ls-files', '*.go']).split('\n').filter(Boolean);
+    //
+    // ONLY THE CHANGED FILES ARE FORMATTED. Formatting every tracked Go file costs seconds of pure IO
+    // on this host and can only ever fail on a file the change touched, so doing it for all of them
+    // made the "fast" tier slower than the CI round trip it exists to replace.
+    const files = changedGoFiles.filter(file => file.endsWith('.go'));
     const bad = [];
     for (const file of files) {
         const lf = readFileSync(join(repoRoot, file), 'utf8').replace(/\r\n/g, '\n');
@@ -306,7 +330,7 @@ function main() {
     let failed = 0;
     for (const check of checks) {
         if (check.id === 'gofmt') {
-            const bad = gofmtCheck();
+            const bad = gofmtCheck(decision.files);
             const ok = bad.length === 0;
             console.log(`${ok ? 'ok  ' : 'FAIL'} gofmt ${ok ? '(all committed Go files are gofmt-clean in LF form)' : `-- ${bad.join(', ')}`}`);
             if (!ok) failed++;
