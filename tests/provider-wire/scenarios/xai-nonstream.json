@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "name": "xai-nonstream",
+  "purpose": "XAI source, NON-STREAMING: pins the branch beyond the shared path -- the base literal https://api.x.ai/v1, api_key_xai as a Bearer token, no per-source headers -- and the convertXAIMessages shaping in particular: an assistant turn whose content lacks the character prefix GAINS it, example_assistant and example_user turns are prefixed from the two names, a named system turn matches NO rule and loses its name anyway, and a named USER turn keeps its name because the converter returns before `delete msg.name`.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "xai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_xai": [
+      {
+        "id": "probe-id-api_key_xai",
+        "value": "synthetic-xai-key",
+        "label": "api_key_xai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-xai-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.x.ai/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_XAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.x.ai/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "xai",
+      "model": "grok-probe",
+      "char_name": "Probe Char",
+      "user_name": "Probe User",
+      "group_names": [
+        "Probe Group"
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "name": "Probe User",
+          "content": "probe user marker"
+        },
+        {
+          "role": "assistant",
+          "name": "Probe Char",
+          "content": "probe assistant marker"
+        },
+        {
+          "role": "system",
+          "name": "example_assistant",
+          "content": "probe example assistant marker"
+        },
+        {
+          "role": "system",
+          "name": "example_user",
+          "content": "probe example user marker"
+        },
+        {
+          "role": "system",
+          "name": "Probe Group",
+          "content": "Probe Group: probe group marker"
+        },
+        {
+          "role": "user",
+          "content": "probe tail marker"
+        }
+      ],
+      "max_tokens": 64,
+      "max_completion_tokens": 96,
+      "temperature": 0.5,
+      "presence_penalty": 0.1,
+      "frequency_penalty": 0.2,
+      "top_p": 0.9,
+      "seed": 7,
+      "stop": [
+        "PROBE_STOP"
+      ],
+      "n": 2,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-xai\",\"object\":\"chat.completion\",\"model\":\"grok-probe\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock xai reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4,\"total_tokens\":15}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1251 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_XAI is a pinned literal, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH (/chat/completions) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:87 API_XAI = https://api.x.ai/v1, :1184 new URL(reverse_proxy || API_XAI).toString(), :1259 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
