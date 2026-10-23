@@ -223,6 +223,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
+			// :1491-1497: the route's own catch calls response.send with no status, so a thrown fetch answers
+			// 200 {"error":true} rather than the generic 502 or CLAUDE's 500.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -242,6 +248,11 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveDeepSeekChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
+		// :1478-1490: the shared forwarder for a stream, the provider body passed through otherwise.
+		serveElectronHubChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -376,6 +387,11 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// SEMI_TOOLS merge, addAssistantPrefix and addReasoningContentToToolCalls helpers. See
 		// deepseek_chat.go.
 		return pinnedDeepSeekPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceElectronHub {
+		// chat-completions.js:1394 forwards the messages VERBATIM and rebuilds the rest of the body, with
+		// top_k/logit_bias of its own and no reverse_proxy support at all. See electronhub_chat.go.
+		return pinnedElectronHubPlan(body, directories)
 	}
 	if sourceName == chatCompletionSourceClaude {
 		// chat-completions.js:230 is NOT on the generic path: it builds its own body, URL and header

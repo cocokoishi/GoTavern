@@ -60,6 +60,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveDeepSeekChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceElectronHub {
+		runtime.serveElectronHubChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceSiliconF {
 		runtime.serveSiliconFlowChatCompletionStatus(w, request, body, directories)
 		return

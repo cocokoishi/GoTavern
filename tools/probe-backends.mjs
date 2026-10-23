@@ -103,6 +103,7 @@ const SEAM_DEFAULTS = {
     // its scenarios below. `backends_test.go` asserts this default against the accessor.
     GOTAVERN_MISTRAL_CHAT_URL: 'https://api.mistral.ai/v1',
     GOTAVERN_DEEPSEEK_CHAT_URL: 'https://api.deepseek.com/beta',
+    GOTAVERN_ELECTRONHUB_CHAT_URL: 'https://api.electronhub.ai/v1',
 };
 
 function secretFile(values) {
@@ -844,6 +845,33 @@ addScenario({
     seam: 'GOTAVERN_DEEPSEEK_CHAT_URL',
     secrets: { api_key_deepseek: 'probe-deepseek-key' },
     upstream: [{ ...OK, path: '/models', body: JSON.stringify({ object: 'list', data: [{ id: 'deepseek-probe-chat', object: 'model' }] }) }],
+});
+// ---- ELECTRONHUB has a status branch on the same literal its generate route uses ----------------
+//
+// chat-completions.js:1813-1815 sets apiUrl = API_ELECTRONHUB and the key from the ELECTRONHUB secret,
+// so the provider request is GET https://api.electronhub.ai/v1/models with only Authorization: Bearer.
+addScenario({
+    name: 'status.electronhub.ok',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'electronhub' },
+    seam: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
+    secrets: { api_key_electronhub: 'probe-electronhub-key' },
+    upstream: [{ ...OK, path: '/v1/models', body: JSON.stringify({ object: 'list', data: [{ id: 'probe/model', object: 'model' }] }) }],
+});
+addScenario({
+    name: 'status.electronhub.nonOk',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'electronhub' },
+    seam: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
+    secrets: { api_key_electronhub: 'probe-electronhub-key' },
+    upstream: [{ path: '/v1/models', status: 401, headers: { 'Content-Type': 'application/json' }, body: '{"message":"probe unauthorized"}' }],
+});
+addScenario({
+    name: 'status.electronhub.noKey',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'electronhub' },
+    seam: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
+    secrets: {},
 });
 addScenario({
     name: 'status.deepseek.nonOk',
