@@ -1,0 +1,104 @@
+{
+    "schemaVersion":  1,
+    "name":  "ai21-json-schema",
+    "purpose":  "AI21 json_schema hack: response_format {type:\"json_object\"} appended LAST in the body, plus a synthesized user message carrying the schema at 4-space indent. The same shape as SILICONFLOW\u0027s setJsonObjectFormat, implemented separately because the pinned branches are separate code.",
+    "stage1Boundary":  "Stage 1 validates the backend -\u003e provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath":  "ai21",
+    "backendConfig":  [
+                          "enableUserAccounts: true",
+                          "skipContentCheck: true",
+                          "requestProxy:",
+                          "  enabled: false"
+                      ],
+    "secrets":  {
+                    "api_key_ai21":  [
+                                         {
+                                             "id":  "probe-id-api_key_ai21",
+                                             "value":  "synthetic-ai21-key",
+                                             "label":  "api_key_ai21",
+                                             "active":  true
+                                         }
+                                     ]
+                },
+    "expectedAuthorizationKey":  "synthetic-ai21-key",
+    "transportRedirect":  [
+                              {
+                                  "from":  "https://api.ai21.com/studio/v1",
+                                  "to":  "\u003cmock\u003e"
+                              }
+                          ],
+    "goSeam":  {
+                   "environmentVariable":  "GOTAVERN_AI21_CHAT_URL",
+                   "value":  "\u003cmock\u003e",
+                   "pinnedLiteral":  "https://api.ai21.com/studio/v1"
+               },
+    "request":  {
+                    "path":  "/api/backends/chat-completions/generate",
+                    "body":  {
+                                 "chat_completion_source":  "ai21",
+                                 "model":  "probe-model",
+                                 "messages":  [
+                                                  {
+                                                      "role":  "system",
+                                                      "content":  "probe system marker"
+                                                  },
+                                                  {
+                                                      "role":  "user",
+                                                      "content":  "probe user marker"
+                                                  }
+                                              ],
+                                 "max_tokens":  64,
+                                 "temperature":  0.5,
+                                 "stream":  false,
+                                 "json_schema":  {
+                                                     "name":  "probe_schema",
+                                                     "value":  {
+                                                                   "type":  "object",
+                                                                   "properties":  {
+                                                                                      "answer":  {
+                                                                                                     "type":  "string"
+                                                                                                 }
+                                                                                  }
+                                                               }
+                                                 }
+                             }
+                },
+    "mock":  {
+                 "responses":  [
+                                   {
+                                       "status":  200,
+                                       "headers":  [
+                                                       {
+                                                           "name":  "Content-Type",
+                                                           "value":  "application/json"
+                                                       }
+                                                   ],
+                                       "body":  "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+                                   }
+                               ]
+             },
+    "normalization":  {
+                          "tier2":  [
+                                        {
+                                            "path":  "provider.requests[].headers.authorization",
+                                            "rule":  "compared as \"Bearer \u003credacted\u003e\"; the planted value is verified by expectedAuthorizationKey",
+                                            "reason":  "a credential is not a contract",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:802 apiKey = readSecret(request.user.directories, SECRET_KEYS.AI21, request.body.secret_id)"
+                                        },
+                                        {
+                                            "path":  "provider.requests[].url",
+                                            "rule":  "the literal is replaced with \u003cmock\u003e",
+                                            "reason":  "AI21 has no reverse_proxy and no custom_url: API_AI21 + /chat/completions is the only URL the branch can build",
+                                            "pinnedSource":  "src/endpoints/backends/chat-completions.js:854 fetch(API_AI21 + \u0027/chat/completions\u0027)"
+                                        }
+                                    ],
+                          "tier3":  [
+                                        {
+                                            "path":  "providerResponse.headers[x-response-time]",
+                                            "rule":  "excluded from the compared headers",
+                                            "reason":  "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                                            "pinnedSource":  "src/server-main.js:108 app.use(responseTime())"
+                                        }
+                                    ]
+                      }
+}
