@@ -85,7 +85,7 @@ jobs:
           fi
           changed="$(git diff --name-only "${base}" HEAD)"
           echo "${changed}"
-          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|upstream/)'; then
+          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|tests/provider-wire/scenarios/|upstream/)'; then
             echo "oracle=false" >> "$GITHUB_OUTPUT"
             echo "probes=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -100,6 +100,11 @@ jobs:
           for path in ${changed}; do
             case "${path}" in
               tools/probe-*.mjs) probes="${probes} $(basename "${path}")" ;;
+                # A NEW SCENARIO INPUT IS A FIXTURE INPUT. tests/provider-wire/scenarios/*.json is discovered by
+                # probe-provider-wire.mjs, so adding one changes that fixture. Without this arm the selection saw only a
+                # Go/test change, ran no provider-wire recording, and 74 waiting inputs sat unrecorded while the job
+                # reported on probe-backends -- the bounded-selector lesson in workflow form.
+                tests/provider-wire/scenarios/*.json) probes="${probes} probe-provider-wire.mjs" ;;
             esac
           done
           for path in ${changed}; do
