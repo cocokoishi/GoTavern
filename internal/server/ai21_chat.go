@@ -29,6 +29,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
@@ -230,14 +233,31 @@ func pinnedAI21Plan(body orderedNodeJSON, directories startup.UserDirectories) (
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-	messagesNode := pinnedAI21Messages(body)
-	messages := messagesNode.array
+	// ORDER MATTERS: the pinned branch pushes the synthesized schema message into request.body.messages BEFORE
+	// convertAI21Messages runs, so the converter's same-role merge folds it into the previous user turn with a
+	// blank line. Appending it after the conversion leaves two user turns and a body the capture does not have.
+	rawMessages, _ := body.member("messages")
+	list := make([]orderedNodeJSON, 0)
+	if rawMessages.kind == 'a' {
+		list = append(list, rawMessages.array...)
+	}
 	bodyParams := nodeObject()
 	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-		if foldErr := pinnedSetAI21JsonObjectFormat(&bodyParams, &messages, schema); foldErr != nil {
+		if foldErr := pinnedSetAI21JsonObjectFormat(&bodyParams, &list, schema); foldErr != nil {
 			return nil, pinnedChatCompletionTransportFailure(foldErr)
 		}
 	}
+
+	rebuilt := nodeObject()
+	for _, entry := range body.object {
+		rebuilt.setMember(entry.key, entry.value)
+	}
+	pushed := nodeArray()
+	for _, message := range list {
+		pushed.array = append(pushed.array, message)
+	}
+	rebuilt.setMember("messages", pushed)
+	messages := pinnedAI21Messages(rebuilt).array
 
 	requestBody := nodeObject()
 	converted := nodeArray()
@@ -258,15 +278,40 @@ func pinnedAI21Plan(body orderedNodeJSON, directories startup.UserDirectories) (
 	if marshalErr != nil {
 		return nil, pinnedChatCompletionTransportFailure(marshalErr)
 	}
+	// The pinned `fetch` sends this branch's three headers PLUS everything node-fetch adds on its own:
+	// accept-encoding, user-agent and a computed Content-Length, and Go's client then adds Host and Connection.
+	// Omitting that framing is what made the route send a bodyless request: the capture records
+	// content-length 193 and Host, and every other source's capture carries them too.
+	endpointURL := pinnedAI21BaseURL() + "/chat/completions"
+	parsedEndpoint, parseErr := url.Parse(endpointURL)
+	if parseErr != nil || parsedEndpoint.Host == "" {
+		return nil, pinnedChatCompletionTransportFailure(errors.New("Only absolute URLs are supported"))
+	}
+	headerValues := map[string]string{
+		"accept":          "application/json",
+		"content-type":    "application/json",
+		"authorization":   "Bearer " + key,
+		"accept-encoding": "gzip, deflate, br",
+		"user-agent":      "node-fetch",
+		"content-length":  strconv.Itoa(len(encoded)),
+	}
+	names := make([]string, 0, len(headerValues))
+	for name := range headerValues {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	requestHeaders := make([]outbound.Header, 0, len(names)+2)
+	for _, name := range names {
+		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headerValues[name]})
+	}
+	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
+	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+
 	return &outbound.Request{
-		URL:    pinnedAI21BaseURL() + "/chat/completions",
-		Method: http.MethodPost,
-		Headers: []outbound.Header{
-			{Name: "accept", Value: "application/json"},
-			{Name: "content-type", Value: "application/json"},
-			{Name: "authorization", Value: "Bearer " + key},
-		},
-		Body: encoded,
+		URL:     endpointURL,
+		Method:  http.MethodPost,
+		Headers: requestHeaders,
+		Body:    encoded,
 	}, nil
 }
 
