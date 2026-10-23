@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "chutes",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_chutes": [
+      {
+        "id": "probe-id-api_key_chutes",
+        "value": "synthetic-chutes-key",
+        "label": "api_key_chutes",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-chutes-key",
+  "transportRedirect": [
+    {
+      "from": "https://llm.chutes.ai/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://llm.chutes.ai/v1"
+  },
+  "normalization": {
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "chutes-nonstream",
+  "purpose": "CHUTES default: the pinned literal member set is forwarded in pinned order (messages, model, temperature, max_tokens, stream, presence_penalty, frequency_penalty, repetition_penalty, min_p, top_p, top_k, seed, stop, reasoning_effort, logit_bias) and messages are forwarded VERBATIM: the two consecutive user turns are NOT folded and the mid-prompt system turn is NOT rewritten, because this transform has no prompt post-processing at all.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "chutes",
+      "model": "probe-model",
+      "max_tokens": 96,
+      "stream": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "probe first user"
+        },
+        {
+          "role": "user",
+          "content": "probe second user"
+        },
+        {
+          "role": "system",
+          "content": "probe mid system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe final user"
+        }
+      ],
+      "temperature": 0.4,
+      "top_p": 0.8,
+      "top_k": 40,
+      "min_p": 0.05,
+      "presence_penalty": 0.1,
+      "frequency_penalty": 0.2,
+      "repetition_penalty": 1.1,
+      "seed": 7,
+      "stop": [
+        "PROBE_STOP"
+      ],
+      "reasoning_effort": "high",
+      "logit_bias": {
+        "50256": -100
+      }
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-chutes\",\"object\":\"chat.completion\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock chutes reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":5,\"total_tokens\":14}}"
+      }
+    ]
+  }
+}
