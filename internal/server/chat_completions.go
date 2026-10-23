@@ -244,6 +244,26 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
+			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
+			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
+			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
+			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
