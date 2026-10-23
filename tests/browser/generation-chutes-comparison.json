@@ -170,7 +170,7 @@
     "mode": "nonstream",
     "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
     "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
-    "sourceShape": "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy."
+    "sourceShape": "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy. This is the case that makes a shared-helper implementation look correct and be wrong: a source whose MESSAGE side has no processor at all cannot be served by a helper that quietly reshapes messages for its siblings, and the recorded body digest is what would catch it."
   },
   "guards": {
     "finalTextNonEmpty": true,
