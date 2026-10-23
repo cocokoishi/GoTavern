@@ -197,6 +197,7 @@ var pinnedGoogleThinkingConfigModel = regexp.MustCompile(`^gemini-2\.5-(flash|pr
 var pinnedGoogleThinkingConfigImageExclusion = regexp.MustCompile(`-image(-preview)?$`)
 var pinnedGoogleImageSizeModel = regexp.MustCompile(`^gemini-3`)
 var pinnedGoogleGemini3FlashBudget = regexp.MustCompile(`gemini-3\.7-flash`)
+
 // The budget dispatch tail (prompt-converters.js:1305-1323) tests the model in a FIXED ORDER, so these are two
 // separate patterns rather than one alternation: `gemini-3[.\d]*-pro` is tried before the generic `pro` arm, and
 // a single alternation would let a gemini-3 model take the 2.5 clamp instead of a thinking LEVEL.
