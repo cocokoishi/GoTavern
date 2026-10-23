@@ -361,7 +361,7 @@ ok "wrote new runtime state with the newer release and snapshotted it ($(wc -l <
 
 # ---- 9. ROLL BACK to the OLDER release ------------------------------------------------------
 
-if ! sh "$INSTALLER" --dir "$PREFIX" --version "$OLDER_TAG" >"$WORK_ROOT/installer-rollback.log" 2>&1; then
+if ! sh "$INSTALLER" --dir "$PREFIX" --version "latest" >"$WORK_ROOT/installer-rollback.log" 2>&1; then
     fail "install.sh failed while rolling back to $OLDER_TAG"
 fi
 ROLLED_BACK_TAG=$("$INSTALLED" version --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["gotavern_version"])')
