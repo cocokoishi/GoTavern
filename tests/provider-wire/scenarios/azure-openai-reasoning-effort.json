@@ -28,7 +28,7 @@
     "path": "/api/backends/chat-completions/generate",
     "body": {
       "chat_completion_source": "azure_openai",
-      "azure_base_url": "http://<mock>",
+      "azure_base_url": "<mock>",
       "azure_deployment_name": "probe-deployment",
       "azure_api_version": "2024-02-15-preview",
       "messages": [
@@ -77,7 +77,7 @@
       },
       {
         "path": "provider.requests[].url",
-        "rule": "the recording peer's origin is supplied in the request body (azure_base_url = http://<mock>), so only the PATH and QUERY are the compared contract",
+        "rule": "the recording peer's origin is supplied in the request body (azure_base_url = <mock>), so only the PATH and QUERY are the compared contract",
         "reason": "AZURE_OPENAI has NO pinned base URL: chat-completions.js:1689 reads azure_base_url from the request body, so both legs are aimed at the peer by the DRIVER.",
         "pinnedSource": "src/endpoints/backends/chat-completions.js:1700-1702 new URL(`/openai/deployments/${azure_deployment_name}/chat/completions`, azure_base_url) + api-version"
       }
