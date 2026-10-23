@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
+  "bases": {
+    "gotavern": "loopback",
+    "pinned": "loopback"
+  },
+  "requestArrived": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "providerRequests": {
+    "gotavern": [
+      {
+        "method": "POST",
+        "path": "//chat/completions",
+        "bodyLength": 7401,
+        "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61"
+      }
+    ],
+    "pinned": [
+      {
+        "method": "POST",
+        "path": "//chat/completions",
+        "bodyLength": 7401,
+        "bodySha256": "f6aba6d6fbdfd5400fc5ae87138923d77e7f0a0c2eb87fdff07edf6daf950f61"
+      }
+    ]
+  },
+  "milestones": {
+    "gotavern": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realGenerationStarted": 1,
+      "dryGenerationStarted": 0,
+      "realAfterData": 1,
+      "dryAfterData": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "milestoneEqual": true,
+  "surrounding": {
+    "gotavern": {
+      "beforeClick": {
+        "events": 5
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 10,
+        "dryGenerationStarted": 2,
+        "dryAfterData": 2
+      },
+      "wholeDrive": {
+        "started": 4,
+        "dryStarted": 3,
+        "realStarted": 1,
+        "dryAfterData": 3,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 12110
+          },
+          {
+            "dryRun": false,
+            "t": 14290
+          },
+          {
+            "dryRun": true,
+            "t": 15166
+          },
+          {
+            "dryRun": true,
+            "t": 16292
+          }
+        ]
+      }
+    },
+    "pinned": {
+      "beforeClick": {
+        "events": 15
+      },
+      "sendWindow": {
+        "events": 7,
+        "dryGenerationStarted": 0,
+        "dryAfterData": 0
+      },
+      "afterSend": {
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
+      },
+      "wholeDrive": {
+        "started": 5,
+        "dryStarted": 4,
+        "realStarted": 1,
+        "dryAfterData": 4,
+        "ended": 1,
+        "invocations": [
+          {
+            "dryRun": true,
+            "t": 16853
+          },
+          {
+            "dryRun": true,
+            "t": 18951
+          },
+          {
+            "dryRun": true,
+            "t": 20189
+          },
+          {
+            "dryRun": false,
+            "t": 21460
+          },
+          {
+            "dryRun": true,
+            "t": 23313
+          }
+        ]
+      }
+    }
+  },
+  "eventWindow": {
+    "gotavern": {
+      "eventsBeforeClick": 5,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 518,
+        "inFlightMaxBeforeSend": 1,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 1
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1522,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    },
+    "pinned": {
+      "eventsBeforeClick": 15,
+      "quiescence": {
+        "quiesced": true,
+        "waitedMs": 1778,
+        "inFlightMaxBeforeSend": 2,
+        "inFlightAtClick": 0,
+        "generateInvocationsBeforeSend": 3
+      },
+      "settle": {
+        "settledIdle": true,
+        "waitedMs": 1531,
+        "completions": 1,
+        "inFlightAtRead": 0
+      }
+    }
+  },
+  "proxyPasswordPresent": {
+    "gotavern": true,
+    "pinned": true
+  },
+  "driveParameters": {
+    "mode": "nonstream",
+    "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
+    "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
+    "seamEnvVar": "GOTAVERN_XAI_CHAT_URL",
+    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184 `new URL(request.body.reverse_proxy || API_XAI)`), which is a path a user can take because xAI is proxy-capable",
+    "seamUsage": "safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are both aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but NEITHER is the route this drive took, and proxyPasswordPresent true on both legs is the evidence",
+    "converterNote": "xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content with the character or user name and DELETES msg.name -- not the semi_tools merger. A wrong port would still produce a parseable body, so the compared provider bytes are the assertion"
+  },
+  "guards": {
+    "finalTextNonEmpty": true,
+    "bothLegsQuiescedBeforeSend": true,
+    "bothLegsSettledAfterSend": true,
+    "bothWindowsHoldCompleteGenerations": true,
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": true
+  },
+  "guardMeaning": {
+    "sendWindowHoldsExactlyOneRealSendAndNoDryAssembly": "exactly one non-dry invocation in the window, with exactly one non-dry AFTER_DATA and none dry, and independent counting invocations recorded but not attributed"
+  },
+  "generationInvocations": {
+    "gotavern": [
+      {
+        "dryRun": false,
+        "t": 14290,
+        "afterData": [
+          false
+        ]
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": false,
+        "t": 21461,
+        "afterData": [
+          false
+        ]
+      }
+    ]
+  },
+  "generationUnmatchedAfterData": {
+    "gotavern": [],
+    "pinned": []
+  },
+  "wholeDriveInvocations": {
+    "gotavern": [
+      {
+        "dryRun": true,
+        "t": 12110
+      },
+      {
+        "dryRun": false,
+        "t": 14290
+      },
+      {
+        "dryRun": true,
+        "t": 15166
+      },
+      {
+        "dryRun": true,
+        "t": 16292
+      }
+    ],
+    "pinned": [
+      {
+        "dryRun": true,
+        "t": 16853
+      },
+      {
+        "dryRun": true,
+        "t": 18951
+      },
+      {
+        "dryRun": true,
+        "t": 20189
+      },
+      {
+        "dryRun": false,
+        "t": 21460
+      },
+      {
+        "dryRun": true,
+        "t": 23313
+      }
+    ]
+  },
+  "comparableMilestones": {
+    "gotavern": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    },
+    "pinned": {
+      "realInvocations": 1,
+      "realAfterDataInRealInvocation": 1,
+      "dryAfterDataInRealInvocation": 0,
+      "chatCompletionSettingsReady": 1,
+      "generationEnded": 1
+    }
+  },
+  "postSend": {
+    "gotavern": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "popupClicks": 3,
+      "popupSeen": [
+        {
+          "id": "",
+          "className": "popup popup--animation-fast",
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"8597d3f0-d848-4aa2-aec6-169d659e5d23\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+        }
+      ],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 14519,
+          "text": "probe user marker"
+        },
+        {
+          "t": 14958,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "pinned": {
+      "manualPing": "status:204:",
+      "toastrAfter": "",
+      "chatLength": 3,
+      "chatDomMessages": 3,
+      "textareaValue": "",
+      "tokenCountProbe": "resolved:9",
+      "popupClicks": 3,
+      "popupSeen": [
+        {
+          "id": "",
+          "className": "popup popup--animation-fast",
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"0a3e17ba-cac1-4699-8d8a-00b12eb09c94\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+        }
+      ],
+      "emitPending": [],
+      "renderSnapshots": [
+        {
+          "t": 21711,
+          "text": "probe user marker"
+        },
+        {
+          "t": 22245,
+          "text": "probe reply"
+        }
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    }
+  },
+  "bodyDifferences": [],
+  "providerRequestEqual": true,
+  "windowIntegrity": {
+    "gotavern": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    },
+    "pinned": {
+      "dryGenerationStarted": 0,
+      "dryAfterData": 0,
+      "realGenerationStarted": 1,
+      "realAfterData": 1,
+      "complete": true
+    }
+  }
+}
