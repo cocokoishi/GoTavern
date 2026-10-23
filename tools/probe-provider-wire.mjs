@@ -395,9 +395,14 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
             throw new Error(`normalization entry ${entry.path} has neither pinnedSource nor harnessSource`);
         }
     }
+    // HTTP HEADER NAMES ARE CASE-INSENSITIVE, so the coverage check compares them that way. The mock records
+    // the name as it arrived on the wire, and the pinned client is not consistent about casing across routes:
+    // aimlapi sends `Host` while azure_openai arrives as `host`, so a case-sensitive check reported one of
+    // them as a STALE RULE on Linux and sent me chasing a scenario defect that did not exist. The rule name is
+    // what the fixture normalises; the comparison must not depend on which route produced the traffic.
     const observed = new Set();
     for (const request of provider.requests) {
-        for (const header of request.headers) observed.add(header.name);
+        for (const header of request.headers) observed.add(header.name.toLowerCase());
     }
     const responseHeaders = new Set(responseHeaderNames);
     const normalized = new Set();
@@ -407,7 +412,7 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
             const name = headerNameFromPath(entry.path);
             if (!name) continue;
             if ((entry.path ?? '').startsWith('provider.requests[].headers[')) {
-                if (!observed.has(name)) {
+                if (!observed.has(name.toLowerCase())) {
                     throw new Error(`${tier} rule names request header ${name}, which the mock never observed; the rule is stale`);
                 }
                 bucket.add(name);
