@@ -66,7 +66,7 @@ func pinnedZAIBaseURL(body orderedNodeJSON) string {
 }
 
 // pinnedZAIThinking is `bodyParams.thinking` (:2558-2562): the member is ALWAYS present, and only its
-// type depends on include_reasoning. `include_reasoning` is read with JS truthiness, so 0, '' and an
+// type depends on include_reasoning. `include_reasoning` is read with JS truthiness, so 0, ” and an
 // absent field all mean 'disabled'.
 func pinnedZAIThinking(body orderedNodeJSON) orderedNodeJSON {
 	kind := "disabled"
