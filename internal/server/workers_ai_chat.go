@@ -93,12 +93,12 @@ func (runtime *accountRuntime) serveWorkersAIChatCompletionStatus(w http.Respons
 	// The arm's OWN key check, before the account id: 400 {error:true}. It does NOT consult reverse_proxy --
 	// the shared guard at :2068 is never reached for this source.
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	accountID, ok := pinnedWorkersAIAccountID(body)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

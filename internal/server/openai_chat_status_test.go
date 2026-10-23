@@ -57,10 +57,16 @@ func TestOpenAIStatusIsNotA501Gap(t *testing.T) {
 			wantOutbound: 1,
 		},
 		{
-			name:         "a source with no arm stays a gap",
-			body:         `{"chat_completion_source":"ai21"}`,
-			wantStatus:   http.StatusNotImplemented,
-			wantBody:     "Not Implemented",
+			// THE DURABLE CONTROL, and it names no real source: an UNKNOWN name reaches pinned's
+			// closing else and answers 400 {"error":true} (chat-completions.js:2062-2065). The
+			// previous control here was `ai21`, which was unimplemented when the row was written and
+			// became "assert that an implemented source is unimplemented" when it landed. The row
+			// carries reverse_proxy pointing at the peer, so a refactor that let an unknown name fall
+			// into a provider arm shows up as a request at the peer rather than as a plausible 400.
+			name:         "an unknown source name answers the chain's 400 and reaches no provider",
+			body:         `{"chat_completion_source":"` + pinnedUnknownChatCompletionSource + `","reverse_proxy":"` + mockOrigin + `"}`,
+			wantStatus:   http.StatusBadRequest,
+			wantBody:     `{"error":true}`,
 			wantOutbound: 0,
 		},
 	} {

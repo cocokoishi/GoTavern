@@ -8,9 +8,10 @@ package server
 // unchanged, answers `{ error: true, data: { data: [] } }` for a non-OK response, and `{ error: true }`
 // when the fetch or the key read throws.
 //
-// NOT IMPLEMENTED: every other source in the pinned 380-line provider matrix answers 501 (rule 17), so
-// an unimplemented source stays distinguishable from pinned's 400 unknown-source answer. The chat
-// completions row keeps that visible.
+// NOT IMPLEMENTED: a source in the pinned provider matrix whose arm this route does not port answers 501
+// (rule 17), so an unimplemented source stays distinguishable from pinned's 400 unknown-source answer. The
+// distinction is `pinnedChatCompletionSources`: a KNOWN name gets 501, an UNKNOWN name falls through to the
+// pinned closing else and gets its own 400. The chat completions row keeps that visible.
 //
 // Evidence: tools/probe-backends.mjs records the `status.custom.*` scenarios in
 // tests/oracle/sillytavern-1.19.0-backends.json; backends_test.go replays them.
@@ -24,6 +25,22 @@ import (
 
 func init() {
 	// Registration happens in registerBackendsRoutes; nothing to add here.
+}
+
+// pinnedChatCompletionMissingKeyRefusal is the status chain's SHARED missing-key refusal,
+// chat-completions.js:2067-2070: `statusResponse.status(400).send({ error: true })` -- a JSON body, not
+// Express's plain-text status message.
+//
+// It is a helper because the same refusal is reproduced by every arm that reaches that point, and NINE
+// arms answered it with serveStatusText(400), so a request without a key got `Bad Request` as TEXT where the
+// pinned server sends `{"error":true}` as JSON. The shape is ORACLE-BACKED rather than derived: the recorded
+// scenarios status.openai.noKey, status.mistral.noKey and status.deepseek.noKey all record 400 with the body
+// {"error":true}, and minimaxChat.noKey records the same shape for the generate-side sibling. A test that
+// asserted only the BODY would have accepted the plain-text form's 400, which is why this one asserts both.
+func pinnedChatCompletionMissingKeyRefusal(w http.ResponseWriter) {
+	errorOnly := nodeObject()
+	errorOnly.setMember("error", nodeBool(true))
+	respondOrderedNodeJSON(w, http.StatusBadRequest, errorOnly)
 }
 
 // serveBackendsChatCompletionStatus is chat-completions.js:1778: the custom and openrouter branches, and 501
@@ -60,6 +77,11 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveDeepSeekChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceCohere {
+		// chat-completions.js:1805-1808 -- cohere DOES have a pinned status arm, unlike CLAUDE.
+		runtime.serveCohereChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source == chatCompletionSourceSiliconF {
 		runtime.serveSiliconFlowChatCompletionStatus(w, request, body, directories)
 		return
@@ -70,6 +92,12 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 	}
 	if source == chatCompletionSourceWAI {
 		runtime.serveWorkersAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceChutes {
+		// :1809-1811 sets the shared literal and secret with no header of its own, and the shared tail
+		// at :2092-2108 projects the models list. See chutes_chat.go.
+		runtime.serveChutesChatCompletionStatus(w, request, body, directories)
 		return
 	}
 	if source == chatCompletionSourcePollinations {
@@ -84,8 +112,76 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceZai {
+		// Pinned has no ZAI arm and its chain's closing else answers 400 { error: true } without a
+		// provider call (chat-completions.js:2062-2065), so this is the pinned behaviour rather than
+		// the 501 "not written yet" the default below would give.
+		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceZai {
+		// Pinned has no ZAI arm and its chain's closing else answers 400 { error: true } without a
+		// provider call (chat-completions.js:2062-2065), so this is the pinned behaviour rather than
+		// the 501 "not written yet" the default below would give.
+		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceChutes {
+		// :1809-1811 sets the shared literal and secret with no header of its own, and the shared tail
+		// at :2092-2108 projects the models list. See chutes_chat.go.
+		runtime.serveChutesChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceCohere {
+		// chat-completions.js:1805-1808 -- cohere DOES have a pinned status arm, unlike CLAUDE.
+		runtime.serveCohereChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceElectronHub {
+		runtime.serveElectronHubChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceAimlapi {
+		// chat-completions.js:1832-1835: the shared tail with aimlapi's literal, key and AIMLAPI_HEADERS.
+		runtime.serveAimlapiChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceXAI {
+		runtime.serveXAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceAzure {
+		// :1934-2011 is NOT part of the shared tail: that arm returns on every path (two provider calls and
+		// its own 400/500 wording), so it neither reaches the :2067 key guard nor the :2072 fetch. See
+		// azure_openai_chat.go.
+		runtime.serveAzureOpenAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	if source == chatCompletionSourceMinimax {
+		// MINIMAX has NO arm in the pinned status chain either (src/endpoints/backends/
+		// chat-completions.js:1778-2065 mentions it nowhere), so a status request reaches the
+		// chain's final else and answers 400 {error:true} with zero outbound -- exactly the CLAUDE
+		// case above. Answering 501 now that the source is implemented would be the wrong gap.
+		runtime.serveMinimaxChatCompletionStatus(w)
+		return
+	}
+	// 501 IS FOR A SOURCE THE PINNED MATRIX KNOWS AND THIS ROUTE DOES NOT PORT YET, and for nothing
+	// else. An UNKNOWN name must reach the pinned closing else below, which answers 400 {"error":true}
+	// with no provider call (chat-completions.js:2062-2065) -- the same answer the generate chain gives
+	// at :2594-2597. Answering 501 for an unknown name would be a parity divergence, and it would also
+	// leave no durable control: the only way to assert "not written yet" would be to name a real source,
+	// which stops being true the day that source lands.
 	if source != "custom" {
-		serveStatusText(w, http.StatusNotImplemented)
+		if pinnedChatCompletionSources[source] {
+			serveStatusText(w, http.StatusNotImplemented)
+			return
+		}
+		// AN UNKNOWN NAME: the pinned chain's closing else (chat-completions.js:2062-2065) answers
+		// 400 {"error":true} with no provider call. NOT the custom branch's error path below, which
+		// uses `searchJSON` and therefore answers 200 -- a first attempt at this guard fell through to
+		// it and produced 200 {"error":true}, which the status assertion caught and a body-only
+		// assertion would have accepted.
+		respondOrderedNodeJSON(w, http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 		return
 	}
 	errorOnly := nodeObject()
@@ -204,7 +300,7 @@ func (runtime *accountRuntime) serveOpenRouterChatCompletionStatus(w http.Respon
 		reverseProxyTruthy = true
 	}
 	if key == "" && !reverseProxyTruthy {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

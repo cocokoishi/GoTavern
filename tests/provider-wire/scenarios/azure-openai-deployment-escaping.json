@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "name": "azure-openai-deployment-escaping",
+  "purpose": "AZURE_OPENAI source, DEPLOYMENT NAME ESCAPING: the pinned path is built by interpolating the deployment name RAW into `/openai/deployments/${azure_deployment_name}/chat/completions` and then parsing it with `new URL`, which percent-encodes what the WHATWG path set escapes. A name carrying a space must therefore reach the provider as %20. Without such an input the escaping assertion in this branch would be decoration, because an ASCII-clean name encodes identically whether the name is escaped or not.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "azure_openai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_azure_openai": [
+      {
+        "id": "probe-id-api_key_azure_openai",
+        "value": "synthetic-azure-key",
+        "label": "api_key_azure_openai",
+        "active": true
+      }
+    ]
+  },
+  "expectedApiKey": {
+    "header": "api-key",
+    "value": "synthetic-azure-key"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "azure_openai",
+      "azure_base_url": "http://<mock>/v1/",
+      "azure_deployment_name": "probe deployment",
+      "azure_api_version": "2024-02-15-preview",
+      "messages": [
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-azure\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock azure reply\"},\"finish_reason\":\"stop\"}]}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recording peer's origin is supplied in the request body (azure_base_url = http://<mock>/v1/), so only the PATH and QUERY are the compared contract -- and the /v1/ segment proves the base's own path is DISCARDED by the leading-slash resolution",
+        "reason": "AZURE_OPENAI has NO pinned base URL: chat-completions.js:1689 reads azure_base_url from the request body, so both legs are aimed at the peer by the DRIVER.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1700 new URL(`/openai/deployments/${azure_deployment_name}/chat/completions`, azure_base_url) -- a leading-slash path replaces the base path entirely"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

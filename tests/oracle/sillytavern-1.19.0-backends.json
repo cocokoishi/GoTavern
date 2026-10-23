@@ -60,6 +60,8 @@
     },
     "seamDefaults": {
       "GOTAVERN_OPENAI_CHAT_URL": "https://api.openai.com/v1",
+      "GOTAVERN_MINIMAX_CHAT_URL": "https://api.minimax.io/v1",
+      "GOTAVERN_MINIMAX_CHAT_CN_URL": "https://api.minimaxi.com/v1",
       "GOTAVERN_BACKENDS_POLLINATIONS_URL": "https://gen.pollinations.ai",
       "GOTAVERN_BACKENDS_AIMLAPI_URL": "https://api.aimlapi.com",
       "GOTAVERN_BACKENDS_NANOGPT_URL": "https://nano-gpt.com",
@@ -2876,6 +2878,325 @@
           "chat_completion_source": "custom"
         },
         "bodyText": "{\"chat_completion_source\":\"custom\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.minimax.noBranch": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax"
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.minimax.reverseProxy": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "reverse_proxy": "<mock>/v1"
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"reverse_proxy\":\"<mock>/v1\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.nonStream": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "abab6.5s-chat",
+          "messages": [
+            {
+              "role": "system",
+              "content": "probe system marker"
+            },
+            {
+              "role": "user",
+              "content": "probe user marker one"
+            },
+            {
+              "role": "user",
+              "content": "probe user marker two"
+            }
+          ],
+          "max_tokens": 512,
+          "temperature": 0.5,
+          "top_p": 0.9,
+          "stop": [
+            "\nProbe:"
+          ],
+          "stream": false,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "probe_tool",
+                "description": "probe tool",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          ],
+          "tool_choice": "auto",
+          "frequency_penalty": 0.25,
+          "presence_penalty": 0.5
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"abab6.5s-chat\",\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker one\"},{\"role\":\"user\",\"content\":\"probe user marker two\"}],\"max_tokens\":512,\"temperature\":0.5,\"top_p\":0.9,\"stop\":[\"\\nProbe:\"],\"stream\":false,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"description\":\"probe tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}}],\"tool_choice\":\"auto\",\"frequency_penalty\":0.25,\"presence_penalty\":0.5}",
+        "seam": "GOTAVERN_MINIMAX_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/chat/completions",
+            "body": "{\"id\":\"probe-minimax\",\"model\":\"abab6.5s-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock minimax reply\"},\"finish_reason\":\"stop\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.cnEndpoint": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "abab6.5s-chat",
+          "messages": [
+            {
+              "role": "user",
+              "content": "probe user marker"
+            }
+          ],
+          "max_tokens": 128,
+          "stream": false,
+          "minimax_endpoint": "cn"
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"abab6.5s-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":128,\"stream\":false,\"minimax_endpoint\":\"cn\"}",
+        "seam": "GOTAVERN_MINIMAX_CHAT_CN_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/chat/completions",
+            "body": "{\"id\":\"probe-minimax-cn\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock cn reply\"},\"finish_reason\":\"stop\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.m2HerClamp": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "M2-her",
+          "messages": [
+            {
+              "role": "user",
+              "content": "probe user marker"
+            }
+          ],
+          "max_tokens": 4096,
+          "stream": false
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"M2-her\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":4096,\"stream\":false}",
+        "seam": "GOTAVERN_MINIMAX_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/v1/chat/completions",
+            "body": "{\"id\":\"probe-minimax-her\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock her reply\"},\"finish_reason\":\"stop\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.stream": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "abab6.5s-chat",
+          "messages": [
+            {
+              "role": "user",
+              "content": "probe user marker"
+            }
+          ],
+          "max_tokens": 96,
+          "stream": true
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"abab6.5s-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":96,\"stream\":true}",
+        "seam": "GOTAVERN_MINIMAX_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "text/event-stream"
+            },
+            "path": "/v1/chat/completions",
+            "body": "data: {\"id\":\"probe-minimax\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock minimax reply\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"probe-minimax\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.nonOk": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "abab6.5s-chat",
+          "messages": [
+            {
+              "role": "user",
+              "content": "probe user marker"
+            }
+          ],
+          "max_tokens": 32,
+          "stream": false
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"abab6.5s-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":32,\"stream\":false}",
+        "seam": "GOTAVERN_MINIMAX_CHAT_URL",
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key",
+          "api_key_minimax": "probe-minimax-key"
+        },
+        "upstream": [
+          {
+            "path": "/v1/chat/completions",
+            "status": 429,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"base_resp\":{\"status_code\":1002,\"status_msg\":\"probe rate limit\"}}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "minimaxChat.noKey": {
+        "route": "chat-completions/generate",
+        "query": "",
+        "body": {
+          "chat_completion_source": "minimax",
+          "model": "abab6.5s-chat",
+          "messages": [
+            {
+              "role": "user",
+              "content": "probe user marker"
+            }
+          ],
+          "max_tokens": 32,
+          "stream": false
+        },
+        "bodyText": "{\"chat_completion_source\":\"minimax\",\"model\":\"abab6.5s-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"max_tokens\":32,\"stream\":false}",
         "seam": null,
         "secrets": {
           "api_key_chutes": "probe-chutes-key",
@@ -6272,6 +6593,294 @@
     },
     "status.custom.missingUrl": {
       "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.minimax.noBranch": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.minimax.reverseProxy": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.nonStream": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "155",
+      "etag": "W/\"9b-0WXLP9ohejqxL7ClKKm4NF/GRg0\"",
+      "specialHeader": null,
+      "body": "{\"id\":\"probe-minimax\",\"model\":\"abab6.5s-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock minimax reply\"},\"finish_reason\":\"stop\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.minimax.io/v1/chat/completions",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker one\\n\\nprobe user marker two\"}],\"model\":\"abab6.5s-chat\",\"temperature\":0.5,\"max_tokens\":512,\"stream\":false,\"top_p\":0.9,\"stop\":[\"\\nProbe:\"],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"description\":\"probe tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}}],\"tool_choice\":\"auto\"}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.cnEndpoint": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "129",
+      "etag": "W/\"81-OIbfYgIoBNBFOlewHAkMEqTaqGg\"",
+      "specialHeader": null,
+      "body": "{\"id\":\"probe-minimax-cn\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock cn reply\"},\"finish_reason\":\"stop\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.minimaxi.com/v1/chat/completions",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"abab6.5s-chat\",\"max_tokens\":128,\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.m2HerClamp": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "131",
+      "etag": "W/\"83-p4AO8yuf5kBAvLWU7HQwHHEPvqc\"",
+      "specialHeader": null,
+      "body": "{\"id\":\"probe-minimax-her\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock her reply\"},\"finish_reason\":\"stop\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.minimax.io/v1/chat/completions",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"M2-her\",\"max_tokens\":2048,\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.stream": {
+      "status": 200,
+      "contentType": null,
+      "contentLength": null,
+      "etag": null,
+      "specialHeader": null,
+      "body": "data: {\"id\":\"probe-minimax\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock minimax reply\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"probe-minimax\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",
+      "outbound": [
+        {
+          "url": "https://api.minimax.io/v1/chat/completions",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"abab6.5s-chat\",\"max_tokens\":96,\"stream\":true}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.nonOk": {
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "66",
+      "etag": "W/\"42-+6Dd9RVsII3S2QmWNDWuUoCxO48\"",
+      "specialHeader": null,
+      "body": "{\"base_resp\":{\"status_code\":1002,\"status_msg\":\"probe rate limit\"}}",
+      "outbound": [
+        {
+          "url": "https://api.minimax.io/v1/chat/completions",
+          "method": "POST",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-minimax-key"
+            ],
+            [
+              "content-type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"abab6.5s-chat\",\"max_tokens\":32,\"stream\":false}"
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "minimaxChat.noKey": {
+      "status": 400,
       "contentType": "application/json; charset=utf-8",
       "contentLength": "14",
       "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",

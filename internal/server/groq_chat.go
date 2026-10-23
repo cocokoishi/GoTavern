@@ -85,7 +85,7 @@ func (runtime *accountRuntime) serveGroqChatCompletionStatus(w http.ResponseWrit
 		reverseProxyTruthy = true
 	}
 	if key == "" && !reverseProxyTruthy {
-		serveStatusText(w, http.StatusBadRequest)
+		pinnedChatCompletionMissingKeyRefusal(w)
 		return
 	}
 	headers := map[string]string{"authorization": "Bearer " + key}

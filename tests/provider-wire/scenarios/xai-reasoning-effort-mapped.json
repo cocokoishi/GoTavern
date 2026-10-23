@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "name": "xai-reasoning-effort-mapped",
+  "purpose": "XAI source, the reasoning_effort MAP: only the exact string 'high' survives; any other truthy value becomes 'low', so 'medium' reaches the provider as 'low'. A COPY of the request value would send 'medium' and this capture is what discriminates the two. No `stop` member is present, and the same request records that an ABSENT tools array adds neither tools nor tool_choice.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "xai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_xai": [
+      {
+        "id": "probe-id-api_key_xai",
+        "value": "synthetic-xai-key",
+        "label": "api_key_xai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-xai-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.x.ai/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_XAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.x.ai/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "xai",
+      "model": "grok-probe",
+      "messages": [
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "stream": false,
+      "reasoning_effort": "medium",
+      "stop": []
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-xai\",\"object\":\"chat.completion\",\"model\":\"grok-probe\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock xai reply\"},\"finish_reason\":\"stop\"}]}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1251 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_XAI is a pinned literal, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH (/chat/completions) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:87 API_XAI = https://api.x.ai/v1, :1184 new URL(reverse_proxy || API_XAI).toString(), :1259 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
