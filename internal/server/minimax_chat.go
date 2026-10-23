@@ -87,14 +87,7 @@ func minimaxNodeNull() orderedNodeJSON {
 
 // pinnedMinimaxChatBody builds the pinned request body, member order included.
 func pinnedMinimaxChatBody(body orderedNodeJSON) (orderedNodeJSON, error) {
-	messages, mergeErr := backendsPostProcessPrompt(
-		sdBodyMember(body, "messages"),
-		"merge_tools",
-		backendsPromptNamesFor(body),
-	)
-	if mergeErr != nil {
-		return orderedNodeJSON{}, mergeErr
-	}
+	messages := sdBodyMember(body, "messages")
 	requestBody := nodeObject()
 	requestBody.setMember("messages", messages)
 	for _, key := range []string{"model", "temperature"} {
