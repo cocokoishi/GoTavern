@@ -13,6 +13,9 @@
     "GOTAVERN_AIMLAPI_CHAT_URL": {
       "pinnedLiteral": "https://api.aimlapi.com/v1"
     },
+    "GOTAVERN_CHUTES_CHAT_URL": {
+      "pinnedLiteral": "https://llm.chutes.ai/v1"
+    },
     "GOTAVERN_CLAUDE_CHAT_URL": {
       "pinnedLiteral": "https://api.anthropic.com/v1"
     },
@@ -39,6 +42,12 @@
     },
     "GOTAVERN_MAKERSUITE_CHAT_URL": {
       "pinnedLiteral": "https://generativelanguage.googleapis.com"
+    },
+    "GOTAVERN_MINIMAX_CHAT_CN_URL": {
+      "pinnedLiteral": "https://api.minimaxi.com/v1"
+    },
+    "GOTAVERN_MINIMAX_CHAT_URL": {
+      "pinnedLiteral": "https://api.minimax.io/v1"
     },
     "GOTAVERN_MISTRAL_CHAT_URL": {
       "pinnedLiteral": "https://api.mistral.ai/v1"
@@ -78,6 +87,9 @@
     },
     "GOTAVERN_XAI_CHAT_URL": {
       "pinnedLiteral": "https://api.x.ai/v1"
+    },
+    "GOTAVERN_ZAI_CHAT_URL": {
+      "pinnedLiteral": "https://api.z.ai/api/paas/v4"
     }
   },
   "scenarios": {
@@ -6388,6 +6400,1036 @@
       },
       "authorizationKeyVerified": false,
       "apiKeyVerified": true
+    },
+    "chutes-error-status": {
+      "scenario": "chutes-error-status.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "chutes",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "stream": true
+            },
+            "bodySha256": "fbd5da915bc926761e3fb716f4317a7c2488cc92350d836f04b0ead2a44aa764"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "162"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWV9",
+            "bodyLength": 162,
+            "bodySha256": "ba9c7c5bff84043e950a494e0d029549eeb915529f04a8e6dff33164ea6fa65a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 400,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
+    },
+    "chutes-nonstream": {
+      "scenario": "chutes-nonstream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "chutes",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "714d74e7dc02d6843992c164a9cc6037a063e09c15b1b6dc2cd6be7919a8953e"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
+    },
+    "chutes-status-ok": {
+      "scenario": "chutes-status-ok.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1809-1811 CHUTES status arm: shared literal and secret, no header of its own, GET urlJoin(apiUrl,\"/models\")",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/status",
+            "body": {
+              "chat_completion_source": "chutes"
+            },
+            "bodySha256": "2bcea085206404b829bda234b17088cf6eaba306986d9af1eaa6df216ec091b8"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "GET",
+            "rawTarget": "/models",
+            "rawPath": "/models",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "",
+            "bodyBase64": "",
+            "bodyLength": 0,
+            "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"30-Zg7k74Vm/VyfxHAQETxb8g/feeE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "data": [
+            {
+              "id": "probe-model",
+              "object": "model"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1809-1811 CHUTES status arm: shared literal and secret, no header of its own, GET urlJoin(apiUrl,\"/models\")",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1809-1811 CHUTES status arm: shared literal and secret, no header of its own, GET urlJoin(apiUrl,\"/models\")",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
+    },
+    "chutes-stream-control-nonstream": {
+      "scenario": "chutes-stream-control-nonstream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "chutes",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "714d74e7dc02d6843992c164a9cc6037a063e09c15b1b6dc2cd6be7919a8953e"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
+    },
+    "chutes-stream": {
+      "scenario": "chutes-stream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "chutes",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": true
+            },
+            "bodySha256": "526ff8bd21a3832bef815fbab6a865663c0d2d91cca123e7bab3cd2f4ddd563d"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "180"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWV9",
+            "bodyLength": 180,
+            "bodySha256": "cb5800883ba59b555b00911e4391b1b37fec4cddafd3ab76319189e58d019dc0",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
+    },
+    "chutes-verbatim-messages-and-unique-members": {
+      "scenario": "chutes-verbatim-messages-and-unique-members.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "chutes",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "chutes",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "system",
+                  "content": "probe system IN THE MIDDLE"
+                },
+                {
+                  "role": "user",
+                  "content": "probe second user"
+                },
+                {
+                  "role": "assistant",
+                  "content": "probe assistant LAST"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "top_k": 40,
+              "logit_bias": {
+                "50256": -100
+              },
+              "min_p": 0.1,
+              "repetition_penalty": 1.05,
+              "stream": false
+            },
+            "bodySha256": "fb07212c5de7f2e249f53a696eb7856e1ba79aabf94e3115486363f9b646227b"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "365"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"system\",\"content\":\"probe system IN THE MIDDLE\"},{\"role\":\"user\",\"content\":\"probe second user\"},{\"role\":\"assistant\",\"content\":\"probe assistant LAST\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"repetition_penalty\":1.05,\"min_p\":0.1,\"top_k\":40,\"logit_bias\":{\"50256\":-100}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifSx7InJvbGUiOiJzeXN0ZW0iLCJjb250ZW50IjoicHJvYmUgc3lzdGVtIElOIFRIRSBNSURETEUifSx7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIHNlY29uZCB1c2VyIn0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6InByb2JlIGFzc2lzdGFudCBMQVNUIn1dLCJtb2RlbCI6InByb2JlLW1vZGVsIiwidGVtcGVyYXR1cmUiOjAuNSwibWF4X3Rva2VucyI6NjQsInN0cmVhbSI6ZmFsc2UsInJlcGV0aXRpb25fcGVuYWx0eSI6MS4wNSwibWluX3AiOjAuMSwidG9wX2siOjQwLCJsb2dpdF9iaWFzIjp7IjUwMjU2IjotMTAwfX0=",
+            "bodyLength": 365,
+            "bodySha256": "9a7d8b1b3f71985f37e3eac1df3250c0352b966940e54e4000f32ab4ee346c15",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1506-1599 CHUTES forwards the message list VERBATIM and folds top_k/logit_bias among the members no sibling sends",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_CHUTES_CHAT_URL",
+        "pinnedLiteral": "https://llm.chutes.ai/v1"
+      }
     },
     "claude-error-status": {
       "scenario": "claude-error-status.json",
@@ -18332,6 +19374,873 @@
       "goSeam": {
         "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
         "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "minimax-cn-endpoint": {
+      "scenario": "minimax-cn-endpoint.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1607-1687 the CN endpoint is selected by a STRICT `minimax_endpoint === \"cn\"` comparison and is a different HOST, so the CN contract cannot be satisfied by the global literal",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "minimax",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "minimax",
+              "minimax_endpoint": "cn",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "stream": false
+            },
+            "bodySha256": "7ff9d36babe4609f868caf45a11622308b2492c81512fb23022b33f524dea344"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "163"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 163,
+            "bodySha256": "35429e731e47744302ab461fbdc2db2bb6dec8cc5f50979baeff448dfb7819b6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 the CN endpoint is selected by a STRICT `minimax_endpoint === \"cn\"` comparison and is a different HOST, so the CN contract cannot be satisfied by the global literal",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 the CN endpoint is selected by a STRICT `minimax_endpoint === \"cn\"` comparison and is a different HOST, so the CN contract cannot be satisfied by the global literal",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MINIMAX_CHAT_CN_URL",
+        "pinnedLiteral": "https://api.minimaxi.com/v1"
+      }
+    },
+    "minimax-error-status": {
+      "scenario": "minimax-error-status.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "minimax",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "minimax",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "stream": true
+            },
+            "bodySha256": "788985572b0ce35b5d64981adacd65a8ae1756ab914e3001778d89d9d8a6fd05"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "162"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWV9",
+            "bodyLength": 162,
+            "bodySha256": "ba9c7c5bff84043e950a494e0d029549eeb915529f04a8e6dff33164ea6fa65a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 400,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MINIMAX_CHAT_URL",
+        "pinnedLiteral": "https://api.minimax.io/v1"
+      }
+    },
+    "minimax-max-tokens-clamp": {
+      "scenario": "minimax-max-tokens-clamp.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "minimax",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "minimax",
+              "model": "M2-her",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 9000,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "907338c4f26d995393c83f1a583d206546c53079392f2b91218e24ced5578ead"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "178"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"M2-her\",\"temperature\":0.5,\"max_tokens\":2048,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJNMi1oZXIiLCJ0ZW1wZXJhdHVyZSI6MC41LCJtYXhfdG9rZW5zIjoyMDQ4LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 178,
+            "bodySha256": "08ccb32dcc742bdeccb8460f629ba9f612d3449b053d3d8176cf00833699797a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 `max_tokens` is CLAMPED with Math.min(max_tokens, 2048) for the M2-her model, so 9000 must appear as 2048 in the recorded body",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MINIMAX_CHAT_URL",
+        "pinnedLiteral": "https://api.minimax.io/v1"
+      }
+    },
+    "minimax-nonstream": {
+      "scenario": "minimax-nonstream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "minimax",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "minimax",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "d5a5ca080dc0b46b4fb573f09c4aa830aee35227eca624c70ff4c7ebcfcb0a24"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MINIMAX_CHAT_URL",
+        "pinnedLiteral": "https://api.minimax.io/v1"
+      }
+    },
+    "minimax-stream": {
+      "scenario": "minimax-stream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "minimax",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "minimax",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": true
+            },
+            "bodySha256": "1727ba12c129671f2ec41cf1ad41b7ab12e223e3fdcf5a07840719ba01101a9e"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "180"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWV9",
+            "bodyLength": 180,
+            "bodySha256": "cb5800883ba59b555b00911e4391b1b37fec4cddafd3ab76319189e58d019dc0",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1607-1687 MINIMAX: its own endpoint pair and a max_tokens clamp for the M2-her model",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MINIMAX_CHAT_URL",
+        "pinnedLiteral": "https://api.minimax.io/v1"
       }
     },
     "mistral-error-status-nonjson": {
@@ -32250,6 +34159,723 @@
       "goSeam": {
         "environmentVariable": "GOTAVERN_XAI_CHAT_URL",
         "pinnedLiteral": "https://api.x.ai/v1"
+      }
+    },
+    "zai-error-status": {
+      "scenario": "zai-error-status.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "zai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "zai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "stream": true
+            },
+            "bodySha256": "02bcb5eb4454e4bc1ae71ddf4a117b1e2aa48a17a773f77d3038ab69aa2632a6"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "accept-language",
+                "value": "en-US,en"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "193"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"max_tokens\":64,\"stream\":true,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWUsInRoaW5raW5nIjp7InR5cGUiOiJkaXNhYmxlZCJ9fQ==",
+            "bodyLength": 193,
+            "bodySha256": "92388f9b9d3f3671751b2990631cc1eb29b7d8bf1ce292c8b081637737fd9448",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 400,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "accept-language",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+        "pinnedLiteral": "https://api.z.ai/api/paas/v4"
+      }
+    },
+    "zai-json-schema": {
+      "scenario": "zai-json-schema.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI folds json_schema through setJsonObjectFormat (response_format {type:json_object} plus an appended schema message), which is a member its siblings do not share",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "zai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "zai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "stream": false,
+              "json_schema": {
+                "name": "probe_schema",
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "bodySha256": "9312290e547e229c88170695dd2eae065f3cac42fa002a0cd506806d90c50498"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "accept-language",
+                "value": "en-US,en"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "424"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"user\",\"content\":\"JSON schema for the response:\\n{\\n    \\\"type\\\": \\\"object\\\",\\n    \\\"properties\\\": {\\n        \\\"answer\\\": {\\n            \\\"type\\\": \\\"string\\\"\\n        }\\n    }\\n}\"}],\"model\":\"probe-model\",\"max_tokens\":64,\"stream\":false,\"thinking\":{\"type\":\"disabled\"},\"response_format\":{\"type\":\"json_object\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiSlNPTiBzY2hlbWEgZm9yIHRoZSByZXNwb25zZTpcbntcbiAgICBcInR5cGVcIjogXCJvYmplY3RcIixcbiAgICBcInByb3BlcnRpZXNcIjoge1xuICAgICAgICBcImFuc3dlclwiOiB7XG4gICAgICAgICAgICBcInR5cGVcIjogXCJzdHJpbmdcIlxuICAgICAgICB9XG4gICAgfVxufSJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifSwicmVzcG9uc2VfZm9ybWF0Ijp7InR5cGUiOiJqc29uX29iamVjdCJ9fQ==",
+            "bodyLength": 424,
+            "bodySha256": "5675e9b76a6751d2f1b6f2bd3cab36349c2f929834665a766633f6b2046e316e",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI folds json_schema through setJsonObjectFormat (response_format {type:json_object} plus an appended schema message), which is a member its siblings do not share",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI folds json_schema through setJsonObjectFormat (response_format {type:json_object} plus an appended schema message), which is a member its siblings do not share",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "accept-language",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+        "pinnedLiteral": "https://api.z.ai/api/paas/v4"
+      }
+    },
+    "zai-nonstream": {
+      "scenario": "zai-nonstream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "zai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "zai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "02ddc3f2635626a7ef0b0fa233de8727f7ed6823068c1fbb39fd6840413b18d6"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "accept-language",
+                "value": "en-US,en"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "212"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 212,
+            "bodySha256": "40dba5effe502ed95ee02f6dd3cec383b7e559875363447880fd688941d845b6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"a4-/5i+SIzJ7HNUtbyIk2RIZqApRpo\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe",
+          "object": "chat.completion",
+          "model": "probe-model",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "accept-language",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+        "pinnedLiteral": "https://api.z.ai/api/paas/v4"
+      }
+    },
+    "zai-stream": {
+      "scenario": "zai-stream.json",
+      "purpose": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "zai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "zai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": true
+            },
+            "bodySha256": "dd7889ce1c89be7b662eff6682144cdf7989fddb6a49baf304401c3e8573f9a2"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "accept-language",
+                "value": "en-US,en"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "211"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":true,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOnRydWUsInRoaW5raW5nIjp7InR5cGUiOiJkaXNhYmxlZCJ9fQ==",
+            "bodyLength": 211,
+            "bodySha256": "8329a3554ca26360ef6255054d2f58d78338efa8fe9d8feccc37231e25f5a59a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": []
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+            "path": "provider.requests[].headers.authorization",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "a credential value is not a contract, but which credential the branch sends is"
+          },
+          {
+            "rule": "the recorder origin is replaced with <mock>",
+            "path": "provider.requests[].url",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2551-2565 ZAI sends Accept-Language en-US,en and ALWAYS carries bodyParams.thinking {type: enabled|disabled}; otherwise it is the plain shared path",
+            "reason": "the source says where it sends; the PATH and the query stay compared"
+          }
+        ],
+        "tier3": [
+          {
+            "rule": "excluded from the compared headers",
+            "path": "providerResponse.headers[x-response-time]",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())",
+            "reason": "it measures wall-clock time and differs on every run"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "accept-language",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_ZAI_CHAT_URL",
+        "pinnedLiteral": "https://api.z.ai/api/paas/v4"
       }
     }
   }
