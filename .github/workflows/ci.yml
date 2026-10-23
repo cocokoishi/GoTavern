@@ -5,6 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+  # A NIGHTLY FULL PARITY RUN, and a way for an agent to ask for one on purpose. Until this existed the full
+  # oracle could only be triggered by a commit that happened to touch a shared input, so "run everything" was
+  # never a decision anyone could make -- it was a side effect. The full sweep belongs on a schedule and on
+  # request; a push keeps the narrowed selection the `changes` job below describes.
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      probes:
+        description: 'Comma-separated probe scripts to re-record, or empty for EVERY probe'
+        required: false
+        default: ''
 permissions:
   contents: read
 
@@ -67,6 +79,15 @@ jobs:
         run: |
           set -eu
           event="${{ github.event_name }}"
+          # A DISPATCH MAY NAME ITS SCOPE. Empty means every probe (a full parity sweep); a comma-separated list
+          # means exactly those. This is how an agent asks for the expensive proof deliberately, instead of
+          # waiting for a commit that happens to touch a shared input.
+          if [ "${event}" = "workflow_dispatch" ] && [ -n "${{ inputs.probes }}" ]; then
+            echo "dispatched run: re-recording the requested probes"
+            echo "oracle=true" >> "$GITHUB_OUTPUT"
+            echo "probes=${{ inputs.probes }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "${event}" = "schedule" ] || [ "${event}" = "workflow_dispatch" ]; then
             echo "scheduled or dispatched run: re-recording every probe"
             echo "oracle=true" >> "$GITHUB_OUTPUT"
