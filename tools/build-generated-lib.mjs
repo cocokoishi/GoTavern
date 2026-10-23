@@ -245,6 +245,25 @@ async function verifyProbe({ script, fixture, label, args = [], root = buildRoot
     return first;
 }
 
+// WHERE THE ORACLE'S TIME ACTUALLY GOES. Every probe is recorded twice for stability (the double run is
+// what caught the sd-routes arrival-order race), so the sweep costs two probe executions per declaration.
+// Without per-probe numbers the only available statement is "it takes about an hour", which is not a
+// measurement anyone can act on, and the next optimisation is a guess. This collects run-1 and run-2
+// milliseconds per probe and prints the slowest once the pool finishes; it changes no fixture byte.
+const probeTimings = [];
+
+function reportProbeTimings() {
+    if (probeTimings.length === 0) return;
+    const rows = [...probeTimings].sort((a, b) => ((b.firstMs ?? 0) + (b.secondMs ?? 0)) - ((a.firstMs ?? 0) + (a.secondMs ?? 0)));
+    const total = rows.reduce((sum, row) => sum + (row.firstMs ?? 0) + (row.secondMs ?? 0), 0);
+    console.log(`\nprobe wall clock: ${(total / 1000).toFixed(1)}s across ${rows.length} probe declaration(s) x2 runs`);
+    console.log('  slowest first (first run / second run):');
+    for (const row of rows.slice(0, 15)) {
+        const first = row.firstMs === null ? 'failed' : `${(row.firstMs / 1000).toFixed(1)}s`;
+        const second = row.secondMs === null ? 'failed' : `${(row.secondMs / 1000).toFixed(1)}s`;
+        console.log(`    ${String(first).padStart(8)} / ${String(second).padStart(8)}  ${row.label}`);
+    }
+}
 function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot }) {
     const scriptPath = path.join(root, `.gotavern-${script}`);
     materializeProbeLib(root);
@@ -254,13 +273,17 @@ function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot
     let second;
     let failure;
     try {
+        const firstStarted = Date.now();
         run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
+        const firstMs = Date.now() - firstStarted;
         first = readFileSync(fixturePath);
     } catch (error) {
         failure = error;
     }
     try {
+        const secondStarted = Date.now();
         run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
+        const secondMs = Date.now() - secondStarted;
         second = readFileSync(fixturePath);
     } catch (error) {
         failure = failure ?? error;
@@ -271,6 +294,7 @@ function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot
         return null;
     }
     compareProbeRuns(label, first, second);
+    probeTimings.push({ label, firstMs: firstMs ?? null, secondMs: secondMs ?? null });
     return first;
 }
 
@@ -502,6 +526,7 @@ try {
         // A failing probe is recorded, not thrown, so one breakage cannot hide
         // the rest; the step fails once at the end with the complete list.
         await runProbePool(pooledRuns, probeConcurrency);
+reportProbeTimings();
     } finally {
         unlockSharedPaths(sharedLock);
     }
