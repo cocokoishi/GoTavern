@@ -89,7 +89,7 @@ func TestVertexAIAuthMatrix(t *testing.T) {
 			name:    "full with a service account is the NAMED BOUNDARY, not a fabricated credential",
 			body:    `{"vertexai_auth_mode":"full"}`,
 			secrets: map[string]string{pinnedVertexAIServiceAccountSecretKey: serviceAccount},
-			message: "Service account authentication failed: Vertex AI Full mode is not implemented in this build",
+			message: "Service account authentication failed: Vertex AI Full mode is not implemented in this build (project probe-project)",
 		},
 		{
 			name:    "an unknown mode throws the pinned unsupported message",

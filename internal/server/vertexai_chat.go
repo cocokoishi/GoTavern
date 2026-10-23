@@ -117,7 +117,7 @@ func pinnedVertexAIAuth(body orderedNodeJSON, directories startup.UserDirectorie
 		// BOUNDARY: the JWT mint and the OAuth token exchange are not implemented (see the file comment).
 		// A credential is deliberately NOT fabricated here.
 		return pinnedVertexAIAuthResult{}, &pinnedVertexAIAuthFailure{
-			Message: "Service account authentication failed: Vertex AI Full mode is not implemented in this build",
+			Message: "Service account authentication failed: Vertex AI Full mode is not implemented in this build (project " + projectID + ")",
 		}
 	}
 	return pinnedVertexAIAuthResult{}, &pinnedVertexAIAuthFailure{
