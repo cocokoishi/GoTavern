@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -212,7 +213,20 @@ func TestChatCompletionXAICapturesCarryTheFoldedMembers(t *testing.T) {
 			t.Fatalf("%s: the captured response status is %d, want the pinned 500", testCase.name, scenario.ProviderResponse.Status)
 		}
 		if got := string(scenario.ProviderResponse.Body); got != testCase.want {
-			t.Fatalf("%s: the captured response body is %q, want %q", testCase.name, got, testCase.want)
+			// COMPARE THE JSON, NOT THE FORMATTING. The capture holds the body the RECORDING mock
+			// returned, and that mock pretty-prints; asserting a compact literal here tested the mock's
+			// whitespace rather than the pinned contract, so it failed against a capture that was right.
+			// What the route must preserve is the parsed error, which is what this now checks.
+			var gotJSON, wantJSON any
+			if gotErr := json.Unmarshal([]byte(got), &gotJSON); gotErr != nil {
+				t.Fatalf("%s: the captured response body is not JSON (%v): %q", testCase.name, gotErr, got)
+			}
+			if wantErr := json.Unmarshal([]byte(testCase.want), &wantJSON); wantErr != nil {
+				t.Fatalf("%s: the expectation is not JSON (%v): %q", testCase.name, wantErr, testCase.want)
+			}
+			if !reflect.DeepEqual(gotJSON, wantJSON) {
+				t.Fatalf("%s: the captured response body is %q, which parses to %v, want %v", testCase.name, got, gotJSON, wantJSON)
+			}
 		}
 	}
 
@@ -222,7 +236,18 @@ func TestChatCompletionXAICapturesCarryTheFoldedMembers(t *testing.T) {
 			t.Fatalf("xai-status-nonok: the captured response status is %d, want the shared 200", scenario.ProviderResponse.Status)
 		}
 		if got := string(scenario.ProviderResponse.Body); got != `{"error":true,"data":{"data":[]}}` {
-			t.Fatalf("xai-status-nonok: the captured response body is %q, want the shared envelope", got)
+			// Same class as the assertion above: the recording mock pretty-prints, so the JSON is what
+			// this compares. The envelope's SHAPE is the claim, not the mock's whitespace.
+			var gotJSON, wantJSON any
+			if gotErr := json.Unmarshal([]byte(got), &gotJSON); gotErr != nil {
+				t.Fatalf("xai-status-nonok: the captured response body is not JSON (%v): %q", gotErr, got)
+			}
+			if wantErr := json.Unmarshal([]byte(`{"error":true,"data":{"data":[]}}`), &wantJSON); wantErr != nil {
+				t.Fatalf("xai-status-nonok: the expectation is not JSON (%v)", wantErr)
+			}
+			if !reflect.DeepEqual(gotJSON, wantJSON) {
+				t.Fatalf("xai-status-nonok: the captured response body is %q, which parses to %v, want %v", got, gotJSON, wantJSON)
+			}
 		}
 	} else {
 		t.Fatal("the fixture has no capture for xai-status-nonok")
