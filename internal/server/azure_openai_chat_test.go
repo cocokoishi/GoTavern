@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -547,4 +548,40 @@ func azureHeaderValue(headers []outbound.Header, name string) string {
 		}
 	}
 	return ""
+}
+
+// TestAzureOpenAIThrownFetchAnswers500WithTheMessage pins the PINNED CATCH (chat-completions.js:1768-1773) rather
+// than leaving a read contract unasserted:
+//
+//	const message = error.name === 'AbortError' ? 'Request was aborted by the client.' : (error.message || '...')
+//	return response.status(500).send({ error: { message, ...error } })
+//
+// So a thrown fetch is 500 -- NOT the generic 502 -- with a single `error` object carrying `message`. The
+// `...error` spread is NOT reproduced: it contributes only ENUMERABLE own properties, and a plain Error has none
+// (message and stack are non-enumerable), so the body is {error:{message}} for every case this route can reach.
+func TestAzureOpenAIThrownFetchAnswers500WithTheMessage(t *testing.T) {
+	failure := pinnedAzureOpenAICatch(errors.New("probe network failure"))
+	if failure == nil {
+		t.Fatal("a thrown fetch must produce a failure")
+	}
+	if failure.status != 500 {
+		t.Fatalf("a thrown fetch answers %d, want 500 (the branches own catch, not the shared 502)", failure.status)
+	}
+	if failure.payload == nil {
+		t.Fatal("the 500 must carry a body")
+	}
+	if len(failure.payload.object) != 1 {
+		t.Fatalf("the body must carry only the error member, got %d members", len(failure.payload.object))
+	}
+	errorMember, exists := failure.payload.member("error")
+	if !exists || errorMember.kind != 'o' {
+		t.Fatalf("the body must carry an error OBJECT, got %+v", errorMember)
+	}
+	message, hasMessage := errorMember.member("message")
+	if !hasMessage {
+		t.Fatal("the error object must carry a message")
+	}
+	if text, err := pinnedJSStringValue(message); err != nil || text == "" {
+		t.Fatalf("the message must be a non-empty string, got %+v", message)
+	}
 }
