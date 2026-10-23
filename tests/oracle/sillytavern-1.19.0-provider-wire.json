@@ -10,6 +10,9 @@
     "GOTAVERN_CLAUDE_CHAT_URL": {
       "pinnedLiteral": "https://api.anthropic.com/v1"
     },
+    "GOTAVERN_DEEPSEEK_CHAT_URL": {
+      "pinnedLiteral": "https://api.deepseek.com/beta"
+    },
     "GOTAVERN_FIREWORKS_CHAT_URL": {
       "pinnedLiteral": "https://api.fireworks.ai/inference/v1"
     },
@@ -2824,6 +2827,2513 @@
       },
       "authorizationKeyVerified": true,
       "apiKeyVerified": false
+    },
+    "deepseek-error-status-nonjson": {
+      "scenario": "deepseek-error-status-nonjson.json",
+      "purpose": "DEEPSEEK non-2xx with a NON-JSON body: tryParse fails, so the answer is 500 {error:true}. The control for deepseek-error-status.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ]
+            },
+            "bodySha256": "390236e0c454c8339816c9d82798e2048f980c0da087e565ff1a4fa370a65d30"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "146"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 146,
+            "bodySha256": "e0e937d48e5b2b78d9e4f9ef062efeec4430a8984a2be9496225114a2ab9944a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "error": true
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-error-status": {
+      "scenario": "deepseek-error-status.json",
+      "purpose": "DEEPSEEK non-2xx with a JSON body: status 500 carrying the provider body verbatim.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ]
+            },
+            "bodySha256": "390236e0c454c8339816c9d82798e2048f980c0da087e565ff1a4fa370a65d30"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "146"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 146,
+            "bodySha256": "e0e937d48e5b2b78d9e4f9ef062efeec4430a8984a2be9496225114a2ab9944a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"44-y40dHCPIP5Jt9OwugGhI+6FQiLQ\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "error": {
+            "message": "probe rate limited",
+            "type": "rate_limit_error"
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-json-schema": {
+      "scenario": "deepseek-json-schema.json",
+      "purpose": "DEEPSEEK json_schema: response_format is {type:\"json_object\"} and the schema is APPENDED as a new user message reading \"JSON schema for the response:\" followed by a four-space-indented rendering.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe schema user marker"
+                }
+              ],
+              "json_schema": {
+                "name": "probe_schema",
+                "description": "probe schema description",
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "probe_field": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "probe_field"
+                  ]
+                }
+              }
+            },
+            "bodySha256": "7d27c0d211034009a66b825747a997bb487f6efed46bea8039bd297fb7db375c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "417"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe schema user marker\\n\\nJSON schema for the response:\\n{\\n    \\\"type\\\": \\\"object\\\",\\n    \\\"properties\\\": {\\n        \\\"probe_field\\\": {\\n            \\\"type\\\": \\\"string\\\"\\n        }\\n    },\\n    \\\"required\\\": [\\n        \\\"probe_field\\\"\\n    ]\\n}\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"},\"response_format\":{\"type\":\"json_object\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgc2NoZW1hIHVzZXIgbWFya2VyXG5cbkpTT04gc2NoZW1hIGZvciB0aGUgcmVzcG9uc2U6XG57XG4gICAgXCJ0eXBlXCI6IFwib2JqZWN0XCIsXG4gICAgXCJwcm9wZXJ0aWVzXCI6IHtcbiAgICAgICAgXCJwcm9iZV9maWVsZFwiOiB7XG4gICAgICAgICAgICBcInR5cGVcIjogXCJzdHJpbmdcIlxuICAgICAgICB9XG4gICAgfSxcbiAgICBcInJlcXVpcmVkXCI6IFtcbiAgICAgICAgXCJwcm9iZV9maWVsZFwiXG4gICAgXVxufSJ9XSwibW9kZWwiOiJkZWVwc2Vlay1jaGF0IiwibWF4X3Rva2VucyI6OTYsInN0cmVhbSI6ZmFsc2UsInRoaW5raW5nIjp7InR5cGUiOiJkaXNhYmxlZCJ9LCJyZXNwb25zZV9mb3JtYXQiOnsidHlwZSI6Impzb25fb2JqZWN0In19",
+            "bodyLength": 417,
+            "bodySha256": "af628eb791f4fb8d24bd009e03d385acd118b0ac5f32874178792a0e66754929",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"104-iGAl6LA37gxDV4b26fztf96lzH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"probe_field\":\"value\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-logprobs": {
+      "scenario": "deepseek-logprobs.json",
+      "purpose": "DEEPSEEK logprobs: a positive logprobs adds top_logprobs with the same value plus logprobs true.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "logprobs": 3
+            },
+            "bodySha256": "42e4639b18a1b54d45c587878af6903a5df42b69f6927f0e8f4317fcbbfd993b"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "179"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"},\"top_logprobs\":3,\"logprobs\":true}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifSwidG9wX2xvZ3Byb2JzIjozLCJsb2dwcm9icyI6dHJ1ZX0=",
+            "bodyLength": 179,
+            "bodySha256": "af73b744c0abca5ec8c99acb6d1ca90c48c0f8849f66393b6b7da337eb18c6a8",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-nonstream": {
+      "scenario": "deepseek-nonstream.json",
+      "purpose": "DEEPSEEK default: thinking:{type:\"disabled\"} present with include_reasoning absent, seed and stop forwarded unchanged, penalties copied, a consecutive same-role turn folded with a blank line and a mid-prompt system turn rewritten to user by the SEMI_TOOLS merge.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe first user"
+                },
+                {
+                  "role": "user",
+                  "content": "probe second user"
+                },
+                {
+                  "role": "system",
+                  "content": "probe mid system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe final user"
+                }
+              ],
+              "temperature": 0.4,
+              "top_p": 0.8,
+              "presence_penalty": 0.1,
+              "frequency_penalty": 0.2,
+              "seed": 7,
+              "stop": [
+                "PROBE_STOP"
+              ]
+            },
+            "bodySha256": "01b87f792ad46f8dc478879ea95aebdb6736cba8ad5e094b2e984363e4a4b677"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "371"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe first user\\n\\nprobe second user\\n\\nprobe mid system marker\\n\\nprobe final user\"}],\"model\":\"deepseek-chat\",\"temperature\":0.4,\"max_tokens\":96,\"stream\":false,\"presence_penalty\":0.1,\"frequency_penalty\":0.2,\"top_p\":0.8,\"stop\":[\"PROBE_STOP\"],\"seed\":7,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSBmaXJzdCB1c2VyXG5cbnByb2JlIHNlY29uZCB1c2VyXG5cbnByb2JlIG1pZCBzeXN0ZW0gbWFya2VyXG5cbnByb2JlIGZpbmFsIHVzZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsInRlbXBlcmF0dXJlIjowLjQsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJwcmVzZW5jZV9wZW5hbHR5IjowLjEsImZyZXF1ZW5jeV9wZW5hbHR5IjowLjIsInRvcF9wIjowLjgsInN0b3AiOlsiUFJPQkVfU1RPUCJdLCJzZWVkIjo3LCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 371,
+            "bodySha256": "063a83bb77ad7d9ff3f9548aae0dc09b51904e215e55a150cfaa8d0a2694681d",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-prefix-flag": {
+      "scenario": "deepseek-prefix-flag.json",
+      "purpose": "DEEPSEEK prefill flag: with no tools in the request, a trailing assistant turn is marked with prefix true.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "assistant",
+                  "content": "probe trailing assistant"
+                }
+              ]
+            },
+            "bodySha256": "39083940c0019b601981895ef10742574568bc614f176163071bb61a4df600f4"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "218"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"assistant\",\"content\":\"probe trailing assistant\",\"prefix\":true}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoicHJvYmUgdHJhaWxpbmcgYXNzaXN0YW50IiwicHJlZml4Ijp0cnVlfV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 218,
+            "bodySha256": "c56146e118c4c7ea9c145a1819f1ed291ce2fec0b916479ee99321cd08aa6cbb",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-reasoning-effort-without-include": {
+      "scenario": "deepseek-reasoning-effort-without-include.json",
+      "purpose": "DEEPSEEK gate control: reasoning_effort supplied WITHOUT include_reasoning is dropped and thinking stays disabled, so scenario 2 cannot be satisfied by forwarding the effort unconditionally.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "reasoning_effort": "high"
+            },
+            "bodySha256": "2762a1a0e1e182df1bcf1254548cbc396911caa50067474447fb43894fdc7cbf"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "146"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 146,
+            "bodySha256": "e0e937d48e5b2b78d9e4f9ef062efeec4430a8984a2be9496225114a2ab9944a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-reasoning": {
+      "scenario": "deepseek-reasoning.json",
+      "purpose": "DEEPSEEK reasoning: include_reasoning true makes thinking enabled AND forwards reasoning_effort, which is spread LAST so it follows thinking in the body order.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "include_reasoning": true,
+              "reasoning_effort": "high"
+            },
+            "bodySha256": "fcac45c3c312af8bbb3fa33df4988b20f093b2812cfa07d608a53309dbc2e481"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "171"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"enabled\"},\"reasoning_effort\":\"high\"}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZW5hYmxlZCJ9LCJyZWFzb25pbmdfZWZmb3J0IjoiaGlnaCJ9",
+            "bodyLength": 171,
+            "bodySha256": "fef7725abcb577a7d854c0230f32933f5ef081ae84dcaf8b46eb7401e10d1e20",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-reverse-proxy-no-password": {
+      "scenario": "deepseek-reverse-proxy-no-password.json",
+      "purpose": "DEEPSEEK reverse_proxy with NO proxy_password: the key guard is `!apiKey && !reverse_proxy`, so the request is NOT refused -- it leaves with Authorization \"Bearer undefined\" and the body URL decides the target.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "reverse_proxy": "http://<mock>"
+            },
+            "bodySha256": "767c18f171281bffa54aa50aa816acb5e3189c8a2291211a848ce4ba3acdd1f4"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "//chat/completions",
+            "rawPath": "//chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "146"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 146,
+            "bodySha256": "e0e937d48e5b2b78d9e4f9ef062efeec4430a8984a2be9496225114a2ab9944a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
+    },
+    "deepseek-stream-control-nonstream": {
+      "scenario": "deepseek-stream-control-nonstream.json",
+      "purpose": "The NON-STREAM CONTROL for deepseek-stream: the same answer text through the buffered path, which also pins the PASSTHROUGH (no rewrap) of the provider body.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ]
+            },
+            "bodySha256": "390236e0c454c8339816c9d82798e2048f980c0da087e565ff1a4fa370a65d30"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "146"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifX0=",
+            "bodyLength": 146,
+            "bodySha256": "e0e937d48e5b2b78d9e4f9ef062efeec4430a8984a2be9496225114a2ab9944a",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-stream": {
+      "scenario": "deepseek-stream.json",
+      "purpose": "DEEPSEEK streaming: the provider frames are forwarded VERBATIM, terminating in the provider's own [DONE] sentinel.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": true,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ]
+            },
+            "bodySha256": "be201cfe6a6375bc07fe25a0ff7c2bcbceeb51ec9d6b1656778d413a1923bf8c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "145"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":true,\"thinking\":{\"type\":\"disabled\"}}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOnRydWUsInRoaW5raW5nIjp7InR5cGUiOiJkaXNhYmxlZCJ9fQ==",
+            "bodyLength": 145,
+            "bodySha256": "86f517d4727d627b008168ec7970199d66d59d3f262b26b25f5eae4b55a097ac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": [
+          {
+            "event": null,
+            "data": "{\"id\":\"probe-deepseek\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"mock deepseek reply\"},\"finish_reason\":null}]}"
+          },
+          {
+            "event": null,
+            "data": "{\"id\":\"probe-deepseek\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}"
+          },
+          {
+            "event": null,
+            "data": "[DONE]"
+          }
+        ]
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-tools-required-empty": {
+      "scenario": "deepseek-tools-required-empty.json",
+      "purpose": "DEEPSEEK tools: the empty parameters.required array is DELETED from the forwarded tool while a tool with a non-empty required keeps it and tool_choice is copied, so the deletion cannot be satisfied by dropping required everywhere.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe tool user marker"
+                }
+              ],
+              "tool_choice": "auto",
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "probe_empty",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "a": {
+                          "type": "string"
+                        }
+                      },
+                      "required": []
+                    }
+                  }
+                },
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "probe_full",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "b": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "b"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "bodySha256": "defb61503a62166f6c623ba8e2a990286b59134377972ebc1633388265b7477c"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "442"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe tool user marker\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_empty\",\"parameters\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"probe_full\",\"parameters\":{\"type\":\"object\",\"properties\":{\"b\":{\"type\":\"string\"}},\"required\":[\"b\"]}}}],\"tool_choice\":\"auto\"}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdG9vbCB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJkZWVwc2Vlay1jaGF0IiwibWF4X3Rva2VucyI6OTYsInN0cmVhbSI6ZmFsc2UsInRoaW5raW5nIjp7InR5cGUiOiJkaXNhYmxlZCJ9LCJ0b29scyI6W3sidHlwZSI6ImZ1bmN0aW9uIiwiZnVuY3Rpb24iOnsibmFtZSI6InByb2JlX2VtcHR5IiwicGFyYW1ldGVycyI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJhIjp7InR5cGUiOiJzdHJpbmcifX19fX0seyJ0eXBlIjoiZnVuY3Rpb24iLCJmdW5jdGlvbiI6eyJuYW1lIjoicHJvYmVfZnVsbCIsInBhcmFtZXRlcnMiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiYiI6eyJ0eXBlIjoic3RyaW5nIn19LCJyZXF1aXJlZCI6WyJiIl19fX1dLCJ0b29sX2Nob2ljZSI6ImF1dG8ifQ==",
+            "bodyLength": 442,
+            "bodySha256": "eed03ba61223b5764373acdd68044e93d9e41dd896a52a974e118f5021222f0b",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
+    },
+    "deepseek-tools-suppress-prefix": {
+      "scenario": "deepseek-tools-suppress-prefix.json",
+      "purpose": "DEEPSEEK prefix control plus the reasoner hack: with tools present the trailing assistant turn is NOT marked, AND a message carrying tool_calls gains an empty reasoning_content member.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "deepseek",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "deepseek",
+              "model": "deepseek-chat",
+              "max_tokens": 96,
+              "stream": false,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                },
+                {
+                  "role": "assistant",
+                  "content": "",
+                  "tool_calls": [
+                    {
+                      "id": "probe_call_alpha",
+                      "type": "function",
+                      "function": {
+                        "name": "probe_tool",
+                        "arguments": "{}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "tool",
+                  "tool_call_id": "probe_call_alpha",
+                  "content": "probe tool result"
+                },
+                {
+                  "role": "user",
+                  "content": "probe after tool"
+                }
+              ],
+              "tool_choice": "auto",
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "probe_tool",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              ]
+            },
+            "bodySha256": "4f7d5dce26a159be9a24b8bbbba618ff523fddd028696d2970f29cbc6683c906"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/chat/completions",
+            "rawPath": "/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "568"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"user\",\"content\":\"probe user marker\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"probe_call_alpha\",\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"arguments\":\"{}\"}}],\"reasoning_content\":\"\"},{\"role\":\"tool\",\"tool_call_id\":\"probe_call_alpha\",\"content\":\"probe tool result\"},{\"role\":\"user\",\"content\":\"probe after tool\"}],\"model\":\"deepseek-chat\",\"max_tokens\":96,\"stream\":false,\"thinking\":{\"type\":\"disabled\"},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_tool\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}}],\"tool_choice\":\"auto\"}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoicHJvYmUgdXNlciBtYXJrZXIifSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoiIiwidG9vbF9jYWxscyI6W3siaWQiOiJwcm9iZV9jYWxsX2FscGhhIiwidHlwZSI6ImZ1bmN0aW9uIiwiZnVuY3Rpb24iOnsibmFtZSI6InByb2JlX3Rvb2wiLCJhcmd1bWVudHMiOiJ7fSJ9fV0sInJlYXNvbmluZ19jb250ZW50IjoiIn0seyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6InByb2JlX2NhbGxfYWxwaGEiLCJjb250ZW50IjoicHJvYmUgdG9vbCByZXN1bHQifSx7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6InByb2JlIGFmdGVyIHRvb2wifV0sIm1vZGVsIjoiZGVlcHNlZWstY2hhdCIsIm1heF90b2tlbnMiOjk2LCJzdHJlYW0iOmZhbHNlLCJ0aGlua2luZyI6eyJ0eXBlIjoiZGlzYWJsZWQifSwidG9vbHMiOlt7InR5cGUiOiJmdW5jdGlvbiIsImZ1bmN0aW9uIjp7Im5hbWUiOiJwcm9iZV90b29sIiwicGFyYW1ldGVycyI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319fX1dLCJ0b29sX2Nob2ljZSI6ImF1dG8ifQ==",
+            "bodyLength": 568,
+            "bodySha256": "b76d61d91905a1dbe006b3925a0e35e9ac37d3d2b76104f1b633e748abdef3f6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"fc-a7K2hHW+xIWXI2ZZi9xKnVRe5eg\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "probe-deepseek",
+          "object": "chat.completion",
+          "model": "deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock deepseek reply"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 5,
+            "total_tokens": 14
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "Connection",
+          "accept",
+          "accept-encoding",
+          "content-length",
+          "content-type",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "pinnedLiteral": "https://api.deepseek.com/beta"
+      }
     },
     "fireworks-error-status": {
       "scenario": "fireworks-error-status.json",

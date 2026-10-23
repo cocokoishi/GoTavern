@@ -102,6 +102,7 @@ const SEAM_DEFAULTS = {
     // the generate route uses (chat-completions.js:75 API_MISTRAL), so it declares its seam here and
     // its scenarios below. `backends_test.go` asserts this default against the accessor.
     GOTAVERN_MISTRAL_CHAT_URL: 'https://api.mistral.ai/v1',
+    GOTAVERN_DEEPSEEK_CHAT_URL: 'https://api.deepseek.com/beta',
 };
 
 function secretFile(values) {
@@ -830,6 +831,34 @@ addScenario({
     name: 'status.claude.reverseProxy',
     route: 'chat-completions/status',
     body: { chat_completion_source: 'claude', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
+});
+// ---- DEEPSEEK has a status branch whose base DIFFERS from the generate base --------------------
+//
+// chat-completions.js:1823 builds the status URL from `API_DEEPSEEK.replace('/beta', '')`, so the
+// captured provider request is https://api.deepseek.com/models while generate dials .../beta/chat/
+// completions. One seam serves both because the status branch performs the same replace.
+addScenario({
+    name: 'status.deepseek.ok',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'deepseek' },
+    seam: 'GOTAVERN_DEEPSEEK_CHAT_URL',
+    secrets: { api_key_deepseek: 'probe-deepseek-key' },
+    upstream: [{ ...OK, path: '/models', body: JSON.stringify({ object: 'list', data: [{ id: 'deepseek-probe-chat', object: 'model' }] }) }],
+});
+addScenario({
+    name: 'status.deepseek.nonOk',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'deepseek' },
+    seam: 'GOTAVERN_DEEPSEEK_CHAT_URL',
+    secrets: { api_key_deepseek: 'probe-deepseek-key' },
+    upstream: [{ path: '/models', status: 401, headers: { 'Content-Type': 'application/json' }, body: '{"message":"probe unauthorized"}' }],
+});
+addScenario({
+    name: 'status.deepseek.noKey',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'deepseek' },
+    seam: 'GOTAVERN_DEEPSEEK_CHAT_URL',
+    secrets: {},
 });
 // ---- deferred wave: kobold/generate (streaming) and kobold/transcribe-audio (multipart) ------
 //

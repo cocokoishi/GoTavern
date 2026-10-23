@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "deepseek",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_deepseek": [
+      {
+        "id": "probe-id-api_key_deepseek",
+        "value": "synthetic-deepseek-key",
+        "label": "api_key_deepseek",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-deepseek-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.deepseek.com/beta",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.deepseek.com/beta"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "deepseek-error-status",
+  "purpose": "DEEPSEEK non-2xx with a JSON body: status 500 carrying the provider body verbatim.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "deepseek",
+      "model": "deepseek-chat",
+      "max_tokens": 96,
+      "stream": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ]
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 429,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"error\":{\"message\":\"probe rate limited\",\"type\":\"rate_limit_error\"}}"
+      }
+    ]
+  }
+}

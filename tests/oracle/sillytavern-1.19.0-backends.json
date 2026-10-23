@@ -69,7 +69,8 @@
       "GOTAVERN_BACKENDS_XAI_URL": "https://api.x.ai",
       "GOTAVERN_BACKENDS_MOONSHOT_URL": "https://api.moonshot.ai",
       "GOTAVERN_BACKENDS_WORKERSAI_URL": "https://api.cloudflare.com",
-      "GOTAVERN_MISTRAL_CHAT_URL": "https://api.mistral.ai/v1"
+      "GOTAVERN_MISTRAL_CHAT_URL": "https://api.mistral.ai/v1",
+      "GOTAVERN_DEEPSEEK_CHAT_URL": "https://api.deepseek.com/beta"
     },
     "scenarios": {
       "multimodal.pollinations.ok": {
@@ -3169,6 +3170,67 @@
           "api_key_tabby": "probe-tabby-key",
           "api_key_custom": "probe-custom-key"
         },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.deepseek.ok": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "deepseek"
+        },
+        "bodyText": "{\"chat_completion_source\":\"deepseek\"}",
+        "seam": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "secrets": {
+          "api_key_deepseek": "probe-deepseek-key"
+        },
+        "upstream": [
+          {
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "path": "/models",
+            "body": "{\"object\":\"list\",\"data\":[{\"id\":\"deepseek-probe-chat\",\"object\":\"model\"}]}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.deepseek.nonOk": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "deepseek"
+        },
+        "bodyText": "{\"chat_completion_source\":\"deepseek\"}",
+        "seam": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "secrets": {
+          "api_key_deepseek": "probe-deepseek-key"
+        },
+        "upstream": [
+          {
+            "path": "/models",
+            "status": 401,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{\"message\":\"probe unauthorized\"}"
+          }
+        ],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.deepseek.noKey": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "deepseek"
+        },
+        "bodyText": "{\"chat_completion_source\":\"deepseek\"}",
+        "seam": "GOTAVERN_DEEPSEEK_CHAT_URL",
+        "secrets": {},
         "upstream": [],
         "replayed": true,
         "peer": "mock"
@@ -6541,6 +6603,108 @@
       }
     },
     "status.claude.reverseProxy": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.deepseek.ok": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "72",
+      "etag": "W/\"48-Nh3LoXYkLmPE98Ljz5CFi8t5jS8\"",
+      "specialHeader": null,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"deepseek-probe-chat\",\"object\":\"model\"}]}",
+      "outbound": [
+        {
+          "url": "https://api.deepseek.com/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-deepseek-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.deepseek.nonOk": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "33",
+      "etag": "W/\"21-NQbeJ0P/RhIm5gdOvUHKlVFySCo\"",
+      "specialHeader": null,
+      "body": "{\"error\":true,\"data\":{\"data\":[]}}",
+      "outbound": [
+        {
+          "url": "https://api.deepseek.com/models",
+          "method": "GET",
+          "explicitHeaders": [
+            [
+              "authorization",
+              "Bearer probe-deepseek-key"
+            ]
+          ],
+          "body": ""
+        }
+      ],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.deepseek.noKey": {
       "status": 400,
       "contentType": "application/json; charset=utf-8",
       "contentLength": "14",

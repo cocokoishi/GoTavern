@@ -105,6 +105,8 @@ func TestBackendsSeamDefaults(t *testing.T) {
 		// OPENAI is the same case: `new URL(reverse_proxy || API_OPENAI)` in the status arm and in
 		// the generate plan, so its seam is the chat one and its default is the pinned literal.
 		"GOTAVERN_OPENAI_CHAT_URL": pinnedOpenAIBaseURL,
+		// DEEPSEEK shares the seam: its status route strips /beta from the same chat literal.
+		"GOTAVERN_DEEPSEEK_CHAT_URL": pinnedDeepSeekBaseURL,
 	}
 	if len(fixture.Inputs.SeamDefaults) != len(accessors) {
 		t.Fatalf("fixture records %d seam defaults, implementation has %d", len(fixture.Inputs.SeamDefaults), len(accessors))
