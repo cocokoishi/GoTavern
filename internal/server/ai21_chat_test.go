@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -185,8 +186,20 @@ func TestChatCompletionAI21BodyOrderAndJsonSchemaFold(t *testing.T) {
 	if names["accept"] != "application/json" || names["content-type"] != "application/json" {
 		t.Fatalf("the header set is not the pinned one: %v", names)
 	}
-	if _, present := names["user-agent"]; present {
-		t.Fatalf("the shared node-fetch header set leaked into the AI21 request: %v", names)
+	// The capture DISPROVED an earlier assertion here that node-fetch's defaults must not appear: the recorded
+	// provider request carries accept-encoding and user-agent, because the pinned `fetch` adds them to the
+	// branch's three headers. What must NOT appear is the shared path's `accept: */*`, and the framing
+	// (content-length, Host, Connection) must be there or the provider receives a bodyless request.
+	for _, want := range []string{"accept-encoding", "user-agent", "content-length", "host", "connection"} {
+		if _, present := names[want]; !present {
+			t.Fatalf("the AI21 request is missing %q, which the capture records: %v", want, names)
+		}
+	}
+	if names["accept"] == "*/*" {
+		t.Fatalf("the shared accept header leaked into the AI21 request: %v", names)
+	}
+	if got, wantLength := names["content-length"], len(plan.Body); got != strconv.Itoa(wantLength) {
+		t.Fatalf("content-length = %q, want %d (the body the request carries)", got, wantLength)
 	}
 }
 
