@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek or openai, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes or electronhub, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -220,7 +220,11 @@ function startStreamingPeer(mode, protocol) {
     const server = http.createServer((request, response) => {
         const pathEntry = { method: request.method, path: request.url, status: null };
         state.paths.push(pathEntry);
-        if (request.method === 'GET' && request.url.startsWith('/models')) {
+        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
+        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
+        // online_status and the send was silently refused, on a source whose Go arm is not in question.
+        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
+        if (request.method === 'GET' && request.url.includes('/models')) {
             pathEntry.status = 200;
             // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
             // ever needed a bare id; the openrouter source populates a real model list from it and will not
@@ -251,7 +255,11 @@ function startStreamingPeer(mode, protocol) {
         // builds its target from a scheme-less base, so the request line arrives as `//chat/completions`
         // and a prefix test 404s a completely correct request -- which then looks like a product defect
         // on both legs and a missing surface in the artifact.
-        if (request.method !== 'POST' || !request.url.includes(completionPath)) {
+        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
+        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
+        // product one. The predicate admits either shape and the peer's own path log still shows exactly
+        // which one arrived, so nothing is inferred.
+        if (request.method !== 'POST' || !(request.url.includes(completionPath) || request.url.includes('/chat'))) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
             response.end('not found');
@@ -373,7 +381,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'deepseek' || probeSource === 'openai') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'deepseek' || probeSource === 'openai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -447,6 +455,22 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     if (probeSource === 'openai' && !external) {
         process.env.GOTAVERN_OPENAI_CHAT_URL = `http://${mockAddress}`;
     }
+    // COHERE HAS TWO BASES: /v2 for generate and /v1 for the status arm, which is the shared models GET
+    // (cohere_chat.go:69-75). Both are aimed, because aiming only generate leaves the status call at the
+    // real host and the send is then silently refused with no provider request at all.
+    if (probeSource === 'cohere' && !external) {
+        process.env.GOTAVERN_COHERE_CHAT_URL = `http://${mockAddress}/v2`;
+        process.env.GOTAVERN_COHERE_STATUS_URL = `http://${mockAddress}/v1`;
+    }
+    if (probeSource === 'chutes' && !external) {
+        process.env.GOTAVERN_CHUTES_CHAT_URL = `http://${mockAddress}`;
+    }
+    // ELECTRONHUB NEVER CONSULTS reverse_proxy (electronhub_chat.go:22-23, :133): a request carrying one is
+    // IGNORED rather than proxied, so the seam and the redirect are the only route. That is why the recorded
+    // proxyPasswordPresent is false AND the artifact must say the setting is UNSUPPORTED, not unused.
+    if (probeSource === 'electronhub' && !external) {
+        process.env.GOTAVERN_ELECTRONHUB_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -465,6 +489,16 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
     if (probeSource === 'openai' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.openai.com/v1', to: `http://${mockAddress}` }]));
+    }
+    // COHERE's two bases are on ONE host with different API versions, so the redirect is by ORIGIN.
+    if (probeSource === 'cohere' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.cohere.ai', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'chutes' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://llm.chutes.ai/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'electronhub' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.electronhub.ai/v1', to: `http://${mockAddress}` }]));
     }
     if (probeSource === 'deepseek' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.deepseek.com', to: `http://${mockAddress}` }]));
@@ -809,6 +843,9 @@ try {
             groq: secretsModule.SECRET_KEYS.GROQ,
             siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
             nanogpt: secretsModule.SECRET_KEYS.NANOGPT,
+            cohere: secretsModule.SECRET_KEYS.COHERE,
+            chutes: secretsModule.SECRET_KEYS.CHUTES,
+            electronhub: secretsModule.SECRET_KEYS.ELECTRONHUB,
             deepseek: secretsModule.SECRET_KEYS.DEEPSEEK,
         openai: secretsModule.SECRET_KEYS.OPENAI,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
@@ -880,6 +917,18 @@ try {
             // by a path a user cannot take. The model is the panel's own select, which the status call
             // that Connect makes is what fills.
             oai_settings.nanogpt_model = 'probe-model';
+        } else if (probeSource === 'cohere') {
+            // NO reverse_proxy: the peer travels by seam and redirect, so proxyPasswordPresent stays false
+            // and the artifact says which route the legs took.
+            oai_settings.cohere_model = 'probe-model';
+        } else if (probeSource === 'chutes') {
+            oai_settings.chutes_model = 'probe-model';
+        } else if (probeSource === 'electronhub') {
+            // ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: the route is a bare literal and always reads
+            // the ELECTRONHUB secret, ignoring a proxy if one were sent. Setting one would drive a control
+            // the product does not offer, so the peer is reached by seam + redirect and the artifact states
+            // that the setting is UNSUPPORTED, not merely unused.
+            oai_settings.electronhub_model = 'probe-model';
         } else if (probeSource === 'deepseek') {
             // Deepseek HONOURS reverse_proxy in pinned, but this drive does NOT set one: the peer is
             // reached through the seam on the Go leg and the transport redirect on the pinned leg, so
@@ -1425,6 +1474,9 @@ try {
                 siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL',
                 groq: 'GOTAVERN_GROQ_CHAT_URL',
                 nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL',
+                cohere: 'GOTAVERN_COHERE_CHAT_URL',
+                chutes: 'GOTAVERN_CHUTES_CHAT_URL',
+                electronhub: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
                 deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
             };
             const seamEnv = seamEnvBySource[probeSource] ?? null;
