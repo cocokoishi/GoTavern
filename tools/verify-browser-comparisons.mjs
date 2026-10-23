@@ -792,6 +792,30 @@ if (chutesGeneration) {
     console.log(`  generation-chutes-comparison.json providerRequestEqual true, ${(chutesGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs`);
 }
 
+// ---- generation-electronhub-comparison.json -----------------------
+//
+// ELECTRONHUB measured end to end. Both legs reach one peer through the seam plus the pinned
+// transport redirect (proxy:false), so proxyPasswordPresent must be FALSE on both legs.
+const electronhubGeneration = read('generation-electronhub-comparison.json');
+if (electronhubGeneration) {
+    const label = 'generation-electronhub-comparison.json';
+    if (electronhubGeneration.providerRequestEqual !== true) fail(label, 'providerRequestEqual is not true');
+    if (electronhubGeneration.requestArrived?.gotavern !== true || electronhubGeneration.requestArrived?.pinned !== true) fail(label, 'requestArrived is not true on both legs');
+    if (electronhubGeneration.milestoneEqual !== true) fail(label, 'milestoneEqual is not true');
+    for (const [guard, value] of Object.entries(electronhubGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${guard} is not true`);
+    }
+    if (typeof electronhubGeneration.driveParameters?.sourceShape !== 'string' || electronhubGeneration.driveParameters.sourceShape.length === 0) {
+        fail(label, 'driveParameters.sourceShape is missing, so the artifact does not state what this source is recorded for');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (electronhubGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(electronhubGeneration.proxyPasswordPresent?.[leg])}, but this source is proxy:false and the peer is reachable only by seam and redirect`);
+        }
+    }
+    console.log(`  generation-electronhub-comparison.json providerRequestEqual true, ${(electronhubGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs`);
+}
+
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
@@ -805,7 +829,7 @@ if (chutesGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json', 'streaming-electronhub-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
