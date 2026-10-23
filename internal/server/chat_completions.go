@@ -290,11 +290,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveChutesChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceChutes {
-		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
-		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
-		return pinnedChutesPlan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
 		// :870-877: the catch calls `response.send({error:true})` with NO status, so a thrown fetch answers
 		// 200 {"error":true} rather than the shared 502.
@@ -307,11 +303,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveAI21ChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceAI21 {
-		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
-		// error mapping. See ai21_chat.go.
-		return pinnedAI21Plan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
 		// :1056-1062: the same `response.send` without a status, so a thrown fetch answers
 		// 200 {"error":true} rather than the shared path's 502 {"error":{message}}.
@@ -324,11 +316,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveCohereChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceCohere {
-		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
-		// converter and its own three error observables. See cohere_chat.go.
-		return pinnedCoherePlan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
 		// :1491-1497: the route's own catch calls response.send with no status, so a thrown fetch answers
 		// 200 {"error":true} rather than the generic 502 or CLAUDE's 500.
@@ -340,11 +328,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveElectronHubChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceElectronHub {
-		// chat-completions.js:1394 forwards the messages VERBATIM and rebuilds the rest of the body, with
-		// top_k/logit_bias of its own and no reverse_proxy support at all. See electronhub_chat.go.
-		return pinnedElectronHubPlan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
 		// :1385-1391: aimlapi's catch is `response.send({ error: true })` with NO status, so a thrown
 		// fetch answers 200 {"error":true} -- the same contract as MISTRAL and DEEPSEEK.
@@ -357,12 +341,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveAimlapiChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceAimlapi {
-		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
-		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
-		// aimlapi_chat.go.
-		return pinnedAimlapiPlan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
 		// :1274-1281: xAI's catch also uses `response.send` with NO status, so a THROWN fetch is
 		// 200 {"error":true}. Only a provider's OWN non-2xx answer becomes a 500.
@@ -375,12 +354,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveXAIChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceXAI {
-		// chat-completions.js:1183 is its own transform: its own member order, its own message
-		// converter (convertXAIMessages, which renames rather than merges), its own effort mapping and
-		// its own json_schema fold. See xai_chat.go.
-		return pinnedXAIPlan(body, directories)
-	}
+
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
 		// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
 		// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
@@ -394,12 +368,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveAzureOpenAIChatCompletionResponse(w, request, response, body)
 		return
 	}
-	if sourceName == chatCompletionSourceAzure {
-		// chat-completions.js:1687 is its own transform: a CALLER-SUPPLIED base URL composed through
-		// `new URL`, an AZURE_OPENAI_KEYS body that never carries `model`, an `api-key` header instead of a
-		// Bearer token, and three response observables of its own. See azure_openai_chat.go.
-		return pinnedAzureOpenAIPlan(body, directories)
-	}
+
 	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
 	// max_tokens clamp and its own non-2xx shape), so it is dispatched BEFORE the shared plan. It has
 	// to be before: pinnedChatCompletionPlan answers 501 for a source it does not plan, so reaching
@@ -533,6 +502,44 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
 		// error mapping. See ai21_chat.go.
 		return pinnedAI21Plan(body, directories)
+	}
+	if sourceName == chatCompletionSourceChutes {
+		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
+		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
+		return pinnedChutesPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceAI21 {
+		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
+		// error mapping. See ai21_chat.go.
+		return pinnedAI21Plan(body, directories)
+	}
+	if sourceName == chatCompletionSourceCohere {
+		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
+		// converter and its own three error observables. See cohere_chat.go.
+		return pinnedCoherePlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceElectronHub {
+		// chat-completions.js:1394 forwards the messages VERBATIM and rebuilds the rest of the body, with
+		// top_k/logit_bias of its own and no reverse_proxy support at all. See electronhub_chat.go.
+		return pinnedElectronHubPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceAimlapi {
+		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
+		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
+		// aimlapi_chat.go.
+		return pinnedAimlapiPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceXAI {
+		// chat-completions.js:1183 is its own transform: its own member order, its own message
+		// converter (convertXAIMessages, which renames rather than merges), its own effort mapping and
+		// its own json_schema fold. See xai_chat.go.
+		return pinnedXAIPlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceAzure {
+		// chat-completions.js:1687 is its own transform: a CALLER-SUPPLIED base URL composed through
+		// `new URL`, an AZURE_OPENAI_KEYS body that never carries `model`, an `api-key` header instead of a
+		// Bearer token, and three response observables of its own. See azure_openai_chat.go.
+		return pinnedAzureOpenAIPlan(body, directories)
 	}
 	if sourceName == chatCompletionSourceMistral {
 		// chat-completions.js:881 is its own transform, a sibling of the CLAUDE branch: its own body
