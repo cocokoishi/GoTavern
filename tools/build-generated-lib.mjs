@@ -264,7 +264,33 @@ function reportProbeTimings() {
         console.log(`    ${String(first).padStart(8)} / ${String(second).padStart(8)}  ${row.label}`);
     }
 }
-function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot }) {
+// THE SECOND RUN IS FOR STABILITY, AND IT COSTS HALF OF EVERY SWEEP. Measured: a two-probe dispatch
+// (provider-wire's 149 scenarios plus backends' 107) had not finished after 46 minutes, and the full sweep
+// exceeded ninety minutes and was still running when it was cancelled. Each probe executes twice, so the wall
+// clock is very nearly double what one pass needs.
+//
+// What the second run actually buys, stated precisely: the zero-diff gate ALREADY proves run 1 equals the
+// COMMITTED fixture, so a second run cannot detect drift from the recorded bytes -- it detects a probe that is
+// INTERMITTENTLY unstable, one whose two runs disagree while at least one still matches the commit. That is a
+// real failure class (the sd-routes arrival-order race was found exactly this way), so deleting it outright
+// would trade evidence for speed.
+//
+// The policy is therefore scope-based rather than a per-probe guess:
+//   GOTAVERN_ORACLE_DOUBLE_RUN=all    every probe twice (the nightly full sweep)
+//   GOTAVERN_ORACLE_DOUBLE_RUN=none   never (a deliberate single-run experiment)
+//   unset / auto                      twice when EVERY probe runs, once when the run is narrowed
+// A narrowed run exists to record what a commit can move; the nightly run exists to prove stability. Tying the
+// two together by scope keeps the stability check where it is affordable and halves the commit-to-verdict
+// path. The decision is printed per run so nobody has to infer which mode they got.
+function doubleRunFor(selectionIsFull) {
+    const setting = (process.env.GOTAVERN_ORACLE_DOUBLE_RUN ?? 'auto').trim().toLowerCase();
+    if (setting === 'all') return { double: true, why: 'GOTAVERN_ORACLE_DOUBLE_RUN=all' };
+    if (setting === 'none') return { double: false, why: 'GOTAVERN_ORACLE_DOUBLE_RUN=none' };
+    if (selectionIsFull) return { double: true, why: 'every probe is recording, so this run is the stability pass' };
+    return { double: false, why: 'a narrowed run records what this change can move; the nightly full sweep proves stability' };
+}
+
+function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot, doubleRun = true }) {
     const scriptPath = path.join(root, `.gotavern-${script}`);
     materializeProbeLib(root);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
@@ -272,29 +298,36 @@ function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot
     let first;
     let second;
     let failure;
+    // Declared at function scope on purpose: the earlier version declared these inside the try blocks and then
+    // read them below, which is a ReferenceError the moment a probe actually runs.
+    let firstMs = null;
+    let secondMs = null;
     try {
-        const firstStarted = Date.now();
+        const started = Date.now();
         run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
-        const firstMs = Date.now() - firstStarted;
+        firstMs = Date.now() - started;
         first = readFileSync(fixturePath);
     } catch (error) {
         failure = error;
     }
-    try {
-        const secondStarted = Date.now();
-        run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
-        const secondMs = Date.now() - secondStarted;
-        second = readFileSync(fixturePath);
-    } catch (error) {
-        failure = failure ?? error;
+    if (doubleRun && !failure) {
+        try {
+            const started = Date.now();
+            run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
+            secondMs = Date.now() - started;
+            second = readFileSync(fixturePath);
+        } catch (error) {
+            failure = error;
+        }
     }
     if (failure) {
         const sharedWrite = describeSharedWrite(label, failure.message);
         recordProbeFailure(label, sharedWrite ? new Error(`${failure.message}\n${sharedWrite}`) : failure);
+        probeTimings.push({ label, firstMs, secondMs: null, failed: true });
         return null;
     }
-    compareProbeRuns(label, first, second);
-    probeTimings.push({ label, firstMs: firstMs ?? null, secondMs: secondMs ?? null });
+    if (doubleRun) compareProbeRuns(label, first, second);
+    probeTimings.push({ label, firstMs, secondMs, failed: false });
     return first;
 }
 
