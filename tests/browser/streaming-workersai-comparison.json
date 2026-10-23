@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "driveParameters": {
+    "streamFrameCount": "14",
+    "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "accountIdMode": "typed through #workers_ai_account_id, the control a user types it into",
+    "peerPathShape": "both legs asked the peer for /<account>/ai/models/search?task=Text+Generation&per_page=1000 then /<account>/ai/v1/chat/completions",
+    "peerKeying": "the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls."
+  },
+  "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
+  "captures": {
+    "streamGotavern": "stream-a.json",
+    "streamPinned": "stream-p.json",
+    "cancelGotavern": "cancel-a.json",
+    "cancelPinned": "cancel-p.json",
+    "nonstreamGotavern": "nonstream-a.json",
+    "nonstreamPinned": "nonstream-p.json"
+  },
+  "streaming": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7423,
+          "bodySha256": "a8e874fe98dbb48375fd4da61c44a3aac670dc93c0b8848ea696156e3e6ed89e",
+          "clientDisconnected": false,
+          "framesWritten": 15
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from the",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering is",
+        "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
+        "Hello from the stream? incremental rendering is genuinely observed and paced by",
+        "Hello from the stream? incremental rendering is genuinely observed and paced by the"
+      ],
+      "finalAssistantText": "Hello from the stream? incremental rendering is genuinely observed and paced by the",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3
+      }
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7423,
+          "bodySha256": "a8e874fe98dbb48375fd4da61c44a3aac670dc93c0b8848ea696156e3e6ed89e",
+          "clientDisconnected": false,
+          "framesWritten": 15
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from the",
+        "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
+        "Hello from the stream? incremental rendering is genuinely observed and paced by the"
+      ],
+      "finalAssistantText": "Hello from the stream? incremental rendering is genuinely observed and paced by the",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3
+      }
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextEqual": true,
+      "finalTextNonEmpty": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "clientDisconnectedMatches": true,
+      "incrementalRenderingObserved": true,
+      "framesWrittenEqual": true
+    },
+    "renderTickAlignment": {
+      "tickByTickEqual": false,
+      "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
+    },
+    "proven": true
+  },
+  "cancellation": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7423,
+          "bodySha256": "a8e874fe98dbb48375fd4da61c44a3aac670dc93c0b8848ea696156e3e6ed89e",
+          "clientDisconnected": true,
+          "framesWritten": 14
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from"
+      ],
+      "finalAssistantText": "Hello from",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3,
+        "stopPresent": true,
+        "stopClickedAt": 17051,
+        "snapshotsAtStopPlus1200": 3,
+        "textAfterStop": "Hello from",
+        "snapshotsLater": 3,
+        "textLater": "Hello from"
+      }
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7423,
+          "bodySha256": "a8e874fe98dbb48375fd4da61c44a3aac670dc93c0b8848ea696156e3e6ed89e",
+          "clientDisconnected": true,
+          "framesWritten": 14
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "…",
+        "Hello from the stream?"
+      ],
+      "finalAssistantText": "Hello from the stream?",
+      "streamState": {
+        "sawIncremental": true,
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3,
+        "stopPresent": true,
+        "stopClickedAt": 21245,
+        "snapshotsAtStopPlus1200": 3,
+        "textAfterStop": "Hello from the stream?",
+        "snapshotsLater": 3,
+        "textLater": "Hello from the stream?"
+      }
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextNonEmpty": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "clientDisconnectedMatches": true,
+      "contentRenderedBeforeAbort": true,
+      "noFurtherChunksAppliedAfterAbort": true,
+      "abortControlUsed": true,
+      "abortTextIsPrefixOfStreamedReply": true,
+      "finalTextEqualsAfterAbortState": true
+    },
+    "renderTickAlignment": {
+      "tickByTickEqual": false,
+      "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
+    },
+    "proven": true,
+    "abortRenderState": {
+      "gotavern": {
+        "text": "Hello from",
+        "framesWritten": [
+          14
+        ]
+      },
+      "pinned": {
+        "text": "Hello from the stream?",
+        "framesWritten": [
+          14
+        ]
+      },
+      "note": "recorded, not asserted: the abort lands on a render tick that moves on a single leg across repeats (measured: three runs per leg, 14 frames each, three different prefixes on GoTavern and two on pinned), so cross-leg equality of this text is timing rather than behaviour"
+    }
+  },
+  "nonstream": {
+    "gotavern": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7424,
+          "bodySha256": "f0e6cfe27301b1980ceceb44ab32da682a6d898b2fe76f211aae50e16288f241",
+          "clientDisconnected": false,
+          "framesWritten": 0
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "probe reply"
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "pinned": {
+      "providerRequests": [
+        {
+          "method": "POST",
+          "path": "/probe-account/ai/v1/chat/completions",
+          "bodyLength": 7424,
+          "bodySha256": "f0e6cfe27301b1980ceceb44ab32da682a6d898b2fe76f211aae50e16288f241",
+          "clientDisconnected": false,
+          "framesWritten": 0
+        }
+      ],
+      "renderTexts": [
+        "probe user marker",
+        "probe reply"
+      ],
+      "finalAssistantText": "probe reply",
+      "streamState": null
+    },
+    "checks": {
+      "requestArrivedBoth": true,
+      "providerRequestCountEqual": true,
+      "providerRequestMethodsAndPathsEqual": true,
+      "providerBodyEqual": true,
+      "finalTextEqual": true,
+      "finalTextNonEmpty": true,
+      "streamedRenderPrefixes": true,
+      "pagesHaveNoErrors": true,
+      "requestStreamFlagMatches": true,
+      "singleContentStateOnly": true
+    },
+    "renderTickAlignment": {
+      "tickByTickEqual": true,
+      "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
+    },
+    "proven": true
+  },
+  "compatibleReady": true,
+  "notes": [
+    "The probe previously awaited response.clone().text() for EVERY response before returning it to the frontend, so a streamed generate response was fully buffered before the fetch promise resolved: incremental rendering was impossible to observe and an aborted stream observed an empty message. That was a probe defect on both legs (rule 10), fixed by skipping the clone read for text/event-stream and for the generate route. Earlier captures in this directory were taken with that defect; these captures are not.",
+    "The peer records clientDisconnected only when the caller closes before the scripted stream finishes; it is the provider-side proof of cancellation.",
+    "framesWritten in cancellation mode depends on how many paced frames were written before the abort arrived, so it is recorded for information, not asserted.",
+    "Pinned emits extra prompt-manager dry generations (visible as duplicate GENERATE_AFTER_DATA dryRun=true entries); they never issue a provider request and are not part of the comparison."
+  ]
+}

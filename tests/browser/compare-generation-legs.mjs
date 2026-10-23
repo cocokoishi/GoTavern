@@ -331,6 +331,15 @@ const main = async () => {
             // SILICONFLOW'S ENDPOINT IS A BODY FIELD, so the artifact must say which endpoint the drive
             // drove and how: the drive selects the DEFAULT through the frontend's own control, and the
             // seam aims that endpoint's host. The CN endpoint exists but is NOT exercised here.
+            // WORKERS_AI'S URL IS BUILT FROM A BODY VALUE, so the artifact must say which account id the
+            // drive drove and through which control, or the numbers cannot be read back against the
+            // prefix the seam replaced.
+            ...(process.env.PROBE_SOURCE === 'workers_ai' ? {
+                accountIdMode: gotavern.accountId?.mode ?? null,
+                accountIdControl: gotavern.accountId?.control ?? null,
+                accountIdValue: gotavern.accountId?.value ?? null,
+                peerPathShape: 'the peer saw accounts-prefix + the account id + /ai/v1/chat/completions, and the model list at /<account>/ai/models/search?task=Text+Generation&per_page=1000, because the seam replaces the PREFIX only and the id stays in the path where the product puts it',
+            } : {}),
             ...(process.env.PROBE_SOURCE === 'siliconflow' ? {
                 endpointMode: gotavern.endpoint?.mode ?? null,
                 endpointControl: gotavern.endpoint?.control ?? null,

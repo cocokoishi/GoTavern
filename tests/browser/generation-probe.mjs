@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq or siliconflow, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'workers_ai'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow or workers_ai, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -220,7 +220,12 @@ function startStreamingPeer(mode, protocol) {
     const server = http.createServer((request, response) => {
         const pathEntry = { method: request.method, path: request.url, status: null };
         state.paths.push(pathEntry);
-        if (request.method === 'GET' && request.url.startsWith('/models')) {
+        // `includes`, NOT `startsWith`, FOR THE SAME REASON THE COMPLETION PATH USES IT: a source may put
+        // its model list UNDER a prefix. workers_ai asks for
+        // `/probe-account/ai/models/search?task=Text+Generation&per_page=1000`, which `startsWith('/models')`
+        // answered 404 -- the peer's own path log named it in one run, and the symptom upstream was the
+        // frontend never reaching a connected online_status, which reads like a product defect and is not.
+        if (request.method === 'GET' && request.url.includes('/models')) {
             pathEntry.status = 200;
             // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
             // ever needed a bare id; the openrouter source populates a real model list from it and will not
@@ -373,7 +378,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'workers_ai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -419,6 +424,12 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow') {
     if (probeSource === 'siliconflow' && !external) {
         process.env.GOTAVERN_SILICONFLOW_CHAT_URL = `http://${mockAddress}`;
     }
+    // WORKERS_AI'S URL IS `accounts-prefix` + the ACCOUNT ID FROM THE BODY + the completion path, and the
+    // seam replaces only the PREFIX (workers_ai_chat.go:39-49), so the id stays in the path where the
+    // product puts it and the peer sees `/probe-account/ai/v1/chat/completions`.
+    if (probeSource === 'workers_ai' && !external) {
+        process.env.GOTAVERN_WORKERS_AI_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -431,6 +442,9 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow') {
     }
     if (probeSource === 'siliconflow' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.siliconflow.com/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'workers_ai' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.cloudflare.com/client/v4/accounts', to: `http://${mockAddress}` }]));
     }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -771,6 +785,7 @@ try {
             mistralai: secretsModule.SECRET_KEYS.MISTRALAI,
             groq: secretsModule.SECRET_KEYS.GROQ,
             siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
+            workers_ai: secretsModule.SECRET_KEYS.WORKERS_AI,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
         }[probeSource];
         await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
@@ -816,6 +831,19 @@ try {
         } else if (probeSource === 'claude') {
             oai_settings.claude_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;
+        } else if (probeSource === 'workers_ai') {
+            // NO reverse_proxy: workers_ai never consults it. The URL comes from a BODY value, so the
+            // drive types the account id into the field a user types it into and records the value it
+            // drove; writing the settings object directly would be driving something a user cannot.
+            oai_settings.workers_ai_model = 'probe-model';
+            const accountField = document.querySelector('#workers_ai_account_id');
+            if (!accountField) {
+                return { status: 'not-driven', reason: 'no #workers_ai_account_id control in the served frontend' };
+            }
+            const accountId = 'probe-account';
+            accountField.value = accountId;
+            accountField.dispatchEvent(new Event('input', { bubbles: true }));
+            globalThis.__workersAiAccount = { mode: 'typed', value: accountId, control: '#workers_ai_account_id', via: 'input event', settingsValue: oai_settings.workers_ai_account_id ?? null };
         } else if (probeSource === 'siliconflow') {
             // NO reverse_proxy: siliconflow is proxy:false. The ENDPOINT is a body field, and a user
             // sets it with this control, so the drive drives the DEFAULT through the same control and
@@ -1317,6 +1345,9 @@ try {
     // does not say which endpoint was driven cannot be read: the seam aims one host and the drive must
     // have selected it.
     report.endpoint = await page.evaluate(() => globalThis.__siliconflowEndpoint ?? null);
+    // WHICH ACCOUNT ID THIS DRIVE DROVE: it is part of the URL, so an artifact that does not say it
+    // cannot be read back against the seam that replaced the prefix.
+    report.accountId = await page.evaluate(() => globalThis.__workersAiAccount ?? null);
     if (streamingMode) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the
         // stream before it finished (cancellation), and how many frames it wrote.
@@ -1361,7 +1392,7 @@ try {
                     framesWritten: request.framesWritten,
                 };
             });
-            report.peer = { kind: 'request-keyed', seam: { env: probeSource === 'siliconflow' ? 'GOTAVERN_SILICONFLOW_CHAT_URL' : 'GOTAVERN_GROQ_CHAT_URL', value: (probeSource === 'siliconflow' ? process.env.GOTAVERN_SILICONFLOW_CHAT_URL : process.env.GOTAVERN_GROQ_CHAT_URL) ?? null } };
+            report.peer = { kind: 'request-keyed', seam: { env: probeSource === 'siliconflow' ? 'GOTAVERN_SILICONFLOW_CHAT_URL' : probeSource === 'workers_ai' ? 'GOTAVERN_WORKERS_AI_CHAT_URL' : 'GOTAVERN_GROQ_CHAT_URL', value: (probeSource === 'siliconflow' ? process.env.GOTAVERN_SILICONFLOW_CHAT_URL : probeSource === 'workers_ai' ? process.env.GOTAVERN_WORKERS_AI_CHAT_URL : process.env.GOTAVERN_GROQ_CHAT_URL) ?? null } };
         } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.

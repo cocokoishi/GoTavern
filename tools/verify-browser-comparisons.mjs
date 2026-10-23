@@ -559,6 +559,49 @@ if (siliconflowGeneration) {
     console.log(`  generation-siliconflow-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, endpoint ${JSON.stringify(siliconflowGeneration.driveParameters.endpointMode)} via ${siliconflowGeneration.driveParameters.endpointControl} (CN endpoint unmeasured)`);
 }
 
+// ---- generation-workersai-comparison.json --------------------------------------------------
+//
+// The WORKERS_AI source measured end to end. Same class as groq/siliconflow (proxy:false, peer only
+// through the seam plus the pinned redirect, so proxyPasswordPresent must be FALSE on both legs),
+// plus the one thing specific to it: the URL is built from a BODY value, so the artifact must say
+// which account id the drive drove and through which control, and the gate must see it.
+const workersaiGeneration = read('generation-workersai-comparison.json');
+if (workersaiGeneration) {
+    const label = 'generation-workersai-comparison.json';
+    if (workersaiGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the workers_ai provider-wire claim is unsupported');
+    }
+    if (workersaiGeneration.requestArrived?.gotavern !== true || workersaiGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (workersaiGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true');
+    }
+    for (const [name, value] of Object.entries(workersaiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    if (typeof workersaiGeneration.driveParameters?.accountIdMode !== 'string' || workersaiGeneration.driveParameters.accountIdMode.length === 0) {
+        fail(label, 'driveParameters.accountIdMode is missing, so the artifact does not say which account id these numbers belong to');
+    }
+    if (workersaiGeneration.driveParameters?.accountIdControl !== '#workers_ai_account_id') {
+        fail(label, 'driveParameters.accountIdControl does not name the frontend control the drive used');
+    }
+    if (typeof workersaiGeneration.driveParameters?.peerPathShape !== 'string' || !workersaiGeneration.driveParameters.peerPathShape.includes('account id')) {
+        fail(label, 'driveParameters.peerPathShape does not state that the id travels in the path');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (workersaiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(workersaiGeneration.proxyPasswordPresent?.[leg])}, but workers_ai never consults reverse_proxy and the peer is reachable only by seam and redirect`);
+        }
+        const requests = workersaiGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + " " + request.path))}; the completion POST is missing (expected /<account>/ai/v1/chat/completions)`);
+        }
+    }
+    const post = (workersaiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === "POST");
+    console.log(`  generation-workersai-comparison.json providerRequestEqual true, ${post?.bodyLength ?? "unknown"} B per leg, proxyPasswordPresent false on both legs, account id ${JSON.stringify(workersaiGeneration.driveParameters.accountIdValue)} typed via ${workersaiGeneration.driveParameters.accountIdControl}`);
+}
+
 // ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
@@ -572,15 +615,16 @@ if (siliconflowGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-workersai-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
     const isGroq = artifactName.includes('groq');
     const isSiliconflow = artifactName.includes('siliconflow');
+    const isWorkersai = artifactName.includes('workersai');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow;
+    const isOpenAI = isMistral || isGroq || isSiliconflow || isWorkersai;
     const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];
@@ -644,8 +688,9 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
         fail(artifactName, 'cancellation.abortRenderState does not record both legs and its reason');
     }
     const siliconflowLine = 'siliconflow (OpenAI-shaped like groq, proxy:false, endpoint chosen by a body field): both legs GET /models then POST /chat/completions, 15 paced frames; DEFAULT (global) endpoint only, CN unmeasured';
+    const workersaiLine = 'workers_ai (OpenAI-shaped, proxy:false, URL built from a body account id): both legs GET /<account>/ai/models/search then POST /<account>/ai/v1/chat/completions, 15 paced frames; the id was typed through #workers_ai_account_id';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isGroq ? groqLine : isSiliconflow ? siliconflowLine : isWorkersai ? workersaiLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
