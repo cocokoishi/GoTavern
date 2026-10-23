@@ -37,6 +37,9 @@
     "GOTAVERN_GROQ_CHAT_URL": {
       "pinnedLiteral": "https://api.groq.com/openai/v1"
     },
+    "GOTAVERN_MAKERSUITE_CHAT_URL": {
+      "pinnedLiteral": "https://generativelanguage.googleapis.com"
+    },
     "GOTAVERN_MISTRAL_CHAT_URL": {
       "pinnedLiteral": "https://api.mistral.ai/v1"
     },
@@ -66,6 +69,9 @@
     },
     "GOTAVERN_SILICONFLOW_CHAT_URL": {
       "pinnedLiteral": "https://api.siliconflow.com/v1"
+    },
+    "GOTAVERN_VERTEXAI_CHAT_URL": {
+      "pinnedLiteral": "https://aiplatform.googleapis.com"
     },
     "GOTAVERN_WORKERS_AI_CHAT_URL": {
       "pinnedLiteral": "https://api.cloudflare.com/client/v4/accounts"
@@ -17262,6 +17268,1072 @@
         "pinnedLiteral": "https://api.groq.com/openai/v1"
       }
     },
+    "makersuite-error-status": {
+      "scenario": "makersuite-error-status.json",
+      "purpose": "GOOGLE AI STUDIO non-2xx: the PARSED provider body is forwarded at 500 (`tryParse(errorText) ?? {error:true}`, :751-756).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128
+            },
+            "bodySha256": "b2d6a1f3c7feb082b89c10b554d445c9cc27b7868339fa143020bbd25ed2b446"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:generateContent?key=synthetic-makersuite-key",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-makersuite-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "587"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 587,
+            "bodySha256": "99a4ae1e0d5a5099290c4a1c839327dd7f8c0dfd22bc73155af258c3df7ad7db",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 500,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"39-R3Z/CPHENjYkYYjdBoYOJfjINtE\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "error": {
+            "code": 500,
+            "message": "probe provider failure"
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The error leg keeps the same URL; only the mock status differs.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "makersuite-json-schema": {
+      "scenario": "makersuite-json-schema.json",
+      "purpose": "GOOGLE AI STUDIO with json_schema: responseMimeType becomes application/json and responseSchema carries json_schema.value, which is the pinned `responseMimeType ?? (json_schema ? application/json : undefined)` fold (:499-500).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "json_schema": {
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "a": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "bodySha256": "ad82900853f8bbc65f5acdb767c23dd3c56678e8e419d8f363e14e2d8d045f83"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:generateContent?key=synthetic-makersuite-key",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-makersuite-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "697"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"responseMimeType\":\"application/json\",\"responseSchema\":{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"string\"}}},\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInJlc3BvbnNlTWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIiwicmVzcG9uc2VTY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn19fSwidGhpbmtpbmdDb25maWciOnsiaW5jbHVkZVRob3VnaHRzIjpmYWxzZSwidGhpbmtpbmdCdWRnZXQiOjEyOH19LCJzeXN0ZW1JbnN0cnVjdGlvbiI6eyJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHN5c3RlbSBtYXJrZXIifV19fQ==",
+            "bodyLength": 697,
+            "bodySha256": "b63d39b58d56a4efed8471649f13bf0d1d6ef4a124b92e911be97af22ae6b108",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The body difference is the json_schema fold; the URL is the same literal form.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "makersuite-nonstream": {
+      "scenario": "makersuite-nonstream.json",
+      "purpose": "GOOGLE AI STUDIO default: contents from the shared prompt converter, systemInstruction because use_sysprompt is set, safetySettings = GEMINI_SAFETY only, and generationConfig in the pinned member order. The api key travels as the ?key= QUERY parameter -- this source attaches NO Authorization header (:484 assigns authHeader and never uses it).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "temperature": 0.4,
+              "top_p": 0.8,
+              "top_k": 40,
+              "seed": 7,
+              "stop": [
+                "PROBE_STOP"
+              ],
+              "stream": false
+            },
+            "bodySha256": "85be983e7c36e1c9e613eb79cd8ff1c1b6ea70cbd5ce97386af83fa1060a60c5"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:generateContent?key=synthetic-makersuite-key",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-makersuite-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "666"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"stopSequences\":[\"PROBE_STOP\"],\"candidateCount\":1,\"maxOutputTokens\":128,\"temperature\":0.4,\"topP\":0.8,\"topK\":40,\"seed\":7,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJzdG9wU2VxdWVuY2VzIjpbIlBST0JFX1NUT1AiXSwiY2FuZGlkYXRlQ291bnQiOjEsIm1heE91dHB1dFRva2VucyI6MTI4LCJ0ZW1wZXJhdHVyZSI6MC40LCJ0b3BQIjowLjgsInRvcEsiOjQwLCJzZWVkIjo3LCJ0aGlua2luZ0NvbmZpZyI6eyJpbmNsdWRlVGhvdWdodHMiOmZhbHNlLCJ0aGlua2luZ0J1ZGdldCI6MTI4fX0sInN5c3RlbUluc3RydWN0aW9uIjp7InBhcnRzIjpbeyJ0ZXh0IjoicHJvYmUgc3lzdGVtIG1hcmtlciJ9XX19",
+            "bodyLength": 666,
+            "bodySha256": "1c6f22b99e89269f5774187ef439144424e2a2b67e39c06593eb9b6361b06496",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "API_MAKERSUITE is a pinned literal, so the GoTavern leg reaches the recorder through its seam and the pinned leg through this transport redirect. The PATH and the ?key= parameter are untouched and ARE compared.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "makersuite-stream-control-nonstream": {
+      "scenario": "makersuite-stream-control-nonstream.json",
+      "purpose": "GOOGLE AI STUDIO stream CONTROL: the same body with stream:false, so the streamed and buffered legs are compared against a control that cannot pass by accident.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "stream": false
+            },
+            "bodySha256": "109b26fdafe7c89d22d90b093298f5646ac4edf2d166a5e9b388c563cc0125d4"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:generateContent?key=synthetic-makersuite-key",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-makersuite-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "587"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 587,
+            "bodySha256": "99a4ae1e0d5a5099290c4a1c839327dd7f8c0dfd22bc73155af258c3df7ad7db",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The control differs from makersuite-stream only by stream:false, so a URL or body difference between the two legs is a real one.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "makersuite-stream": {
+      "scenario": "makersuite-stream.json",
+      "purpose": "GOOGLE AI STUDIO streaming: the provider SSE frames are forwarded verbatim and the URL carries the api key in the query and `&alt=sse` AFTER it.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "stream": true
+            },
+            "bodySha256": "a37497995c9872ccf448a129f46d2dab42711aec101e6b694b33496ce3f2f70d"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:streamGenerateContent?key=synthetic-makersuite-key&alt=sse",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:streamGenerateContent",
+            "rawQuery": "key=synthetic-makersuite-key&alt=sse",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "587"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 587,
+            "bodySha256": "99a4ae1e0d5a5099290c4a1c839327dd7f8c0dfd22bc73155af258c3df7ad7db",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": null,
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "events": [
+          {
+            "event": null,
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}]}"
+          }
+        ]
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The streamed leg keeps the key in the query and appends &alt=sse, which is the only URL difference from the non-stream case.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
+    "makersuite-thinking": {
+      "scenario": "makersuite-thinking.json",
+      "purpose": "GOOGLE AI STUDIO thinking: gemini-2.5 models get thinkingConfig with includeThoughts from include_reasoning and a thinkingBudget derived from reasoning_effort and max_tokens (:603-621, calculateGoogleBudgetTokens).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "makersuite",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "makersuite",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 1000,
+              "include_reasoning": true,
+              "reasoning_effort": "high"
+            },
+            "bodySha256": "3090f933fc2eabedec2fd14ea6b7beec9a832e97632c8465dd98c4abea137b10"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1beta/models/gemini-2.5-pro:generateContent?key=synthetic-makersuite-key",
+            "rawPath": "/v1beta/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-makersuite-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "587"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":1000,\"thinkingConfig\":{\"includeThoughts\":true,\"thinkingBudget\":500}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMDAwLCJ0aGlua2luZ0NvbmZpZyI6eyJpbmNsdWRlVGhvdWdodHMiOnRydWUsInRoaW5raW5nQnVkZ2V0Ijo1MDB9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 587,
+            "bodySha256": "4985c27abe1dd2c1283c15bb961fac098c9a1af2e5b69c4ba86eabb84924eb66",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The body difference is the thinkingConfig fold; the URL is the same literal form.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+        "pinnedLiteral": "https://generativelanguage.googleapis.com"
+      }
+    },
     "mistral-error-status-nonjson": {
       "scenario": "mistral-error-status-nonjson.json",
       "purpose": "MISTRAL non-2xx with a NON-JSON body: tryParse(errorText) fails, so the answer is 500 {\"error\":true}. The control for mistral-error-status, which must not be satisfied by always answering {error:true}.",
@@ -27902,6 +28974,553 @@
       "goSeam": {
         "environmentVariable": "GOTAVERN_SILICONFLOW_CHAT_URL",
         "pinnedLiteral": "https://api.siliconflow.com/v1"
+      }
+    },
+    "vertexai-express-no-project": {
+      "scenario": "vertexai-express-no-project.json",
+      "purpose": "VERTEXAI express with NO project id: the host is built from the location (`https://us-central1-aiplatform.googleapis.com`), the path has no /projects segment, and the key is a QUERY parameter for this mode (:696-698).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "vertexai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "vertexai",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "stream": false,
+              "vertexai_auth_mode": "express"
+            },
+            "bodySha256": "7afe7cdf61d5916492e3f5c561c54e85d2e1d0a09423121648d0209e45c37aa3"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/publishers/google/models/gemini-2.5-pro:generateContent?key=synthetic-vertex-key",
+            "rawPath": "/v1/publishers/google/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-vertex-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "908"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBVEUiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBUkFTU01FTlQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9TRVhVQUxMWV9FWFBMSUNJVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0pBSUxCUkVBSyIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 908,
+            "bodySha256": "ef4679d550306f856c11647a43e685d13d4827c9acc2ea250bb518a7747e2df6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "The express mode reaches the recorder through the seam on the region-derived host, which is why pinnedVertexAIHost consults it.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:464 apiUrl = new URL(reverse_proxy || API_VERTEX_AI); :687-728 the three auth modes"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_VERTEXAI_CHAT_URL",
+        "pinnedLiteral": "https://us-central1-aiplatform.googleapis.com"
+      }
+    },
+    "vertexai-express-with-project": {
+      "scenario": "vertexai-express-with-project.json",
+      "purpose": "VERTEXAI express WITH a project id: the path gains /projects/{id}/locations/{region} AND the host switches to the GLOBAL aiplatform.googleapis.com even though the location is regional (:696-698) -- the quirk that makes this a different URL shape rather than a parameter.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "vertexai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "vertexai",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "stream": false,
+              "vertexai_auth_mode": "express",
+              "vertexai_express_project_id": "probe-project"
+            },
+            "bodySha256": "8ae46748d91643bef768f9f22dd796af14d7eb3578e17d7baed9b4b32176cbd6"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/projects/probe-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:generateContent?key=synthetic-vertex-key",
+            "rawPath": "/v1/projects/probe-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "key=synthetic-vertex-key",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "content-length",
+                "value": "908"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBVEUiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBUkFTU01FTlQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9TRVhVQUxMWV9FWFBMSUNJVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0pBSUxCUkVBSyIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 908,
+            "bodySha256": "ef4679d550306f856c11647a43e685d13d4827c9acc2ea250bb518a7747e2df6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "This leg is redirected on the GLOBAL host because the project path forces it; the regional redirect is declared as well so a wrong implementation is visible as an unredirected request.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:464 apiUrl = new URL(reverse_proxy || API_VERTEX_AI); :687-728 the three auth modes"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_VERTEXAI_CHAT_URL",
+        "pinnedLiteral": "https://aiplatform.googleapis.com"
+      }
+    },
+    "vertexai-proxy": {
+      "scenario": "vertexai-proxy.json",
+      "purpose": "VERTEXAI proxy mode: reverse_proxy supplies BOTH the base and the credential (`Authorization: Bearer <proxy_password>`, :44-49 and :724-727), and the URL carries only ?alt=sse when streaming -- there is no ?key= in this mode.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "vertexai",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "vertexai",
+              "use_sysprompt": true,
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "model": "gemini-2.5-pro",
+              "max_tokens": 128,
+              "stream": false,
+              "reverse_proxy": "http://<mock>",
+              "proxy_password": "proxy-pass"
+            },
+            "bodySha256": "0443af53edcdf10e0fa1a070468715cbbf83c3b658b807f33cf18aaf548adb06"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/publishers/google/models/gemini-2.5-pro:generateContent",
+            "rawPath": "/v1/publishers/google/models/gemini-2.5-pro:generateContent",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "908"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"probe user marker\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HATE\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_JAILBREAK\",\"threshold\":\"OFF\"}],\"generationConfig\":{\"candidateCount\":1,\"maxOutputTokens\":128,\"thinkingConfig\":{\"includeThoughts\":false,\"thinkingBudget\":128}},\"systemInstruction\":{\"parts\":[{\"text\":\"probe system marker\"}]}}",
+            "bodyBase64": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InByb2JlIHVzZXIgbWFya2VyIn1dfV0sInNhZmV0eVNldHRpbmdzIjpbeyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfSEFSQVNTTUVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0hBVEVfU1BFRUNIIiwidGhyZXNob2xkIjoiT0ZGIn0seyJjYXRlZ29yeSI6IkhBUk1fQ0FURUdPUllfU0VYVUFMTFlfRVhQTElDSVQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0NJVklDX0lOVEVHUklUWSIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBVEUiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9EQU5HRVJPVVNfQ09OVEVOVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0lNQUdFX0hBUkFTU01FTlQiLCJ0aHJlc2hvbGQiOiJPRkYifSx7ImNhdGVnb3J5IjoiSEFSTV9DQVRFR09SWV9JTUFHRV9TRVhVQUxMWV9FWFBMSUNJVCIsInRocmVzaG9sZCI6Ik9GRiJ9LHsiY2F0ZWdvcnkiOiJIQVJNX0NBVEVHT1JZX0pBSUxCUkVBSyIsInRocmVzaG9sZCI6Ik9GRiJ9XSwiZ2VuZXJhdGlvbkNvbmZpZyI6eyJjYW5kaWRhdGVDb3VudCI6MSwibWF4T3V0cHV0VG9rZW5zIjoxMjgsInRoaW5raW5nQ29uZmlnIjp7ImluY2x1ZGVUaG91Z2h0cyI6ZmFsc2UsInRoaW5raW5nQnVkZ2V0IjoxMjh9fSwic3lzdGVtSW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn1dfX0=",
+            "bodyLength": 908,
+            "bodySha256": "ef4679d550306f856c11647a43e685d13d4827c9acc2ea250bb518a7747e2df6",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"83-G5Vxc1zXVnMp4+RU12GQtyDbHH0\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "choices": [
+            {
+              "message": {
+                "content": "mock gemini reply"
+              }
+            }
+          ],
+          "responseContent": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "mock gemini reply"
+              }
+            ]
+          }
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+          },
+          {
+            "path": "provider.requests[].url",
+            "rule": "the recorder origin is replaced with <mock>",
+            "reason": "In proxy mode the base comes from the request body, so the recorder origin is the reverse_proxy value itself; that is the credential-placement case this scenario exists for.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:464 apiUrl = new URL(reverse_proxy || API_VERTEX_AI); :687-728 the three auth modes"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "authorization",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false,
+      "goSeam": {
+        "environmentVariable": "GOTAVERN_VERTEXAI_CHAT_URL",
+        "pinnedLiteral": "https://us-central1-aiplatform.googleapis.com"
       }
     },
     "workers-ai-account-escaping": {

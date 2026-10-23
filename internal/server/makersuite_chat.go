@@ -131,7 +131,12 @@ func pinnedVertexAIProxyGenerateURL(base, model string, stream bool) string {
 func pinnedVertexAIExpressGenerateURL(model string, stream bool, apiKey, projectID, region string) string {
 	url := ""
 	if projectID != "" {
-		url = "https://aiplatform.googleapis.com/" + pinnedVertexAIAPIVersion +
+		// THE GLOBAL HOST GOES THROUGH THE SEAM TOO. This branch used to spell the literal
+		// `https://aiplatform.googleapis.com/` out, which meant express-with-a-project ignored the seam
+		// entirely: the replay's Go leg reached the REAL Google host, the mock recorded no request, and the
+		// scenario failed with "the Go route sent no provider request" while the pinned leg answered from the
+		// peer. It is the same class as the seam a differential cannot exist without, one branch narrower.
+		url = pinnedVertexAIHost("global") + "/" + pinnedVertexAIAPIVersion +
 			"/projects/" + projectID + "/locations/" + region +
 			"/publishers/google/models/" + model + ":" + pinnedGoogleResponseType(stream)
 	} else {
@@ -192,6 +197,11 @@ var pinnedGoogleThinkingConfigModel = regexp.MustCompile(`^gemini-2\.5-(flash|pr
 var pinnedGoogleThinkingConfigImageExclusion = regexp.MustCompile(`-image(-preview)?$`)
 var pinnedGoogleImageSizeModel = regexp.MustCompile(`^gemini-3`)
 var pinnedGoogleGemini3FlashBudget = regexp.MustCompile(`gemini-3\.7-flash`)
+// The budget dispatch tail (prompt-converters.js:1305-1323) tests the model in a FIXED ORDER, so these are two
+// separate patterns rather than one alternation: `gemini-3[.\d]*-pro` is tried before the generic `pro` arm, and
+// a single alternation would let a gemini-3 model take the 2.5 clamp instead of a thinking LEVEL.
+var pinnedGoogleGemini3ProModel = regexp.MustCompile(`gemini-3[.\d]*-pro`)
+var pinnedGoogleGemini3FlashModel = regexp.MustCompile(`gemini-3[.\d]*-flash`)
 
 var pinnedGoogleImageGenerationModels = []string{
 	"gemini-2.0-flash-exp",
@@ -210,78 +220,140 @@ var pinnedGoogleNoSearchModels = []string{
 	"gemini-robotics-er-1.5-preview",
 }
 
-// pinnedGoogleCalculateBudgetTokens is calculateGoogleBudgetTokens (prompt-converters.js): a NUMBER for a token
-// budget, the string "auto" where the pinned code returns -1 (which the caller sends as thinkingBudget -1),
-// and no value where the pinned code returns null/undefined.
+// pinnedGoogleCalculateBudgetTokens is calculateGoogleBudgetTokens (prompt-converters.js:1182-1326): a NUMBER
+// for a token budget, a STRING for the gemini-3 thinking level, and no value where the pinned code returns null.
+//
+// THE DISPATCH IS THE CONTRACT, and the first port of this function got it wrong in a way only a capture could
+// show: it treated "pro" like "flash". The pinned tail tests the model in this order -- gemini-3-pro,
+// gemini-3-flash, flash-lite, flash, pro -- and each family clamps differently:
+//
+//	flash       min(budget, 24576)          no floor, so an ABSENT effort yields 0
+//	flash-lite  max(min(budget, 24576), 512) an absent effort yields 512
+//	pro         max(min(budget, 32768), 128) an absent effort yields 128, and "min" is 128 -- not 0
+//
+// That last line is why `gemini-2.5-pro` with no `reasoning_effort` sends `thinkingBudget: 128`; the captured
+// body for makersuite-nonstream carries exactly that, and the first port sent no budget member at all.
 func pinnedGoogleCalculateBudgetTokens(maxTokens orderedNodeJSON, reasoningEffort string, model string) (orderedNodeJSON, bool) {
 	limit := 0
 	if number, ok := maxTokens.scalar.(float64); ok {
 		limit = int(number)
 	}
-	if pinnedGoogleThinkingConfigModel.MatchString(model) && pinnedGoogleThinkingConfigImageExclusion.MatchString(model) {
-		// The image variants are excluded from the thinking-config model list entirely.
-		return nodeUndefined(), false
-	}
-	switch {
-	case strings.HasPrefix(model, "gemini-3"):
-		// getGemini3FlashBudget / getGemini3ProBudget: no "auto" budget, and a floor of 128 except for min.
-		if pinnedGoogleGemini3FlashBudget.MatchString(model) {
-			switch reasoningEffort {
-			case "auto":
-				return nodeUndefined(), false
-			}
-		}
+	// The fractional arms are Math.floor in pinned; truncating a non-negative product is the same thing.
+	fraction := func(scale float64) float64 { return float64(int(float64(limit) * scale)) }
+
+	// getGemini3ProBudget / getGemini3FlashBudget return LEVEL STRINGS and null for "auto".
+	levelPro := func() (string, bool) {
 		switch reasoningEffort {
+		case "auto":
+			return "", false
+		case "min", "low", "medium":
+			return "low", true
+		case "high", "max":
+			return "high", true
+		}
+		return "", false
+	}
+	levelFlash := func() (string, bool) {
+		// /gemini-3\.7-flash/ has no minimal level, so "min" is clipped to "low" there.
+		noMinimalThinking := strings.Contains(model, "gemini-3.7-flash")
+		switch reasoningEffort {
+		case "auto":
+			return "", false
 		case "min":
-			return nodeNumber(0), true
+			if noMinimalThinking {
+				return "low", true
+			}
+			return "minimal", true
 		case "low":
-			return nodeNumber(float64(limit) * 0.1), true
+			return "low", true
 		case "medium":
-			return nodeNumber(float64(limit) * 0.25), true
-		case "high":
-			return nodeNumber(float64(limit) * 0.5), true
-		case "max":
-			return nodeNumber(float64(limit)), true
+			return "medium", true
+		case "high", "max":
+			return "high", true
+		}
+		return "", false
+	}
+
+	switch {
+	case pinnedGoogleGemini3ProModel.MatchString(model):
+		if level, ok := levelPro(); ok {
+			return nodeString(level), true
+		}
+		return nodeUndefined(), false
+	case pinnedGoogleGemini3FlashModel.MatchString(model):
+		if level, ok := levelFlash(); ok {
+			return nodeString(level), true
 		}
 		return nodeUndefined(), false
 	case strings.Contains(model, "flash-lite"):
+		budget := 0.0
 		switch reasoningEffort {
 		case "auto":
 			return nodeNumber(-1), true
 		case "min":
-			return nodeNumber(128), true
-		case "low", "medium", "high", "max":
-			budget := map[string]float64{"low": 0.1, "medium": 0.25, "high": 0.5}[reasoningEffort] * float64(limit)
-			if reasoningEffort == "max" {
-				budget = float64(limit)
-			}
-			if budget > 32768 {
-				budget = 32768
-			}
-			if budget < 128 {
-				budget = 128
-			}
-			return nodeNumber(budget), true
+			budget = 0
+		case "low":
+			budget = fraction(0.1)
+		case "medium":
+			budget = fraction(0.25)
+		case "high":
+			budget = fraction(0.5)
+		case "max":
+			budget = float64(limit)
 		}
-		return nodeUndefined(), false
-	default:
+		if budget > 24576 {
+			budget = 24576
+		}
+		if budget < 512 {
+			budget = 512
+		}
+		return nodeNumber(budget), true
+	case strings.Contains(model, "flash"):
+		budget := 0.0
 		switch reasoningEffort {
 		case "auto":
 			return nodeNumber(-1), true
 		case "min":
-			return nodeNumber(0), true
-		case "low", "medium", "high", "max":
-			budget := map[string]float64{"low": 0.1, "medium": 0.25, "high": 0.5}[reasoningEffort] * float64(limit)
-			if reasoningEffort == "max" {
-				budget = float64(limit)
-			}
-			if budget > 24576 {
-				budget = 24576
-			}
-			return nodeNumber(budget), true
+			budget = 0
+		case "low":
+			budget = fraction(0.1)
+		case "medium":
+			budget = fraction(0.25)
+		case "high":
+			budget = fraction(0.5)
+		case "max":
+			budget = float64(limit)
 		}
-		return nodeUndefined(), false
+		if budget > 24576 {
+			budget = 24576
+		}
+		return nodeNumber(budget), true
+	case strings.Contains(model, "pro"):
+		budget := 0.0
+		switch reasoningEffort {
+		case "auto":
+			return nodeNumber(-1), true
+		case "min":
+			budget = 128
+		case "low":
+			budget = fraction(0.1)
+		case "medium":
+			budget = fraction(0.25)
+		case "high":
+			budget = fraction(0.5)
+		case "max":
+			budget = float64(limit)
+		}
+		if budget > 32768 {
+			budget = 32768
+		}
+		if budget < 128 {
+			budget = 128
+		}
+		return nodeNumber(budget), true
 	}
+	// No family matches: the pinned function returns null, which sends no thinking budget at all.
+	return nodeUndefined(), false
 }
 
 // pinnedGoogleGenerationConfig is the generationConfig object, member order included.
