@@ -84,6 +84,10 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveGroqChatCompletionStatus(w, request, body, directories)
 		return
 	}
+	if source == chatCompletionSourceXAI {
+		runtime.serveXAIChatCompletionStatus(w, request, body, directories)
+		return
+	}
 	if source != "custom" {
 		serveStatusText(w, http.StatusNotImplemented)
 		return

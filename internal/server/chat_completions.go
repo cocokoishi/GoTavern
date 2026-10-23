@@ -223,6 +223,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
 			return
 		}
+		if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
+			// :1274-1281: xAI's catch also uses `response.send` with NO status, so a THROWN fetch is
+			// 200 {"error":true}. Only a provider's OWN non-2xx answer becomes a 500.
+			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+			return
+		}
 		failure := pinnedChatCompletionTransportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
@@ -242,6 +248,12 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
 		// and the PARSED provider body at 500 for a non-2xx answer.
 		serveDeepSeekChatCompletionResponse(w, request, response, body)
+		return
+	}
+	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
+		// :1261-1272: the shared forwarder for a stream, the provider body passed through otherwise,
+		// and the PARSED provider body at 500 for a non-2xx answer.
+		serveXAIChatCompletionResponse(w, request, response, body)
 		return
 	}
 
@@ -382,6 +394,12 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		// set, and has its own response mapping, so it delegates here and the response side branches
 		// on the same source name. See claude_chat.go.
 		return pinnedClaudePlan(body, directories)
+	}
+	if sourceName == chatCompletionSourceXAI {
+		// chat-completions.js:1183 is its own transform: its own member order, its own message
+		// converter (convertXAIMessages, which renames rather than merges), its own effort mapping and
+		// its own json_schema fold. See xai_chat.go.
+		return pinnedXAIPlan(body, directories)
 	}
 	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
 

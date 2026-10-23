@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "name": "xai-status-nonok",
+  "purpose": "XAI source, /status with a provider NON-2XX: the shared status tail's else (chat-completions.js:2143-2146), so the provider's status is NOT forwarded and the caller gets 200 {error:true,data:{data:[]}} instead. This is the /status arm's own non-2xx branch, which is a different shape from the generate route's 500-with-parsed-body.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "xai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_xai": [
+      {
+        "id": "probe-id-api_key_xai",
+        "value": "synthetic-xai-key",
+        "label": "api_key_xai",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-xai-key",
+  "transportRedirect": [
+    {
+      "from": "https://api.x.ai/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_XAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.x.ai/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/status",
+    "body": {
+      "chat_completion_source": "xai"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 500,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"error\":{\"message\":\"probe models unavailable\"}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1828 apiKey = ... readSecret(request.user.directories, SECRET_KEYS.XAI, request.body.secret_id)"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The status arm builds its URL from the same pinned literal as the generate route, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH (/models) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1827 apiUrl = new URL(request.body.reverse_proxy || API_XAI).toString(), :2072 new URL(urlJoin(apiUrl, '/models'))"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
