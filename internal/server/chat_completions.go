@@ -470,7 +470,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		customHeaders.setMember("Accept-Language", nodeString(pinnedZAIHeaderLanguage))
 		bodyParams.setMember("thinking", pinnedZAIThinking(body))
 		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			if foldErr := pinnedSetJSONObjectFormat(&bodyParams, &body, schema); foldErr != nil {
+			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
 				return nil, pinnedChatCompletionTransportFailure(foldErr)
 			}
 		}
