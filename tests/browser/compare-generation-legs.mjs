@@ -353,6 +353,19 @@ const main = async () => {
                 pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
                 peerKeying: 'the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
             } : {}),
+            // OPENAI IS proxy:true, WHICH IS THE FACT THAT MAKES THIS ROW DIFFERENT from the groq/siliconflow/nanogpt
+            // rows: the frontend DOES offer a reverse_proxy for it, so this drive COULD have carried the peer in the
+            // request. It deliberately did not, and `proxyPasswordPresent` false on BOTH legs is the evidence -- both
+            // legs reached the peer through the GoTavern seam and the pinned transport redirect, not through a proxy
+            // credential, so the comparison stays about the pinned provider-wire bytes rather than about which of two
+            // available aiming mechanisms each leg happened to use.
+            ...(process.env.PROBE_SOURCE === 'openai' ? {
+                seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
+                proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true (SECRET_KEYS.OPENAI, #api_key_openai), so oai_settings.reverse_proxy WAS available to this drive and was left unset on purpose; a reader must not conclude from the false that the frontend offers no proxy for openai',
+                pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the PINNED leg (the transport hook run-against-pinned.mjs installs) at the same peer the seam aims the GoTavern leg at. Without it the pinned server fetches api.openai.com, the peer log stays EMPTY, and an empty log reads exactly like a product hang.',
+                peerKeying: 'the peer answers by REQUEST (GET -> model list, POST -> completion) rather than positionally, because how many status calls the frontend makes is its own business; a positional script with one models answer let the second status call consume the completion body and the send was refused with online_status no_connection, measured on the groq leg.',
+            } : {}),
+
         },
         guards: guards(gotavern, pinned),
         // One line, in the artifact itself, so the next reader does not assume this is the old window

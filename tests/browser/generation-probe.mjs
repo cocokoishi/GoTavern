@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow or nanogpt, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'openai'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt or openai, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -373,7 +373,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'openai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -427,6 +427,12 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     if (probeSource === 'nanogpt' && !external) {
         process.env.GOTAVERN_NANOGPT_CHAT_URL = `http://${mockAddress}`;
     }
+    // OPENAI'S BASE IS THE PINNED LITERAL https://api.openai.com/v1 (chat_completions.go:50; seam declared in
+    // openai_chat_status.go:49). This drive puts no base in the request, so the GoTavern leg is aimed by this seam and
+    // the pinned leg by the redirect written below.
+    if (probeSource === 'openai' && !external) {
+        process.env.GOTAVERN_OPENAI_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -442,6 +448,9 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
     if (probeSource === 'nanogpt' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://nano-gpt.com/api/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'openai' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.openai.com/v1', to: `http://${mockAddress}` }]));
     }
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -783,6 +792,7 @@ try {
             groq: secretsModule.SECRET_KEYS.GROQ,
             siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
             nanogpt: secretsModule.SECRET_KEYS.NANOGPT,
+            openai: secretsModule.SECRET_KEYS.OPENAI,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
         }[probeSource];
         await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
@@ -852,6 +862,13 @@ try {
             // by a path a user cannot take. The model is the panel's own select, which the status call
             // that Connect makes is what fills.
             oai_settings.nanogpt_model = 'probe-model';
+        } else if (probeSource === 'openai') {
+            // OPENAI IS proxy:true (apiSourceConfig: key SECRET_KEYS.OPENAI, selector '#api_key_openai', proxy true), so
+            // unlike groq this drive COULD carry the peer in reverse_proxy. It deliberately does NOT: the peer is reached
+            // by the GoTavern seam and the pinned transport redirect, as for every other literal-host source, and
+            // proxyPasswordPresent FALSE on BOTH legs is what proves neither leg used a proxy credential. Driving the proxy
+            // setting here would measure a different path than the seam this artifact asserts.
+            oai_settings.openai_model = 'probe-model';
         } else if (probeSource === 'mistralai') {
             oai_settings.mistralai_model = 'probe-model';
             oai_settings.reverse_proxy = mockUrl;
