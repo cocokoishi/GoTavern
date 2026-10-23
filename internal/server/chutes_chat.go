@@ -81,10 +81,12 @@ func pinnedChutesPayload(body orderedNodeJSON) (orderedNodeJSON, *pinnedChatComp
 	tools := sdBodyMember(body, "tools")
 	if tools.kind == 'a' && len(tools.array) > 0 {
 		bodyParams.setMember("tools", tools)
-		if choice, exists := body.member("tool_choice"); exists {
+		// `bodyParams['tool_choice'] = request.body.tool_choice` with an ABSENT member: JSON.stringify
+		// DROPS an undefined value, so the key must not appear at all. Writing null here (which is what
+		// nodeUndefined() serialises to through this package's encoder) would put a member on the wire
+		// that pinned never sends.
+		if choice, exists := body.member("tool_choice"); exists && !choice.isUndefined() {
 			bodyParams.setMember("tool_choice", choice)
-		} else {
-			bodyParams.setMember("tool_choice", nodeUndefined())
 		}
 	}
 	// `request.body.logprobs > 0` -- JS coercion, including the numeric-string and boolean cases.
@@ -97,17 +99,15 @@ func pinnedChutesPayload(body orderedNodeJSON) (orderedNodeJSON, *pinnedChatComp
 		responseFormat := nodeObject()
 		responseFormat.setMember("type", nodeString("json_schema"))
 		inner := nodeObject()
+		// name, description and schema are copied straight from the request body, so an ABSENT member is
+		// undefined and JSON.stringify drops it. Only `strict` is unconditionally present (?? true).
 		for _, key := range []string{"name", "description"} {
-			if value, exists := jsonSchema.member(key); exists {
+			if value, exists := jsonSchema.member(key); exists && !value.isUndefined() {
 				inner.setMember(key, value)
-			} else {
-				inner.setMember(key, nodeUndefined())
 			}
 		}
-		if value, exists := jsonSchema.member("value"); exists {
+		if value, exists := jsonSchema.member("value"); exists && !value.isUndefined() {
 			inner.setMember("schema", value)
-		} else {
-			inner.setMember("schema", nodeUndefined())
 		}
 		// `strict: request.body.json_schema.strict ?? true` -- null coalesces to true; false stays false.
 		if strict, exists := jsonSchema.member("strict"); exists && !strict.isUndefined() && !strict.isNull() {
