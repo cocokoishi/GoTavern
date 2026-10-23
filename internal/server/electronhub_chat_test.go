@@ -284,7 +284,9 @@ func electronHubTestDirectories(t *testing.T) startup.UserDirectories {
 	writeSDSecrets(t, root, "probe", map[string]string{
 		"api_key_electronhub": "synthetic-electronhub-key",
 	})
-	return startup.UserDirectories{"root": root}
+	// writeSDSecrets writes <dataRoot>/<handle>/secrets.json, while pinnedReadSecret reads
+	// <directories["root"]>/secrets.json, so what "root" must point at is the USER directory.
+	return startup.UserDirectories{"root": filepath.Join(root, "probe")}
 }
 
 // TestChatCompletionElectronHubSeamDefault pins the seam default to the recorded literal and the path
