@@ -443,6 +443,17 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 // declarations in its scenarios name the pinned line that puts the value on the wire.
 const REDACTED_PROVIDER_HEADERS = new Map([
     ['x-api-key', '<redacted>'],
+    // A CREDENTIAL THAT IS ALSO A CONTRACT, AND ONE WE CANNOT REDACT AWAY. FIREWORKS sends
+    // `x-session-affinity: <HMAC-SHA256(cookieSecret, chat_id) first 16 hex>` when a chat_id is
+    // present; `getAffinityKey()` is the INSTALL'S COOKIE SECRET (chat-completions.js:119), so
+    // recording the header would commit a digest of a secret into a compared field. Redacting it
+    // with a fixed marker would hide whether the digest is even derived from the chat id, which is
+    // the behaviour that matters -- so the fireworks scenarios record a chat_id-FREE request (the
+    // header must be ABSENT) and a PLAN-level Go test asserts presence, the 16-lowercase-hex shape,
+    // two ids producing two values, and equality with HMAC over the harness's own fixed cookie
+    // secret. A source that needs its credential capture end to end adds the header HERE and takes a
+    // full re-record of every scenario.
+    // ['x-session-affinity', '<redacted>'],
 ]);
 
 function normalizeProvider(recording, mockAddress) {
