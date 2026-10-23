@@ -1106,7 +1106,33 @@ if (xaiGeneration) {
     console.log(`  generation-xai-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, POST //chat/completions on both legs, proxyPasswordPresent TRUE on both (the credential travelled as proxy_password, which is what makes this row different from every seam-routed one); seam ${xaiGeneration.driveParameters.seamEnvVar} aimed as a safety net only. NOT PROVEN HERE: convertXAIMessages, because the driven chat carries no message name member, so its guard returns for every message.`);
 }
 
-// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
+// ---- generation-workersai-comparison.json -----------------------------------------------------
+//
+// WORKERS_AI is proxy:false, its ACCOUNT ID travels in the PATH (workers_ai_chat.go:39-49), and the
+// drive types that id into the control a user types into. So the artifact must record the account-id
+// MODE rather than only the value, and proxyPasswordPresent must be false on BOTH legs: that false is
+// the evidence the peer was reached by seam plus redirect, not a claim that a proxy was available.
+const workersaiGeneration = read('generation-workersai-comparison.json');
+if (workersaiGeneration) {
+    const label = 'generation-workersai-comparison.json';
+    if (workersaiGeneration.providerRequestEqual !== true) fail(label, 'providerRequestEqual is not true');
+    if (workersaiGeneration.requestArrived?.gotavern !== true || workersaiGeneration.requestArrived?.pinned !== true) fail(label, 'requestArrived is not true on both legs');
+    if (workersaiGeneration.milestoneEqual !== true) fail(label, 'milestoneEqual is not true');
+    for (const [guard, value] of Object.entries(workersaiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${guard} is not true`);
+    }
+    if (typeof workersaiGeneration.driveParameters?.accountIdMode !== 'string' || workersaiGeneration.driveParameters.accountIdMode.length === 0) {
+        fail(label, 'driveParameters.accountIdMode is missing, so the artifact does not say HOW the account id was driven');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (workersaiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(workersaiGeneration.proxyPasswordPresent?.[leg])}, but workers_ai is proxy:false and the peer is reachable only by seam and redirect`);
+        }
+    }
+    console.log(`  generation-workersai-comparison.json providerRequestEqual true, ${(workersaiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs, account id ${workersaiGeneration.driveParameters.accountIdMode} via ${workersaiGeneration.driveParameters.accountIdControl ?? 'unknown control'}`);
+}
+
+// ---- streaming-{mistral,claude}-comparison.json ---------------------------------------------- ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
 // own: a missing surface, a surface that is not proven, a leg that never reached the provider, or a
@@ -1119,11 +1145,12 @@ if (xaiGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json', 'streaming-electronhub-comparison.json', 'streaming-xai-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json', 'streaming-electronhub-comparison.json', 'streaming-xai-comparison.json', 'streaming-workersai-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
     const isXai = artifactName.includes('xai');
+    const isWorkersai = artifactName.includes('workersai');
     const isGroq = artifactName.includes('groq');
     const isChutes = artifactName.includes('chutes');
     const isElectronhub = artifactName.includes('electronhub');
@@ -1135,7 +1162,7 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     const isDeepseek = artifactName.includes('deepseek');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek || isChutes || isElectronhub;
+    const isOpenAI = isWorkersai || isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek || isChutes || isElectronhub || isXai;
     if (isNanogpt) {
         // NANOGPT'S proxy:false CLAIM IS CHECKED AGAINST A MEASURED BOOLEAN, not against this file's own
         // prose: false on both legs is the evidence that neither leg reached the peer through a
@@ -1229,8 +1256,9 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     const chutesLine = 'chutes (OpenAI-shaped, proxy:false, messages forwarded verbatim with top_k/logit_bias): both legs GET /models then POST /chat/completions, 15 paced frames, cancellation reached the provider';
     const electronhubLine = 'electronhub (OpenAI-shaped, NO reverse_proxy support at all): both legs GET /models then POST /chat/completions, 15 paced frames; proxyPasswordPresent false because the route never consults the setting';
     const xaiLine = 'xai (OpenAI-shaped, peer carried in the reverse_proxy SETTING rather than a seam, credential typed into #api_key_xai): both legs GET /models then POST //chat/completions -- the doubled slash comes from a proxy origin without a path, which pinned produces too -- 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent TRUE on both legs, which is what distinguishes this row from every seam-routed one; convertXAIMessages is NOT exercised here because the driven chat sends no message name member';
+    const workersaiLine = 'workersai (OpenAI-shaped, proxy:false, account id typed into the frontend control and carried in the PATH): both legs GET the model list then POST /chat/completions, 15 paced frames, cancellation reached the provider; proxyPasswordPresent false on both legs';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isXai ? xaiLine : isChutes ? chutesLine : isElectronhub ? electronhubLine : isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isWorkersai ? workersaiLine : isXai ? xaiLine : isChutes ? chutesLine : isElectronhub ? electronhubLine : isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }
