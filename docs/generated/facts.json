@@ -8,13 +8,13 @@
   "generatedBy": "tools/generate-doc-facts.mjs",
   "providerStatus": {
     "customFallThrough": 1,
-    "explicitBranches": 21,
-    "sources": 22,
-    "vertexAIExplicitBranch": false
+    "explicitBranches": 24,
+    "sources": 25,
+    "vertexAIExplicitBranch": true
   },
   "providerWire": {
     "capturedScenarios": 187,
-    "scenarioInputs": 194,
+    "scenarioInputs": 193,
     "sources": 25
   },
   "routes": {
