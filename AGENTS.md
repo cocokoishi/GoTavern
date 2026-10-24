@@ -343,30 +343,40 @@ domain.
    Report the exclusion count alongside the coverage numbers rather than implying 339/339 is
    attainable.
 
-## Where verification runs
+## Working mode: CI-first, branch-merge, no pull requests
 
-The development machine is weak. Spend its cycles on the work only it can do, and let GitHub
-Actions spend the rest.
+The development host is weak. Since 2026-10-24 the rule is not "prefer CI", it is **the host does
+not run heavy work at all**. Everything that compiles, boots a server, drives a browser, records a
+fixture or runs a test suite happens in GitHub Actions.
 
-- **Locally, first, always:** `node scripts/dev-verify.mjs`. It classifies your changed files against
-  `origin/main`, picks the smallest falsifying set (gofmt in LF form, `go build ./...`, the changed package's
-  tests, the browser gate when its artifacts moved), runs it, and prints what it decided and why. Measured on
-  this host: `go build ./...` 9.1 s, a targeted package test 19 s, the whole Go suite 116 s. The GitHub round
-  trip was never required to find a compile error; believing it was is what made this project's loop slow.
-  `docs/development-loop.md` lists the tiers and, more importantly, what ONLY the oracle can decide.
-- **Also locally when needed:** `go test -count=1` for the packages you changed, and the script's `--full`
-  flag (116 s) after touching a shared surface.
-- **In CI:** the full `go test ./...`, `go vet ./...`, `gotavern assets verify`, every cross-compile,
-  and `tools/build-generated-lib.mjs` — which re-records every oracle fixture and regenerates the
-  inventories on Linux and then requires a zero diff.
-- **Do not run `tools/build-generated-lib.mjs` locally** to "check" a fixture. It rewrites
-  host-dependent fixtures with Windows paths (`account-*`, `basic-auth`, `frontend-static`,
-  `host-whitelist`, `per-user-basic-auth` all differ on this host), it takes tens of minutes, and its
-  result is not the gate: the Linux CI run is. Push, read the failure, fix from that.
-- **Push early.** An unpushed commit has never been tested and cannot be reproached from CI output.
-  A red run that names the differing bytes is cheaper than an hour of local guessing.
-- When CI runs are the gate, a CI job must be able to tell you WHICH bytes differ. Prefer
-  `git diff --exit-code` plus the diff in the log over a bare exit status.
+- **Allowed locally:** editing files, `git` (branch/commit/merge/revert), reading code and fixtures,
+  `node --check` on a single file you just edited, and `git diff` inspection. Nothing else.
+- **Forbidden locally:** `go build`, `go test`, `go vet`, `gofmt` over the tree, `npm`, Playwright,
+  `tools/build-generated-lib.mjs`, the browser harness, any probe. The machine cannot afford them and
+  a Windows result is not the Linux gate anyway (see the CRLF and host-path traps in the rules above).
+- **No pull requests.** Branch count and duplicated multi-hour sweeps got out of control: five PRs
+  meant five oracle jobs. A task gets ONE lane branch; when it is done and its cheap checks pass, it
+  is pushed once and the lead merges it into `main` locally, then deletes the lane. `main` is the only
+  long-lived branch. The only CI run that judges a change is the run on `main` after the merge.
+- **Persist expensive CI work** rather than re-paying it: `setup-go` cache, `actions/cache` for the
+  pinned SillyTavern `node_modules`, the oracle build root, the harness `node_modules` and the
+  Playwright browser bundle. A cache key must PROVE the identity of what it restores (pinned commit
+  plus the lockfile hash that goes with it), never merely suggest it, and every hit must print which
+  branch it took so the log proves the persistence instead of implying it.
+- **Narrowing is a cost control, never a strength control.** A narrowed oracle run reduces recording
+  work and, with it, detection: a probe that did not run leaves its fixture byte-identical, so the
+  zero-diff gate cannot see it. The scheduled full sweep is the only run whose green covers the whole
+  oracle. Never claim otherwise in a comment, a document or a report.
+- **Every job has a `timeout-minutes`** sized to measured reality, so a wedged probe or browser fails
+  the job instead of consuming a runner for hours.
+- **A CI job must be able to tell you WHICH bytes differ.** Prefer `git diff --exit-code` plus the
+  diff in the log over a bare exit status. `.github/workflows/ci.yml` uploads the Linux re-record as a
+  patch on every run, so a failure can be read rather than guessed at.
+- `docs/development-loop.md` lists the tiers and, more importantly, what ONLY the oracle can decide.
+
+`node scripts/dev-verify.mjs` still exists and is still useful as a *classifier* (it says which
+checks a change needs), but it is optional advice: on this host it must not be used to run the Go
+build or the test suite that CI will run. If you run it, run it with `--explain`.
 
 ## Phase order
 
