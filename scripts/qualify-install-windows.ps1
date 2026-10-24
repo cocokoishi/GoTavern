@@ -145,13 +145,25 @@ try {
     [System.IO.Compression.ZipFile]::CreateFromDirectory($stageOlder, $olderZip)
     [System.IO.Compression.ZipFile]::CreateFromDirectory($stageNewer, $newerZip)
     foreach ($zip in @($olderZip, $newerZip)) {
-        $names = [System.IO.Compression.ZipFile]::OpenRead($zip).Entries | ForEach-Object { $_.FullName }
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+        try {
+            $names = @($archive.Entries | ForEach-Object { $_.FullName })
+        } finally {
+            # Dispose it: an archive left open makes the NEXT zip fail with "used by another process",
+            # which reads as a harness bug rather than as an assertion.
+            $archive.Dispose()
+        }
         if ($names -notcontains 'gotavern.exe') { Fail "$zip does not carry gotavern.exe at its archive root" }
-        if (($names | Where-Object { $_ -like 'src/tokenizers/*' }).Count -eq 0) { Fail "$zip does not carry src/tokenizers/ (entries: $($names -join ', '))" }
+        # @( ... ) IS LOAD-BEARING. Under Set-StrictMode -Version Latest a pipeline that matches NOTHING
+        # collapses to $null, and `$null.Count` is a TERMINATING ERROR rather than 0 -- which is how the
+        # duplicate-root check first failed in run 40063280918: it threw "The property 'Count' cannot be
+        # found on this object" instead of naming the layout, the exact opposite of the point of these
+        # assertions. An explicit array always has Count.
+        if (@($names | Where-Object { $_ -like 'src/tokenizers/*' }).Count -eq 0) { Fail "$zip does not carry src/tokenizers/ (entries: $($names -join ', '))" }
         # The archive's ROOT must not carry the tree: the contract moves it under src/ and a second copy
         # would double the payload. `-like 'tokenizers/*'` anchors at the start, so src/tokenizers/ does
         # not match it.
-        if (($names | Where-Object { $_ -like 'tokenizers/*' }).Count -ne 0) { Fail "$zip carries a duplicate tokenizers/ tree at its root; the tree belongs at src/tokenizers/ only" }
+        if (@($names | Where-Object { $_ -like 'tokenizers/*' }).Count -ne 0) { Fail "$zip carries a duplicate tokenizers/ tree at its root; the tree belongs at src/tokenizers/ only" }
     }
     Ok "built both payload zips with gotavern.exe at the root and src/tokenizers/ under src/"
 

@@ -366,9 +366,11 @@ jobs:
         shell: pwsh
         run: |
           Write-Host '::group::windows installer logs'
+          # LOGS AND TEXT ONLY. The unfiltered version dumped the built .zip payloads into the log as
+          # mojibake and buried the one line that named the failure.
           Get-ChildItem ([System.IO.Path]::GetTempPath()) -Directory -Filter 'gotavern-qualify-win-*' -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object {
-              Get-ChildItem $_.FullName -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Get-ChildItem $_.FullName -File -Include '*.log', '*.txt', '*.out' -ErrorAction SilentlyContinue | ForEach-Object {
                 Write-Host "--- $($_.Name) ---"
                 Get-Content -LiteralPath $_.FullName -Tail 80 -ErrorAction SilentlyContinue
               }
