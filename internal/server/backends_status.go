@@ -43,8 +43,50 @@ func pinnedChatCompletionMissingKeyRefusal(w http.ResponseWriter) {
 	respondOrderedNodeJSON(w, http.StatusBadRequest, errorOnly)
 }
 
-// serveBackendsChatCompletionStatus is chat-completions.js:1778: the custom and openrouter branches, and 501
-// for every other source in the pinned provider matrix.
+// pinnedChatCompletionStatusNoArmSources names the sources this route answers from the pinned status
+// chain's CLOSING ELSE rather than from an arm of its own.
+//
+// chat-completions.js:1787-2065 is ONE `if / else if` chain, and it ends at :2062-2065 with
+//
+//	} else { console.warn('This chat completion source is not supported yet.');
+//	          return statusResponse.status(400).send({ error: true }); }
+//
+// so a source with no arm gets 400 {"error":true} and RETURNS. Three consequences are easy to get wrong:
+//
+//   - the :2067 key guard is UNREACHABLE for such a source, because the else returns first. The answer
+//     therefore depends on neither a secret existing nor `reverse_proxy` being set;
+//   - it is a REFUSAL, not a gap. Answering 501 -- this route's "not written yet" marker -- makes "pinned
+//     refuses this source" indistinguishable from "we have not written it", which is precisely the
+//     distinction AGENTS.md rule 17 exists to preserve. AI21, VERTEXAI and PERPLEXITY answered 501 that
+//     way until this table existed;
+//   - a PAIRED reverseProxy scenario is what proves the else fires rather than the guard, because the
+//     guard is skipped when reverse_proxy is truthy. Recording only the no-reverse_proxy case would leave
+//     two different mechanisms producing the same answer.
+//
+// THE ORACLE FOR THE SHAPE IS RECORDED, NOT DERIVED: status.claude.{noBranch,reverseProxy} in
+// tests/oracle/sillytavern-1.19.0-backends.json both record 400, body {"error":true} and outbound: [], and
+// status.{ai21,vertexai,perplexity}.{noBranch,reverseProxy} record the same three observables for the
+// sources named here (declared by tools/probe-backends.mjs, recorded on Linux by the oracle job).
+//
+// CLAUDE, ZAI and MINIMAX have no pinned arm either, but each keeps its own arm function because it
+// carries its own recorded evidence and its own comment; they count as ARMED for
+// TestEveryClaimedSourceHasAStatusArmOrIsInTheNoArmTable, which holds every source one way or the other.
+var pinnedChatCompletionStatusNoArmSources = map[string]bool{
+	chatCompletionSourceAI21:       true,
+	chatCompletionSourceVertexAI:   true,
+	chatCompletionSourcePerplexity: true,
+}
+
+// pinnedChatCompletionStatusUnsupportedRefusal is the pinned closing else (:2062-2065): a JSON body
+// {"error":true} at 400 -- NOT Express's plain-text status message, which is why it goes through
+// respondOrderedNodeJSON -- and no provider call.
+func pinnedChatCompletionStatusUnsupportedRefusal(w http.ResponseWriter) {
+	respondOrderedNodeJSON(w, http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+}
+
+// serveBackendsChatCompletionStatus is chat-completions.js:1778: one arm per source the pinned chain has,
+// the closing else's refusal for a source it has none for (pinnedChatCompletionStatusNoArmSources), and 501
+// ONLY for a source the pinned matrix knows and this route has not ported yet.
 func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.ResponseWriter, request *http.Request) {
 	_, directories, ok := runtime.sdUser(w, request)
 	if !ok {
@@ -158,6 +200,13 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		// :1848-1851 assigns the URL and the key with the reverse_proxy split and no header of its own,
 		// then falls through to the shared GET /models tail. See moonshot_chat.go.
 		runtime.serveMoonshotChatCompletionStatus(w, request, body, directories)
+		return
+	}
+	// A SOURCE WITH NO PINNED ARM IS REFUSED, NOT UNIMPLEMENTED, and this arm must come BEFORE the 501
+	// block below: 501 is the "not written yet" marker, so reaching it for one of these sources reported a
+	// gap where the pinned backend refuses. See pinnedChatCompletionStatusNoArmSources.
+	if pinnedChatCompletionStatusNoArmSources[source] {
+		pinnedChatCompletionStatusUnsupportedRefusal(w)
 		return
 	}
 	// 501 IS FOR A SOURCE THE PINNED MATRIX KNOWS AND THIS ROUTE DOES NOT PORT YET, and for nothing

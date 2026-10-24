@@ -12,9 +12,12 @@ package server
 //     the pinned source lines, because the observable crosses the response side rather than the request body:
 //     the recorded `ai21-error-status` scenario asserts the browser-visible half against the pinned server, and
 //     the route test asserts the Go half answers 500 with the provider's object.
-//  5. /status has NO pinned arm, so AI21 must answer 501 there. That is a labelled derivation: pinned's own
-//     status route answers 400 for an unknown source, and this project deliberately answers 501 so an
-//     unimplemented arm stays distinguishable from a refused one (AGENTS.md rule 17).
+//  5. /status has NO pinned arm, so the PINNED answer is the status chain's closing else: 400
+//     {"error":true} with no outbound request (:2062-2065). This package answered 501 there for a while,
+//     which reported a GAP where the pinned backend REFUSES (rule 17 in reverse). The observable is now
+//     recorded from the pinned server as status.ai21.{noBranch,reverseProxy} in
+//     tests/oracle/sillytavern-1.19.0-backends.json and asserted at the route by
+//     TestStatusFallThroughSourcesAnswerThePinnedRefusal.
 
 import (
 	"encoding/json"
