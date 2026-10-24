@@ -42,6 +42,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
+import { PRESET_FIXTURE, applyPresetKit, presetSpec } from './preset-kit.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -216,6 +217,69 @@ const probeMode = process.env.PROBE_MODE ?? 'nonstream';
 // (source and protocol are derived above, before the mock script, so one place decides both)
 
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
+
+// PRESET MODE: the complex-preset differential (AGENTS.md rules 8 and 9).
+//
+// The drive is the ordinary non-streaming custom-source send, except that the page is given the
+// COMPLEX preset captured from the pinned frontend (tests/browser/fixtures/preset-complex-settings.json,
+// produced by capture-preset.mjs) and one of the two measured context boundaries:
+//
+//   PROBE_PRESET_VARIANT=keep  -- openai_max_context is the smallest value at which the pinned frontend
+//                                 keeps the OLDEST history turn;
+//   PROBE_PRESET_VARIANT=drop  -- that value minus one, at which the pinned frontend drops it.
+//
+// Both numbers are pinned observations of the pinned trimmer (bisected in capture-preset.mjs), so the
+// pair is a real boundary rather than a number derived from GoTavern's own count. If GoTavern counts a
+// message differently, its trimmer keeps a different SET of messages and the comparison says which
+// message index differs.
+//
+// THE FIXTURE IS REQUIRED, NOT OPTIONAL. Without it there is no preset to drive and no boundary to
+// bind, and a silent fall back to the simple captured configuration would produce an artefact that
+// looks like the complex differential and is not (AGENTS.md rule 7). The probe therefore refuses.
+const presetMode = probeMode === 'preset';
+const presetVariant = process.env.PROBE_PRESET_VARIANT ?? 'keep';
+let presetFixture = null;
+if (presetMode) {
+    if (!['keep', 'drop'].includes(presetVariant)) {
+        throw new Error(`PROBE_PRESET_VARIANT must be "keep" or "drop", got ${JSON.stringify(presetVariant)}`);
+    }
+    try {
+        presetFixture = JSON.parse(await fs.readFile(PRESET_FIXTURE, 'utf8'));
+    } catch (error) {
+        throw new Error(`preset mode needs ${PRESET_FIXTURE}: ${error.message}. Run capture-preset.mjs against the pinned leg first (the browser-differential workflow does this in its capture step).`);
+    }
+    const boundary = presetFixture?.capture?.boundary ?? {};
+    if (!Number.isInteger(boundary.keepContext) || !Number.isInteger(boundary.dropContext)) {
+        throw new Error(`${PRESET_FIXTURE} records no boundary pair (keepContext/dropContext); the capture did not bind the context budget, so there is no differential to run`);
+    }
+    const anchor = presetFixture?.capture?.tokenizerAnchor?.observed?.count ?? null;
+    if (anchor !== presetFixture?.capture?.tokenizerAnchor?.pinnedCount) {
+        throw new Error(`${PRESET_FIXTURE} recorded a tokenizer anchor of ${JSON.stringify(anchor)} at capture time, not the pinned ${presetFixture?.capture?.tokenizerAnchor?.pinnedCount}: a server that does not tokenize cannot host a context-boundary differential`);
+    }
+}
+// WHICH TOKENIZER TREE THIS LEG WOULD USE, recorded from the filesystem rather than inferred. The
+// routes answer a Guesstimate (or 0) when no tree resolves and keep answering 200, so a missing tree
+// is invisible in the response and would make the whole boundary meaningless. `src/tokenizers` is the
+// pinned AND release layout; `tokenizers/` and `upstream/tokenizers` are fallbacks (internal/server/
+// tokenizers.go:120-129). The pinned leg is reported as `external`, because its tree lives in the
+// reference checkout rather than beside a binary this probe staged.
+async function tokenizerRootEvidence() {
+    const target = external ? process.env.GOTAVERN_REFERENCE ?? null : path.dirname(binary);
+    const candidates = external
+        ? [target ? path.join(target, 'src', 'tokenizers') : null].filter(Boolean)
+        : ['src', 'tokenizers', 'upstream'].map(prefix => (prefix === 'tokenizers'
+            ? path.join(target, 'tokenizers')
+            : path.join(target, prefix, 'tokenizers')));
+    const observed = [];
+    for (const candidate of candidates) {
+        const present = await fs.stat(candidate).then(info => info.isDirectory(), () => false);
+        const files = present ? (await fs.readdir(candidate).catch(() => [])).length : 0;
+        observed.push({ root: path.basename(path.dirname(candidate)) === 'src' ? 'src/tokenizers' : path.relative(target, candidate).split(path.sep).join('/'), present, entries: files });
+    }
+    const resolved = observed.find(candidate => candidate.present && candidate.entries > 0) ?? null;
+    return { leg: external ? 'pinned' : 'gotavern', target, resolved: resolved?.root ?? null, candidates: observed };
+}
+const tokenizerRoot = await tokenizerRootEvidence();
 
 function startStreamingPeer(mode, protocol) {
     // EVERY request the peer answered, with the status it gave: without this a drive that never
@@ -450,6 +514,8 @@ const report = {
     pageErrors: [],
     generatedText: null,
     failure: null,
+    // Present only in preset mode, so no other mode's report changes shape.
+    ...(presetMode ? { preset: null, tokenizerRoot } : {}),
 };
 
 let browser;
@@ -775,7 +841,13 @@ try {
         noValidate: source.probe.noValidate,
     };
     const modelControlRecords = plan.modelControl ? [plan.modelControl.record] : [];
-    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan }) => {
+    // THE PRESET KIT IS INSTALLED, NOT RE-DEFINED. `page.evaluate` cannot pass a function as an
+    // argument, and the scenario has exactly one definition (preset-kit.mjs) shared with the capture
+    // run: it is injected as a page global and called from inside the drive below.
+    if (presetMode) {
+        await page.addScriptTag({ content: `globalThis.__applyPresetKit = (${applyPresetKit.toString()});` });
+    }
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -917,6 +989,75 @@ try {
         mainApiSelect.value = 'openai';
         mainApiSelect.dispatchEvent(new Event('change', { bubbles: true }));
         await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // THE COMPLEX PRESET. Applied HERE rather than before the drive because `promptManager` exists
+        // only after settings load (initOpenAI), and the character and chat must be in place before the
+        // kit writes them. Everything it touches is a frontend module the UI itself uses. The kit returns
+        // a named list of anything that did not take, and the drive REFUSES to send on a half-applied
+        // preset: a preset that silently shrank would be a smaller differential wearing a complex one's
+        // name (AGENTS.md rule 7).
+        let presetApplied = null;
+        if (presetSpec && presetBoundary) {
+            const kit = await globalThis.__applyPresetKit(presetSpec);
+            const maxContext = presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext;
+            oai_settings.openai_max_context = maxContext;
+            // Non-streaming on every variant: the compared object is the provider's REQUEST, and a
+            // streamed leg would make this artefact about framing rather than about prompt assembly.
+            oai_settings.stream_openai = false;
+            // THE TOKENIZER ANCHOR, ASKED OF THE SERVER THIS LEG IS DRIVING. A fixed body whose pinned
+            // count is 7 (tests/oracle/sillytavern-1.19.0-tokenizers.json, openai/count#llama#simple);
+            // a server on the Guesstimate path answers a different number, which is how this lane
+            // refuses to compare token counts that are not counts.
+            let tokenizerAnchor = null;
+            if (presetAnchor) {
+                let count = null;
+                let status = null;
+                try {
+                    const response = await fetch(`/api/tokenizers/openai/count?model=${encodeURIComponent(presetAnchor.model)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(presetAnchor.body),
+                    });
+                    status = response.status;
+                    count = Number((await response.json())?.token_count);
+                } catch (error) {
+                    tokenizerAnchor = { model: presetAnchor.model, status, count: null, pinnedCount: presetAnchor.pinnedCount, error: String(error?.message ?? error).slice(0, 160) };
+                }
+                tokenizerAnchor = tokenizerAnchor ?? { model: presetAnchor.model, status, count, pinnedCount: presetAnchor.pinnedCount };
+            }
+            presetApplied = {
+                variant: presetVariant,
+                maxContext,
+                boundary: {
+                    keepContext: presetBoundary.keepContext,
+                    dropContext: presetBoundary.dropContext,
+                    keepMessages: presetBoundary.keepMessages,
+                    dropMessages: presetBoundary.dropMessages,
+                },
+                typedMessage: presetSpec.send ?? null,
+                chatTurns: kit.chatTurns ?? null,
+                steps: kit.steps ?? [],
+                problems: kit.problems ?? [],
+                tokenizerAnchor,
+                settings: {
+                    openai_max_context: oai_settings.openai_max_context,
+                    openai_max_tokens: oai_settings.openai_max_tokens,
+                    temp_openai: oai_settings.temp_openai,
+                    top_p_openai: oai_settings.top_p_openai,
+                    pres_openai: oai_settings.pres_openai,
+                    freq_openai: oai_settings.freq_openai,
+                    names_behavior: oai_settings.names_behavior,
+                    stream_openai: oai_settings.stream_openai,
+                },
+            };
+            if (presetApplied.problems.length > 0) {
+                return {
+                    preconditions: { charactersLoaded: true, settingsReady: true, presetApplied },
+                    presetApplied,
+                    error: `the complex preset did not apply: ${presetApplied.problems.join('; ')}`,
+                };
+            }
+        }
 
         const diagnostics = () => ({
             // The API dispatch flag, which is NOT in oai_settings: sendGenerationRequest branches on
@@ -1070,7 +1211,10 @@ try {
 
         const composer = document.querySelector('#send_textarea');
         if (composer) {
-            composer.value = 'probe user marker';
+            // The typed text is the scenario's own marker in preset mode: the capture appended the SAME
+            // message to the chat before it bisected the boundary, so the assembled list this send
+            // produces is the list the boundary was measured against.
+            composer.value = presetSpec?.send ?? 'probe user marker';
             composer.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const sendButton = document.querySelector('#send_but');
@@ -1271,8 +1415,12 @@ try {
             })(),
             streamState,
         };
-        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend };
-    }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource, plan });
+        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend, presetApplied };
+    }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource, plan,
+        presetSpec: presetMode ? presetFixture.capture.spec : null,
+        presetVariant,
+        presetBoundary: presetMode ? presetFixture.capture.boundary : null,
+        presetAnchor: presetMode ? presetFixture.capture.tokenizerAnchor : null });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
@@ -1314,6 +1462,12 @@ try {
     report.xhrLog = await page.evaluate(() => globalThis.__probeXhrLog ?? []);
     report.diagnostics = outcome.preconditions ?? null;
     report.postSend = outcome.postSend ?? null;
+    // The preset block is only meaningful in preset mode, and it is recorded even when the drive then
+    // failed: which variant, which context, and what the kit reported is what a reader needs to judge
+    // whether the leg measured the scenario at all.
+    if (presetMode) {
+        report.preset = outcome.presetApplied ?? null;
+    }
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;
     }

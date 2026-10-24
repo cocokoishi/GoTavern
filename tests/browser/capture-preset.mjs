@@ -1,0 +1,309 @@
+// Capture the COMPLEX preset from the PINNED frontend, and measure where its context boundary lies.
+//
+// Run against a running pinned server (run-against-pinned.mjs capture-preset.mjs). It is the only
+// producer of tests/browser/fixtures/preset-complex-settings.json: the settings in that file are read
+// OUT of the pinned frontend after the scenario is applied, never written by hand, so a re-capture
+// after a baseline bump is a byte-for-byte determinism check rather than a manual edit.
+//
+// THE BOUNDARY IS BINARY-SEARCHED, NOT DERIVED. `openai_max_context` is the only knob that decides
+// whether the oldest history turn is kept (public/scripts/openai.js:3982-4089 trims client-side). This
+// script drives the pinned frontend's own DRY assembly for a series of contexts and finds the smallest
+// one that still contains the oldest marker, then records it and the value one below it. Those two
+// numbers are a PINNED OBSERVATION of the pinned trimmer; the drive legs replay them, and the
+// comparator requires the pinned leg to reproduce the keep/drop decision at each. No number in this
+// file or in the fixture comes from GoTavern.
+//
+// WHY A DRY ASSEMBLY AND NOT ARITHMETIC. Summing per-message counts would be a derivation: the pinned
+// budget reserves a slot for `new_chat_prompt`, subtracts 2 from every non-full count, and caches by
+// message hash (public/scripts/tokenizers.js:872-900). Asking the trimmer itself, once per candidate
+// context, makes the observation the thing that is recorded (AGENTS.md rule 4).
+//
+// Usage: node capture-preset.mjs --base-url http://127.0.0.1:8127 [--out <path>]
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import process from 'node:process';
+
+import { PRESET_FIXTURE, applyPresetKit, presetSpec } from './preset-kit.mjs';
+
+const playwrightModule = await import('@playwright/test');
+const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
+
+function argument(name, fallback) {
+    const index = process.argv.indexOf(name);
+    return index === -1 ? fallback : process.argv[index + 1];
+}
+
+const baseURL = argument('--base-url', process.env.CAPTURE_BASE_URL ?? 'http://127.0.0.1:8127');
+const outPath = path.resolve(argument('--out', PRESET_FIXTURE));
+
+// The pinned count of this body is `openai/count#llama#simple` in
+// tests/oracle/sillytavern-1.19.0-tokenizers.json (`token_count: 7`). It is re-asked HERE so the
+// fixture records that this server really tokenizes rather than guesstimates: a cold or missing
+// tokenizer tree answers a different number on both legs, and the comparator refuses to compare.
+const TOKENIZER_ANCHOR = {
+    model: 'llama',
+    body: [{ role: 'user', content: 'Hello, world!' }],
+    pinnedCount: 7,
+};
+
+const spec = presetSpec();
+const browser = await chromium.launch();
+const page = await browser.newPage();
+const consoleErrors = [];
+page.on('pageerror', error => consoleErrors.push(String(error.message ?? error).slice(0, 200)));
+
+// The dry assembly is a frontend function; it reads settings, the chat and the extension prompts and
+// returns the assembled message list without any provider call. It is re-entered once per candidate
+// context by `assembleAt`, so every probe of the trimmer is the same code path the send uses.
+async function assembleAt(maxContext) {
+    return page.evaluate(async ({ maxContext, oldestMarker }) => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        // A dry run returns before the fetch (script.js:5320), so no provider is needed; the status
+        // check is a user-facing setting and would otherwise refuse a send in this offline capture.
+        if ('bypass_status_check' in openai.oai_settings) {
+            openai.oai_settings.bypass_status_check = true;
+        }
+        openai.oai_settings.openai_max_context = maxContext;
+        const seen = [];
+        const handler = data => seen.push(data);
+        script.eventSource.on(script.event_types.GENERATE_AFTER_DATA, handler);
+        let failure = null;
+        try {
+            await script.Generate('normal', {}, true);
+        } catch (error) {
+            failure = String(error?.message ?? error).slice(0, 300);
+        } finally {
+            script.eventSource.removeListener(script.event_types.GENERATE_AFTER_DATA, handler);
+        }
+        const prompt = seen.length ? seen[seen.length - 1]?.prompt : null;
+        const messages = Array.isArray(prompt) ? prompt : [];
+        const text = message => {
+            const content = message?.content;
+            if (typeof content === 'string') return content;
+            if (Array.isArray(content)) return content.map(part => (typeof part === 'string' ? part : part?.text ?? '')).join('\n');
+            return '';
+        };
+        const index = messages.findIndex(message => text(message).includes(oldestMarker));
+        return {
+            maxContext,
+            failure,
+            assemblyCount: seen.length,
+            messageCount: messages.length,
+            oldestIndex: index,
+            roles: messages.map(message => message?.role ?? null),
+            firstMessageText: text(messages[0] ?? {}).slice(0, 120),
+        };
+    }, { maxContext, oldestMarker: spec.history[0].text.slice(0, 40) });
+}
+
+let exitCode = 1;
+try {
+    await page.goto(`${baseURL}/`);
+    await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 120000 });
+
+    // 1. Apply the scenario, twice-read: `applyPresetKit` reports every step and names every failure.
+    const applied = await page.evaluate(applyPresetKit, spec);
+    const problems = [...(applied.problems ?? [])];
+
+    // 1b. THE DRIVE'S OWN PRE-CONDITIONS, and the message the drive will TYPE. A send appends one user
+    //     turn before assembly, so the capture must assemble a chat of the same shape or the boundary it
+    //     measures is not the boundary the drive reaches.
+    //
+    //     `main_api` is driven through the control a user drives (`#main_api`, assigned by its change
+    //     handler), because it is an exported `let` in script.js that cannot be assigned from outside and
+    //     a stale value sends the dry assembly down another API's path entirely. The source and model are
+    //     set to what the drive will use, so the assembled request is the one the differential compares.
+    const preconditions = await page.evaluate(async ({ send, customModel }) => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        const mainApiControl = document.querySelector('#main_api');
+        if (mainApiControl) {
+            mainApiControl.value = 'openai';
+            mainApiControl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        openai.oai_settings.chat_completion_source = 'custom';
+        openai.oai_settings.custom_model = customModel;
+        openai.oai_settings.stream_openai = false;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        script.chat.push({
+            name: 'Probe User',
+            is_user: true,
+            is_system: false,
+            send_date: '2026-01-01T00:00:00.000Z',
+            mes: send,
+            extra: {},
+        });
+        return {
+            chatTurns: script.chat.length,
+            mainApi: String(script.main_api ?? ''),
+            hasMainApiControl: Boolean(mainApiControl),
+            source: String(openai.oai_settings.chat_completion_source ?? ''),
+            customModel: String(openai.oai_settings.custom_model ?? ''),
+        };
+    }, { send: spec.send, customModel: 'probe-model' });
+    const chatTurnsAtBoundary = preconditions.chatTurns;
+    if (preconditions.mainApi !== 'openai') {
+        problems.push(`main_api is ${JSON.stringify(preconditions.mainApi)} after driving #main_api (control present: ${preconditions.hasMainApiControl}); the dry assembly would not take the chat-completion path`);
+    }
+    if (chatTurnsAtBoundary !== applied.chatTurns + 1) {
+        problems.push(`the capture's chat has ${chatTurnsAtBoundary} turns after the typed message, expected ${applied.chatTurns + 1}`);
+    }
+
+
+    // 2. The tokenizer anchor. Read BEFORE the boundary search, because a guesstimating server would
+    //    place the boundary somewhere meaningless and the fixture must say so.
+    const anchor = await page.evaluate(async anchorBody => {
+        const response = await fetch('/api/tokenizers/openai/count?model=llama', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(anchorBody),
+        });
+        if (!response.ok) {
+            return { status: response.status, count: null, error: 'the count route did not answer 200' };
+        }
+        const payload = await response.json();
+        return { status: response.status, count: Number(payload?.token_count) };
+    }, TOKENIZER_ANCHOR.body);
+    if (anchor.count !== TOKENIZER_ANCHOR.pinnedCount) {
+        problems.push(`the tokenizer anchor answered ${JSON.stringify(anchor)}; a server that does not tokenize exactly cannot host a context-boundary measurement`);
+    }
+
+    // 3. Binary search the trimmer. Smaller context = fewer history turns kept, so "the oldest marker
+    //    is present" is monotone in maxContext and a bisect finds the exact edge.
+    const searchLog = [];
+    const low = Math.max(spec.maxTokens + 40, 120);
+    const high = Math.max(low + 1, 4096);
+    const probeAt = async context => {
+        const result = await assembleAt(context);
+        searchLog.push(result);
+        return result;
+    };
+    const atHigh = await probeAt(high);
+    if (atHigh.failure) {
+        problems.push(`the dry assembly failed at max_context=${high}: ${atHigh.failure}`);
+    }
+    if (atHigh.assemblyCount === 0) {
+        problems.push('the dry assembly emitted no GENERATE_AFTER_DATA, so nothing was measured');
+    }
+    if (atHigh.oldestIndex < 0) {
+        problems.push(`the oldest history turn is not present even at max_context=${high} (${atHigh.messageCount} messages): the history is longer than any context this drive can ask for`);
+    }
+    let keepContext = null;
+    if (atHigh.oldestIndex >= 0) {
+        let lo = low;
+        let hi = high;
+        while (lo < hi) {
+            const mid = Math.floor((lo + hi) / 2);
+            const result = await probeAt(mid);
+            if (result.oldestIndex >= 0) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        keepContext = lo;
+    }
+    let keep = null;
+    let drop = null;
+    if (keepContext !== null) {
+        keep = await probeAt(keepContext);
+        drop = await probeAt(keepContext - 1);
+        if (keep.oldestIndex < 0) {
+            problems.push(`the bisect's keep context ${keepContext} does not contain the oldest turn; the search is inconsistent`);
+        }
+        if (drop.oldestIndex >= 0) {
+            problems.push(`the drop context ${keepContext - 1} still contains the oldest turn, so the pair does not bind`);
+        }
+        if (keep.messageCount <= drop.messageCount) {
+            problems.push(`the pair does not discriminate: keep has ${keep.messageCount} messages and drop has ${drop.messageCount}`);
+        }
+    }
+
+    if (problems.length > 0) {
+        console.error('capture-preset FAILED:');
+        for (const problem of problems) {
+            console.error(`  - ${problem}`);
+        }
+        console.error(JSON.stringify({ steps: applied.steps, searchLog: searchLog.map(entry => ({ ...entry, firstMessageText: undefined })) }, null, 2));
+        process.exitCode = 1;
+    } else {
+        const fixture = {
+            schemaVersion: 1,
+            provenance: {
+                capturedAt: process.env.CAPTURE_TIMESTAMP ?? new Date().toISOString(),
+                server: baseURL.replace(/:\d+$/, ':<port>'),
+                pinnedBaseline: 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127',
+                uiPath: [
+                    '1. getCharacters() + selectCharacterById(0) -- prompt assembly reads characters[this_chid]',
+                    '2. character description/personality/scenario/examples set on the bound card and read back',
+                    '3. script.chat replaced with the scenario history (greeting + 7 turns) and length asserted',
+                    '4. world info created through world-info.js createNewWorldInfo/createWorldInfoEntry/saveWorldInfo, one entry at position "after" and one at "atDepth" depth 0, then activated',
+                    "5. author's note written into chat_metadata and pushed through authors-note.js setFloatingPrompt(), asserted in extension_prompts['2_floating_prompt']",
+                    '6. stop strings set on power_user.custom_stopping_strings and read back through getCustomStoppingStrings(4)',
+                    '7. samplers, max_tokens and names_behavior set on oai_settings (no prompt-manager dependency)',
+                    '8. main/nsfw/jailbreak prompt content set through promptManager.getPromptById(identifier) and read back; order entries asserted enabled',
+                    '9. instruct/context template names set to a non-default preset and recorded',
+                    '10. dry assembly through script.Generate("normal", {}, true), bisecting openai_max_context until the oldest history turn is dropped',
+                    '11. POST /api/tokenizers/openai/count?model=llama with the oracle anchor body, expected 7',
+                ],
+                steps: applied.steps,
+                boundaryMethod: 'bisect over openai_max_context with the pinned frontend dry assembly; the predicate is "the oldest history marker is in the assembled messages"',
+                note: 'Captured from the pinned frontend with per-step assertions, not hand-assembled. Re-run capture-preset.mjs against the pinned baseline to refresh; the fixture must be byte-identical when nothing upstream changed.',
+                consoleErrors,
+            },
+            capture: {
+                spec,
+                oaiSettings: applied.oaiSettings,
+                powerUser: applied.powerUser,
+                prompts: applied.prompts,
+                chatTurns: applied.chatTurns,
+                // The chat the bisect actually assembled: greeting + history + the message the drive will
+                // type. Recorded because it is the list the boundary belongs to.
+                chatTurnsAtBoundary,
+                drivePreconditions: {
+                    mainApi: preconditions.mainApi,
+                    mainApiControlPresent: preconditions.hasMainApiControl,
+                    source: preconditions.source,
+                    customModel: preconditions.customModel,
+                },
+                tokenizerAnchor: { ...TOKENIZER_ANCHOR, observed: anchor },
+                boundary: {
+                    oldestMarker: spec.history[0].text.slice(0, 40),
+                    keepContext,
+                    dropContext: keepContext === null ? null : keepContext - 1,
+                    keepMessages: keep?.messageCount ?? null,
+                    dropMessages: drop?.messageCount ?? null,
+                    keepRoles: keep?.roles ?? null,
+                    dropRoles: drop?.roles ?? null,
+                    searchLog: searchLog.map(entry => ({
+                        maxContext: entry.maxContext,
+                        messageCount: entry.messageCount,
+                        oldestIndex: entry.oldestIndex,
+                        failure: entry.failure,
+                    })),
+                },
+            },
+        };
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, JSON.stringify(fixture, null, 2) + '\n');
+        console.log(JSON.stringify({
+            out: outPath,
+            keepContext,
+            dropContext: keepContext === null ? null : keepContext - 1,
+            keepMessages: fixture.capture.boundary.keepMessages,
+            dropMessages: fixture.capture.boundary.dropMessages,
+            tokenizerCount: anchor.count,
+            steps: applied.steps.length,
+            errors: consoleErrors.length,
+        }));
+        exitCode = 0;
+    }
+} catch (error) {
+    console.error(`capture-preset threw: ${String(error?.stack ?? error)}`);
+    console.error(JSON.stringify({ consoleErrors }));
+} finally {
+    await browser.close();
+}
+process.exit(exitCode);
