@@ -114,8 +114,12 @@ The development host cannot carry the build load and its Go cache once filled a 
   COMMON directory so it works across worktrees. Without it, concurrent boots run concurrent pruned
   webpack compiles and every other lane dies on a 180 s readiness deadline.
 - **The oracle is narrowed**: `GOTAVERN_ORACLE_PROBES` re-records only the probes a push can affect
-  (full set on schedule/dispatch and for `tools/lib/**`, the generator, or `upstream/**`). The zero-diff
-  check still covers every fixture -- narrower, not weaker.
+  (full set on schedule/dispatch and for `tools/lib/**`, `tools/oracle/**`, the generator,
+  `upstream/**`, `tests/provider-wire/scenarios/**`). Narrower IS weaker, and the earlier text here
+  said the opposite ("the zero-diff check still covers every fixture"): that gate diffs the working
+  tree against the commit, so a probe that never ran leaves its fixture byte-identical by
+  construction and its movement invisible. A skipped probe is unverified. Do not read a narrowed
+  green as covering the oracle; the scheduled or dispatched full sweep is the only one that does.
 - Docker runs on its own workflow (Dockerfile/installer paths, weekly, or dispatch), not per push.
 
 ## 5. Rules learned the expensive way this session
