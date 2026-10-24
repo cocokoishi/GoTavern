@@ -64,7 +64,12 @@ function changedFiles() {
     const dirty = git(['status', '--porcelain'])
         .split('\n')
         .filter(Boolean)
-        .map(line => line.slice(3).trim())
+        // `git()` trims the whole output, which eats the LEADING STATUS COLUMN of the first line (" M path"
+        // arrives as "M path"), so slicing a fixed three characters dropped the first letter of the first
+        // changed path. That file then failed its own existence check and VANISHED from the check set: the
+        // local gate reported "local verification passed" while never classifying a change that was sitting
+        // in the working tree. Observed for real: `scripts/dev-verify.mjs` arrived as `cripts/dev-verify.mjs`.
+        .map(line => line.replace(/^[ MADRCU?!]{1,2}\s+/, '').trim())
         .filter(Boolean);
     return [...new Set([...committed, ...dirty])];
 }
@@ -203,10 +208,25 @@ function classify(files) {
             decision.cannotVerifyLocally.push(`${rel}: a scenario without a capture can only be closed by the oracle (pinned Node), never locally`);
         }
         if (rel.startsWith('tests/oracle/')) {
+            // A NODE TEST THAT LIVES IN tests/oracle IS NOT A FIXTURE. It reads no recorded bytes and needs
+            // node, not the pinned server. Without this arm the branch below classified it as a fixture whose
+            // owning probe could not be resolved, so the fast local loop selected NOTHING for a change whose
+            // whole point is a test -- a green that could not fail, in the tool that exists to prevent them.
+            if (rel.endsWith('.test.mjs')) {
+                addCheck('oracle-execution-tests', 'the oracle execution core contract changed; these are node tests (no probe, no browser, no network)', 'node --test tests/oracle/*.test.mjs');
+                decision.notes.push(`${rel}: node tests over the execution core; the recorded bytes they drive are still the oracle's to judge`);
+                continue;
+            }
             decision.fixtures.push(rel);
             const owners = probes.filter(p => p.fixture && rel.endsWith(p.fixture)).map(p => p.probe);
             decision.probes.push(...owners);
             decision.cannotVerifyLocally.push(`${rel}: a recorded fixture is produced by the pinned server; replaying it locally proves the Go side only`);
+        }
+        if (rel.startsWith('tools/oracle/')) {
+            // The execution core decides how many times a probe runs, so it can move every fixture's
+            // recording schedule; its own contract is proven by the node tests, cheaply and locally.
+            addCheck('oracle-execution-tests', 'the oracle execution core changed (policy, primitive, selection, timing)', 'node --test tests/oracle/*.test.mjs');
+            decision.cannotVerifyLocally.push(`${rel}: control-plane code: whether the fixture BYTES move is the oracle's to decide, so this is not local proof of parity`);
         }
         if (rel.startsWith('tools/probe-') || rel.startsWith('tools/lib/')) {
             decision.probes.push(rel.startsWith('tools/probe-') ? rel.replace(/^tools\//, '') : '(every probe that imports tools/lib)');
