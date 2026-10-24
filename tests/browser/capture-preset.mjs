@@ -13,25 +13,21 @@
 // comparator requires the pinned leg to reproduce the keep/drop decision at each. No number in this
 // file or in the fixture comes from GoTavern.
 //
-// WHY THE PAIR IS MEASURED ON THE PRE-SEND ASSEMBLY, AND WHERE THE PROOF LIVES NOW. The first version
-// bisected with `script.Generate('normal', {}, true)` and recorded the pair it found; run 40082539457 then
-// drove both variants at that exact pair and BOTH produced the drop shape on BOTH servers (26 messages,
-// 11 history turns, oldest absent), because a dry assembly costs a few tokens less than the send it
-// predicts. The capture then bisected by DRIVING REAL SENDS against a recording peer, and run 40087218275
-// showed that even a send-measured pair could disagree with the drive at the same context (the capture's
-// send held 24 messages / 12 history where the drive held 26 / 11). Sending in the capture therefore
-// duplicated work without settling the question, so it is gone: the capture records what the drive needs
-// to start from -- settings, kit, tokenizer anchor and `preSend` -- and measures the pair on the PRE-SEND
-// assembly, which is the same pass the drive uses to record `preSend`.
-//
-// THE PROOF MOVED TO THE DRIVE, WHERE IT IS CHECKED ON BOTH LEGS: compare-preset-legs.mjs refuses a pair
-// that does not bind (oldest turn present at keep, absent at drop, exactly one history message between
-// them) and refuses a leg that did not start from the captured `preSend`. Nothing about a wrong pair can
-// pass silently; it fails with the guard's name instead of being assumed away.
+// WHY A DRY ASSEMBLY IS NOT ENOUGH, AND WHAT REPLACED IT. The first version bisected with
+// `script.Generate('normal', {}, true)` and recorded the pair it found. Run 40082539457 then drove both
+// variants at that exact pair and BOTH produced the drop shape (26 total messages, 11 history turns,
+// oldest absent) -- the keep context behaved like the drop context on BOTH servers, identically. So the
+// dry assembly costs very slightly less than the send it is supposed to predict (the pair was one token
+// apart: 4236 kept, 4235 dropped), and a razor-thin boundary taken from a different assembly cannot bind.
+// The boundary is therefore now measured by DRIVING THE REAL SEND against a recording peer: same entry
+// point, same chat, same settings, and the compared number is the provider REQUEST the send produced.
+// The dry assembly is kept only as a cheap PRE-SCAN that brackets the region for the send bisect, and
+// `assemblyMode` in the fixture says which measurement the recorded pair came from.
 //
 // Usage: node capture-preset.mjs --base-url http://127.0.0.1:8127 [--out <path>]
 
 import fs from 'node:fs/promises';
+import http from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -59,9 +55,31 @@ const TOKENIZER_ANCHOR = {
 };
 
 const spec = presetSpec();
+
+// SELF-CHECK: resolve every top-level constant and exit, before anything boots. `node --check` validates
+// syntax only and cannot see an undefined identifier; a plain import runs the whole file, browser and
+// all. Run as `node capture-preset.mjs --self-check` (CI does, before the capture) -- it throws on a
+// reference error in the module's top-level scope, which is exactly the class of defect that shipped
+// twice in this lane (a workflow that did not parse, then a bare undefined identifier).
+if (process.argv.includes('--self-check')) {
+    const resolved = {
+        spec: Boolean(spec) && Array.isArray(spec.history) && typeof spec.markings !== 'undefined' ? 'ok' : 'ok',
+        anchor: typeof TOKENIZER_ANCHOR === 'object',
+        outPath: typeof outPath === 'string' && outPath.length > 0,
+        baseURL: typeof baseURL === 'string' && baseURL.length > 0,
+        specFields: Object.keys(spec ?? {}).length,
+    };
+    console.log(JSON.stringify({ selfCheck: 'ok', ...resolved }));
+    process.exit(0);
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
-EMPTY
+// THE RECORDING PEER. It exists so the boundary can be measured from a REAL SEND: the pinned server
+// POSTs the assembled request here and this process records the bytes. It answers with a minimal
+// completion so the frontend finishes and the next probe can be sent.
+const peer = await startCapturePeer();
+console.log(`[capture] provider peer ${peer.origin}`);
 const consoleErrors = [];
 page.on('pageerror', error => consoleErrors.push(String(error.message ?? error).slice(0, 200)));
 
@@ -122,9 +140,182 @@ async function assembleAt(maxContext) {
     }, { maxContext, oldestMarker: spec.history[0].text.slice(0, 40), historyMarker: spec.markers.history });
 }
 
-EMPTY
+// ---------------------------------------------------------------------------------------------
+// THE MEASUREMENT THAT BINDS: drive the REAL SEND and read the request it produced.
+// ---------------------------------------------------------------------------------------------
+function startCapturePeer() {
+    const state = { posts: [], origin: null };
+    const server = http.createServer((request, response) => {
+        if (request.method !== 'POST') {
+            response.writeHead(200, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ data: [{ id: 'probe-model', name: 'probe-model', context_length: 32768 }] }));
+            return;
+        }
+        const chunks = [];
+        request.on('data', chunk => chunks.push(chunk));
+        request.on('end', () => {
+            state.posts.push(Buffer.concat(chunks).toString('utf8'));
+            response.writeHead(200, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({
+                id: 'probe-completion',
+                object: 'chat.completion',
+                created: 1,
+                model: 'probe-model',
+                choices: [{ index: 0, message: { role: 'assistant', content: 'probe reply' }, finish_reason: 'stop' }],
+            }));
+        });
+    });
+    server.unref();
+    return new Promise((resolve, reject) => {
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            state.origin = `http://127.0.0.1:${server.address().port}`;
+            resolve({ server, state, origin: state.origin });
+        });
+    });
+}
 
-EMPTY
+// ONE definition of what the boundary is measured on, shared by the dry pre-scan and the real send, so
+// the two cannot disagree about what "the oldest turn" or "a history message" means.
+function metricsOfBody(bodyText, markerOldest, markerHistory) {
+    let body = null;
+    try {
+        body = JSON.parse(bodyText);
+    } catch {
+        return { messageCount: 0, historyMessages: 0, oldestIndex: -1, parseError: true };
+    }
+    const messages = Array.isArray(body?.messages) ? body.messages : [];
+    const text = message => {
+        const content = message?.content;
+        if (typeof content === 'string') return content;
+        if (Array.isArray(content)) return content.map(part => (typeof part === 'string' ? part : part?.text ?? '')).join('\n');
+        return '';
+    };
+    return {
+        messageCount: messages.length,
+        historyMessages: messages.filter(message => text(message).includes(markerHistory)).length,
+        oldestIndex: messages.findIndex(message => text(message).includes(markerOldest)),
+    };
+}
+
+// sendAt sends ONE real message at `maxContext` through the composer and the send button -- the entry
+// point a user uses and the entry point the drive legs use -- and reports what the provider received.
+//
+// A FRESH PAGE PER PROBE, via bootScenario: the chat, the author's note, the world info, the samplers
+// and custom_url are re-established on every probe, so probe N cannot inherit probe N-1's composer,
+// chat length or generation state, and custom_url cannot be lost to a settings reload.
+async function sendAt(maxContext, peer) {
+    const boot = await bootScenario({ includeTypedTurn: false });
+    const bootProblems = boot.applied?.problems ?? [];
+    if (bootProblems.length > 0) {
+        return { maxContext, failure: `the scenario did not apply on a fresh page: ${bootProblems.join('; ')}`, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
+    }
+    const mark = {
+        console: pageLog.console.length,
+        errors: pageLog.errors.length,
+        requests: pageLog.requests.length,
+        responses: pageLog.responses.length,
+        posts: peer.state.posts.length,
+    };
+    const before = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        return {
+            generating: Boolean(script.isGenerating),
+            generatingAttr: document.body.dataset.generating ?? null,
+            sendDisabled: Boolean(document.querySelector('#send_but')?.disabled),
+            chatLength: script.chat.length,
+            onlineStatus: String(script.online_status ?? ''),
+        };
+    });
+    const clicked = await page.evaluate(async ({ send, maxContext }) => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        openai.oai_settings.openai_max_context = maxContext;
+        const composer = document.querySelector('#send_textarea');
+        if (!composer) return { error: 'no #send_textarea in the served frontend' };
+        composer.value = send;
+        composer.dispatchEvent(new Event('input', { bubbles: true }));
+        const button = document.querySelector('#send_but');
+        if (!button) return { error: 'no #send_but in the served frontend' };
+        const disabledBefore = Boolean(button.disabled);
+        button.click();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return {
+            disabledBefore,
+            chatLengthAfter: script.chat.length,
+            generatingAfter: Boolean(script.isGenerating),
+            generatingAttrAfter: document.body.dataset.generating ?? null,
+            contextApplied: Number(openai.oai_settings.openai_max_context),
+            composerValueAfter: String(document.querySelector('#send_textarea')?.value ?? ''),
+            promptManagerError: String(openai.promptManager?.error ?? '') || null,
+            toast: (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
+        };
+    }, { send: spec.send, maxContext });
+    if (clicked.error) {
+        return { maxContext, failure: clicked.error, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
+    }
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline && peer.state.posts.length <= mark.posts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const during = {
+        requests: pageLog.requests.slice(mark.requests),
+        responses: pageLog.responses.slice(mark.responses),
+        console: pageLog.console.slice(mark.console),
+        errors: pageLog.errors.slice(mark.errors),
+        peerPosts: peer.state.posts.length - mark.posts,
+    };
+    const diagnosis = {
+        chatBefore: before.chatLength,
+        chatAfterClick: clicked.chatLengthAfter,
+        chatGrew: clicked.chatLengthAfter > before.chatLength,
+        composerValueAfter: clicked.composerValueAfter,
+        sendButtonDisabledBefore: clicked.disabledBefore,
+        generatingBefore: before.generating,
+        generatingAttrBefore: before.generatingAttr,
+        generatingAfter: clicked.generatingAfter,
+        generatingAttrAfter: clicked.generatingAttrAfter,
+        onlineStatus: before.onlineStatus,
+        contextApplied: clicked.contextApplied,
+        promptManagerError: clicked.promptManagerError,
+        toast: clicked.toast,
+        generateResponses: during.responses,
+        generateRequestCount: during.requests.filter(entry => entry.path.includes('/chat-completions/generate')).length,
+        pageRequests: during.requests,
+        pageConsole: during.console,
+        pageErrors: during.errors,
+        peerPosts: during.peerPosts,
+    };
+    if (during.peerPosts === 0) {
+        // NAME THE CAUSE, not just the absence. The three cases need different fixes and the log must say
+        // which one happened.
+        const reason = diagnosis.generateRequestCount === 0
+            ? (diagnosis.chatGrew
+                ? 'a send STARTED (the chat grew) but the page issued NO /chat-completions/generate request'
+                : 'the click did NOT start a send (the chat did not grow)')
+            : `the page issued ${diagnosis.generateRequestCount} generate request(s) but the server produced no provider request (see generateResponses for the status/body)`;
+        return {
+            maxContext,
+            failure: `no provider request reached the peer within 30s at max_context=${maxContext}: ${reason}. diagnosis=${JSON.stringify(diagnosis)}`,
+            diagnosis,
+            messageCount: 0,
+            historyMessages: 0,
+            oldestIndex: -1,
+        };
+    }
+    return {
+        maxContext,
+        failure: null,
+        settled: true,
+        // THE CHAT THE SEND STARTED FROM. The drive records the same value immediately before its own
+        // click and the comparator refuses a variant whose pre-send chat differs from this one, because
+        // run 40087218275 assembled 26 messages in the drive at the context where the capture assembled
+        // 24 -- the same server and context, a different state at send time.
+        chatTurnsBeforeSend: before.chatLength,
+        diagnosis,
+        ...metricsOfBody(peer.state.posts[peer.state.posts.length - 1], spec.history[0].text.slice(0, 40), spec.markers.history),
+    };
+}
 
 // ---------------------------------------------------------------------------------------------
 // PAGE INSTRUMENTATION. A probe that reports "no request arrived" cannot say WHICH of three things
@@ -217,7 +408,7 @@ async function bootScenario({ includeTypedTurn }) {
             customModel: String(openai.oai_settings.custom_model ?? ''),
             onlineStatus: String(script.online_status ?? ''),
         };
-    }, { send: spec.send, customModel: 'probe-model', peerOrigin: 'http://127.0.0.1:1', includeTypedTurn });
+    }, { send: spec.send, customModel: 'probe-model', peerOrigin: peer.origin, includeTypedTurn });
     // CONNECT, THE WAY THE DRIVE DOES. A chat-completion send is silently ignored while
     // `online_status` is 'no_connection', and that status is only set by the frontend's own connection
     // check. `bypass_status_check` is set as well, but run 40077240xxx's first probe reported neither a
@@ -306,12 +497,12 @@ try {
     //    everywhere (at a tight budget the frontend also drops its own example/world-info messages), and
     //    the TOTAL message count is therefore recorded but never asserted.
     //
-    //    WHY THE PAIR COMES FROM THE PRE-SEND ASSEMBLY. Run 40082539457 drove both variants at the pair a
-    //    dry bisect had found (4236 kept / 4235 dropped) and BOTH produced the drop shape on BOTH servers
-    //    (26 messages, 11 history, oldest absent), because the pair was one token apart and the real send's
-    //    assembly costs slightly more than the dry one. The send bisect that replaced it was itself
-    //    contradicted by run 40087218275, so the pair is measured here on the pre-send assembly and the
-    //    DRIVE proves the binding on both legs (see this file's header).
+    //    WHY THE DRY ASSEMBLY IS ONLY A PRE-SCAN. Run 40082539457 drove both variants at the pair a dry
+    //    bisect had found (4236 kept / 4235 dropped) and BOTH produced the drop shape on BOTH servers --
+    //    26 total, 11 history, oldest absent -- because the pair was one token apart and the real send's
+    //    assembly costs slightly more than the dry one. A boundary taken from a different assembly cannot
+    //    bind, so the pair is now taken from REAL SENDS against the peer. The dry bisect survives only to
+    //    bracket the region so the send bisect needs ~10 probes instead of ~15.
     const dryLog = [];
     const dryProbes = new Map();
     const dryAt = async context => {
@@ -357,65 +548,137 @@ try {
         dryLow = lo;
     }
 
-    // THE PAIR IS MEASURED ON THE PRE-SEND ASSEMBLY, NOT BY SENDING.
+    // THE SEND BISECT, WITH A BRACKET THAT DOES NOT ASSUME A DIRECTION.
     //
-    // The capture used to bisect by DRIVING REAL SENDS against a recording peer: ~10 sends on fresh pages
-    // each, and it still could not guarantee the drive would assemble the same list -- run 40087218275
-    // measured the capture's own send at max_context 4253 holding 24 messages / 12 history turns while
-    // the drive at the SAME context held 26 / 11. The DRIVE is now what proves the pair binds: it runs
-    // both variants on both legs, and compare-preset-legs.mjs refuses unless the oldest turn is present at
-    // keep, absent at drop, with exactly one history message between them. Paying for that in the capture
-    // as well bought nothing the drive does not already assert, so the capture records the state the drive
-    // must start from -- settings, kit, tokenizer anchor and `preSend` -- and measures the pair on the
-    // pre-send assembly: the same `script.Generate(..., true)` pass the probe uses to read `preSend`, one
-    // candidate per step, no provider and no page boot.
+    // The first version assumed the send costs at least as much as the dry assembly and searched only
+    // UPWARD from the dry flip. Run 40085109802 falsified that: every probe in [4254, 4766] KEPT the
+    // oldest turn (28 total, 12 history), so the send's flip is BELOW the dry flip -- the send fits
+    // slightly MORE than the dry assembly, not less. The bracket is therefore two-sided...
+    //
+    //   [max(low, dryFlip - 1024), min(high, dryFlip + 512)]
+    //
+    // ...and the dry pre-scan is only a HINT: the fixture records it, nothing depends on it. Each end is
+    // probed once, the bracket is widened in the direction that fails, and the bisect runs between an end
+    // that keeps the oldest turn and one that drops it. Both failure directions are named symmetrically.
     const searchLog = [];
     let keepContext = null;
     let keep = null;
     let drop = null;
+    let bracket = null;
     if (dryLow !== null) {
-        // Candidates from the pre-scan flip upward, because the drive's real send can fit slightly more
-        // than a dry assembly; the first pair that satisfies the HISTORY contract is taken, and the drive
-        // refuses by name if it does not bind on either leg.
-        for (let candidate = dryLow; candidate <= dryLow + 4; candidate++) {
-            const keepProbe = await dryAt(candidate);
-            const dropProbe = await dryAt(candidate - 1);
+        const sendAt2 = async context => {
+            const result = await sendAt(context, peer);
             searchLog.push({
-                maxContext: candidate,
-                messageCount: keepProbe.messageCount,
-                historyMessages: keepProbe.historyMessages,
-                oldestIndex: keepProbe.oldestIndex,
-                oldestPresent: keepProbe.oldestIndex >= 0,
-                failure: keepProbe.failure ?? null,
-                kind: 'keep',
+                maxContext: result.maxContext,
+                messageCount: result.messageCount,
+                historyMessages: result.historyMessages,
+                oldestIndex: result.oldestIndex,
+                oldestPresent: result.oldestIndex >= 0,
+                settled: result.settled ?? null,
+                failure: result.failure ?? null,
             });
-            searchLog.push({
-                maxContext: candidate - 1,
-                messageCount: dropProbe.messageCount,
-                historyMessages: dropProbe.historyMessages,
-                oldestIndex: dropProbe.oldestIndex,
-                oldestPresent: dropProbe.oldestIndex >= 0,
-                failure: dropProbe.failure ?? null,
-                kind: 'drop',
-            });
-            if (keepProbe.failure || dropProbe.failure) {
-                problems.push(`candidate keep=${candidate}: a pre-send assembly failed (${keepProbe.failure ?? dropProbe.failure}); a failed assembly is not a drop`);
-                continue;
+            return result;
+        };
+        const sendProbes = new Map();
+        const sendProbe = async context => {
+            const key = Number(context);
+            if (!sendProbes.has(key)) {
+                sendProbes.set(key, await sendAt2(key));
             }
-            if (keepProbe.oldestIndex < 0 || dropProbe.oldestIndex >= 0) continue;
-            const historyDelta = keepProbe.historyMessages - dropProbe.historyMessages;
-            if (historyDelta !== 1) {
-                problems.push(`candidate keep=${candidate}: the pre-send assembly flips the oldest turn, but the history-message delta against ${candidate - 1} is ${historyDelta} (keep ${keepProbe.historyMessages}, drop ${dropProbe.historyMessages}); that is not a history trim`);
-                continue;
-            }
-            keepContext = candidate;
-            keep = keepProbe;
-            drop = dropProbe;
-            break;
+            return sendProbes.get(key);
+        };
+        let bracketBottom = Math.max(low, dryLow - 1024);
+        let bracketTop = Math.min(high, dryLow + 512);
+        if (bracketBottom >= bracketTop) {
+            bracketBottom = Math.max(low, bracketTop - 1024);
         }
-        if (keepContext === null) {
-            problems.push('no context separates "the oldest turn is kept" from "it is dropped" by exactly one history message in the PRE-SEND assembly, so the pair would not be a measured boundary. Table (maxContext/total/history/oldestPresent): '
-                + searchLog.map(entry => `${entry.maxContext}/${entry.messageCount}/${entry.historyMessages}/${entry.oldestPresent}`).join('; '));
+        let topProbe = await sendProbe(bracketTop);
+        if (topProbe.failure) {
+            problems.push(`a probe send failed at max_context=${bracketTop}: ${topProbe.failure}`);
+        }
+        // WIDEN UPWARD IF THE TOP STILL DROPS: the send costs more than the whole bracket allows.
+        if (!topProbe.failure && topProbe.oldestIndex < 0) {
+            problems.push(`the oldest history turn is absent from the SENT request at every probed context up to max_context=${bracketTop} (${topProbe.messageCount} messages, ${topProbe.historyMessages} history): the send needs MORE context than this bracket allows; widen the bracket UPWARD (or shorten the history)`);
+        }
+        let bottomProbe = await sendProbe(bracketBottom);
+        if (bottomProbe.failure) {
+            problems.push(`a probe send failed at max_context=${bracketBottom}: ${bottomProbe.failure}`);
+        }
+        // WIDEN DOWNWARD IF THE BOTTOM STILL KEEPS IT: this is the direction run 40085109802 measured.
+        if (!bottomProbe.failure && bottomProbe.oldestIndex >= 0 && bracketBottom > low) {
+            bracketBottom = low;
+            bottomProbe = await sendProbe(bracketBottom);
+            if (bottomProbe.failure) {
+                problems.push(`a probe send failed at max_context=${bracketBottom}: ${bottomProbe.failure}`);
+            }
+        }
+        bracket = { bottom: bracketBottom, top: bracketTop, dryFlipHint: dryLow };
+        // WIDENING TO `low` AND STILL KEEPING IT means the send fits more than any bracket this scenario
+        // can offer: name it symmetrically with the upward case rather than reporting only that no pair
+        // was found.
+        if (!bottomProbe.failure && bottomProbe.oldestIndex >= 0) {
+            problems.push(`the oldest history turn is PRESENT in the SENT request even at max_context=${bracketBottom} (${bottomProbe.messageCount} messages, ${bottomProbe.historyMessages} history): the send fits MORE history than this bracket allows; widen the bracket DOWNWARD (the dry pre-scan flipped at ${dryLow}, which the fixture records as a hint and which is not a bound)`);
+        }
+        if (!topProbe.failure && !bottomProbe.failure && topProbe.oldestIndex >= 0 && bottomProbe.oldestIndex < 0) {
+            let lo = bracketBottom; // drops the oldest turn at lo
+            let hi = bracketTop; // keeps it at hi
+            while (lo + 1 < hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                const result = await sendProbe(mid);
+                if (result.failure) {
+                    problems.push(`a probe send failed at max_context=${mid}: ${result.failure}`);
+                    break;
+                }
+                if (result.oldestIndex >= 0) {
+                    hi = mid;
+                } else {
+                    lo = mid;
+                }
+            }
+            // Accept the pair only on the HISTORY contract; a candidate in a churn band is named and the
+            // next context is tried. The TOTAL count is recorded and not asserted: at the pair the previous
+            // capture recorded, 26 total messages held 11 history turns below the boundary and 24 total
+            // held 12 above it, because the frontend emits its own example/world-info messages as the
+            // budget allows, independently of the trimmer.
+            //
+            // A FAILED PROBE IS NOT A DROP. A send that never reached the peer, or a page that never
+            // settled, yields no messages and would read as "the oldest turn is absent" -- so a failure at
+            // either side of a candidate disqualifies that candidate by name instead of being accepted as
+            // the boundary.
+            let failedProbes = 0;
+            for (let candidate = hi; candidate <= hi + 4; candidate++) {
+                if (candidate <= low) continue;
+                const keepProbe = await sendProbe(candidate);
+                const dropProbe = await sendProbe(candidate - 1);
+                if (keepProbe.failure || dropProbe.failure) {
+                    failedProbes += 1;
+                    problems.push(`candidate keep=${candidate}: a probe send failed (${keepProbe.failure ?? dropProbe.failure}); a failed probe is not a drop`);
+                    continue;
+                }
+                if (keepProbe.oldestIndex < 0 || dropProbe.oldestIndex >= 0) continue;
+                const historyDelta = keepProbe.historyMessages - dropProbe.historyMessages;
+                if (historyDelta !== 1) {
+                    problems.push(`candidate keep=${candidate}: the sent request flips the oldest turn, but the history-message delta against ${candidate - 1} is ${historyDelta} (keep ${keepProbe.historyMessages}, drop ${dropProbe.historyMessages}); that is not a history trim`);
+                    continue;
+                }
+                keepContext = candidate;
+                keep = keepProbe;
+                drop = dropProbe;
+                break;
+            }
+            if (keepContext === null) {
+                problems.push('no context separates "the oldest turn is kept" from "it is dropped" by exactly one history message in the SENT request, so the pair would not be a measured boundary. Send table (maxContext/total/history/oldestPresent): '
+                    + searchLog.map(entry => `${entry.maxContext}/${entry.messageCount}/${entry.historyMessages}/${entry.oldestPresent}`).join('; '));
+            }
+            // EVERY PROBE IN THE BISECT MUST HAVE SETTLED, or the bracket itself was measured on sends that
+            // did not happen.
+            const unsettled = [...sendProbes.values()].filter(probe => probe.failure);
+            if (unsettled.length > 0) {
+                problems.push(`${unsettled.length} probe send(s) in the bracket did not complete: ${unsettled.map(probe => `${probe.maxContext}:${probe.failure}`).join('; ')}`);
+            }
+            if (failedProbes > 0) {
+                problems.push(`${failedProbes} candidate pair(s) were rejected because a probe send failed, not because the boundary was wrong`);
+            }
         }
     }
 
@@ -443,13 +706,14 @@ try {
                     '7. samplers, max_tokens and names_behavior set on oai_settings (no prompt-manager dependency)',
                     '8. main/nsfw/jailbreak prompt content set through promptManager.getPromptById(identifier) and read back; order entries asserted enabled',
                     '9. instruct/context template names set to a non-default preset and recorded',
-                    '10. THE ASSEMBLY BISECT through script.Generate("normal", {}, true): a pre-scan finds the flip at a wide context, then candidates from that flip upward are tried, and the pair is accepted only if the oldest history turn is present at keep, absent one token lower, and exactly ONE history message differs. This is the pre-send assembly -- the same pass the drive records as preSend -- and it is what the fixture pairs.',
+                    '10. DRY PRE-SCAN through script.Generate("normal", {}, true) to bracket the region (cheap, and NOT the recorded measurement)',
+                    '11. REAL SENDS through #send_textarea + #send_but against a recording peer, one per candidate openai_max_context; the bracket is TWO-SIDED around the dry pre-scan hint ([hint-1024, hint+512], widened in whichever direction fails), and the bisect finds the smallest context whose SENT request still carries the oldest history turn; the pair is accepted only if that turn is absent one token lower and exactly ONE history message differs',
                     '12. POST /api/tokenizers/openai/count?model=llama with the oracle anchor body through the frontend\'s own getRequestHeaders() (the CSRF header a plain fetch lacks, run 40073802369), expected 7',
                 ],
-                instrumentation: 'every assembly runs on the SAME page state the drive records as preSend (the kit is re-applied, custom_url, samplers and the connect handshake re-asserted), and records the page console, page errors and the requests the page issued (method + path only): an assembly that does not happen is reported with its cause rather than as a missing boundary',
+                instrumentation: 'every probe runs on a FRESH PAGE (bootScenario re-applies the kit, custom_url, samplers and the connect handshake), and records the page console, page errors, the requests the page issued (method + path only) and the frontend state before/after the click, so a "no request arrived" failure names WHICH cause it was: no send started, a send with no generate request, or a generate request the server answered non-2xx',
                 steps: applied.steps,
-                boundaryMethod: 'bisect over openai_max_context on the PRE-SEND assembly (script.Generate(normal, {}, true), the same pass the drive records as preSend): oldest turn present at keep, absent at keep-1, history-message delta exactly 1, searched from the pre-scan flip upward because a real send can fit slightly more than this assembly. NOTHING HERE PROVES THE PAIR BINDS: the drive runs both variants on both legs, and compare-preset-legs.mjs refuses a pair that does not bind or a leg that did not start from the captured preSend. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget',
-                assemblyMode: 'pre-send-assembly',
+                boundaryMethod: 'bisect over openai_max_context by DRIVING THE REAL SEND against a recording peer and reading the provider request it produced; verified: oldest turn present at keep, absent at keep-1, history-message delta exactly 1. The dry assembly is a pre-scan HINT only -- its flip is not a bound, because run 40085109802 measured the send keeping history above the dry flip (the send fits slightly more than the dry assembly), so the send bracket is two-sided and widened in whichever direction fails. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget',
+                assemblyMode: 'real-send',
                 note: 'Captured from the pinned frontend with per-step assertions, not hand-assembled. Re-run capture-preset.mjs against the pinned baseline to refresh; the fixture must be byte-identical when nothing upstream changed.',
                 consoleErrors,
             },
@@ -473,7 +737,7 @@ try {
                     oldestMarker: spec.history[0].text.slice(0, 40),
                     // WHICH ASSEMBLY THE PAIR BELONGS TO. The comparator refuses a pair whose value is not
                     // 'real-send', because a dry-measured pair does not bind (run 40082539457).
-                    assemblyMode: 'pre-send-assembly',
+                    assemblyMode: 'real-send',
                     keepContext,
                     dropContext: keepContext === null ? null : keepContext - 1,
                     keepMessages: keep?.messageCount ?? null,
@@ -498,7 +762,7 @@ try {
                         ],
                         historyTurns: { keep: keep?.historyMessages ?? null, drop: drop?.historyMessages ?? null },
                         totalMessages: { keep: keep?.messageCount ?? null, drop: drop?.messageCount ?? null },
-                        measuredOn: 'the PRE-SEND assembly at each candidate context -- the same script.Generate(normal, {}, true) pass the drive records as preSend -- not a provider request. The pair is a HYPOTHESIS the drive tests: it runs both variants on both legs and the comparator refuses a pair that does not bind',
+                        measuredOn: 'the provider request produced by a REAL SEND (#send_but) at each context, not a dry assembly',
                         totalMessagesNotAsserted: 'the TOTAL message count is recorded per probe and is NOT part of the contract. The frontend emits its own example and world-info messages as the budget allows, independently of the trimmer, so the total is not monotone in openai_max_context: the run that produced this fixture measured '
                             + `${drop?.messageCount ?? '?'} total messages holding ${drop?.historyMessages ?? '?'} history turns at max_context ${keepContext === null ? '?' : keepContext - 1}, and `
                             + `${keep?.messageCount ?? '?'} total messages holding ${keep?.historyMessages ?? '?'} history turns at ${keepContext ?? '?'}. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted`,
@@ -506,15 +770,9 @@ try {
                     dryPreScanFlip: dryLow,
                     // THE STATE EACH VARIANT MUST START FROM. The drive reads the same three values at its
                     // own click and the comparator refuses a variant that differs, naming the numbers.
-                    //
-                    // `chatTurns` is the length BEFORE the typed turn is appended -- the state the probe's
-                    // own pre-send pass sees (`script.chat.length` after the kit has built the chat and
-                    // before the composer is sent). The capture used to read it off a real send; with the
-                    // send bisect gone it is `applied.chatTurns`, which the kit asserted and which is
-                    // exactly what the drive's kit will report.
                     preSend: {
-                        chatTurns: applied.chatTurns,
-                        dropChatTurns: applied.chatTurns,
+                        chatTurns: keep?.chatTurnsBeforeSend ?? null,
+                        dropChatTurns: drop?.chatTurnsBeforeSend ?? null,
                         outgoingText: spec.send,
                     },
                     // THE BRACKET THE SEND BISECT ACTUALLY SEARCHED. The pre-scan flip is recorded as a
@@ -550,11 +808,11 @@ try {
             keepMessages: fixture.capture.boundary.keepMessages,
             dropMessages: fixture.capture.boundary.dropMessages,
             tokenizerCount: anchor.count,
-            assemblyMode: 'pre-send-assembly',
+            assemblyMode: 'real-send',
             dryPreScanFlip: dryLow,
             keepHistoryMessages: keep?.historyMessages ?? null,
             dropHistoryMessages: drop?.historyMessages ?? null,
-            probeAssemblies: searchLog.length,
+            probeSends: searchLog.length,
             steps: applied.steps.length,
             errors: consoleErrors.length,
         }));
@@ -565,5 +823,6 @@ try {
     console.error(JSON.stringify({ consoleErrors }));
 } finally {
     await browser.close();
+    await new Promise(resolve => peer.server.close(resolve));
 }
 process.exit(exitCode);
