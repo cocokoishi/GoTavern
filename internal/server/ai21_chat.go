@@ -47,7 +47,7 @@ const (
 	// (default/config.yaml:324); prompt-converters.js:4 keeps "Let's get started." only as its last-resort
 	// fallback. The recording proves it -- ai21-empty-placeholder captured "[Start a new chat]" -- and the
 	// promptPlaceholder config key is still NOT read here (the same named gap as the process routes).
-	pinnedAI21PromptPlaceholder = "Let's get started."
+	pinnedAI21PromptPlaceholder = "[Start a new chat]"
 )
 
 // pinnedAI21Names is getPromptNames (src/prompt-converters.js:49).

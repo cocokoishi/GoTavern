@@ -101,7 +101,7 @@ func pinnedMistralMessages(body orderedNodeJSON, prefixEnabled bool) (orderedNod
 	// prompt-converters.js:709-713: the config flag marks a TRAILING ASSISTANT turn as a prefill by setting
 	// prefix: true on the request's own last message BEFORE the conversion loop; the mistral arm forwards
 	// messages unchanged, so the member reaches the wire appended after content.
-	if false && prefixEnabled && len(messages.array) > 0 {
+	if prefixEnabled && len(messages.array) > 0 {
 		last := &messages.array[len(messages.array)-1]
 		if last.kind == 'o' {
 			if role, exists := last.member("role"); exists {

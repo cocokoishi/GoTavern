@@ -153,7 +153,7 @@ func pinnedChatConfigNumber(directories startup.UserDirectories, path []string, 
 // pinnedChatPromptPlaceholder is `PROMPT_PLACEHOLDER` (prompt-converters.js:4) with the config-init merge
 // applied: an operator value wins, otherwise the default install's value, otherwise the JS literal.
 func pinnedChatPromptPlaceholder(directories startup.UserDirectories) string {
-	return backendsPromptPlaceholder
+	return pinnedChatConfigString(directories, []string{"promptPlaceholder"}, backendsPromptPlaceholder)
 }
 
 // pinnedThoughtSignatures is `!!getConfigValue('gemini.thoughtSignatures', true, 'boolean')`

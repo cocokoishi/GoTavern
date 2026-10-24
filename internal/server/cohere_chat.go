@@ -76,7 +76,7 @@ const (
 	// The EFFECTIVE default, not the JS literal: prompt-converters.js:4 falls back to "Let's get started.",
 	// but pinned config-init merges default/config.yaml (promptPlaceholder "[Start a new chat]", :324) into
 	// the runtime config before the module-load read, and cohere-empty-placeholder captured exactly that.
-	pinnedCoherePromptPlaceholder = "Let's get started."
+	pinnedCoherePromptPlaceholder = "[Start a new chat]"
 )
 
 // pinnedCohereBaseURL is the pinned chat literal, replaceable only by the test seam.
