@@ -91,6 +91,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # `gh` REFUSES TO RUN WITHOUT THIS, and its absence is what failed the first run of this workflow: the
+  # step that reads the release reported "the tag has NO published release" because `gh` exited 1 with an
+  # auth message that the step swallowed. The credential is read-only (`permissions:` above).
+  GH_TOKEN: ${{ github.token }}
   REPO: cocokoishi/GoTavern
   PORT: '8899'
   # THE CANONICAL NAMES, typed once. docs/INSTALLATION.md §2 and release.yml's build matrix are the
@@ -166,9 +170,22 @@ jobs:
           CHANNEL: ${{ steps.release.outputs.channel }}
         run: |
           set -eu
-          if ! gh release view "${VERSION}" --repo "${REPO}" \
-                 --json tagName,isDraft,isPrerelease,assets,publishedAt > release.json 2> release-error.txt; then
-            echo "::error::tag ${VERSION} exists but has NO published release; there is nothing to smoke" >&2
+          # THE EXIT CODE IS CAPTURED EXPLICITLY. `if ! cmd; then` throws it away -- `$?` is 0 inside the
+          # branch, because the failure is what selected the branch -- and the first version of this step
+          # therefore reported "the tag has NO published release" when the real cause was a missing
+          # GH_TOKEN. A misleading failure message is worse than none: it sends the reader to the release
+          # instead of to the credential, and then to a re-tag that would not have helped.
+          set +e
+          gh release view "${VERSION}" --repo "${REPO}" \
+            --json tagName,isDraft,isPrerelease,assets,publishedAt > release.json 2> release-error.txt
+          view_status=$?
+          set -e
+          if [ "${view_status}" -ne 0 ]; then
+            if grep -qi 'release not found\|HTTP 404' release-error.txt; then
+              echo "::error::tag ${VERSION} exists but has NO published release; there is nothing to smoke." >&2
+            else
+              echo "::error::gh release view ${VERSION} exited ${view_status} for a reason that is NOT a missing release." >&2
+            fi
             cat release-error.txt >&2
             exit 1
           fi
