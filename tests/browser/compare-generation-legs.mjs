@@ -222,14 +222,14 @@ const guards = (gotavern, pinned) => {
     // invocation is precisely what `afterData` counts, and a second real invocation still fails the
     // count. The only assumption dropped is that a dry invocation cannot overlap the send in time.
     const sendOnly = report => {
-        const { invocations, unmatchedAfterData } = invocationTrail(report);
-        if (unmatchedAfterData.length > 0) return false;
-        // NO INVOCATION MAY OWN TWO ASSEMBLIES. Pairing by kind removes the adjacency artefact, and
-        // this keeps the defect that guard exists for: if the REAL send assembled dry, its dry
-        // AFTER_DATA pairs with a dry invocation that already had one, so the double emission shows up
-        // here instead of silently joining a counting pass. Measured both ways -- the faithful groq
-        // trail (real, then a dry pass that emits its own) gives every invocation exactly one, and a
-        // leg with its dry GENERATION_STARTED removed fails on `unmatchedAfterData` alone.
+        const { invocations, unmatchedAfterData } = invocationTrail(report);
+        if (unmatchedAfterData.length > 0) return false;
+        // NO INVOCATION MAY OWN TWO ASSEMBLIES. Pairing by kind removes the adjacency artefact, and
+        // this keeps the defect that guard exists for: if the REAL send assembled dry, its dry
+        // AFTER_DATA pairs with a dry invocation that already had one, so the double emission shows up
+        // here instead of silently joining a counting pass. Measured both ways -- the faithful groq
+        // trail (real, then a dry pass that emits its own) gives every invocation exactly one, and a
+        // leg with its dry GENERATION_STARTED removed fails on `unmatchedAfterData` alone.
         if (invocations.some(invocation => invocation.afterData.length > 1)) return false;
         const real = invocations.filter(invocation => !invocation.dryRun);
         if (real.length !== 1) return false;
@@ -333,11 +333,11 @@ const main = async () => {
         },
         // WHICH DRIVE PRODUCED THIS: non-stream mode paces nothing, so the frame count is not applicable here
         // and saying so is stronger than omitting the field.
-        driveParameters: {
-            mode: 'nonstream',
-            frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)',
-            // THE RULE, IN ONE LINE, because the next reader will otherwise assume nearest-preceding and
-            // reintroduce exactly the bug this lane fixed.
+        driveParameters: {
+            mode: 'nonstream',
+            frameCount: 'n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)',
+            // THE RULE, IN ONE LINE, because the next reader will otherwise assume nearest-preceding and
+            // reintroduce exactly the bug this lane fixed.
             invocationPairing: 'a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails',
             // SILICONFLOW'S ENDPOINT IS A BODY FIELD, so the artifact must say which endpoint the drive
             // drove and how: the drive selects the DEFAULT through the frontend's own control, and the
@@ -378,7 +378,7 @@ const main = async () => {
                 endpointControl: gotavern.endpoint?.control ?? null,
                 endpointsOffered: gotavern.endpoint?.available ?? null,
                 endpointBreadth: 'the DEFAULT (global) endpoint only. The CN endpoint is a supported second host and is not measured here, so this row does not claim endpoint breadth',
-            } : {}),
+            } : {}),
                 ...(process.env.PROBE_SOURCE === 'chutes' ? {
                 sourceShape: "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy. This is the case that makes a shared-helper implementation look correct and be wrong: a source whose MESSAGE side has no processor at all cannot be served by a helper that quietly reshapes messages for its siblings, and the recorded body digest is what would catch it.",
             } : {}),
@@ -388,10 +388,10 @@ const main = async () => {
         ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
                 // NAMED PER SOURCE: a nanogpt artifact that told a reader GOTAVERN_GROQ_CHAT_URL aims
                 // its GoTavern leg would be describing a drive that did not happen.
-                seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL', aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL', ai21: 'GOTAVERN_AI21_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
-                pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
-                peerKeying: 'the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
-            } : {}),
+                seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL', aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL', ai21: 'GOTAVERN_AI21_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
+                pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
+                peerKeying: 'the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
+            } : {}),
             // OPENAI IS proxy:true, WHICH IS THE FACT THAT MAKES THIS ROW DIFFERENT from the groq/siliconflow/nanogpt
             // rows: the frontend DOES offer a reverse_proxy for it, so this drive COULD have carried the peer in the
             // request. It deliberately did not, and `proxyPasswordPresent` false on BOTH legs is the evidence -- both
