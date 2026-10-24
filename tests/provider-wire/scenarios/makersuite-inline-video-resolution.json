@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "name": "makersuite-inline-video-resolution",
+  "purpose": "MAKERSUITE inline video media AND the gemini-3 mediaResolution gate. Pinned: `part.type === 'video_url'` calls addDataUrlPart(url, 'video/mp4', detail) (src/prompt-converters.js:565-568), and inside addDataUrlPart the resolution is GEMINI_MEDIA_RESOLUTION[detail] || null (:519), appended as `part.mediaResolution = { level }` ONLY when /gemini-3/.test(model) (:529-533). GEMINI_MEDIA_RESOLUTION maps low -> media_resolution_low and high -> media_resolution_high, with 'auto' deliberately unmapped (:28-32). So the provider part is { inlineData: { mimeType, data }, mediaResolution: { level: 'media_resolution_high' } } in that member order. Its sibling makersuite-inline-image.json differs only in the media type and the model, so the mediaResolution member is attributable to the gemini-3 gate rather than to video.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "makersuite",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_makersuite": [
+      {
+        "id": "probe-id-api_key_makersuite",
+        "value": "synthetic-makersuite-key",
+        "label": "api_key_makersuite",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://generativelanguage.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://generativelanguage.googleapis.com"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "makersuite",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "probe video marker"
+            },
+            {
+              "type": "video_url",
+              "video_url": {
+                "url": "data:video/mp4;base64,cHJvYmUtdmlkZW8=",
+                "detail": "high"
+              }
+            }
+          ]
+        }
+      ],
+      "model": "gemini-3-pro",
+      "max_tokens": 128,
+      "temperature": 0.4,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_MAKERSUITE is a pinned literal, so the GoTavern leg reaches the recorder through its seam and the pinned leg through this transport redirect. The PATH and the ?key= parameter are untouched and ARE compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+      },
+      {
+        "path": "http.requests[].body.messages[1].content[1].video_url.url",
+        "rule": "recorded verbatim; the payload is a data: URL, so no authority is substituted and no fetch is involved",
+        "reason": "The media reaches the provider INLINE. It is a data: URL on purpose: addDataUrlPart only accepts a url that startsWith('data:') (src/prompt-converters.js:516) and nothing is fetched for this source, so the peer receives the exact bytes the pinned converter embedded and the probe cannot reach the network (doctrine 6). A remote http(s) URL would be silently DROPPED by that guard rather than fetched, which would make the scenario pass while proving nothing.",
+        "pinnedSource": "src/prompt-converters.js:515-537 addDataUrlPart"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
