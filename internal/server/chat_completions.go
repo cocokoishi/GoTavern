@@ -48,6 +48,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -172,12 +173,52 @@ func pinnedChatCompletionErrorFlag() orderedNodeJSON {
 	return payload
 }
 
+// pinnedChatCompletionApplyCustomPromptPostProcessing is chat-completions.js:2246-2253, the ROUTE-WIDE
+// prompt transform. Three things about it are contract, not convenience:
+//
+//   - it runs BEFORE the per-source dispatch, so every source sees the processed messages (MINIMAX
+//     included; its own MERGE_TOOLS fold then runs on the result, exactly as pinned's does);
+//   - it MUTATES request.body.messages, and the source branches read that member afterwards;
+//   - its guard is `Array.isArray(request.body.messages) && postProcessingType`: a string prompt, or an
+//     absent/falsy type, is left completely alone. An UNKNOWN type is not an error either -- postProcessPrompt
+//     switches on the type and its default arm returns the messages unchanged.
+//
+// It applies ONCE, here. Applying it again inside the plan would double-process a body the route already
+// transformed (harmless for 'merge', wrong for the placeholder types).
+func pinnedChatCompletionApplyCustomPromptPostProcessing(body orderedNodeJSON) (orderedNodeJSON, *pinnedChatCompletionFailure) {
+	processingType, hasType := body.member("custom_prompt_post_processing")
+	if !hasType || !pinnedJSTruthy(processingType) {
+		return body, nil
+	}
+	messages, hasMessages := body.member("messages")
+	if !hasMessages || messages.kind != 'a' {
+		return body, nil
+	}
+	text, isString := processingType.stringValue()
+	if !isString {
+		return body, nil
+	}
+	processed, err := backendsPostProcessPrompt(messages, text, backendsPromptNamesFor(body))
+	if err != nil {
+		// The pinned call sits inside the handler's try, so a throw becomes its catch.
+		return body, pinnedChatCompletionTransportFailure(err)
+	}
+	body.setMember("messages", processed)
+	return body, nil
+}
+
 func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter, request *http.Request) {
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
 		// Express's JSON body parser answers its own 400 page for a malformed
 		// body; GoTavern answers the same status with a plain-text body.
 		serveStatusText(w, http.StatusBadRequest)
+		return
+	}
+	// chat-completions.js:2246-2253, before ANY source branch is reached.
+	body, postProcessingFailure := pinnedChatCompletionApplyCustomPromptPostProcessing(body)
+	if postProcessingFailure != nil {
+		respondOrderedNodeJSON(w, postProcessingFailure.status, *postProcessingFailure.payload)
 		return
 	}
 	account := runtime.requestAccount(accountFromContext(request))
@@ -379,6 +420,62 @@ type chatCompletionPlanInputs struct {
 	bodyParams    orderedNodeJSON
 }
 
+// THE OPENAI REASONING-EFFORT AND VERBOSITY TABLES (src/constants.js:459-507), applied at
+// chat-completions.js:2599-2613 to the CUSTOM and OPENAI sources only. AZURE carries the same data under
+// pinnedAzureOpenAI* names, because its own branch consults it at :1731; these are the shared names the
+// shared tail uses, and both copies are asserted against their own recorded scenarios.
+//
+// The two tables do NOT compose the same way, and each difference is recorded:
+//
+//   - OPENAI_REASONING_EFFORT_MODELS is a MEMBERSHIP test, and a model OUTSIDE it gets NO reasoning_effort
+//     at all -- the raw value is not forwarded. Inside it, OPENAI_FIXED_REASONING_EFFORT WINS over the map,
+//     so the same 'min' input sends 'medium' for gpt-5.3-chat-latest and 'minimal' for o3.
+//   - OPENAI_VERBOSITY_MODELS is an anchored PREFIX regex, not a membership list: 'o3' is a reasoning model
+//     and still misses it, so verbosity is DROPPED for o3 and forwarded for gpt-5.3-chat-latest.
+//
+// openai-reasoning-effort-{map,fixed,outside-table} pin all three outcomes from bodies that differ only in
+// `model`, which is what makes the tables the only possible explanation.
+var pinnedOpenAIReasoningEffortModels = map[string]bool{
+	"o1": true, "o3-mini": true, "o3-mini-2025-01-31": true, "o4-mini": true,
+	"o4-mini-2025-04-16": true, "o3": true, "o3-2025-04-16": true,
+	"gpt-5": true, "gpt-5-2025-08-07": true, "gpt-5-mini": true, "gpt-5-mini-2025-08-07": true,
+	"gpt-5-nano": true, "gpt-5-nano-2025-08-07": true, "gpt-5.1": true,
+	"gpt-5.1-2025-11-13": true, "gpt-5.1-chat-latest": true, "gpt-5.2": true,
+	"gpt-5.2-2025-12-11": true, "gpt-5.2-chat-latest": true, "gpt-5.3-chat-latest": true,
+	"gpt-5.4": true, "gpt-5.4-2026-03-05": true, "gpt-5.4-mini": true,
+	"gpt-5.4-mini-2026-03-17": true, "gpt-5.4-nano": true, "gpt-5.4-nano-2026-03-17": true,
+	"gpt-5.5": true, "gpt-5.5-2026-04-23": true, "gpt-5.6": true, "gpt-5.6-sol": true,
+	"gpt-5.6-terra": true, "gpt-5.6-luna": true, "gpt-6-astra": true,
+}
+
+// pinnedOpenAIFixedReasoningEffort is OPENAI_FIXED_REASONING_EFFORT: a model that accepts ONE effort only.
+var pinnedOpenAIFixedReasoningEffort = map[string]string{"gpt-5.3-chat-latest": "medium"}
+
+// pinnedOpenAIReasoningEffortMap is OPENAI_REASONING_EFFORT_MAP. Not the identity.
+var pinnedOpenAIReasoningEffortMap = map[string]string{"min": "minimal"}
+
+// pinnedOpenAIVerbosityModel is /^(?:gpt-5|gpt-6-astra)/ -- ANCHORED, so a model whose id merely contains
+// those characters does not match.
+var pinnedOpenAIVerbosityModel = regexp.MustCompile(`^(?:gpt-5|gpt-6-astra)`)
+
+// pinnedOpenAIKoboldCPPModel is /^koboldcpp\/(.+)$/ (:2604), a CUSTOM-only escape hatch that forwards the
+// RAW effort even for a model the table does not list.
+var pinnedOpenAIKoboldCPPModel = regexp.MustCompile(`^koboldcpp/(.+)`)
+
+// pinnedChatCompletionRequestBodyMemberOrder is the FIXED key order of the pinned requestBody object literal
+// (chat-completions.js:2652-2668). EVERY one of those keys is declared there, with `undefined` for a member
+// the request did not send; `JSON.stringify` then drops the undefined ones. The POSITION still exists, and
+// that is what decides where a bodyParams member lands: `{...literal, ...bodyParams}` keeps an existing
+// key's insertion position and only APPENDS a key the literal does not name.
+//
+// That distinction is the whole of custom-include-body. An included `top_k` must occupy the fixed slot
+// between top_p and n, while an included `service_tier` (which the literal does not name) is appended after
+// n. Both bodies are 232 bytes; only the order differs, and the recording is what caught it.
+var pinnedChatCompletionRequestBodyMemberOrder = []string{
+	"messages", "prompt", "model", "temperature", "max_tokens", "max_completion_tokens", "stream",
+	"presence_penalty", "frequency_penalty", "top_p", "top_k", "stop", "logit_bias", "seed", "n",
+}
+
 // pinnedChatCompletionAssemble is the shared openai-compatible tail (chat-completions.js:2615-2710): the
 // missing-key guard, the stop/tools/response_format copies, the ordered member list, the
 // `/chat/completions` vs `/completions` choice, the absolute-URL check and the header framing.
@@ -400,6 +497,43 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 	}
 	if !pinnedJSTruthy(inputs.apiKey) && !reverseProxyTruthy && sourceName != chatCompletionSourceCustom {
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+	}
+
+	// chat-completions.js:2599-2613. The reasoning-effort and verbosity tables apply to CUSTOM and OPENAI
+	// ONLY -- the pinned guard is `[CUSTOM, OPENAI].includes(source)` -- and they run BEFORE the stop copy,
+	// so their bodyParams insertion order is reasoning_effort then verbosity. Neither name is in the fixed
+	// literal, so both are APPENDED to the body; the recorded bodies show them after `stream`.
+	if sourceName == chatCompletionSourceOpenAI || sourceName == chatCompletionSourceCustom {
+		model := ""
+		if member, exists := body.member("model"); exists {
+			if text, isString := member.stringValue(); isString {
+				model = text
+			}
+		}
+		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+			if pinnedOpenAIReasoningEffortModels[model] {
+				// `FIXED[model] ?? MAP[effort] ?? effort` -- nullish, so a model with a fixed effort
+				// ignores the map entirely, and an effort the map does not know is forwarded raw.
+				mapped := effort
+				if fixed, hasFixed := pinnedOpenAIFixedReasoningEffort[model]; hasFixed {
+					mapped = nodeString(fixed)
+				} else if text, isString := effort.stringValue(); isString {
+					if known, hasKnown := pinnedOpenAIReasoningEffortMap[text]; hasKnown {
+						mapped = nodeString(known)
+					}
+				}
+				bodyParams.setMember("reasoning_effort", mapped)
+			}
+			if sourceName == chatCompletionSourceCustom && pinnedOpenAIKoboldCPPModel.MatchString(model) {
+				// Assigned AFTER the table arm and unconditionally, so it overwrites a mapped value.
+				bodyParams.setMember("reasoning_effort", effort)
+			}
+		}
+		if verbosity, exists := body.member("verbosity"); exists && pinnedJSTruthy(verbosity) {
+			if pinnedOpenAIVerbosityModel.MatchString(model) {
+				bodyParams.setMember("verbosity", verbosity)
+			}
+		}
 	}
 
 	// chat-completions.js:2620-2623. A non-empty stop array is copied into the
@@ -428,7 +562,16 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 	// chat-completions.js:2652-2669. JSON.stringify drops only `undefined`, so a
 	// member is included exactly when it is present, and `temperature: 0` or
 	// `stream: false` survive while an absent member does not appear at all.
+	//
+	// Reserve EVERY fixed position first, including the ones this request leaves undefined, because the
+	// pinned literal declares all of them and `...bodyParams` keeps an existing key's position. Without the
+	// reservation an included `top_k` is appended after `n` instead of sitting between top_p and n.
+	// marshalOrderedNodeJSON emits every entry it is GIVEN -- it does not drop undefined the way
+	// JSON.stringify does -- so the placeholders that remain undefined are removed before marshalling.
 	requestBody := nodeObject()
+	for _, key := range pinnedChatCompletionRequestBodyMemberOrder {
+		requestBody.setMember(key, nodeUndefined())
+	}
 	if request.isTextCompletion {
 		prompt, ok := pinnedChatCompletionTextPrompt(body)
 		if !ok {
@@ -456,6 +599,13 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 	if sourceName == chatCompletionSourceCustom {
 		if exclude, exists := body.member("custom_exclude_body"); exists {
 			pinnedExcludeKeysByYAML(&requestBody, exclude)
+		}
+	}
+	// Drop the reserved positions this request left undefined. This is the step JSON.stringify does for free
+	// on the pinned side, and it must run AFTER the exclusion so an excluded member is gone for both reasons.
+	for _, key := range pinnedChatCompletionRequestBodyMemberOrder {
+		if value, exists := requestBody.member(key); exists && value.isUndefined() {
+			requestBody.deleteMember(key)
 		}
 	}
 	encoded, encodeErr := marshalOrderedNodeJSON(requestBody)
