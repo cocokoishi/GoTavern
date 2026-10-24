@@ -17,46 +17,17 @@ concurrent lanes meant five PRs and five duplicate multi-hour oracle sweeps, and
 grown to eighty lanes. Nothing was lost: the deleted history is archived in
 `../gotavern-branches-archive-2026-10-24.bundle`.
 
-What this checkpoint did, in order (each lane verified on its own cheap checks; the `main` run is the
-verdict for the expensive ones):
+What has landed since the previous checkpoint (latest first; every count below is from the generated
+facts or a named fixture):
 
-1. **Released `v0.1.0-alpha.1`** from `2dde1fa`, after fixing the publish job's missing checkout. It is a
-   real prerelease: six canonical assets plus `checksums.txt`, digests recomputed after download, archives
-   opened and the 23 tokenizer files byte-compared against `upstream/tokenizers`, both installer parsers
-   executed against the published checksum file, and `releases/latest` deliberately 404 for an alpha.
-   Run ids: release `40066449948`, qualification `40066449918`, docker `40066450018`.
-2. **Oracle execution core.** `doubleRunFor()` was dead code: 118 declarations ran twice in every mode and
-   `GOTAVERN_ORACLE_DOUBLE_RUN` did nothing. One `executeProbe` primitive in `tools/oracle/execution.mjs`
-   now sits behind both scheduling shapes, the policy is on its execution path, narrowed sweeps record
-   once, a double run surfaces BOTH errors, and 29 contract tests were red before the fix.
-3. **Oracle planner.** The selection rules left the YAML. `tools/oracle/manifest.mjs` derives the
-   dependency graph from the declarations, `tools/oracle/plan.mjs` turns a changed-file list into a JSON
-   plan, and both are table-tested. It fails CLOSED: an unattributable path is a full sweep, an unknown
-   requested probe is an error, an empty selection on a needed run is an error. It closed a real fail-open:
-   `internal/**`, `cmd/**` and `tools/*/main.go` used to skip the oracle although ~20 probes `go run`
-   repository Go and `runtime-roundtrip` records three `"subject": "gotavern"` steps.
-4. **Documentation truth.** HANDOFF's old §8 was 123 commits stale and told a reader that Gemini, Moonshot
-   and eleven other sources were unimplemented; `compat-matrix.md` simultaneously claimed 73 and 187
-   scenarios. Every claim was re-measured, generated counts moved into `docs/generated/facts.json` with
-   marked blocks and a `--check` gate, and facts that cannot be derived are date-stamped. A real product
-   bug is now recorded rather than absorbed: AI21, VERTEXAI and PERPLEXITY have no status arm and answer
-   501 where the pinned closing `else` answers 400.
-5. **Chat-completion dispatch.** `chat_completions.go` shrank from 1301 to 762 lines: one registry row per
-   source (`chat_completions_registry.go`), 55 dead or unreachable arms deleted across the plan, response
-   and status chains, the eight byte-identical response mappers collapsed, each provider's plan moved into
-   its own file, and a `go/ast` scanner test that fails on a duplicated source arm. The 187 provider-wire
-   scenarios replay byte-identically before and after.
-6. **Browser harness.** Fifteen independent source enumerations became one driver-only catalogue
-   (`tests/browser/sources.mjs`); the verifier split into generic invariants plus named hooks
-   (`tools/browser-evidence/`); cancellation at the provider is now checked for 15 of 15 streaming
-   artefacts instead of 11; the claude/mistral seam claim is now true instead of merely printed; and
-   `.github/workflows/browser-differential.yml` re-records both legs against HEAD and diffs fresh against
-   committed, which is the freshness layer the old verifier openly could not provide.
+1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`205`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 187). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
+2. **The status fall-through is CLOSED.** AI21, VERTEXAI and PERPLEXITY now answer the pinned closing-else `400 {"error":true}` with ZERO outbound, not 501. The six new observations are `status.{ai21,vertexai,perplexity}.{noBranch,reverseProxy}` in `tests/oracle/sillytavern-1.19.0-backends.json`, which moved from 110 to 116 observations. The route is `internal/server/backends_status.go` (the no-arm set and the shared refusal at `:75-84`).
+3. **The route-wide request gaps are recorded.** `custom_prompt_post_processing` is observed by `openai-custom-prompt-post-processing`; the OPENAI reasoning-effort/verbosity tables by `openai-reasoning-effort-{fixed,map,outside-table}`; OpenRouter audio embedding by `openrouter-media-audio-embed` and `-passthrough`; OpenRouter reasoning signatures by `openrouter-reasoning-signatures*`. The Go side is `chat_completions.go:176-219` (post-processing) and `:423-534` (tables), plus `openrouter_media.go`.
+4. **ZAI has two per-literal seams.** `GOTAVERN_ZAI_CHAT_URL` targets the common literal and `GOTAVERN_ZAI_CODING_CHAT_URL` the coding literal (`internal/server/zai_chat.go:51-90`); `zai-coding-endpoint` records the path split. A single seam had made the two modes byte-identical.
+5. **The replay honours a scenario's `backendConfig`.** `internal/server/chat_completions_oracle_test.go:302-303` writes the scenario config before each leg, and `tools/probe-provider-wire.mjs:211` does the same for the pinned leg. Before this, every config-driven scenario replayed on defaults, so the flag-off reasoning-signature case could not pass for the right reason.
+6. **Browser evidence is green and computed.** `tools/verify-browser-comparisons.mjs` reports 0 findings across 30 catalogued source artefacts; the generated matrix in `docs/surface-coverage.md` says 14 of 26 sources have E/streaming/cancellation, 11 have no browser drive and 1 is stale (`workers_ai`, not re-recordable today). The pinned-derived and product source lists are 25 and 25 with no mismatch (`docs/generated/coverage-matrix.json`).
 
-**Open, and labelled as open:** the artefacts recorded before the new verifier schema do not satisfy it
-until the differential workflow re-records them (12 of 30 artefacts, 40 findings, all staleness); the
-complex-preset differential does not exist yet; cohere is catalogued but never recorded; workers_ai can no
-longer be driven. Those are the next slices.
+Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), the oracle execution core and planner landed, documentation counts moved to generated blocks, and the chat-completion dispatch moved to one registry row per source. **Still open:** the complex-preset differential has not produced an artefact, so no preset-parity claim is made; cohere is catalogued but never recorded.
 
 
 ## 1. Where the project stands

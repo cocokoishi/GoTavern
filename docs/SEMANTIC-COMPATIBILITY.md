@@ -37,7 +37,7 @@ real pinned frontend -> Node SillyTavern -> recording/mock provider
 real pinned frontend -> GoTavern        -> recording/mock provider
 ```
 
-The canonical list is **five surfaces** in `docs/surface-coverage.md:4-10` (browser to server, server to provider, filesystem/startup, browser events/final state, stream/cancel), matching `AGENTS.md:13`. The four capture roles below are a mapping onto that list, not a second taxonomy: A = browser to server, B = server to provider, C = provider to browser (the E/C surfaces), D = persistent/browser state (F/E).
+The canonical list is **five surfaces** in `docs/surface-coverage.md:4-10` (browser to server, server to provider, filesystem/startup, browser events/final state, stream/cancel), matching `AGENTS.md:13`. The four capture roles below are a mapping onto that list, not a second taxonomy: A = browser to server, B = server to provider, C = provider to browser (the E/C surfaces), D = persistent/browser state (F/E). The per-source E/streaming/cancellation breadth is not a prose count: it is the generated `coverage.matrix` block in `docs/surface-coverage.md`, derived from committed artefacts into `docs/generated/coverage-matrix.json`.
 
 ### Observer A — browser -> backend
 
