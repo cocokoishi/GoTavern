@@ -1,4 +1,4 @@
-﻿// Compare the COMPLEX-PRESET legs: same scenario, two context boundaries, both servers.
+// Compare the COMPLEX-PRESET legs: same scenario, two context boundaries, both servers.
 //
 // THE CONTRACT IS BYTES, THE DIAGNOSIS IS PARSED (AGENTS.md "Differential-testing doctrine" 2). The
 // compared observation is the provider request the drive actually produced: `bodySha256` and
@@ -337,12 +337,19 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 dropGotavern: legs.drop.gotavern.preSend,
                 dropPinned: legs.drop.pinned.preSend,
             };
-            // THE PAIR MUST HAVE BEEN MEASURED ON THE SEND, NOT ON A DRY ASSEMBLY. Run 40082539457 drove a
-            // dry-measured pair (4236 kept / 4235 dropped, one token apart) and BOTH variants produced the
-            // drop shape on BOTH legs, because a dry assembly costs a few tokens less than the send it is
-            // used to predict. The capture now bisects by sending; this guard is what keeps a future edit
-            // from quietly going back to the cheaper measurement.
-            guards.boundaryMeasuredOnARealSend = (boundary.assemblyMode ?? null) === 'real-send';
+            // THE PAIR MUST SAY WHICH ASSEMBLY IT BELONGS TO, AND THE DRIVE IS WHAT PROVES IT BINDS.
+            //
+            // History: run 40082539457 drove a pair bisected on a DRY assembly and BOTH variants produced
+            // the drop shape on BOTH legs, because a dry assembly costs a few tokens less than the send it
+            // predicts; the capture then bisected by SENDING, and run 40087218275 showed even that could
+            // disagree with the drive at the same context (capture 24/12, drive 26/11). The capture now
+            // measures the pair on the PRE-SEND assembly -- the same `Generate(..., true)` pass the drive
+            // uses to record `preSend` -- and records the state each variant must start from. What keeps a
+            // wrong pair from passing is no longer the capture's method but the guards below: the pair must
+            // BIND (oldest turn present at keep, absent at drop, exactly one history message apart) and the
+            // drive must START FROM THE CAPTURED STATE (`variantStartedFromTheCapturedState`). A pair that
+            // does not bind is refused by name, whichever way it was measured.
+            guards.boundaryDeclaresItsAssembly = ['pre-send-assembly', 'real-send'].includes(boundary.assemblyMode ?? null);
             // AND IT MUST HAVE BEEN MEASURED BY THE LEG THAT PRODUCES THE COMPARED REQUEST. Seven runs
             // measured a merely similar procedure; when a search file is supplied its table is the pair and
             // this guard says so.
