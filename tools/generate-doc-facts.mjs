@@ -189,27 +189,32 @@ function deriveStartup() {
     };
 }
 
-function deriveSCM() {
-    let commitsSinceCrossBaseline = null;
+function gitOutput(args) {
     try {
-        const output = execFileSync('git', ['rev-list', '--count', `${CROSS_BASELINE}..HEAD`], {
+        return execFileSync('git', args, {
             cwd: ROOT,
             encoding: 'utf8',
             stdio: ['ignore', 'pipe', 'ignore'],
         }).trim();
-        commitsSinceCrossBaseline = Number(output);
     } catch {
-        commitsSinceCrossBaseline = null;
+        return null;
     }
-    let versionTags = [];
-    try {
-        versionTags = execFileSync('git', ['tag', '--list', 'v*', '--sort=version:refname'], {
-            cwd: ROOT,
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-        }).split(/\r?\n/).filter(Boolean);
-    } catch {
-        versionTags = [];
+}
+
+function deriveSCM() {
+    // A shallow checkout (the CI verify job) has neither the baseline object nor tags. Return null
+    // for those fields so --check can fall back to the committed values instead of inventing a
+    // different number on every runner.
+    const shallow = gitOutput(['rev-parse', '--is-shallow-repository']) === 'true';
+    let versionTags = shallow ? null : gitOutput(['tag', '--list', 'v*', '--sort=version:refname']);
+    if (versionTags !== null) versionTags = versionTags.split(/\r?\n/).filter(Boolean);
+    let commitsSinceCrossBaseline = null;
+    if (!shallow && gitOutput(['rev-parse', '--verify', `${CROSS_BASELINE}^{commit}`]) !== null) {
+        // Anchor to the newest release tag when one exists: HEAD moves with every commit, so a
+        // HEAD-relative count would invalidate itself in the commit that writes this file.
+        const endpoint = versionTags && versionTags.length > 0 ? `refs/tags/${versionTags[versionTags.length - 1]}` : 'HEAD';
+        const count = gitOutput(['rev-list', '--count', `${CROSS_BASELINE}..${endpoint}`]);
+        commitsSinceCrossBaseline = count === null ? null : Number(count);
     }
     return {
         crossBaselineCommit: CROSS_BASELINE,
@@ -228,7 +233,16 @@ function sortValue(value) {
     return value;
 }
 
-function deriveFacts() {
+function deriveFacts(fallback = null) {
+    const scm = deriveSCM();
+    if (fallback && fallback.scm) {
+        if (scm.commitsSinceCrossBaseline === null) {
+            scm.commitsSinceCrossBaseline = fallback.scm.commitsSinceCrossBaseline ?? null;
+        }
+        if (scm.versionTags === null) {
+            scm.versionTags = fallback.scm.versionTags ?? null;
+        }
+    }
     const facts = {
         schemaVersion: 1,
         generatedBy: 'tools/generate-doc-facts.mjs',
@@ -240,7 +254,7 @@ function deriveFacts() {
         sdGenerate: deriveSDGenerate(),
         providerStatus: deriveProviderStatus(),
         startup: deriveStartup(),
-        scm: deriveSCM(),
+        scm,
     };
     return sortValue(facts);
 }
@@ -260,8 +274,8 @@ const BLOCKS = {
     'provider-status.sources': (facts) => `\`${facts.providerStatus.sources}\``,
     'startup.requests': (facts) => `\`${facts.startup.requests}\``,
     'startup.differential': (facts) => `\`${facts.startup.requests}\` startup requests: \`${facts.startup.equal}\` equal, \`${facts.startup.differentStatus}\` different-status, \`${facts.startup.unexpected}\` unexpected.`,
-    'scm.commitsSinceCrossBaseline': (facts) => `\`${facts.scm.commitsSinceCrossBaseline}\``,
-    'release.versionTags': (facts) => facts.scm.versionTags.length ? facts.scm.versionTags.map((tag) => `\`${tag}\``).join(', ') : 'none',
+    'scm.commitsSinceCrossBaseline': (facts) => facts.scm.commitsSinceCrossBaseline === null ? null : `\`${facts.scm.commitsSinceCrossBaseline}\``,
+    'release.versionTags': (facts) => facts.scm.versionTags === null ? null : (facts.scm.versionTags.length ? facts.scm.versionTags.map((tag) => `\`${tag}\``).join(', ') : 'none'),
 };
 
 function renderDocument(relativePath, facts) {
@@ -274,7 +288,9 @@ function renderDocument(relativePath, facts) {
             throw new Error(`${relativePath}: unknown generated block "${name}"`);
         }
         used.add(name);
-        return `<!-- BEGIN GENERATED: ${name} -->${BLOCKS[name](facts)}<!-- END GENERATED: ${name} -->`;
+        const value = BLOCKS[name](facts);
+        if (value === null) return match;
+        return `<!-- BEGIN GENERATED: ${name} -->${value}<!-- END GENERATED: ${name} -->`;
     });
     return { relativePath, original, rendered, used };
 }
@@ -287,7 +303,10 @@ function collectMarkers(text) {
 
 function diffFacts(committed, generated, prefix = '', differences = []) {
     if (JSON.stringify(committed) === JSON.stringify(generated)) return differences;
-    if (committed === null || generated === null || typeof committed !== 'object' || typeof generated !== 'object' || Array.isArray(committed) || Array.isArray(generated)) {
+    // A shallow checkout cannot resolve the baseline or tags; the caller has already substituted the
+    // committed values for those fields, and a remaining null means "not derivable on this host".
+    if (generated === null) return differences;
+    if (committed === null || typeof committed !== 'object' || typeof generated !== 'object' || Array.isArray(committed) || Array.isArray(generated)) {
         differences.push({ name: prefix, committed, generated });
         return differences;
     }
@@ -307,7 +326,11 @@ function writeFileStrict(relativePath, content) {
 
 function main() {
     const mode = process.argv.includes('--check') ? 'check' : process.argv.includes('--print') ? 'print' : 'write';
-    const facts = deriveFacts();
+    let committedFacts = null;
+    if (mode === 'check' && existsSync(FACTS_PATH)) {
+        committedFacts = JSON.parse(readFileSync(FACTS_PATH, 'utf8'));
+    }
+    const facts = deriveFacts(committedFacts);
     const factsText = `${JSON.stringify(facts, null, 2)}\n`;
 
     if (mode === 'print') {
@@ -340,7 +363,7 @@ function main() {
         for (const difference of diffFacts(committed, facts)) {
             problems.push(`fact ${difference.name}: committed=${JSON.stringify(difference.committed)} generated=${JSON.stringify(difference.generated)}`);
         }
-        if (readFileSync(FACTS_PATH, 'utf8') !== factsText) {
+        if (readFileSync(FACTS_PATH, 'utf8').replace(/\r\n/g, '\n') !== factsText) {
             problems.push('docs/generated/facts.json formatting is stale (expected sorted keys, 2-space indent, LF)');
         }
     }
