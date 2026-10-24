@@ -139,8 +139,8 @@ tar -xzf "$OLDER_ARCHIVE" -C "$WORK_ROOT/stage-older" || fail "cannot extract $O
 tar -xzf "$NEWER_ARCHIVE" -C "$WORK_ROOT/stage-newer" || fail "cannot extract $NEWER_ARCHIVE"
 [ -x "$WORK_ROOT/stage-older/gotavern" ] || fail "$OLDER_ARCHIVE has no executable gotavern at its root"
 [ -x "$WORK_ROOT/stage-newer/gotavern" ] || fail "$NEWER_ARCHIVE has no executable gotavern at its root"
-[ -d "$WORK_ROOT/stage-older/tokenizers" ] || fail "$OLDER_ARCHIVE does not contain tokenizers/"
-[ -d "$WORK_ROOT/stage-newer/tokenizers" ] || fail "$NEWER_ARCHIVE does not contain tokenizers/"
+[ -d "$WORK_ROOT/stage-older/src/tokenizers" ] || fail "$OLDER_ARCHIVE does not contain src/tokenizers/"
+[ -d "$WORK_ROOT/stage-newer/src/tokenizers" ] || fail "$NEWER_ARCHIVE does not contain src/tokenizers/"
 
 OLDER_TAG=$(tag_of_binary "$WORK_ROOT/stage-older/gotavern") || fail "cannot read $OLDER_ARCHIVE's version"
 NEWER_TAG=$(tag_of_binary "$WORK_ROOT/stage-newer/gotavern") || fail "cannot read $NEWER_ARCHIVE's version"
@@ -318,8 +318,8 @@ INSTALLED_TAG=$(tag_of_binary "$PREFIX/$BINARY_NAME") || fail "the installed bin
 [ "$INSTALLED_TAG" = "$OLDER_TAG" ] || fail "the installed binary reports $INSTALLED_TAG, expected $OLDER_TAG"
 ok "the installed binary runs and reports $OLDER_TAG"
 
-[ -d "$PREFIX/tokenizers" ] || fail "the installer did not install tokenizers/, which the release archive ships and the runtime reads from <InstallRoot>/tokenizers"
-ok "the installer installed tokenizers/ beside the binary"
+[ -d "$PREFIX/src/tokenizers" ] || fail "the installer did not install src/tokenizers/, which the release archive ships and the runtime reads from <InstallRoot>/src/tokenizers"
+ok "the installer installed src/tokenizers/ under the install prefix"
 
 if ( cd "$PREFIX" && "./$BINARY_NAME" assets verify > "$WORK_ROOT/assets-older.log" 2>&1 ); then
     ok "assets verify passes from the installed prefix"
@@ -408,7 +408,7 @@ fi
 grep -q "SHA-256 verification failed" "$WORK_ROOT/install-tampered.log" \
     || { cat "$WORK_ROOT/install-tampered.log" >&2; fail "the installer aborted but did not name the checksum mismatch"; }
 [ ! -e "$TAMPERED_PREFIX/$BINARY_NAME" ] || fail "the installer left $BINARY_NAME in the prefix after a checksum failure"
-[ ! -e "$TAMPERED_PREFIX/tokenizers" ] || fail "the installer left tokenizers/ in the prefix after a checksum failure"
+[ ! -e "$TAMPERED_PREFIX/src/tokenizers" ] || fail "the installer left src/tokenizers/ in the prefix after a checksum failure"
 ok "a tampered archive aborted, named the mismatch, and installed nothing"
 
 # ---- 7. re-install: idempotent, and it preserves runtime state ------------------------------
@@ -439,7 +439,7 @@ UPGRADED_TAG=$(tag_of_binary "$PREFIX/$BINARY_NAME") || fail "the upgraded binar
 # regression this fix could reintroduce; verifying from the upgraded prefix is cheaper than
 # rediscovering it later.
 if ( cd "$PREFIX" && "./$BINARY_NAME" assets verify > "$WORK_ROOT/assets-upgraded.log" 2>&1 ); then
-    ok "assets verify still passes from the upgraded prefix (tokenizers survived the update)"
+    ok "assets verify still passes from the upgraded prefix (src/tokenizers/ survived the update)"
 else
     cat "$WORK_ROOT/assets-upgraded.log" >&2
     fail "assets verify FAILED from the upgraded prefix"
