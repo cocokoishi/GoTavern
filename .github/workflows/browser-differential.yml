@@ -495,9 +495,9 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
           node tests/browser/preset-gate-selftest.mjs \
+            "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
             "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
             --boundary "$work/preset-boundary.json"
-            "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json"
 
       - name: Stage the preset evidence for publishing
         if: ${{ inputs.commit_artifacts }}
