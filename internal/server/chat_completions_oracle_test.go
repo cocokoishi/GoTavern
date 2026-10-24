@@ -45,6 +45,14 @@ type providerWireScenario struct {
 		Value  string `json:"value"`
 	} `json:"expectedApiKey"`
 	AbortAfterFirstEvent bool `json:"abortAfterFirstEvent"`
+	// A scenario's `backendConfig` is the config.yaml the PROBE writes before it starts EACH leg. The
+	// replay drives the route in-process, so without reproducing that file a config-driven scenario
+	// silently runs on the defaults -- which is exactly how
+	// `openrouter-reasoning-signatures-flag-off` failed: the pinned leg had `gemini.thoughtSignatures:
+	// false` and the replay had no config at all, so the Go side read the default `true` and emitted a
+	// detail the capture does not contain. A scenario whose observable depends on config must therefore
+	// carry the same config into the replay, or the fixture is not being replayed faithfully.
+	BackendConfig []string `json:"backendConfig"`
 	// A source whose provider URL is a pinned LITERAL declares a SEAM here (openrouter is the first): the
 	// live probe exports it for the GoTavern leg and redirects the pinned leg at the transport layer, so the
 	// replay must do the same or it drives the route at the real provider instead of the recorder.
@@ -281,8 +289,22 @@ func waitForProviderRecording(t *testing.T, recorder *mockprovider.Recorder, wan
 // and returns a live server plus an authenticated session.
 func startChatCompletionTestServer(t *testing.T, scenario providerWireScenario) (string, string, string) {
 	t.Helper()
-	dataRoot := t.TempDir()
-	installRoot := t.TempDir()
+	// ONE root, with the data directory beneath it, because that is the layout the probe creates
+	// (`--dataRoot <runtimeRoot>/data` with `<runtimeRoot>/config.yaml`) and the layout a real install has.
+	// Two independent t.TempDir() calls would put the data root somewhere with no config file above it, so
+	// a config-driven scenario could not be replayed faithfully even if the file were written.
+	root := t.TempDir()
+	dataRoot := filepath.Join(root, "data")
+	installRoot := root
+	if err := os.MkdirAll(dataRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if len(scenario.BackendConfig) > 0 {
+		config := strings.Join(scenario.BackendConfig, "\n") + "\n"
+		if err := os.WriteFile(filepath.Join(root, "config.yaml"), []byte(config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	accountJSON, err := marshalNodeJSON(struct {
 		Handle   string         `json:"handle"`
 		Name     string         `json:"name"`
