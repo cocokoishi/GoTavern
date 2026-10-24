@@ -525,13 +525,23 @@ try {
         dryLow = lo;
     }
 
-    // THE SEND BISECT. The send assembly costs at least as much as the dry one, so the send's flip is at
-    // or above the dry flip; the bracket is [dryLow, dryLow + 512], which is far wider than any plausible
-    // difference and still only ~9 probes.
+    // THE SEND BISECT, WITH A BRACKET THAT DOES NOT ASSUME A DIRECTION.
+    //
+    // The first version assumed the send costs at least as much as the dry assembly and searched only
+    // UPWARD from the dry flip. Run 40085109802 falsified that: every probe in [4254, 4766] KEPT the
+    // oldest turn (28 total, 12 history), so the send's flip is BELOW the dry flip -- the send fits
+    // slightly MORE than the dry assembly, not less. The bracket is therefore two-sided...
+    //
+    //   [max(low, dryFlip - 1024), min(high, dryFlip + 512)]
+    //
+    // ...and the dry pre-scan is only a HINT: the fixture records it, nothing depends on it. Each end is
+    // probed once, the bracket is widened in the direction that fails, and the bisect runs between an end
+    // that keeps the oldest turn and one that drops it. Both failure directions are named symmetrically.
     const searchLog = [];
     let keepContext = null;
     let keep = null;
     let drop = null;
+    let bracket = null;
     if (dryLow !== null) {
         const sendAt2 = async context => {
             const result = await sendAt(context, peer);
@@ -554,23 +564,52 @@ try {
             }
             return sendProbes.get(key);
         };
-        const bracketTop = Math.min(dryLow + 512, high);
-        const topProbe = await sendProbe(bracketTop);
+        let bracketBottom = Math.max(low, dryLow - 1024);
+        let bracketTop = Math.min(high, dryLow + 512);
+        if (bracketBottom >= bracketTop) {
+            bracketBottom = Math.max(low, bracketTop - 1024);
+        }
+        let topProbe = await sendProbe(bracketTop);
         if (topProbe.failure) {
             problems.push(`a probe send failed at max_context=${bracketTop}: ${topProbe.failure}`);
         }
-        if (topProbe.oldestIndex < 0) {
-            problems.push(`the oldest history turn is absent from the SENT request even at max_context=${bracketTop} (${topProbe.messageCount} messages, ${topProbe.historyMessages} history): the dry pre-scan said it was present at ${dryLow}, so the send costs more than the pre-scan bracket allows; widen the bracket or shorten the history`);
-        } else {
-            let lo = dryLow;
-            let hi = bracketTop;
-            while (lo < hi) {
+        // WIDEN UPWARD IF THE TOP STILL DROPS: the send costs more than the whole bracket allows.
+        if (!topProbe.failure && topProbe.oldestIndex < 0) {
+            problems.push(`the oldest history turn is absent from the SENT request at every probed context up to max_context=${bracketTop} (${topProbe.messageCount} messages, ${topProbe.historyMessages} history): the send needs MORE context than this bracket allows; widen the bracket UPWARD (or shorten the history)`);
+        }
+        let bottomProbe = await sendProbe(bracketBottom);
+        if (bottomProbe.failure) {
+            problems.push(`a probe send failed at max_context=${bracketBottom}: ${bottomProbe.failure}`);
+        }
+        // WIDEN DOWNWARD IF THE BOTTOM STILL KEEPS IT: this is the direction run 40085109802 measured.
+        if (!bottomProbe.failure && bottomProbe.oldestIndex >= 0 && bracketBottom > low) {
+            bracketBottom = low;
+            bottomProbe = await sendProbe(bracketBottom);
+            if (bottomProbe.failure) {
+                problems.push(`a probe send failed at max_context=${bracketBottom}: ${bottomProbe.failure}`);
+            }
+        }
+        bracket = { bottom: bracketBottom, top: bracketTop, dryFlipHint: dryLow };
+        // WIDENING TO `low` AND STILL KEEPING IT means the send fits more than any bracket this scenario
+        // can offer: name it symmetrically with the upward case rather than reporting only that no pair
+        // was found.
+        if (!bottomProbe.failure && bottomProbe.oldestIndex >= 0) {
+            problems.push(`the oldest history turn is PRESENT in the SENT request even at max_context=${bracketBottom} (${bottomProbe.messageCount} messages, ${bottomProbe.historyMessages} history): the send fits MORE history than this bracket allows; widen the bracket DOWNWARD (the dry pre-scan flipped at ${dryLow}, which the fixture records as a hint and which is not a bound)`);
+        }
+        if (!topProbe.failure && !bottomProbe.failure && topProbe.oldestIndex >= 0 && bottomProbe.oldestIndex < 0) {
+            let lo = bracketBottom; // drops the oldest turn at lo
+            let hi = bracketTop; // keeps it at hi
+            while (lo + 1 < hi) {
                 const mid = Math.floor((lo + hi) / 2);
                 const result = await sendProbe(mid);
+                if (result.failure) {
+                    problems.push(`a probe send failed at max_context=${mid}: ${result.failure}`);
+                    break;
+                }
                 if (result.oldestIndex >= 0) {
                     hi = mid;
                 } else {
-                    lo = mid + 1;
+                    lo = mid;
                 }
             }
             // Accept the pair only on the HISTORY contract; a candidate in a churn band is named and the
@@ -584,7 +623,7 @@ try {
             // either side of a candidate disqualifies that candidate by name instead of being accepted as
             // the boundary.
             let failedProbes = 0;
-            for (let candidate = lo; candidate <= lo + 4; candidate++) {
+            for (let candidate = hi; candidate <= hi + 4; candidate++) {
                 if (candidate <= low) continue;
                 const keepProbe = await sendProbe(candidate);
                 const dropProbe = await sendProbe(candidate - 1);
@@ -645,12 +684,12 @@ try {
                     '8. main/nsfw/jailbreak prompt content set through promptManager.getPromptById(identifier) and read back; order entries asserted enabled',
                     '9. instruct/context template names set to a non-default preset and recorded',
                     '10. DRY PRE-SCAN through script.Generate("normal", {}, true) to bracket the region (cheap, and NOT the recorded measurement)',
-                    '11. REAL SENDS through #send_textarea + #send_but against a recording peer, one per candidate openai_max_context, bisecting inside the pre-scan bracket for the smallest context whose SENT request still carries the oldest history turn; the pair is accepted only if that turn is absent one token lower and exactly ONE history message differs',
+                    '11. REAL SENDS through #send_textarea + #send_but against a recording peer, one per candidate openai_max_context; the bracket is TWO-SIDED around the dry pre-scan hint ([hint-1024, hint+512], widened in whichever direction fails), and the bisect finds the smallest context whose SENT request still carries the oldest history turn; the pair is accepted only if that turn is absent one token lower and exactly ONE history message differs',
                     '12. POST /api/tokenizers/openai/count?model=llama with the oracle anchor body through the frontend\'s own getRequestHeaders() (the CSRF header a plain fetch lacks, run 40073802369), expected 7',
                 ],
                 instrumentation: 'every probe runs on a FRESH PAGE (bootScenario re-applies the kit, custom_url, samplers and the connect handshake), and records the page console, page errors, the requests the page issued (method + path only) and the frontend state before/after the click, so a "no request arrived" failure names WHICH cause it was: no send started, a send with no generate request, or a generate request the server answered non-2xx',
                 steps: applied.steps,
-                boundaryMethod: 'bisect over openai_max_context by DRIVING THE REAL SEND against a recording peer and reading the provider request it produced; verified: oldest turn present at keep, absent at keep-1, history-message delta exactly 1. The dry assembly is a pre-scan only, because run 40082539457 showed a dry-measured pair (4236/4235, one token apart) does not bind: the send assembles slightly more, so both variants produced the drop shape. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget',
+                boundaryMethod: 'bisect over openai_max_context by DRIVING THE REAL SEND against a recording peer and reading the provider request it produced; verified: oldest turn present at keep, absent at keep-1, history-message delta exactly 1. The dry assembly is a pre-scan HINT only -- its flip is not a bound, because run 40085109802 measured the send keeping history above the dry flip (the send fits slightly more than the dry assembly), so the send bracket is two-sided and widened in whichever direction fails. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget',
                 assemblyMode: 'real-send',
                 note: 'Captured from the pinned frontend with per-step assertions, not hand-assembled. Re-run capture-preset.mjs against the pinned baseline to refresh; the fixture must be byte-identical when nothing upstream changed.',
                 consoleErrors,
@@ -706,6 +745,10 @@ try {
                             + `${keep?.messageCount ?? '?'} total messages holding ${keep?.historyMessages ?? '?'} history turns at ${keepContext ?? '?'}. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted`,
                     },
                     dryPreScanFlip: dryLow,
+                    // THE BRACKET THE SEND BISECT ACTUALLY SEARCHED. The pre-scan flip is recorded as a
+                    // HINT only: run 40085109802 measured the send's flip BELOW the dry flip (every probe
+                    // from 4254 upward kept the turn), so nothing is derived from it.
+                    bracket: bracket ?? null,
                     dryPreScan: dryLog.map(entry => ({
                         maxContext: entry.maxContext,
                         messageCount: entry.messageCount,
