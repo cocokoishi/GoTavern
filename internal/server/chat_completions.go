@@ -493,7 +493,6 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-
 	// chat-completions.js:2620-2623. A non-empty stop array is copied into the
 	// parameter object, so it also overwrites a stop supplied by
 	// custom_include_body.
@@ -521,6 +520,12 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 	// member is included exactly when it is present, and `temperature: 0` or
 	// `stream: false` survive while an absent member does not appear at all.
 	//
+	// Reserve EVERY fixed position first, including the ones this request leaves undefined, because the
+	// pinned literal declares all of them and `...bodyParams` keeps an existing key's position. Without the
+	// reservation an included `top_k` is appended after `n` instead of sitting between top_p and n.
+	// marshalOrderedNodeJSON emits every entry it is GIVEN -- it does not drop undefined the way
+	// JSON.stringify does -- so the placeholders that remain undefined are removed before marshalling.
+	requestBody := nodeObject()
 	if request.isTextCompletion {
 		prompt, ok := pinnedChatCompletionTextPrompt(body)
 		if !ok {
