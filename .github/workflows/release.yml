@@ -146,6 +146,16 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # THE CHECKOUT IS LOAD-BEARING, and leaving it out broke the first real tag. This job only needs the
+      # artefacts and the release API, so it looked checkout-free -- but the publish step asks
+      # `scripts/classify-version-tag.sh` whether the tag is a prerelease, and without a checkout the workspace
+      # has no `scripts/` at all. The step died with `bash: scripts/classify-version-tag.sh: No such file or
+      # directory` (exit 127) AFTER all six platforms had built and verified, which is the most expensive place
+      # to fail; run 40065091531 is the record. The ref is the same one the artefacts were built from, so the
+      # classifier that decides the channel is the classifier from the tree being released.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           path: dist
