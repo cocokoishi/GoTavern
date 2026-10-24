@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "name": "ai21-empty-placeholder",
+  "purpose": "convertAI21Messages' empty arm (prompt-converters.js:631-669, placeholder at :663-665): an EMPTY messages array becomes one user turn carrying PROMPT_PLACEHOLDER, the module-load value of 'promptPlaceholder' (:4) left at its pinned default here. DISCRIMINATING BECAUSE: this request carries NO json_schema, so the pre-converter push at chat-completions.js:816-825 does not run and the array really is empty when the converter sees it; the recorded body must therefore contain exactly that one user turn, which no other ai21 scenario can produce.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "ai21",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_ai21": [
+      {
+        "id": "probe-id-api_key_ai21",
+        "value": "synthetic-ai21-key",
+        "label": "api_key_ai21",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://api.ai21.com/studio/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_AI21_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.ai21.com/studio/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "ai21",
+      "model": "probe-model",
+      "messages": [],
+      "max_tokens": 64,
+      "temperature": 0.5,
+      "top_p": 0.9,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers.authorization",
+        "rule": "compared as \"Bearer <redacted>\"; the planted value is verified by expectedAuthorizationKey",
+        "reason": "a credential is not a contract",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:802 apiKey = readSecret(request.user.directories, SECRET_KEYS.AI21, request.body.secret_id)"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the literal is replaced with <mock>",
+        "reason": "AI21 has no reverse_proxy and no custom_url: API_AI21 + /chat/completions is the only URL the branch can build",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:854 fetch(API_AI21 + '/chat/completions')"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-ai21-key"
+}

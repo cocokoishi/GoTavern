@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "name": "claude-cache-extended-ttl",
+  "purpose": "getConfigValue('claude.extendedTTL', false, 'boolean') (chat-completions.js:106) chooses cacheTTL '1h' over '5m'; that value is written ONLY inside a cache_control object (:282, :298, and cachingAtDepthForClaude :1000), so on its own the flag is NOT observable and this scenario pairs it with enableSystemPromptCache rather than pretending a standalone recording could see it. DISCRIMINATING BECAUSE: against claude-system-prompt-cache -- same body, same flag -- the two cache_control objects must carry ttl \"1h\" instead of \"5m\"; nothing else differs, so the pair isolates extendedTTL exactly.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "claude",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false",
+    "claude:",
+    "  enableSystemPromptCache: true",
+    "  extendedTTL: true"
+  ],
+  "secrets": {
+    "api_key_claude": [
+      {
+        "id": "probe-id-api_key_claude",
+        "value": "synthetic-claude-key",
+        "label": "api_key_claude",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://api.anthropic.com/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.anthropic.com/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "claude",
+      "model": "claude-3-5-sonnet-20240620",
+      "user_name": "Probe User",
+      "char_name": "Probe Char",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system one"
+        },
+        {
+          "role": "system",
+          "name": "example_user",
+          "content": "example line"
+        },
+        {
+          "role": "system",
+          "name": "example_assistant",
+          "content": "example reply"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 128,
+      "use_sysprompt": true,
+      "stream": false,
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "probe_tool",
+            "description": "probe tool description",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "probe_arg": {
+                  "type": "string",
+                  "description": "probe arg"
+                }
+              },
+              "required": [
+                "probe_arg"
+              ]
+            }
+          }
+        },
+        {
+          "type": "probe-not-a-function",
+          "function": {
+            "name": "dropped_tool"
+          }
+        }
+      ],
+      "tool_choice": "auto"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"msg_probe\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-5-20250929\",\"content\":[{\"type\":\"text\",\"text\":\"mock claude reply\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":11,\"output_tokens\":7}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[x-api-key]",
+        "rule": "value replaced with <redacted>, presence and name preserved",
+        "reason": "CLAUDE authenticates with x-api-key, NOT an Authorization header, so the bearer redaction does not reach it. The scenario declares the key and the harness asserts it arrived; only the value is dropped from the record.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_CLAUDE is a pinned literal. The PATH (/messages, and its normalization) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = https://api.anthropic.com/v1, :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + /messages"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

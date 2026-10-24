@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "name": "deepseek-empty-placeholder",
+  "purpose": "mergeMessages' empty arm (prompt-converters.js:906-910) reached through the deepseek arm (chat-completions.js:800-806): an EMPTY messages array becomes one user turn carrying PROMPT_PLACEHOLDER, the value read at module load from 'promptPlaceholder' (:4) and here left at the pinned default. DISCRIMINATING BECAUSE: the body's messages must be that single user turn; the deepseek-prefix-flag and deepseek-tools-suppress-prefix scenarios cover the non-empty arm of the same converter, so a regression that dropped the empty arm would leave an empty messages array here and nowhere else.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "deepseek",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_deepseek": [
+      {
+        "id": "probe-id-api_key_deepseek",
+        "value": "synthetic-deepseek-key",
+        "label": "api_key_deepseek",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://api.deepseek.com/beta",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_DEEPSEEK_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.deepseek.com/beta"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "deepseek",
+      "model": "deepseek-chat",
+      "max_tokens": 96,
+      "stream": false,
+      "messages": [],
+      "temperature": 0.4,
+      "top_p": 0.8,
+      "presence_penalty": 0.1,
+      "frequency_penalty": 0.2,
+      "seed": 7,
+      "stop": [
+        "PROBE_STOP"
+      ]
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"probe-deepseek\",\"object\":\"chat.completion\",\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock deepseek reply\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":5,\"total_tokens\":14}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. Justified by tools/mock-provider listening on port 0.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header presence and scheme are the contract, and the value is asserted by expectedAuthorizationKey instead.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:1145 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam, because API_DEEPSEEK is a pinned literal. The PATH (/chat/completions) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:86 API_DEEPSEEK = https://api.deepseek.com/beta, :1072 new URL(reverse_proxy || API_DEEPSEEK).toString(), :1153 apiUrl + /chat/completions"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-deepseek-key"
+}
