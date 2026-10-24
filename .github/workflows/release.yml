@@ -98,9 +98,16 @@ jobs:
           cp "$LAUNCHER" "stage/"
           # TOKENIZERS ARE NOT EMBEDDED and this is the trap the archive must not fall into:
           # upstream/assets.go embeds public/default/generated/manifests only, and the runtime resolves
-          # tokenizer data from <InstallRoot>/tokenizers or <InstallRoot>/upstream/tokenizers on DISK.
-          # A previous browser capture measured the silent FALLBACK path for exactly this reason.
-          cp -R upstream/tokenizers "stage/tokenizers"
+          # tokenizer data from disk. A previous browser capture measured the silent FALLBACK path -- ids [],
+          # chunks null, counts about 25% high -- for exactly this reason.
+          #
+          # THEY GO UNDER src/ BECAUSE THAT IS WHERE THE PINNED TREE KEEPS THEM. Upstream reads these files
+          # server-side by a relative path (`new SentencePieceTokenizer('src/tokenizers/llama.model')`,
+          # src/endpoints/tokenizers.js:251-254), so an archive that mirrors that layout is the one a user can
+          # compare with a real SillyTavern install, and it is the copy the runtime prefers
+          # (<root>/src/tokenizers, then the legacy <root>/tokenizers, then <root>/upstream/tokenizers).
+          mkdir -p "stage/src"
+          cp -R upstream/tokenizers "stage/src/tokenizers"
           {
             echo "GoTavern release ${GITHUB_REF_NAME}"
             echo "target ${GOOS}"
@@ -178,8 +185,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          gh release create "${GITHUB_REF_NAME}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "GoTavern ${GITHUB_REF_NAME}" \
-            --generate-notes \
-            dist/*.tar.gz dist/*.zip dist/checksums.txt
+          # AN ALPHA MUST NOT BECOME THE REPOSITORY'S "LATEST RELEASE". `install.sh` and `install.ps1` both
+          # fetch `releases/latest/download/...`, and `releases/latest` is whatever GitHub marks as the latest
+          # non-prerelease release -- so an alpha published as an ordinary release hands every fresh install an
+          # alpha, and would keep doing it until a stable tag replaced it. `--prerelease` marks the channel
+          # honestly; `--latest=false` is passed explicitly because it is the flag that actually pins `latest`
+          # to the newest STABLE tag rather than relying on GitHub's automatic choice.
+          #
+          # The decision itself lives in scripts/classify-version-tag.sh, shared with docker.yml and covered by
+          # scripts/test-classify-version-tag.sh in the `verify` job: two copies of this rule would drift.
+          channel="$(bash scripts/classify-version-tag.sh "${GITHUB_REF_NAME}")"
+          echo "tag ${GITHUB_REF_NAME} is a ${channel} channel tag"
+          if [ "${channel}" = "prerelease" ]; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "GoTavern ${GITHUB_REF_NAME}" \
+              --generate-notes \
+              --prerelease \
+              --latest=false \
+              dist/*.tar.gz dist/*.zip dist/checksums.txt
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "GoTavern ${GITHUB_REF_NAME}" \
+              --generate-notes \
+              dist/*.tar.gz dist/*.zip dist/checksums.txt
+          fi

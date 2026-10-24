@@ -274,6 +274,14 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Verify the release channel classifier decides tags correctly
+        # `release.yml` and `docker.yml` both ask scripts/classify-version-tag.sh whether a tag is stable, and the
+        # answer decides two things users feel: whether a tag becomes a GitHub PRE-release (so it is not what
+        # `releases/latest/download/...`, and therefore every fresh install, fetches) and whether it moves the
+        # Docker `:latest` alias. Neither behaviour can be observed without cutting a tag, which must never be
+        # done experimentally on a release repository -- so the rule is a script with a table test, and this step
+        # is what makes the table actually run.
+        run: bash scripts/test-classify-version-tag.sh
       - name: Verify Go formatting
         # AGENTS.md requires gofmt on every change, and until this step nothing in CI enforced it:
         # `go build` and `go vet` both accept an unformatted file, so a formatting defect could land

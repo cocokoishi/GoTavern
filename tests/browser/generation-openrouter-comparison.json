@@ -1,13 +1,5 @@
 {
   "schemaVersion": 1,
-  "normalizations": [
-    {
-      "field": "bases.gotavern and bases.pinned",
-      "replaced": 2,
-      "to": "loopback",
-      "reason": "these were the EPHEMERAL loopback ports of the run that produced this capture (whichever port each leg happened to listen on for that drive); they carry no product meaning, and they are recorded as the literal \"loopback\" from this commit onward because the comparator that produces this artifact now normalises them. The old values are deliberately not repeated here"
-    }
-  ],
   "question": "does the same frontend drive produce the same provider request on GoTavern and pinned?",
   "bases": {
     "gotavern": "loopback",
@@ -90,19 +82,19 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 12146
+            "t": 12652
           },
           {
             "dryRun": false,
-            "t": 14391
+            "t": 14664
           },
           {
             "dryRun": true,
-            "t": 15257
+            "t": 15638
           },
           {
             "dryRun": true,
-            "t": 16122
+            "t": 16612
           }
         ]
       }
@@ -130,19 +122,19 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 15012
+            "t": 16740
           },
           {
             "dryRun": false,
-            "t": 17234
+            "t": 18791
           },
           {
             "dryRun": true,
-            "t": 18341
+            "t": 19964
           },
           {
             "dryRun": true,
-            "t": 19152
+            "t": 20821
           }
         ]
       }
@@ -153,14 +145,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 848,
+        "waitedMs": 599,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1538,
+        "waitedMs": 1560,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -169,20 +161,34 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 852,
+        "waitedMs": 595,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1540,
+        "waitedMs": 1531,
         "completions": 1,
         "inFlightAtRead": 0
       }
     }
   },
+  "proxyPasswordPresent": {
+    "gotavern": false,
+    "pinned": false
+  },
+  "driveParameters": {
+    "mode": "nonstream",
+    "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
+    "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
+    "seamEnvVar": "GOTAVERN_OPENROUTER_CHAT_URL",
+    "peerRoute": "the seam on the GoTavern leg and the https://openrouter.ai/api/v1 transport redirect on the pinned leg -- openrouter has no reverse_proxy and no custom_url, so no request member can carry a peer",
+    "proxyPasswordMeaning": "proxyPasswordPresent false on BOTH legs is the EVIDENCE that the seam and the redirect were the only route; a true would mean the drive had started travelling as a proxy and the artifact would no longer describe a proxy:false source",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional: without it the pinned leg fetches the real provider and an empty peer log reads like a product hang"
+  },
   "guards": {
+    "finalTextNonEmpty": true,
     "bothLegsQuiescedBeforeSend": true,
     "bothLegsSettledAfterSend": true,
     "bothWindowsHoldCompleteGenerations": true,
@@ -195,7 +201,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 14392,
+        "t": 14665,
         "afterData": [
           false
         ]
@@ -204,48 +210,52 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 17235,
+        "t": 18791,
         "afterData": [
           false
         ]
       }
     ]
   },
+  "generationUnmatchedAfterData": {
+    "gotavern": [],
+    "pinned": []
+  },
   "wholeDriveInvocations": {
     "gotavern": [
       {
         "dryRun": true,
-        "t": 12146
+        "t": 12652
       },
       {
         "dryRun": false,
-        "t": 14391
+        "t": 14664
       },
       {
         "dryRun": true,
-        "t": 15257
+        "t": 15638
       },
       {
         "dryRun": true,
-        "t": 16122
+        "t": 16612
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 15012
+        "t": 16740
       },
       {
         "dryRun": false,
-        "t": 17234
+        "t": 18791
       },
       {
         "dryRun": true,
-        "t": 18341
+        "t": 19964
       },
       {
         "dryRun": true,
-        "t": 19152
+        "t": 20821
       }
     ]
   },
@@ -273,14 +283,16 @@
       "chatDomMessages": 3,
       "textareaValue": "",
       "tokenCountProbe": "resolved:9",
+      "popupClicks": 0,
+      "popupSeen": [],
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14614,
+          "t": 14867,
           "text": "probe user marker"
         },
         {
-          "t": 15038,
+          "t": 15367,
           "text": "probe reply"
         }
       ],
@@ -294,14 +306,16 @@
       "chatDomMessages": 3,
       "textareaValue": "",
       "tokenCountProbe": "resolved:9",
+      "popupClicks": 0,
+      "popupSeen": [],
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 17463,
+          "t": 19058,
           "text": "probe user marker"
         },
         {
-          "t": 18076,
+          "t": 19734,
           "text": "probe reply"
         }
       ],

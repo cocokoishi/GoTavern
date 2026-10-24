@@ -183,10 +183,26 @@ const main = async () => {
             ...(process.env.PROBE_SOURCE === 'electronhub' ? {
                 sourceShape: "ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: its route is a bare literal and always reads the ELECTRONHUB secret, so a request carrying a proxy is IGNORED rather than proxied. `proxyPasswordPresent: false` on both legs therefore means UNSUPPORTED, not unused, and the artifact says so because a reader would otherwise read the false as \"proxy available and untouched\".",
             } : {}),
+
+        // See the generation comparator: openrouter is proxy:false with a pinned literal, so the seam and
+        // the redirect are the only route and proxyPasswordPresent false on both legs is the evidence.
+        // See the generation comparator: claude is proxy-capable and no-validate, so the peer travels in
+        // reverse_proxy and NO /models call may appear on either leg.
+        ...(process.env.PROBE_SOURCE === 'claude' ? {
+            seamEnvVar: 'GOTAVERN_CLAUDE_CHAT_URL',
+            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs, because claude is proxy-capable',
+            seamUsage: 'safety net only: the seam is aimed so a leg preferring the pinned literal cannot reach the real provider, but the route is the setting',
+            noValidate: 'claude must record ZERO /models calls on both legs; a status call is the harness bug, not a product finding',
+        } : {}),
+        ...(process.env.PROBE_SOURCE === 'openrouter' ? {
+            seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
+            peerRoute: 'the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source',
+            proxyPasswordMeaning: 'proxyPasswordPresent false on BOTH legs is the evidence that seam plus redirect were the only route to the peer',
+        } : {}),
         ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
             // NAMED PER SOURCE, for the same reason as the generation artifact: the seam that aimed
             // this leg must be the one recorded.
-            seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
+            seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL', aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL', ai21: 'GOTAVERN_AI21_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
             // THE TWO FACTS A READER CANNOT RECONSTRUCT FROM THESE NUMBERS. Both were measured the hard
             // way in this lane, and they belong in the artifact rather than in a message about it.
             pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
@@ -200,7 +216,14 @@ const main = async () => {
         } : {}),
         // OPENAI: the same seam/redirect pair as the generation artifact, and the same measured fact -- openai IS
         // proxy:true, so the absent reverse_proxy is a deliberate drive choice, not a control the frontend lacks.
-        ...(process.env.PROBE_SOURCE === 'openai' ? {
+        // See the generation comparator: xAI's route is the SETTING, the seam is a safety net, and
+        // proxyPasswordPresent true on both legs is what distinguishes this row from every seam-routed one.
+        ...(process.env.PROBE_SOURCE === 'xai' ? {
+            seamEnvVar: 'GOTAVERN_XAI_CHAT_URL',
+            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184), which is a path a user can take because xAI is proxy-capable',
+            seamUsage: 'safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but neither is the route this drive took; proxyPasswordPresent true on both legs is the evidence',
+            converterNote: 'xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content and deletes msg.name; a wrong port still yields a parseable body, so the provider bytes are the assertion',
+        } : {}),        ...(process.env.PROBE_SOURCE === 'openai' ? {
             seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
             proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true, so oai_settings.reverse_proxy was available and deliberately left unset; proxyPasswordPresent false on both legs is the measurement, not an assumption',
             pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the pinned leg at the same peer the seam aims the GoTavern leg at; without it the pinned server fetches api.openai.com and the peer log stays empty',

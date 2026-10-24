@@ -11,7 +11,7 @@ Stable releases provide three first-class paths:
 1. **One-line installer** (`install.sh` / `install.ps1`): downloads a prebuilt GitHub Release asset and verifies its checksum.
 2. **Manual GitHub Release download**: download the archive for the operating system/architecture, extract it, run `start.sh` / `Start.cmd` or the binary directly.
 3. **Container image**: the PUBLISH PATH IS EXECUTED and gated, but no release tag has published it. `docker.yml`
-pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push (the only event that also moves `:latest`) and on a
+pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push and on a
 `workflow_dispatch` with `push_image=true`, which publishes the named `image_tag` and never `latest`. Dispatch run
 39907882256 is green and its last steps are the ones that matter: it pushed, then PULLED the reference back and ran
 `assets verify` inside the pulled copy, which makes the registry bytes the subject rather than the local daemon. The
@@ -21,6 +21,18 @@ the second of them also refuses to report the tag as published. MEASURED: the pu
 linux/amd64. NOT COVERED: no `v*` tag exists (`git tag -l 'v*'` is empty as of 2026-10-23), so `:latest` has never
 been published and no user can pull a release image; a multi-architecture index is unexecuted; and the Windows
 installer behaviours are covered only by `release-qualification.yml` (see HANDOFF section 3).
+
+   **`:latest` moves only on a STABLE tag, and a prerelease is marked as one on GitHub.** Both decisions come from
+   `scripts/classify-version-tag.sh`, which `docker.yml` and `release.yml` both call: a tag that is exactly
+   `v<major>.<minor>.<patch>` is stable; anything else version-shaped (an `-alpha.1`/`-beta.2`/`-rc.1` suffix, or a
+   `+build` suffix) is a prerelease; and a name that is not a version tag at all is refused rather than guessed,
+   because the guess would decide whether real users receive it. So `v0.1.0-alpha.1` publishes
+   `:v0.1.0-alpha.1` and leaves `:latest` where it is, and its GitHub Release is created with
+   `--prerelease --latest=false` -- which is what keeps `releases/latest/download/...`, the URL both installers
+   fetch, pointing at a stable release. DERIVED-and-gated, not measured on a real tag: the rule is a script with a
+   table test (`scripts/test-classify-version-tag.sh`, run by the `verify` job) precisely because neither behaviour
+   can be observed without cutting a tag, and cutting one must never be an experiment. The step bodies themselves
+   were executed locally against seven ref shapes before this landed; the first real tag remains the confirmation.
 
 Building from source is a developer workflow and must never be required as an implicit fallback when a release asset is missing.
 
@@ -114,7 +126,8 @@ Installers must:
 - support latest stable and an explicit release tag;
 - download `checksums.txt` from the same release;
 - verify SHA-256 before installing anything;
-- install `tokenizers/` beside the binary as immutable release data, and refuse an archive that lacks it;
+- install `src/tokenizers/` (the pinned SillyTavern layout, and the path the runtime prefers) as immutable
+  release data, and refuse an archive that lacks it;
 - use a temporary directory for download/extraction;
 - replace immutable executable/launcher files only after successful verification;
 - preserve user config/data/extensions/certs on re-run;
@@ -440,8 +453,8 @@ A native release is not ready merely because cross-compilation succeeded. CI mus
 | 10 | pinned Tavern Helper deep workflow passes | PARTIAL -- tests/browser/extension-tavern-helper-comparison.json is committed and gated: 21 rows equal on a release-faithful install, one known difference (/thumbnail, the Jimp boundary) |
 | 11 | supported LittleWhiteBox standard-API workflow passes | PARTIAL -- tests/browser/extension-littlewhitebox-comparison.json: 452 rows equal, same single known difference; the drive exercises load/discover/storage, not the full feature set |
 | 12 | Docker image passes the same smoke path AND is publishable | GATED -- `docker.yml` builds the image, runs `assets verify` inside it and smokes a pinned route; a version `v*` tag then pushes `ghcr.io/<repo>:<tag>` and `:latest`, PULLS THE PUSHED REFERENCE BACK (after removing the local image) and re-runs `assets verify` inside the pulled copy, and no step may claim an image exists unless that verification succeeded. The publish path itself was executed by `workflow_dispatch` with a temporary tag (`ghcr.io/cocokoishi/gotavern:dispatch-lane-release-pipeline`, digest `sha256:756eee538da85afa40cd2daa123973486ec5e71a38dee3be270238a60aa90091`, run 39907882256) which never moves `:latest`. Still an IMAGE, not the archive a user downloads |
-| 14 | Windows installer behaviours: replacing a RUNNING `gotavern.exe`, path separators, registry/shortcuts, `cmd.exe` | GATED -- `release-qualification.yml`'s `qualify-windows-amd64` job runs `scripts/qualify-install-windows.ps1` on `windows-latest` and asserts, over a server IT STARTED: the installer REFUSES to replace a running `gotavern.exe` with a non-zero exit naming both the replacement step and the running case, the server still alive, the exe byte-identical, no `.gotavern.new.*` staging file left and `/version` still answering; then, after the server is stopped, the update DOES replace the binary (`older -> newer`, through the mirror's `latest` form) and `assets verify` passes after it; the install path is a real `\`-separated Windows path; the Uninstall registry key and the Start Menu Programs folder are UNCHANGED (the negative claim, measured); and `Start.cmd` is launched through `cmd /c` and must report the installed version, which exercises its `cd /d "%~dp0"` and `"%~dp0gotavern.exe" %*`. Run 39907640873: 20 assertions, all `ok:` |
 | 13 | resource benchmark is recorded | **RECORDED, NOT A GATE** -- `.github/workflows/smoke-metrics.yml` (weekly + dispatch, never on push) builds the release binary and records cold start, warm restart, `/version` and `/` latency samples, seeded file count/bytes, RSS and install footprint into a `smoke-metrics` artefact carrying the runner image identity. Only a 60 s cold-start ceiling is asserted: a slower start is a hang, not a busy runner, and every other number is reported rather than asserted because it moves with the host. Two runs on one commit: cold 177/184 ms, warm 26 ms, `/version` median 0.71/0.75 ms, seed 203 files. The noisy numbers (warm RSS +23%, `GET /` median +15.7% across two runner image builds) are named as noisy in the record instead of being asserted. |
+| 14 | Windows installer behaviours: replacing a RUNNING `gotavern.exe`, path separators, registry/shortcuts, `cmd.exe` | GATED -- `release-qualification.yml`'s `qualify-windows-amd64` job runs `scripts/qualify-install-windows.ps1` on `windows-latest` and asserts, over a server IT STARTED: the installer REFUSES to replace a running `gotavern.exe` with a non-zero exit naming both the replacement step and the running case, the server still alive, the exe byte-identical, no `.gotavern.new.*` staging file left and `/version` still answering; then, after the server is stopped, the update DOES replace the binary (`older -> newer`, through the mirror's `latest` form) and `assets verify` passes after it; the install path is a real `\`-separated Windows path; the Uninstall registry key and the Start Menu Programs folder are UNCHANGED (the negative claim, measured); and `Start.cmd` is launched through `cmd /c` and must report the installed version, which exercises its `cd /d "%~dp0"` and `"%~dp0gotavern.exe" %*`. Run 39907640873: 20 assertions, all `ok:` |
 
 Assertion-mutation evidence, recorded so a reader can tell a gate from a claim: run 39908014487 inverted the
 running-`gotavern.exe` assertion (it required the installer to SUCCEED over a running server instead of to
@@ -452,5 +465,7 @@ defect in this workflow rather than in the product: its summary printed `publish
 verification had failed, because it asked whether a push happened and not whether the verification passed. A
 push with no successful verification is now reported as `PUSHED BUT NOT VERIFIED` and fails the job
 (run 39908470507 shows the corrected report under the same mutation).
+
+| 15 | CROSS-BASELINE update and rollback: an older release updated to a newer one, then rolled back, with user state surviving | GATED -- `release-qualification.yml`'s `qualify-upgrade-rollback` job builds TWO archives from TWO DIFFERENT COMMITS (the pinned baseline `d00d99b`, 189 commits behind, and the candidate) and `scripts/qualify-upgrade-rollback.sh` drives the REAL `install.sh` against a loopback mirror: it installs the older release and asserts the version, `assets verify` from the prefix and that the installed binary and `tokenizers/` are byte-identical to the older archive's own manifest; seeds runtime state (config.yaml carrying a key GoTavern does not know, user settings, a card, a chat, an extension, a cert) and boots it; updates to the newer release and asserts the version MOVED, the binary changed and every runtime file survived byte for byte; boots it and WRITES NEW STATE WITH THE NEWER RELEASE; rolls back and asserts the binary is byte-identical to the older archive's, `assets verify` passes and the rolled-back `tokenizers/` matches the older manifest; then asserts the newer release's state survived and BOOTS THE OLDER RELEASE OVER IT, requiring it to start, answer `/version` and change nothing except the pinned timestamped settings backup. Run 39997932741, all `ok:`; the rollback assertion was proved live by a mutation that made the rollback install the newer release (run 39998226861 failed with `FAIL: after the rollback the installed binary reports upg-newer-... , expected the older tag upg-older-...`). MEASURED LIMIT of this pair: the vendored asset trees are identical across those two commits, so the update moves the binary and BUILD-INFO but not the embedded assets; the job prints that measurement rather than implying otherwise, and the `baseline_ref` dispatch input overrides the baseline once an older RELEASE tag exists |
 
 Only then is the release suitable for ordinary deployment.

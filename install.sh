@@ -184,13 +184,20 @@ if [ ! -f "$EXTRACTED/gotavern" ]; then
     echo "error: release archive is missing the expected gotavern executable at archive root" >&2
     exit 1
 fi
-# tokenizers/ is REQUIRED, not optional. cmd/gotavern reads it from <InstallRoot>/tokenizers and
-# `gotavern assets verify` hashes that directory on disk against the embedded manifest; with it absent
-# the tokenizer routes take the pinned FALLBACK path (ids [], chunks null, counts about 25% high) while
-# still answering. This installer used to omit it, so the one-line install produced a runtime whose own
-# `assets verify` failed. Failing HERE is deliberate: a release archive that lacks it is not installable.
-if [ ! -d "$EXTRACTED/tokenizers" ]; then
-    echo "error: release archive does not contain tokenizers/ at archive root." >&2
+# src/tokenizers/ is REQUIRED, not optional. cmd/gotavern reads it from <InstallRoot>/src/tokenizers and
+# `gotavern assets verify` hashes that directory on disk against the embedded manifest; with it absent the
+# tokenizer routes take the pinned FALLBACK path (ids [], chunks null, counts about 25% high) while still
+# answering. This installer used to omit the tree entirely, so the one-line install produced a runtime whose
+# own `assets verify` failed. Failing HERE is deliberate: an archive that lacks it is not installable.
+#
+# THE PATH IS src/tokenizers BECAUSE THAT IS THE PINNED LAYOUT. Upstream reads these files server-side by a
+# relative path (`new SentencePieceTokenizer('src/tokenizers/llama.model')`,
+# src/endpoints/tokenizers.js:251-254), so the release mirrors that layout and the runtime prefers it. An
+# installation made by release v0.1.0-alpha.1 has them at tokenizers/ instead; the runtime still falls back to
+# that path, so this installer does not need to migrate an existing tree -- it installs the new location and
+# leaves the old directory alone.
+if [ ! -d "$EXTRACTED/src/tokenizers" ]; then
+    echo "error: release archive does not contain src/tokenizers/." >&2
     echo "GoTavern needs that directory beside the binary; without it tokenizer counts silently fall back." >&2
     exit 1
 fi
@@ -219,16 +226,22 @@ for name in LICENSE THIRD_PARTY_NOTICES.txt BUILD-INFO.txt; do
     fi
 done
 
-# Replace the immutable tokenizer tree. Staged beside its final name and swapped, so an interrupted
+# Replace the immutable tokenizer tree at src/tokenizers. Staged inside src/ and swapped, so an interrupted
 # install leaves either the old tree or the new one in place rather than a half-copied directory.
-TOKENIZERS_NEW="$INSTALL_DIR/.tokenizers.new.$$"
-TOKENIZERS_OLD="$INSTALL_DIR/.tokenizers.old.$$"
+#
+# THE STAGING DIRECTORY IS INSIDE src/ ON PURPOSE: a rename is only atomic within one filesystem AND across the
+# same parent, and both paths therefore live under $INSTALL_DIR/src. Staging at the install root and renaming
+# into src/ would still work here, but it would be a cross-directory rename that a filesystem is free to
+# implement as copy-then-delete.
+mkdir -p "$INSTALL_DIR/src"
+TOKENIZERS_NEW="$INSTALL_DIR/src/.tokenizers.new.$$"
+TOKENIZERS_OLD="$INSTALL_DIR/src/.tokenizers.old.$$"
 rm -rf "$TOKENIZERS_NEW" "$TOKENIZERS_OLD"
-cp -R "$EXTRACTED/tokenizers" "$TOKENIZERS_NEW"
-if [ -d "$INSTALL_DIR/tokenizers" ]; then
-    mv "$INSTALL_DIR/tokenizers" "$TOKENIZERS_OLD"
+cp -R "$EXTRACTED/src/tokenizers" "$TOKENIZERS_NEW"
+if [ -d "$INSTALL_DIR/src/tokenizers" ]; then
+    mv "$INSTALL_DIR/src/tokenizers" "$TOKENIZERS_OLD"
 fi
-mv "$TOKENIZERS_NEW" "$INSTALL_DIR/tokenizers"
+mv "$TOKENIZERS_NEW" "$INSTALL_DIR/src/tokenizers"
 rm -rf "$TOKENIZERS_OLD"
 
 echo

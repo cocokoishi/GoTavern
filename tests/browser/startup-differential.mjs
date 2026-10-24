@@ -84,11 +84,14 @@ if (!external) {
     // asset gaps are therefore recorded as observed, against the known list in
     // docs/frontend-startup-calls.md, rather than papered over with the wrong tree.
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
-    const tokenizerTarget = path.join(dataRoot, 'tokenizers');
+    // THE RELEASE LAYOUT IS `src/tokenizers`, the pinned SillyTavern layout: upstream reads the tree as
+    // `src/tokenizers/...` (src/endpoints/tokenizers.js:251-254) and the runtime prefers that path.
+    const tokenizerTarget = path.join(dataRoot, 'src', 'tokenizers');
     if (await fs.stat(tokenizerSource).then(() => true, () => false)) {
+        await fs.mkdir(path.join(dataRoot, 'src'), { recursive: true });
         await fs.cp(tokenizerSource, tokenizerTarget, { recursive: true });
     } else {
-        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
+        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them at <install root>/src/tokenizers`);
     }    // Extension assets: a release ships the built-in extensions under
     // `<InstallRoot>/public/scripts/extensions`. The vendored `upstream/public` cannot be staged whole
     // (its source index.html needs the generated bundle), but the extension SUBTREE is exactly what

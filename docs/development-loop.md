@@ -33,7 +33,7 @@ Measured on this host with a warm cache, after one cold run:
 
 Two conclusions that decide the design, and they point in opposite directions:
 
-- **Incrementally, this host wins by an order of magnitude.** A warm provider edit costs ~6 s here against a
+- **Incrementally, this host wins by an order of magnitude.** A warm provider edit costs 6-7 s here (7.2 s measured on a one-file change to `internal/server/chutes_chat.go`: gofmt 0.4 s, the targeted test 3.3 s, the build 3.1 s) against a
   158 s round trip through the runner. That is the loop an agent should actually use.
 - **At full width, the runner wins.** The whole suite is 2.2× slower here, and the six-platform cross-compile
   is a gate, not a development step. Copying the CI job onto this host would be slower AND would prove the same

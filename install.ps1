@@ -109,12 +109,17 @@ try {
     if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) {
         throw 'Release archive is missing gotavern.exe at archive root.'
     }
-    # tokenizers/ is REQUIRED, for the same reason as in install.sh: cmd/gotavern reads it from
-    # <InstallRoot>/tokenizers and `gotavern assets verify` hashes that directory on disk, so without it
-    # the tokenizer routes silently fall back to guesstimates. This installer used to omit it.
-    $sourceTokenizers = Join-Path $extracted 'tokenizers'
+    # src/tokenizers/ is REQUIRED, for the same reason as in install.sh: cmd/gotavern reads it from
+    # <InstallRoot>/src/tokenizers and `gotavern assets verify` hashes that directory on disk, so without it
+    # the tokenizer routes silently fall back to guesstimates. This installer used to omit the tree entirely.
+    #
+    # THE PATH IS src/tokenizers BECAUSE THAT IS THE PINNED LAYOUT: upstream reads these files server-side by a
+    # relative path (`new SentencePieceTokenizer('src/tokenizers/llama.model')`,
+    # src/endpoints/tokenizers.js:251-254). An installation made by release v0.1.0-alpha.1 has them at
+    # tokenizers/ instead, and the runtime still falls back to that path, so an existing tree is left alone.
+    $sourceTokenizers = Join-Path $extracted 'src/tokenizers'
     if (-not (Test-Path -LiteralPath $sourceTokenizers -PathType Container)) {
-        throw 'Release archive is missing tokenizers/ at archive root. GoTavern needs that directory beside the binary; without it tokenizer counts silently fall back.'
+        throw 'Release archive is missing src/tokenizers/. GoTavern needs that directory beside the binary; without it tokenizer counts silently fall back.'
     }
 
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -144,12 +149,14 @@ cd /d "%~dp0"
         }
     }
 
-    # Replace the immutable tokenizer tree. Staged beside its final name and swapped, so an interrupted
+    # Replace the immutable tokenizer tree at src/tokenizers. Staged inside src/ and swapped, so an interrupted
     # install leaves either the old tree or the new one rather than a half-copied directory.
-    $tokenizersNew = Join-Path $InstallDir ('.tokenizers.new.' + [Guid]::NewGuid().ToString('N'))
-    $tokenizersOld = Join-Path $InstallDir ('.tokenizers.old.' + [Guid]::NewGuid().ToString('N'))
+    $srcDirectory = Join-Path $InstallDir 'src'
+    New-Item -ItemType Directory -Path $srcDirectory -Force | Out-Null
+    $tokenizersNew = Join-Path $srcDirectory ('.tokenizers.new.' + [Guid]::NewGuid().ToString('N'))
+    $tokenizersOld = Join-Path $srcDirectory ('.tokenizers.old.' + [Guid]::NewGuid().ToString('N'))
     Copy-Item -LiteralPath $sourceTokenizers -Destination $tokenizersNew -Recurse -Force
-    $tokenizersTarget = Join-Path $InstallDir 'tokenizers'
+    $tokenizersTarget = Join-Path $srcDirectory 'tokenizers'
     if (Test-Path -LiteralPath $tokenizersTarget) {
         Move-Item -LiteralPath $tokenizersTarget -Destination $tokenizersOld
     }

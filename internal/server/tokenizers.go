@@ -92,15 +92,37 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 
 // --- asset loading ---------------------------------------------------------------------
 
-// tokenizerAssetCandidates lists where the release may place the vendored tokenizer tree,
-// most specific first: <InstallRoot>/tokenizers (the release layout, matching how the
-// frontend tree is placed at <InstallRoot>/public) and <InstallRoot>/upstream/tokenizers
-// (the development layout, where the repository root holds the vendored tree).
+// tokenizerAssetCandidates lists where the tokenizer tree may be found, most specific first:
+//
+//	<InstallRoot>/src/tokenizers       the RELEASE layout AND the pinned SillyTavern layout, which are the
+//	                                   same path on purpose (see below)
+//	<InstallRoot>/tokenizers           the layout release v0.1.0-alpha.1 shipped, kept as a fallback so an
+//	                                   installation made from it still tokenizes exactly
+//	<InstallRoot>/upstream/tokenizers  the development layout, where the repository root holds the tree
+//
+// THE PINNED LOCATION IS NOT A NICETY. Upstream reads these files SERVER-SIDE by a path relative to its own
+// working directory -- `new SentencePieceTokenizer('src/tokenizers/llama.model')` in
+// src/endpoints/tokenizers.js:251-254, and the same shape for the HuggingFace JSONs -- so `src/tokenizers/` is
+// where a real SillyTavern tree keeps them. They are NOT served over HTTP: the only static mount upstream has is
+// `express.static(path.join(serverDirectory, 'public'))` (server-main.js:242), so no client can fetch
+// `/src/tokenizers/...` and nothing needs to serve that path here.
+//
+// Without this candidate a MIGRATED installation (a SillyTavern directory GoTavern is pointed at, which has
+// src/tokenizers/ and not tokenizers/) found no tree at all, and the failure was silent: the routes fall back to
+// the Guesstimate path and keep answering with token counts that are simply wrong. That is the worst shape a
+// tokenizer defect can take, which is why the migration layout is a candidate rather than a documented caveat.
+//
+// The order matters and is deliberate. `src/tokenizers` is FIRST because it is now BOTH the pinned layout and the
+// release layout: the published archive ships the tree there, so that is the copy a fresh install should use, and
+// a stale `tokenizers/` left behind by release v0.1.0-alpha.1 must not win over it after an upgrade in place. The
+// legacy root path is second rather than deleted, because an installation made from that release must keep
+// tokenizing exactly after the binary is updated without re-running the installer.
 func tokenizerAssetCandidates(options HTTPHandlerOptions) []string {
 	if options.InstallRoot == "" {
 		return nil
 	}
 	return []string{
+		filepath.Join(options.InstallRoot, "src", "tokenizers"),
 		filepath.Join(options.InstallRoot, "tokenizers"),
 		filepath.Join(options.InstallRoot, "upstream", "tokenizers"),
 	}

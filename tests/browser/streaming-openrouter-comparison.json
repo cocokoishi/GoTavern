@@ -1,17 +1,20 @@
 {
   "schemaVersion": 1,
   "driveParameters": {
-    "streamFrameCount": "14",
-    "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other"
+    "streamFrameCount": "peer default (5 stream / 12 cancel)",
+    "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
+    "seamEnvVar": "GOTAVERN_OPENROUTER_CHAT_URL",
+    "peerRoute": "the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source",
+    "proxyPasswordMeaning": "proxyPasswordPresent false on BOTH legs is the evidence that seam plus redirect were the only route to the peer"
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "f14-a.json",
-    "streamPinned": "f14-p.json",
-    "cancelGotavern": "f14-c-a.json",
-    "cancelPinned": "f14-c-p.json",
-    "nonstreamGotavern": "f14-n-a.json",
-    "nonstreamPinned": "f14-n-p.json"
+    "streamGotavern": "stream-or-gotavern.json",
+    "streamPinned": "stream-or-pinned.json",
+    "cancelGotavern": "cancel-or-gotavern.json",
+    "cancelPinned": "cancel-or-pinned.json",
+    "nonstreamGotavern": "gen-or-gotavern.json",
+    "nonstreamPinned": "gen-or-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -28,11 +31,9 @@
       "renderTexts": [
         "probe user marker",
         "…",
-        "Hello from the",
         "Hello from the stream",
-        "Hello from the stream? incremental rendering",
-        "Hello from the stream? incremental rendering is",
-        "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream?",
+        "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
@@ -61,8 +62,9 @@
         "Hello from the stream",
         "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
-        "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
@@ -80,6 +82,7 @@
       "providerRequestMethodsAndPathsEqual": true,
       "providerBodyEqual": true,
       "finalTextEqual": true,
+      "finalTextNonEmpty": true,
       "streamedRenderPrefixes": true,
       "pagesHaveNoErrors": true,
       "requestStreamFlagMatches": true,
@@ -116,7 +119,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 15106,
+        "stopClickedAt": 15451,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -145,7 +148,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 17136,
+        "stopClickedAt": 20652,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -157,7 +160,7 @@
       "providerRequestCountEqual": true,
       "providerRequestMethodsAndPathsEqual": true,
       "providerBodyEqual": true,
-      "finalTextEqual": true,
+      "finalTextNonEmpty": true,
       "streamedRenderPrefixes": true,
       "pagesHaveNoErrors": true,
       "requestStreamFlagMatches": true,
@@ -165,13 +168,29 @@
       "contentRenderedBeforeAbort": true,
       "noFurtherChunksAppliedAfterAbort": true,
       "abortControlUsed": true,
+      "abortTextIsPrefixOfStreamedReply": true,
       "finalTextEqualsAfterAbortState": true
     },
     "renderTickAlignment": {
       "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
-    "proven": true
+    "proven": true,
+    "abortRenderState": {
+      "gotavern": {
+        "text": "Hello from",
+        "framesWritten": [
+          14
+        ]
+      },
+      "pinned": {
+        "text": "Hello from",
+        "framesWritten": [
+          14
+        ]
+      },
+      "note": "recorded, not asserted: the abort lands on a render tick that moves on a single leg across repeats (measured: three runs per leg, 14 frames each, three different prefixes on GoTavern and two on pinned), so cross-leg equality of this text is timing rather than behaviour"
+    }
   },
   "nonstream": {
     "gotavern": {
@@ -232,6 +251,7 @@
       "providerRequestMethodsAndPathsEqual": true,
       "providerBodyEqual": true,
       "finalTextEqual": true,
+      "finalTextNonEmpty": true,
       "streamedRenderPrefixes": true,
       "pagesHaveNoErrors": true,
       "requestStreamFlagMatches": true,
@@ -244,6 +264,10 @@
     "proven": true
   },
   "compatibleReady": true,
+  "proxyPasswordPresent": {
+    "gotavern": false,
+    "pinned": false
+  },
   "notes": [
     "The probe previously awaited response.clone().text() for EVERY response before returning it to the frontend, so a streamed generate response was fully buffered before the fetch promise resolved: incremental rendering was impossible to observe and an aborted stream observed an empty message. That was a probe defect on both legs (rule 10), fixed by skipping the clone read for text/event-stream and for the generate route. Earlier captures in this directory were taken with that defect; these captures are not.",
     "The peer records clientDisconnected only when the caller closes before the scripted stream finishes; it is the provider-side proof of cancellation.",

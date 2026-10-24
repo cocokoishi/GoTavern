@@ -21,18 +21,23 @@ RUN apk add --no-cache ca-certificates \
     && adduser -S -G gotavern -h /data gotavern
 
 # The install root is the directory holding the binary: the runtime resolves
-# <InstallRoot>/tokenizers from there, and `gotavern assets verify` hashes the
+# <InstallRoot>/src/tokenizers from there, and `gotavern assets verify` hashes the
 # same tree.
 WORKDIR /app
 COPY --from=build /out/gotavern /app/gotavern
-# tokenizers is a DIRECTORY BESIDE THE BINARY, not embedded. upstream/assets.go
-# embeds public, default, generated and manifests only, and only the tokenizer
-# MANIFEST is embedded; the routes read <InstallRoot>/tokenizers from disk.
-# Without this tree the tokenizer routes take the pinned FALLBACK path and count
-# prompts wrong while still answering, which is why `gotavern assets verify`
-# fails when it is absent and why this COPY is load-bearing rather than an
-# optimisation.
-COPY upstream/tokenizers /app/tokenizers
+# tokenizers is a DISK TREE, not embedded. upstream/assets.go embeds public,
+# default, generated and manifests only, and only the tokenizer MANIFEST is
+# embedded; the routes read the tree from disk. Without it the tokenizer routes
+# take the pinned FALLBACK path and count prompts wrong while still answering,
+# which is why `gotavern assets verify` fails when it is absent and why this COPY
+# is load-bearing rather than an optimisation.
+#
+# IT GOES UNDER src/ BECAUSE THAT IS THE PINNED LAYOUT: upstream reads these files
+# server-side by a relative path (`new SentencePieceTokenizer('src/tokenizers/
+# llama.model')`, src/endpoints/tokenizers.js:251-254). The runtime accepts
+# <root>/src/tokenizers first, then the legacy <root>/tokenizers, then
+# <root>/upstream/tokenizers -- so this image and a release archive agree.
+COPY upstream/tokenizers /app/src/tokenizers
 COPY LICENSE THIRD_PARTY_NOTICES.txt /app/
 
 # Pinned startup creates the PUBLIC_DIRECTORIES tree UNDER THE INSTALL ROOT:

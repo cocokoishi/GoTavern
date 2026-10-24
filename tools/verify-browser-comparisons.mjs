@@ -95,6 +95,18 @@ if (openrouterGeneration) {
     if (openrouterGeneration.requestArrived?.gotavern !== true || openrouterGeneration.requestArrived?.pinned !== true) {
         fail('generation-openrouter-comparison.json', 'requestArrived is not true on both legs, so a leg was never driven');
     }
+    // OPENROUTER IS proxy:false WITH A PINNED LITERAL: no request member can carry a peer, so the seam and
+    // the transport redirect are the only route. proxyPasswordPresent FALSE on both legs is the recorded
+    // evidence of that, and a true would mean the drive had started travelling as a proxy -- which would
+    // make the artifact describe a different source than the one it names.
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openrouterGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail('generation-openrouter-comparison.json', `proxyPasswordPresent.${leg} is ${JSON.stringify(openrouterGeneration.proxyPasswordPresent?.[leg])}, but openrouter is proxy:false and both legs must reach the peer by seam and redirect`);
+        }
+    }
+    if (openrouterGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_OPENROUTER_CHAT_URL') {
+        fail('generation-openrouter-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(openrouterGeneration.driveParameters?.seamEnvVar)}, but this artifact must name the only seam that can aim its GoTavern leg`);
+    }
     if (openrouterGeneration.milestoneEqual !== true) {
         fail('generation-openrouter-comparison.json', 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
     }
@@ -138,7 +150,27 @@ if (claudeGeneration) {
         const text = claudeGeneration.postSend?.[leg]?.finalAssistantText;
         if (typeof text !== 'string' || text.trim() === '') fail('generation-claude-comparison.json', `${leg}.finalAssistantText is empty, so the send rendered nothing`);
     }
-    if (typeof claudeGeneration.driveParameters?.mode !== 'string') fail('generation-claude-comparison.json', 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+    // CLAUDE IS NO-VALIDATE AND PROXY-CAPABLE, and both facts are asserted FROM THE ARTIFACT rather than from
+// prose: the seam must be named (it exists in the Go arm and is aimed as a safety net while the route is
+// the setting), and NO /models call may appear on either leg, because a status call is the harness bug
+// this record exists to avoid rather than a product finding.
+if (claudeGeneration) {
+    const post = (claudeGeneration.providerRequests?.gotavern ?? [])[0];
+    console.log(`  generation-claude-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, POST /messages on both legs with ZERO /models calls (claude is no-validate: the CONNECT path never validates), proxyPasswordPresent TRUE on both (the credential travelled as proxy_password through the reverse_proxy setting), seam ${claudeGeneration.driveParameters?.seamEnvVar} aimed as a safety net only`);
+}
+
+if (claudeGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_CLAUDE_CHAT_URL') {
+    fail('generation-claude-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(claudeGeneration.driveParameters?.seamEnvVar)}, but this artifact must name the seam the Go arm exports`);
+}
+for (const leg of ['gotavern', 'pinned']) {
+    const requests = claudeGeneration.requests?.[leg] ?? claudeGeneration.providerRequests?.[leg] ?? [];
+    const modelCalls = requests.filter(request => String(request.path ?? '').includes('/models'));
+    if (modelCalls.length !== 0) {
+        fail('generation-claude-comparison.json', `${leg} issued ${modelCalls.length} /models request(s); claude is a no-validate source and must never ask for a model list`);
+    }
+}
+
+if (typeof claudeGeneration.driveParameters?.mode !== 'string') fail('generation-claude-comparison.json', 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
 }
 // ---- generation-mistral-comparison.json -------------------------------------------------------
 //
@@ -218,6 +250,18 @@ if (openrouterStreaming) {
         fail('streaming-openrouter-comparison.json', 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
     }
     console.log(`  streaming-openrouter-comparison.json compatibleReady true, three surfaces proven, cancellation clientDisconnected on both legs`);
+    // OPENROUTER IS proxy:false WITH A PINNED LITERAL, so the seam and the transport redirect are the only
+    // route and proxyPasswordPresent FALSE on both legs is the recorded evidence. This lives in the DEDICATED
+    // block because this artifact is not in the artifactName loop; a copy of the assertion placed there
+    // never ran for it, which a surviving mutation showed (the flip passed the gate).
+    for (const leg of ['gotavern', 'pinned']) {
+        if (openrouterStreaming.proxyPasswordPresent?.[leg] !== false) {
+            fail('streaming-openrouter-comparison.json', `proxyPasswordPresent.${leg} is ${JSON.stringify(openrouterStreaming.proxyPasswordPresent?.[leg])}, but openrouter is proxy:false and both legs must reach the peer by seam and redirect`);
+        }
+    }
+    if (openrouterStreaming.driveParameters?.seamEnvVar !== 'GOTAVERN_OPENROUTER_CHAT_URL') {
+        fail('streaming-openrouter-comparison.json', `driveParameters.seamEnvVar is ${JSON.stringify(openrouterStreaming.driveParameters?.seamEnvVar)}, but this artifact must name the only seam that can aim its GoTavern leg`);
+    }
     if (openrouterStreaming.compatibleReady !== true) {
         fail('streaming-openrouter-comparison.json', 'compatibleReady is not true, so no compatible claim may cite this artifact');
     }
@@ -816,7 +860,279 @@ if (electronhubGeneration) {
     console.log(`  generation-electronhub-comparison.json providerRequestEqual true, ${(electronhubGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs`);
 }
 
-// ---- streaming-{mistral,claude}-comparison.json ------------------------------------------------
+// ---- generation-aimlapi-comparison.json -------------------------------------------------------
+//
+// AIMLAPI, and the fact that makes its row different from the proxy:true rows: apiSourceConfig marks it
+// `proxy: false` (SECRET_KEYS.AIMLAPI, #api_key_aimlapi) AND its key guard is `!apiKey` with NO
+// reverse_proxy escape -- the route never reads that member at all (aimlapi_chat.go:24,152). So the peer
+// is UNREACHABLE through a reverse proxy for this source: the seam and the pinned redirect are the only
+// route, and `proxyPasswordPresent` false on both legs is a statement about the SOURCE, not a choice this
+// drive made. The artifact must say `proxyMemberSupport` for that reason: a reader who saw only the false
+// could not tell "unsupported" from "unused here".
+const aimlapiGeneration = read('generation-aimlapi-comparison.json');
+if (aimlapiGeneration) {
+    const label = 'generation-aimlapi-comparison.json';
+    if (aimlapiGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the aimlapi provider-wire claim is unsupported');
+    }
+    if (aimlapiGeneration.requestArrived?.gotavern !== true || aimlapiGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (aimlapiGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(aimlapiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    const guardMeaning = aimlapiGeneration.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof guardMeaning !== 'string' || !guardMeaning.includes('non-dry invocation')) {
+        fail(label, 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    const drive = aimlapiGeneration.driveParameters ?? {};
+    if (typeof drive.mode !== 'string') {
+        fail(label, 'driveParameters.mode is missing, so the artifact does not say which drive it describes');
+    }
+    if (typeof drive.invocationPairing !== 'string' || !drive.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AIMLAPI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AIMLAPI_CHAT_URL`);
+    }
+    if (typeof drive.proxyMemberSupport !== 'string' || !drive.proxyMemberSupport.includes('UNSUPPORTED') || !drive.proxyMemberSupport.includes('reverse_proxy')) {
+        fail(label, 'driveParameters.proxyMemberSupport is missing or does not state that the route NEVER READS reverse_proxy, so proxyPasswordPresent false cannot be read as "unused here"');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (aimlapiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(aimlapiGeneration.proxyPasswordPresent?.[leg])}, but aimlapi has no reverse_proxy escape and the drive must reach the peer by seam and redirect`);
+        }
+        if (!Array.isArray(aimlapiGeneration.generationUnmatchedAfterData?.[leg]) || aimlapiGeneration.generationUnmatchedAfterData[leg].length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+        const requests = aimlapiGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').endsWith('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; aimlapi's drive must show its status call and the completion (POST /chat/completions)`);
+        }
+    }
+    const post = (aimlapiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-aimlapi-comparison.json providerRequestEqual true, ${(aimlapiGeneration.bodyDifferences ?? []).length} documented body difference(s), ${post?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs (proxy:false source with NO reverse_proxy escape: seam + redirect only), seam ${drive.seamEnvVar}`);
+}
+
+// ---- streaming-aimlapi-comparison.json --------------------------------------------------------
+const aimlapiStreaming = read('streaming-aimlapi-comparison.json');
+if (aimlapiStreaming) {
+    const label = 'streaming-aimlapi-comparison.json';
+    if (aimlapiStreaming.compatibleReady !== true) {
+        fail(label, 'compatibleReady is not true, so the streaming/cancellation claim for aimlapi is unsupported');
+    }
+    const drive = aimlapiStreaming.driveParameters ?? {};
+    if (typeof drive.streamFrameCount !== 'string') {
+        fail(label, 'driveParameters.streamFrameCount is missing, so the artifact does not say which drive it describes');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AIMLAPI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AIMLAPI_CHAT_URL`);
+    }
+    if (typeof drive.proxyMemberSupport !== 'string' || !drive.proxyMemberSupport.includes('UNSUPPORTED')) {
+        fail(label, 'driveParameters.proxyMemberSupport is missing from the streaming artifact');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (aimlapiStreaming.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(aimlapiStreaming.proxyPasswordPresent?.[leg])}, but aimlapi has no reverse_proxy escape`);
+        }
+    }
+    console.log(`  streaming-aimlapi-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
+}
+
+// ---- generation-ai21-comparison.json ----------------------------------------------------------
+//
+// AI21, and the fact the ai21 lane paid for: ITS HEADER SET IS NOT THE THREE HEADERS ITS OWN CODE NAMES.
+// The pinned request carries accept, content-type and authorization -- PLUS the accept-encoding and
+// user-agent node-fetch adds itself, PLUS a COMPUTED content-length, PLUS Host and Connection from the Go
+// client (ai21_chat.go:281-304). A comparison that diffed BODIES ONLY was green while the framed request
+// still differed, so this artifact records the FRAMING and this block ENFORCES it: the header NAME set of
+// each leg, the content-length each received, and whether it matches the body -- and never a header VALUE,
+// because `authorization` carries the key. `authorizationPresent` is a boolean for that reason.
+const ai21Generation = read('generation-ai21-comparison.json');
+if (ai21Generation) {
+    const label = 'generation-ai21-comparison.json';
+    if (ai21Generation.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the ai21 provider-wire claim is unsupported');
+    }
+    if (ai21Generation.requestArrived?.gotavern !== true || ai21Generation.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (ai21Generation.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence, not context');
+    }
+    for (const [name, value] of Object.entries(ai21Generation.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    const guardMeaning = ai21Generation.guardMeaning?.sendWindowHoldsExactlyOneRealSendAndNoDryAssembly;
+    if (typeof guardMeaning !== 'string' || !guardMeaning.includes('non-dry invocation')) {
+        fail(label, 'guardMeaning for the send-window guard is missing or does not state the invocation-level rule');
+    }
+    const drive = ai21Generation.driveParameters ?? {};
+    if (typeof drive.mode !== 'string') fail(label, 'driveParameters.mode is missing');
+    if (typeof drive.invocationPairing !== 'string' || !drive.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule');
+    }
+    if (drive.seamEnvVar !== 'GOTAVERN_AI21_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AI21_CHAT_URL`);
+    }
+
+    // ---- THE FRAMING, RECOMPUTED RATHER THAN TRUSTED -------------------------------------------
+    // requestFramingEqual is a RECORDED flag; a stale true next to a changed header list is exactly the
+    // failure this block exists to catch, so the two legs are compared here and the recorded flag must
+    // agree with the recomputation.
+    const framing = ai21Generation.requestFraming ?? {};
+    for (const leg of ['gotavern', 'pinned']) {
+        const entry = framing[leg];
+        if (!entry || !Array.isArray(entry.headerNames) || entry.headerNames.length === 0) {
+            fail(label, `requestFraming.${leg} is missing or names no header, so the request FRAMING was not recorded`);
+            continue;
+        }
+        if (entry.authorizationPresent !== true) {
+            fail(label, `requestFraming.${leg} does not record that authorization reached the peer, but ai21 sends its key as a bearer header`);
+        }
+        if (entry.contentLengthMatchesBody !== true) {
+            fail(label, `requestFraming.${leg} records content-length ${JSON.stringify(entry.receivedContentLength)} for a ${JSON.stringify(entry.bodyLength)}-byte body, so node-fetch\'s computed framing is not what arrived`);
+        }
+        // node-fetch adds these; a leg missing one is a framing difference the old body-only diff could not see.
+        for (const expected of ['accept', 'content-type', 'authorization', 'accept-encoding', 'user-agent', 'content-length']) {
+            if (!entry.headerNames.includes(expected)) {
+                fail(label, `requestFraming.${leg} does not carry ${JSON.stringify(expected)}; the pinned framing is the three headers ai21 names plus node-fetch\'s defaults plus a computed content-length`);
+            }
+        }
+    }
+    const left = framing.gotavern;
+    const right = framing.pinned;
+    if (left && right) {
+        const recomputed = JSON.stringify(left.headerNames) === JSON.stringify(right.headerNames)
+            && String(left.receivedContentLength) === String(right.receivedContentLength);
+        if (ai21Generation.requestFramingEqual !== recomputed) {
+            fail(label, `requestFramingEqual is ${JSON.stringify(ai21Generation.requestFramingEqual)} but the two legs recompute to ${JSON.stringify(recomputed)} -- the recorded flag disagrees with the recorded framing`);
+        }
+        if (!recomputed) {
+            fail(label, `the two legs were framed differently: ${JSON.stringify(left.headerNames)} / cl ${JSON.stringify(left.receivedContentLength)} against ${JSON.stringify(right.headerNames)} / cl ${JSON.stringify(right.receivedContentLength)}`);
+        }
+    }
+    if (typeof ai21Generation.framingNote !== 'string' || !ai21Generation.framingNote.includes('content-length')) {
+        fail(label, 'framingNote is missing or does not name the computed content-length, so a reader cannot tell what the framing comparison covered');
+    }
+    // THE CREDENTIAL MUST NOT BE IN THE ARTIFACT. A recorded Authorization value would be a leaked key in a
+    // committed file, so the block refuses one rather than trusting the recorder not to do it.
+    const serialized = JSON.stringify(ai21Generation);
+    if (/Bearer\s/i.test(serialized)) {
+        fail(label, 'records an Authorization VALUE (Bearer ...); the framing records header NAMES and a boolean, never a credential');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (ai21Generation.generationUnmatchedAfterData?.[leg]?.length !== 0) {
+            fail(label, `generationUnmatchedAfterData.${leg} is not empty, so an assembly had no STARTED of its kind`);
+        }
+    }
+    const post = (ai21Generation.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST');
+    console.log(`  generation-ai21-comparison.json providerRequestEqual true, ${(ai21Generation.bodyDifferences ?? []).length} documented body difference(s), ${post?.bodyLength ?? 'unknown'} B per leg, requestFramingEqual ${ai21Generation.requestFramingEqual} over ${(left?.headerNames ?? []).length} header names with content-length ${left?.receivedContentLength ?? 'unknown'} matching the body on both legs (authorization present on both, its value never recorded)`);
+}
+
+// ---- streaming-ai21-comparison.json -----------------------------------------------------------
+const ai21Streaming = read('streaming-ai21-comparison.json');
+if (ai21Streaming) {
+    const label = 'streaming-ai21-comparison.json';
+    if (ai21Streaming.compatibleReady !== true) {
+        fail(label, 'compatibleReady is not true, so the streaming/cancellation claim for ai21 is unsupported');
+    }
+    const drive = ai21Streaming.driveParameters ?? {};
+    if (typeof drive.streamFrameCount !== 'string') fail(label, 'driveParameters.streamFrameCount is missing');
+    if (drive.seamEnvVar !== 'GOTAVERN_AI21_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(drive.seamEnvVar)}, but the seam that aimed this leg is GOTAVERN_AI21_CHAT_URL`);
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        if (ai21Streaming.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(ai21Streaming.proxyPasswordPresent?.[leg])}, but ai21 is proxy:false and reaches the peer by seam and redirect`);
+        }
+    }
+    console.log(`  streaming-ai21-comparison.json compatibleReady true, frames ${JSON.stringify(drive.streamFrameCount)}, seam ${drive.seamEnvVar}, proxyPasswordPresent false on both legs`);
+}
+
+// ---- generation-xai-comparison.json -----------------------------------------------------------
+//
+// XAI IS THE FIRST E-ROW SOURCE WHOSE PEER TRAVELS IN A FRONTEND SETTING RATHER THAN A SEAM. It honours
+// reverse_proxy (chat-completions.js:1184-1185), so this drive sets the proxy to the peer and BOTH legs
+// follow it; `proxyPasswordPresent: true` on both legs is therefore a MEASURED FACT about the credential
+// route and the thing that distinguishes this row from every seam-routed one, where the same field is
+// false because a seam-routed leg sends no proxy_password. Asserting it true here is what would fail if a
+// future edit quietly re-routed the drive through the seam.
+//
+// WHAT THIS ARTIFACT DOES NOT PROVE, stated here so a reader cannot infer it: xAI's message converter is
+// `convertXAIMessages` (prompt-converters.js:785), a RENAMER that prefixes content and DELETES `msg.name`,
+// and it is NOT EXERCISED by this drive. Its guard is `if (!msg.name || msg.role === 'user') return;`
+// (:791) and the driven chat's messages carry no `name` member on either leg (measured: 6 messages, 0 with
+// a name), so the converter returns for every message and the provider body is identical with or without a
+// correct port. A group-chat or sendas drive is what would exercise it; until that exists, the renamer's
+// behaviour is covered only by the provider-wire scenarios, not by this comparison.
+const xaiGeneration = read('generation-xai-comparison.json');
+if (xaiGeneration) {
+    const label = 'generation-xai-comparison.json';
+    if (xaiGeneration.providerRequestEqual !== true) {
+        fail(label, 'providerRequestEqual is not true, so the xai provider-wire claim is unsupported');
+    }
+    if (xaiGeneration.requestArrived?.gotavern !== true || xaiGeneration.requestArrived?.pinned !== true) {
+        fail(label, 'requestArrived is not true on both legs, so a leg was never driven');
+    }
+    if (xaiGeneration.milestoneEqual !== true) {
+        fail(label, 'milestoneEqual is not true; an interleaved counting invocation that changes a compared milestone is a divergence');
+    }
+    for (const [name, value] of Object.entries(xaiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${name} is not true`);
+    }
+    if (typeof xaiGeneration.driveParameters?.invocationPairing !== 'string' || !xaiGeneration.driveParameters.invocationPairing.includes('last non-dry STARTED')) {
+        fail(label, 'driveParameters.invocationPairing does not state the kind-based rule');
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        // TRUE, NOT false. xAI is proxy-capable and this drive carries the peer in reverse_proxy, so the
+        // credential travels as proxy_password; a false here would mean the drive stopped exercising the
+        // key split (:1185) and the artifact could no longer distinguish this row from a seam-routed one.
+        if (xaiGeneration.proxyPasswordPresent?.[leg] !== true) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(xaiGeneration.proxyPasswordPresent?.[leg])}, but this drive carries the peer in reverse_proxy, so the credential must travel as proxy_password on BOTH legs`);
+        }
+        const requests = xaiGeneration.requests?.[leg] ?? xaiGeneration.providerRequests?.[leg] ?? [];
+        if (!requests.some(request => request.method === 'POST' && String(request.path ?? '').includes('/chat/completions'))) {
+            fail(label, `${leg} records ${JSON.stringify(requests.map(request => request.method + ' ' + request.path))}; xai's completion must be a POST to /chat/completions`);
+        }
+    }
+    if (xaiGeneration.driveParameters?.seamEnvVar !== 'GOTAVERN_XAI_CHAT_URL') {
+        fail(label, `driveParameters.seamEnvVar is ${JSON.stringify(xaiGeneration.driveParameters?.seamEnvVar)}, but this artifact must name the seam even though the route is the setting`);
+    }
+    const post = (xaiGeneration.providerRequests?.gotavern ?? [])[0];
+    console.log(`  generation-xai-comparison.json providerRequestEqual true, ${post?.bodyLength ?? 'unknown'} B per leg, POST //chat/completions on both legs, proxyPasswordPresent TRUE on both (the credential travelled as proxy_password, which is what makes this row different from every seam-routed one); seam ${xaiGeneration.driveParameters.seamEnvVar} aimed as a safety net only. NOT PROVEN HERE: convertXAIMessages, because the driven chat carries no message name member, so its guard returns for every message.`);
+}
+
+// ---- generation-workersai-comparison.json -----------------------------------------------------
+//
+// WORKERS_AI is proxy:false, its ACCOUNT ID travels in the PATH (workers_ai_chat.go:39-49), and the
+// drive types that id into the control a user types into. So the artifact must record the account-id
+// MODE rather than only the value, and proxyPasswordPresent must be false on BOTH legs: that false is
+// the evidence the peer was reached by seam plus redirect, not a claim that a proxy was available.
+const workersaiGeneration = read('generation-workersai-comparison.json');
+if (workersaiGeneration) {
+    const label = 'generation-workersai-comparison.json';
+    if (workersaiGeneration.providerRequestEqual !== true) fail(label, 'providerRequestEqual is not true');
+    if (workersaiGeneration.requestArrived?.gotavern !== true || workersaiGeneration.requestArrived?.pinned !== true) fail(label, 'requestArrived is not true on both legs');
+    if (workersaiGeneration.milestoneEqual !== true) fail(label, 'milestoneEqual is not true');
+    for (const [guard, value] of Object.entries(workersaiGeneration.guards ?? {})) {
+        if (value !== true) fail(label, `guard ${guard} is not true`);
+    }
+    if (typeof workersaiGeneration.driveParameters?.accountIdMode !== 'string' || workersaiGeneration.driveParameters.accountIdMode.length === 0) {
+        fail(label, 'driveParameters.accountIdMode is missing, so the artifact does not say HOW the account id was driven');
+    }
+    for (const leg of ["gotavern", "pinned"]) {
+        if (workersaiGeneration.proxyPasswordPresent?.[leg] !== false) {
+            fail(label, `proxyPasswordPresent.${leg} is ${JSON.stringify(workersaiGeneration.proxyPasswordPresent?.[leg])}, but workers_ai is proxy:false and the peer is reachable only by seam and redirect`);
+        }
+    }
+    console.log(`  generation-workersai-comparison.json providerRequestEqual true, ${(workersaiGeneration.providerRequests?.gotavern ?? []).find(entry => entry.method === 'POST')?.bodyLength ?? 'unknown'} B per leg, proxyPasswordPresent false on both legs, account id ${workersaiGeneration.driveParameters.accountIdMode} via ${workersaiGeneration.driveParameters.accountIdControl ?? 'unknown control'}`);
+}
+
+// ---- streaming-{mistral,claude}-comparison.json ---------------------------------------------- ------------------------------------------------
 //
 // The two C-surface artifacts this lane recorded, enforced the way the OpenRouter block enforces its
 // own: a missing surface, a surface that is not proven, a leg that never reached the provider, or a
@@ -829,10 +1145,12 @@ if (electronhubGeneration) {
 //   - claude is the only source whose framing required NEW code: Anthropic events (message_start,
 //     content_block_delta, message_delta, message_stop), reached by POST /messages with NO status
 //     call at all (it is a no-validate source: openai.js never asks for /models).
-for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json', 'streaming-electronhub-comparison.json']) {
+for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-claude-comparison.json', 'streaming-groq-comparison.json', 'streaming-siliconflow-comparison.json', 'streaming-nanogpt-comparison.json', 'streaming-deepseek-comparison.json', 'streaming-chutes-comparison.json', 'streaming-electronhub-comparison.json', 'streaming-xai-comparison.json', 'streaming-workersai-comparison.json']) {
     const streamingArtifact = read(artifactName);
     if (!streamingArtifact) continue;
     const isMistral = artifactName.includes('mistral');
+    const isXai = artifactName.includes('xai');
+    const isWorkersai = artifactName.includes('workersai');
     const isGroq = artifactName.includes('groq');
     const isChutes = artifactName.includes('chutes');
     const isElectronhub = artifactName.includes('electronhub');
@@ -844,7 +1162,7 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     const isDeepseek = artifactName.includes('deepseek');
     // groq and mistralai are both OpenAI-shaped (completion POST plus a model-list status call); claude
     // is the Anthropic one and must never ask for a model list.
-    const isOpenAI = isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek || isChutes || isElectronhub;
+    const isOpenAI = isWorkersai || isMistral || isGroq || isSiliconflow || isNanogpt || isDeepseek || isChutes || isElectronhub || isXai;
     if (isNanogpt) {
         // NANOGPT'S proxy:false CLAIM IS CHECKED AGAINST A MEASURED BOOLEAN, not against this file's own
         // prose: false on both legs is the evidence that neither leg reached the peer through a
@@ -855,6 +1173,19 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
             }
         }
     }
+    if (artifactName.includes('claude')) {
+        // The streaming artifact must carry the same two facts as its generation counterpart; the /models
+        // assertion for this source is already enforced by the no-validate branch above.
+        if (streamingArtifact.driveParameters?.seamEnvVar !== 'GOTAVERN_CLAUDE_CHAT_URL') {
+            fail(artifactName, `driveParameters.seamEnvVar is ${JSON.stringify(streamingArtifact.driveParameters?.seamEnvVar)}, but this artifact must name the seam the Go arm exports`);
+        }
+        for (const leg of ['gotavern', 'pinned']) {
+            if (streamingArtifact.proxyPasswordPresent?.[leg] !== true) {
+                fail(artifactName, `proxyPasswordPresent.${leg} is ${JSON.stringify(streamingArtifact.proxyPasswordPresent?.[leg])}, but claude is proxy-capable and this drive carries the peer in reverse_proxy`);
+            }
+        }
+    }
+
     const completionSuffix = isOpenAI ? '/chat/completions' : '/messages';
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = streamingArtifact[surface];
@@ -924,8 +1255,10 @@ for (const artifactName of ['streaming-mistral-comparison.json', 'streaming-clau
     const deepseekLine = 'deepseek (OpenAI-shaped, /beta kept on the completion path, credential typed into #api_key_deepseek): both legs GET /models then POST /beta/chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs even though the source HONOURS reverse_proxy, because this drive sets none';
     const chutesLine = 'chutes (OpenAI-shaped, proxy:false, messages forwarded verbatim with top_k/logit_bias): both legs GET /models then POST /chat/completions, 15 paced frames, cancellation reached the provider';
     const electronhubLine = 'electronhub (OpenAI-shaped, NO reverse_proxy support at all): both legs GET /models then POST /chat/completions, 15 paced frames; proxyPasswordPresent false because the route never consults the setting';
+    const xaiLine = 'xai (OpenAI-shaped, peer carried in the reverse_proxy SETTING rather than a seam, credential typed into #api_key_xai): both legs GET /models then POST //chat/completions -- the doubled slash comes from a proxy origin without a path, which pinned produces too -- 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent TRUE on both legs, which is what distinguishes this row from every seam-routed one; convertXAIMessages is NOT exercised here because the driven chat sends no message name member';
+    const workersaiLine = 'workersai (OpenAI-shaped, proxy:false, account id typed into the frontend control and carried in the PATH): both legs GET the model list then POST /chat/completions, 15 paced frames, cancellation reached the provider; proxyPasswordPresent false on both legs';
     const groqLine = 'groq (OpenAI-shaped like mistralai, but proxy:false): both legs GET /models then POST /chat/completions, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames; proxyPasswordPresent false on both legs, because the seam and the redirect are the ONLY route to a peer';
-    console.log('  ' + artifactName + ' ' + (isChutes ? chutesLine : isElectronhub ? electronhubLine : isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
+    console.log('  ' + artifactName + ' ' + (isWorkersai ? workersaiLine : isXai ? xaiLine : isChutes ? chutesLine : isElectronhub ? electronhubLine : isDeepseek ? deepseekLine : isNanogpt ? nanogptLine : isGroq ? groqLine : isSiliconflow ? siliconflowLine : isMistral
         ? 'mistralai (OpenAI-shaped, no new machinery): both legs POST ' + completionSuffix + ', 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'
         : 'claude (Anthropic framing, the only source that required new code): both legs POST ' + completionSuffix + ' with NO /models call, 15 paced frames, abort recorded at ' + JSON.stringify(abortState?.gotavern?.framesWritten) + '/' + JSON.stringify(abortState?.pinned?.framesWritten) + ' frames'));
 }

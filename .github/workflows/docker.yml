@@ -139,10 +139,37 @@ jobs:
             echo "refusing to publish an invalid image tag: '$tag'" >&2
             exit 1
           fi
+          # `latest` IS A STABLE-ONLY ALIAS. An alpha, beta or rc tag publishes its own image tag and must NOT
+          # move `latest`, because `docker pull ghcr.io/.../gotavern:latest` is what an operator's compose file
+          # and the install documentation both name -- moving it onto an alpha would upgrade every existing
+          # deployment to an alpha on its next pull. The channel decision is shared with release.yml through
+          # scripts/classify-version-tag.sh, so the image and the GitHub release cannot disagree about what a tag
+          # means; scripts/test-classify-version-tag.sh covers the rule in the `verify` job.
+          channel=''
+          latest='false'
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            # ONLY A REAL TAG IS CLASSIFIED. A dispatch's `image_tag` is an operator-chosen image name
+            # (`dispatch-test`), not a release, and asking the version classifier about it would refuse it --
+            # which would break the documented way to exercise the publish path. The dispatch case is named
+            # `dispatch` and can never move `latest`.
+            channel="$(bash scripts/classify-version-tag.sh "$tag")"
+            if [ "$channel" = "stable" ]; then
+              latest='true'
+            fi
+          elif [ -n "$tag" ]; then
+            channel='dispatch'
+          fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+          echo "latest=${latest}" >> "$GITHUB_OUTPUT"
           if [ "$publish" = "true" ]; then
-            echo "this run MAY publish ${IMAGE_REPOSITORY}:${tag}"
+            echo "this run MAY publish ${IMAGE_REPOSITORY}:${tag} (channel: ${channel})"
+            if [ "$latest" = "true" ]; then
+              echo "it will ALSO move ${IMAGE_REPOSITORY}:latest, because ${tag} is a stable release tag"
+            else
+              echo "it will NOT move ${IMAGE_REPOSITORY}:latest (a prerelease tag, or not a tag push)"
+            fi
           else
             echo "this run publishes NOTHING (ref_type=${GITHUB_REF_TYPE}, event=${GITHUB_EVENT_NAME})"
           fi
@@ -159,6 +186,11 @@ jobs:
         shell: bash
         env:
           TAG: ${{ steps.publishable.outputs.tag }}
+          # A DECISION, NOT A RE-DERIVATION. The alias move is decided once, in the step above, and printed
+          # there before anything is pushed; this step only obeys the output. Recomputing the channel here would
+          # put the same rule in two places inside one workflow.
+          MOVE_LATEST: ${{ steps.publishable.outputs.latest }}
+          CHANNEL: ${{ steps.publishable.outputs.channel }}
         run: |
           set -eu
           repository="$(printf '%s' "${IMAGE_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
@@ -166,12 +198,16 @@ jobs:
           docker tag gotavern:ci "${reference}"
           docker push "${reference}"
           published="${reference}"
-          # `latest` is a RELEASE alias and only a version tag may move it. A dispatch with
-          # push_image=true publishes its own tag and leaves `latest` where it is.
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          # `latest` is a STABLE-release alias. A prerelease tag (v0.1.0-alpha.1, -beta.2, -rc.1) publishes only
+          # its own tag, so `docker pull ...:latest` keeps meaning "the newest stable release" and an operator's
+          # next pull cannot silently move them onto an alpha.
+          if [ "${MOVE_LATEST}" = "true" ]; then
             docker tag gotavern:ci "${repository}:latest"
             docker push "${repository}:latest"
             published="${published} ${repository}:latest"
+            echo "moved :latest -- ${TAG} is a ${CHANNEL} release tag"
+          else
+            echo "left :latest untouched -- ${TAG} is a ${CHANNEL} tag (or this is a dispatch)"
           fi
           echo "reference=${reference}" >> "$GITHUB_OUTPUT"
           echo "published=${published}" >> "$GITHUB_OUTPUT"

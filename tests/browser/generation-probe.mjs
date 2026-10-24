@@ -86,8 +86,8 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes or electronhub, got ${probeSource}`);
+if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub', 'aimlapi', 'ai21', 'xai'].includes(probeSource)) {
+    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes, electronhub, aimlapi, ai21 or xai, got ${probeSource}`);
 }
 const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
 const mockScript = {
@@ -173,25 +173,26 @@ for (const [command, args] of buildSteps) {
 }
 
 // RELEASE LAYOUT: `gotavern start` resolves InstallRoot as the directory of the executable
-// (cmd/gotavern/main.go), and tokenizer routes look for <InstallRoot>/tokenizers. This probe builds
+// (cmd/gotavern/main.go), and tokenizer routes look for <InstallRoot>/src/tokenizers. This probe builds
 // the binary into a scratch directory, so without this the server silently takes the pinned
 // fallback path (guesstimate counts, empty ids) and the two legs cannot be compared on token counts
-// at all. A release puts `tokenizers/` beside the binary; stage the same layout instead of changing
-// production code to make a probe work.
+// at all. A release puts the tree at `src/tokenizers/` -- the pinned SillyTavern layout, and the copy the
+// runtime prefers -- so stage THAT layout rather than changing production code to make a probe work.
 if (!external) {
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
     // BESIDE THE BINARY THAT ACTUALLY RUNS, which is not always the one this probe builds. When
     // GOTAVERN_BINARY supplies a lane artifact, `dataRoot` is NOT its install root, so staging there left
-    // the server with no `tokenizers/` and every count route answered the GUESSTIMATE fallback
+    // the server with no tokenizer tree and every count route answered the GUESSTIMATE fallback
     // (ceil(bytes/3.35)) instead of tokenizing: `[{content:'probe user marker'}]` came back as 10 and the
     // role-ful body as 15, which are exactly those byte-lengths divided by 3.35, while pinned answered
     // 9 and 10. That is the failure this comment block already describes, one level down: the probe
     // staged the release layout faithfully for a binary it had just built and not for one it was handed.
-    const tokenizerTarget = path.join(path.dirname(binary), 'tokenizers');
+    const tokenizerTarget = path.join(path.dirname(binary), 'src', 'tokenizers');
     if (await fs.stat(tokenizerSource).then(() => true, () => false)) {
+        await fs.mkdir(path.join(path.dirname(binary), 'src'), { recursive: true });
         await fs.cp(tokenizerSource, tokenizerTarget, { recursive: true });
     } else {
-        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
+        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them at <install root>/src/tokenizers`);
     }
 }
 // STREAMING / CANCELLATION MODE.
@@ -220,10 +221,10 @@ function startStreamingPeer(mode, protocol) {
     const server = http.createServer((request, response) => {
         const pathEntry = { method: request.method, path: request.url, status: null };
         state.paths.push(pathEntry);
-        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
-        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
-        // online_status and the send was silently refused, on a source whose Go arm is not in question.
-        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
+        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
+        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
+        // online_status and the send was silently refused, on a source whose Go arm is not in question.
+        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
         if (request.method === 'GET' && request.url.includes('/models')) {
             pathEntry.status = 200;
             // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
@@ -255,10 +256,10 @@ function startStreamingPeer(mode, protocol) {
         // builds its target from a scheme-less base, so the request line arrives as `//chat/completions`
         // and a prefix test 404s a completely correct request -- which then looks like a product defect
         // on both legs and a missing surface in the artifact.
-        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
-        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
-        // product one. The predicate admits either shape and the peer's own path log still shows exactly
-        // which one arrived, so nothing is inferred.
+        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
+        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
+        // product one. The predicate admits either shape and the peer's own path log still shows exactly
+        // which one arrived, so nothing is inferred.
         if (request.method !== 'POST' || !(request.url.includes(completionPath) || request.url.includes('/chat'))) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -381,7 +382,7 @@ let mockAddress = '';
 // receives the completion body, and with three the completion receives a models body -- measured both,
 // and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
 // shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'deepseek' || probeSource === 'openai') {
+if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'aimlapi' || probeSource === 'ai21' || probeSource === 'xai' || probeSource === 'deepseek' || probeSource === 'openai') {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -471,6 +472,26 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     if (probeSource === 'electronhub' && !external) {
         process.env.GOTAVERN_ELECTRONHUB_CHAT_URL = `http://${mockAddress}`;
     }
+    // AIMLAPI'S BASE IS THE PINNED LITERAL https://api.aimlapi.com/v1 (aimlapi_chat.go:53), replaceable only by
+    // this seam (aimlapi_chat.go:54). No request member carries a base for this source, so both legs are aimed
+    // here and by the redirect below.
+    if (probeSource === 'aimlapi' && !external) {
+        process.env.GOTAVERN_AIMLAPI_CHAT_URL = `http://${mockAddress}`;
+    }
+    // AI21'S BASE IS THE PINNED LITERAL https://api.ai21.com/studio/v1 (ai21_chat.go:42), replaceable only by
+    // this seam (ai21_chat.go:43).
+    if (probeSource === 'ai21' && !external) {
+        process.env.GOTAVERN_AI21_CHAT_URL = `http://${mockAddress}`;
+    }
+    // XAI IS PROXY-CAPABLE, so this drive carries the peer in the frontend's own `reverse_proxy` setting
+    // and BOTH legs follow it (chat-completions.js:1184 `new URL(request.body.reverse_proxy || API_XAI)`).
+    // That makes proxyPasswordPresent a MEANINGFUL recorded value here: true on both legs shows the
+    // credential arrived as proxy_password, which a seam-routed leg cannot show because it sends none. The
+    // seam and the redirect are SAFETY NETS so a leg preferring the pinned literal cannot reach the real
+    // api.x.ai; the artifact records that they were AIMED while the route was the setting.
+    if (probeSource === 'xai' && !external) {
+        process.env.GOTAVERN_XAI_CHAT_URL = `http://${mockAddress}`;
+    }
     // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
     // this file is named: the hook re-reads it per request, which is why it can be written only now that the
     // peer has an address.
@@ -499,6 +520,15 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
     if (probeSource === 'electronhub' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.electronhub.ai/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'aimlapi' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.aimlapi.com/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'ai21' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.ai21.com/studio/v1', to: `http://${mockAddress}` }]));
+    }
+    if (probeSource === 'xai' && external && redirectFile) {
+        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.x.ai', to: `http://${mockAddress}` }]));
     }
     if (probeSource === 'deepseek' && external && redirectFile) {
         await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.deepseek.com', to: `http://${mockAddress}` }]));
@@ -846,6 +876,9 @@ try {
             cohere: secretsModule.SECRET_KEYS.COHERE,
             chutes: secretsModule.SECRET_KEYS.CHUTES,
             electronhub: secretsModule.SECRET_KEYS.ELECTRONHUB,
+            aimlapi: secretsModule.SECRET_KEYS.AIMLAPI,
+            ai21: secretsModule.SECRET_KEYS.AI21,
+            xai: secretsModule.SECRET_KEYS.XAI,
             deepseek: secretsModule.SECRET_KEYS.DEEPSEEK,
         openai: secretsModule.SECRET_KEYS.OPENAI,
             custom: secretsModule.SECRET_KEYS.CUSTOM,
@@ -929,6 +962,25 @@ try {
             // the product does not offer, so the peer is reached by seam + redirect and the artifact states
             // that the setting is UNSUPPORTED, not merely unused.
             oai_settings.electronhub_model = 'probe-model';
+        } else if (probeSource === 'aimlapi') {
+            // AIMLAPI IS proxy:false AND ITS KEY GUARD HAS NO reverse_proxy ESCAPE AT ALL (aimlapi_chat.go:24,152
+            // -- the guard is `!apiKey` and the route never consults `reverse_proxy`), so a user cannot aim this
+            // source with a proxy and neither can this drive. The peer is reached by the GoTavern seam and the
+            // pinned transport redirect, which is why proxyPasswordPresent must come out FALSE on BOTH legs: that
+            // false is the measurement that the route read no reverse-proxy credential, not an absence of evidence.
+            oai_settings.aimlapi_model = 'probe-model';
+        } else if (probeSource === 'ai21') {
+            // AI21 IS proxy:false in apiSourceConfig and is a NO-VALIDATE source (openai.js:4459): the frontend
+            // never asks it for a model list, so the peer sees ONLY the completion POST. The peer answers by
+            // REQUEST, which is what makes a single-call source work at all.
+            oai_settings.ai21_model = 'probe-model';
+        } else if (probeSource === 'xai') {
+            // THE PEER TRAVELS IN THE SETTING, as a user's own endpoint would, so both legs follow it and
+            // the request carries reverse_proxy + proxy_password. xAI is proxy-capable, so this is a path
+            // a user can take; driving the seam alone would leave proxyPasswordPresent false and would not
+            // exercise the :1185 key split at all.
+            oai_settings.xai_model = 'probe-model';
+            oai_settings.reverse_proxy = mockUrl;
         } else if (probeSource === 'deepseek') {
             // Deepseek HONOURS reverse_proxy in pinned, but this drive does NOT set one: the peer is
             // reached through the seam on the Go leg and the transport redirect on the pinned leg, so
@@ -1442,32 +1494,38 @@ try {
             report.failure = report.failure ?? 'streaming peer received no POST /chat/completions';
         }
     } else {
-        // A REQUEST-KEYED PEER HAS NO /__mock/recording ENDPOINT, and polling it made a working drive
-        // report `Unexpected token 'o', "not found" is not valid JSON`: the 404 body of the peer, read
-        // as the recorder's answer. Its own `state` is the recording, so read that instead and keep the
-        // same report shape (paths = what the peer was asked, with the status it answered).
-        if (streamingPeer) {
-            report.requestArrived = streamingPeer.state.requests.some(request => request.method === 'POST');
-            report.streamingPeerPaths = streamingPeer.state.paths;
-            report.recording = streamingPeer.state.requests.map(request => {
-                let parsedBody = null;
-                try {
-                    parsedBody = request.body ? JSON.parse(request.body) : null;
-                } catch {
-                    parsedBody = null;
-                }
-                return {
-                    method: request.method,
-                    path: request.path,
-                    bodyLength: request.bodyLength,
-                    body: request.body,
-                    bodySha256: request.bodySha256,
-                    model: parsedBody?.model ?? null,
-                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
-                    clientDisconnected: request.clientDisconnected,
-                    framesWritten: request.framesWritten,
-                };
-            });
+        // A REQUEST-KEYED PEER HAS NO /__mock/recording ENDPOINT, and polling it made a working drive
+        // report `Unexpected token 'o', "not found" is not valid JSON`: the 404 body of the peer, read
+        // as the recorder's answer. Its own `state` is the recording, so read that instead and keep the
+        // same report shape (paths = what the peer was asked, with the status it answered).
+        if (streamingPeer) {
+            report.requestArrived = streamingPeer.state.requests.some(request => request.method === 'POST');
+            report.streamingPeerPaths = streamingPeer.state.paths;
+            report.recording = streamingPeer.state.requests.map(request => {
+                let parsedBody = null;
+                try {
+                    parsedBody = request.body ? JSON.parse(request.body) : null;
+                } catch {
+                    parsedBody = null;
+                }
+                return {
+                    method: request.method,
+                    path: request.path,
+                    // THE FRAMING, for the artifacts that record it: header NAMES only. No value is
+                    // recorded, because `authorization` carries the source key and a committed artifact must
+                    // never hold one; content-length IS recorded because node-fetch COMPUTES it from the body
+                    // and a body-only diff hides it.
+                    headerNames: Object.keys(request.headers ?? {}).sort(),
+                    receivedContentLength: request.headers?.['content-length'] ?? null,
+                    bodyLength: request.bodyLength,
+                    body: request.body,
+                    bodySha256: request.bodySha256,
+                    model: parsedBody?.model ?? null,
+                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
+                    clientDisconnected: request.clientDisconnected,
+                    framesWritten: request.framesWritten,
+                };
+            });
             // The seam NAME is recorded per source: a record that named the groq variable for a
             // nanogpt run would misdescribe the drive that produced it.
             const seamEnvBySource = {
@@ -1477,11 +1535,14 @@ try {
                 cohere: 'GOTAVERN_COHERE_CHAT_URL',
                 chutes: 'GOTAVERN_CHUTES_CHAT_URL',
                 electronhub: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
+                aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL',
+                ai21: 'GOTAVERN_AI21_CHAT_URL',
+                xai: 'GOTAVERN_XAI_CHAT_URL',
                 deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
             };
             const seamEnv = seamEnvBySource[probeSource] ?? null;
-            report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
-        } else {
+            report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
+        } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.
         for (let attempt = 0; attempt < 300; attempt++) {
