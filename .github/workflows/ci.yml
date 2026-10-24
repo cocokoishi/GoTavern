@@ -64,31 +64,53 @@ jobs:
         name: Plan the oracle re-record
         # The changed-file list is the only thing bash still computes here; the decision is JSON from
         # the planner, printed in full so the log carries the reasons, not just a boolean.
+        #
+        # Both files live in $RUNNER_TEMP, not in the checkout: a planner run leaves no untracked
+        # artefact in the working tree, so nothing downstream (`git diff`, a later `git add`) can pick
+        # one up. Measured once: a local rehearsal wrote them to the repository root and a `git add -A`
+        # committed them.
         run: |
           set -eu
+          plan_json="${RUNNER_TEMP:-.}/oracle-plan.json"
+          changed_txt="${RUNNER_TEMP:-.}/oracle-changed.txt"
           case "${{ github.event_name }}" in
             schedule) run_type=schedule ;;
             workflow_dispatch) run_type=dispatch ;;
             *) run_type=push ;;
           esac
           if [ "${run_type}" = "push" ]; then
-            base="${{ github.event.before }}"
-            if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-              base="$(git rev-parse 'HEAD^' 2>/dev/null || echo '')"
+            # A PULL REQUEST IS DIFFED AGAINST ITS BASE, NOT AGAINST HEAD^. The question a PR gate asks
+            # is "what does this whole PR change"; a per-commit diff hides a fixture-affecting file that
+            # an EARLIER commit of the same PR touched, and the run that gates merging would then see
+            # only the last push. Measured on this very PR: its first run changed ci.yml and the oracle
+            # came back `skipped`, because a follow-up commit's diff did not contain ci.yml.
+            #
+            # Three dots, because a branch that is behind its base would otherwise report the base's own
+            # newer commits as part of the PR. A push to main has no PR base and keeps the pushed range.
+            pr_base="${{ github.event.pull_request.base.sha }}"
+            if [ -n "${pr_base}" ]; then
+              base="${pr_base}"
+              diff_spec="${pr_base}...HEAD"
+            else
+              base="${{ github.event.before }}"
+              if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+                base="$(git rev-parse 'HEAD^' 2>/dev/null || echo '')"
+              fi
+              diff_spec="${base}..HEAD"
             fi
             if [ -z "${base}" ]; then
-              echo "no parent commit to diff against: asking the planner for a full sweep"
-              node tools/oracle/plan.mjs --run-type dispatch > oracle-plan.json
+              echo "no base commit to diff against: asking the planner for a full sweep"
+              node tools/oracle/plan.mjs --run-type dispatch > "${plan_json}"
             else
-              git diff --name-only "${base}" HEAD > oracle-changed.txt
-              node tools/oracle/plan.mjs --run-type push --changed oracle-changed.txt > oracle-plan.json
+              git diff --name-only "${diff_spec}" > "${changed_txt}"
+              node tools/oracle/plan.mjs --run-type push --changed "${changed_txt}" > "${plan_json}"
             fi
           else
-            node tools/oracle/plan.mjs --run-type "${run_type}" --requested "${{ inputs.probes }}" > oracle-plan.json
+            node tools/oracle/plan.mjs --run-type "${run_type}" --requested "${{ inputs.probes }}" > "${plan_json}"
           fi
-          cat oracle-plan.json
-          node -e "
-            const plan = require('./oracle-plan.json');
+          cat "${plan_json}"
+          PLAN_JSON="${plan_json}" node -e "
+            const plan = require(process.env.PLAN_JSON);
             require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, [
               'oracle=' + String(plan.recordPinned),
               'probes=' + (plan.full ? '' : plan.probes.join(',')),
