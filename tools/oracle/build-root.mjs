@@ -24,8 +24,10 @@
 // every way a directory can be wrong without creating a build root at all. The runner performs the
 // I/O and reports the decision line.
 
-import path from 'node:path';
-import process from 'node:process';
+// The one shared predicate: whether a directory is one nobody else uses. The probe-side guard
+// (probe-public-overrides-migration.mjs) imports the same module, so the wipe here and the write there can
+// never disagree about what "dedicated" means.
+import { checkDedicatedBuildRoot } from '../lib/dedicated-build-root.mjs';
 
 export const BUILD_ROOT_ENV = 'GOTAVERN_ORACLE_BUILD_ROOT';
 export const BUILD_LOCK_FILE = '.gotavern-oracle-build-lock.json';
@@ -125,20 +127,10 @@ export function formatTempBuildRoot({ dir }) {
 // `rm -rf <dir>`, and the value comes from an environment variable: `GOTAVERN_ORACLE_BUILD_ROOT=.`
 // must be an error, not a deleted repository. Refused: the protected paths themselves, anything inside
 // them, any of their ANCESTORS (which would delete them), and a filesystem root.
+//
+// This is the SAME predicate the probe-side guard uses (tools/lib/dedicated-build-root.mjs), because the
+// two questions are one question: is this directory one nobody else uses? Two implementations would drift,
+// and the probe's copy already did once -- it encoded "created by mkdtemp" and refused the persistent root.
 export function isSafeBuildRoot({ dir, protectedPaths = [] } = {}) {
-    if (typeof dir !== 'string' || dir.trim() === '') return false;
-    const normalise = value => {
-        const resolved = path.resolve(value);
-        return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-    };
-    const target = normalise(dir);
-    if (target === path.parse(target).root) return false;
-    for (const candidate of protectedPaths) {
-        if (typeof candidate !== 'string' || candidate === '') continue;
-        const guarded = normalise(candidate);
-        if (target === guarded) return false;
-        if (target.startsWith(guarded + path.sep)) return false;
-        if (guarded.startsWith(target + path.sep)) return false;
-    }
-    return true;
+    return checkDedicatedBuildRoot({ dir, forbiddenPaths: protectedPaths }).ok;
 }

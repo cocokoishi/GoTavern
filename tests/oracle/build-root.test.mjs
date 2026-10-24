@@ -22,6 +22,7 @@ import {
     parseBuildLock,
     resolveBuildRootMode,
 } from '../../tools/oracle/build-root.mjs';
+import { checkDedicatedBuildRoot, describePathRelation } from '../../tools/lib/dedicated-build-root.mjs';
 
 const COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const LOCK_HASH = '9f'.repeat(32);
@@ -222,6 +223,108 @@ test('safety: refuse to wipe the repository, the reference checkout, their ances
     assert.equal(isSafeBuildRoot({ dir: path.join(base, 'oracle-build'), ...guarded }), true, 'a sibling directory');
     assert.equal(isSafeBuildRoot({ dir: path.join(base, 'gotavern-build'), ...guarded }), true, 'a differently-named sibling');
     assert.equal(isSafeBuildRoot({ dir: path.join(base, 'gotavern-cache'), ...guarded }), true, 'a prefix-sharing sibling is not inside');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The PROBE-side guard: which directories a probe may WRITE INTO.
+//
+// This is the rows that matter for the regression this check exists to prevent. The full sweep failed
+// because the guard encoded "created by mkdtemp with our prefix" and refused the persistent build root,
+// which is isolated in every sense that matters. The guard must now answer the real question -- does
+// anyone else use this directory -- for BOTH kinds of root, and refuse everything that is not disposable.
+// ---------------------------------------------------------------------------------------------
+
+// Deep enough that an "ancestor" is not the filesystem root, which has its own refusal clause and would
+// otherwise make the ancestor row pass-or-fail for the wrong reason.
+const BASE = path.resolve(path.sep, 'work', 'lanes');
+const REPO = path.join(BASE, 'gotavern');
+// The two locations the project puts the read-only reference checkout in (ci.yml and HANDOFF section 0).
+const REFERENCES = [path.join(REPO, '.reference', 'SillyTavern'), path.join(BASE, 'SillyTavern')];
+
+function guard(dir, { forbidden = [REPO, ...REFERENCES], missing = [] } = {}) {
+    return checkDedicatedBuildRoot({ dir, forbiddenPaths: forbidden, missingMarkers: missing });
+}
+
+test('guard: a fresh mkdtemp source root is accepted (the behaviour that must not change)', () => {
+    const dir = path.join(path.resolve(path.sep, 'tmp'), 'gotavern-upstream-webpack-ab12cd', 'source');
+    const result = guard(dir);
+    assert.equal(result.ok, true, JSON.stringify(result));
+});
+
+test('guard: the persistent build root is accepted even though it was NOT created by mkdtemp', () => {
+    // The exact directory the sweep failed on: <runner.temp>/oracle-build -- no `source` basename, no
+    // mkdtemp prefix, in fact nothing about it that the old check looked at. Its LOCATION is irrelevant;
+    // what matters is that it is a checkout nobody else uses.
+    for (const dir of [
+        path.join(path.resolve(path.sep, 'tmp'), 'oracle-build'),
+        path.join(BASE, 'oracle-build-persistent'),
+    ]) {
+        const result = guard(dir);
+        assert.equal(result.ok, true, `${dir} must be accepted: ${JSON.stringify(result)}`);
+    }
+});
+
+test('guard: the repository itself is refused', () => {
+    const result = guard(REPO);
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'not-dedicated');
+    assert.match(result.detail, /IS that path/);
+});
+
+test('guard: a path inside the repository is refused', () => {
+    const result = guard(path.join(REPO, 'public'));
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'not-dedicated');
+    assert.match(result.detail, /is inside that path/);
+});
+
+test('guard: the read-only reference checkout is refused, in both documented locations', () => {
+    for (const reference of REFERENCES) {
+        const result = guard(reference);
+        assert.equal(result.ok, false, `${reference} must be refused`);
+        assert.equal(result.reason, 'not-dedicated');
+    }
+});
+
+test('guard: an ancestor of the repository is refused', () => {
+    const result = guard(path.dirname(path.dirname(REPO)));
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'not-dedicated');
+});
+
+test("guard: a root that EQUALS the repository's parent is refused", () => {
+    const result = guard(path.dirname(REPO));
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'not-dedicated');
+    assert.match(result.detail, /contains that path/, 'an ancestor must be named as such, not as "inside"');
+});
+
+test('guard: a directory without the pinned checkout is refused (a user tree is not a build root)', () => {
+    const dir = path.join(BASE, 'oracle-build-but-not-a-checkout');
+    const result = guard(dir, { missing: ['package.json', 'src/users.js'] });
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'not-a-checkout');
+    assert.match(result.detail, /package\.json/);
+});
+
+test('guard: a prefix-sharing sibling is not treated as being inside the repository', () => {
+    assert.equal(describePathRelation(path.join(BASE, 'gotavern-cache'), REPO), 'disjoint');
+    assert.equal(describePathRelation(path.join(BASE, 'gotavern-cache'), path.join(BASE, 'gotavern')), 'disjoint');
+    assert.equal(describePathRelation(path.join(REPO, 'src'), REPO), 'inside');
+    assert.equal(describePathRelation(BASE, REPO), 'contains');
+    assert.equal(describePathRelation(REPO, REPO), 'same');
+    assert.equal(guard(path.join(BASE, 'gotavern-cache')).ok, true);
+});
+
+test('wiring: the probe uses the SHARED guard and no longer encodes who created the directory', () => {
+    // The defect was a private copy of an isolation test that drifted from the harness's own. This asserts
+    // the two callers share one predicate, so they cannot disagree again.
+    const probe = readFileSync(new URL('../../tools/probe-public-overrides-migration.mjs', import.meta.url), 'utf8');
+    assert.match(probe, /from '\.\/lib\/dedicated-build-root\.mjs'/, 'the probe must import the shared predicate');
+    assert.ok(probe.includes('checkDedicatedBuildRoot('), 'the probe must call the shared predicate');
+    assert.doesNotMatch(probe, /assertTemporarySourceRoot/, 'the mkdtemp-shape guard must be gone');
+    assert.doesNotMatch(probe, /gotavern-upstream-webpack-/, 'the probe must not encode the temporary root\'s name');
+    assert.match(probe, /'\.reference', 'SillyTavern'/, 'the CI reference-checkout location must be refused by name');
 });
 
 // ---------------------------------------------------------------------------------------------

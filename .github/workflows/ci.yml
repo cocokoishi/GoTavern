@@ -171,12 +171,13 @@ jobs:
     needs: changes
     if: needs.changes.outputs.oracle == 'true'
     runs-on: ubuntu-latest
-    # MEASURED REALITY (docs/development-loop.md): the full parity sweep is 51 min observed max, and a run
-    # narrowed to one probe is 13-15 min. 120 minutes is 2.35x the observed full sweep -- enough for a slow
-    # runner or a legitimately slow probe -- while a WEDGED probe (one probe hangs forever and the job sits
-    # on a runner) now fails at two hours instead of GitHub's default six. Raise this in one line if a real
-    # sweep approaches it, and record the new measurement here rather than guessing again.
-    timeout-minutes: 120
+    # MEASURED REALITY, twice. docs/development-loop.md recorded 51 min for a full sweep; the first full
+    # sweep after the reusable build root landed (run 40074538942) took ~96 min and THEN failed on a harness
+    # guard, so it was a real full pass, not an early abort. 96 min against a 120 bound is 20% headroom, which
+    # one slow runner or one retried probe eats. The decision is 180: ~1.9x the worst observed pass, and a
+    # wedged probe still fails at three hours instead of GitHub's default six. The warm build root should pull
+    # the next sweep back toward ~80 min; when a measured sweep settles, tighten to ~1.5x THAT and record it.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
