@@ -98,9 +98,16 @@ jobs:
           cp "$LAUNCHER" "stage/"
           # TOKENIZERS ARE NOT EMBEDDED and this is the trap the archive must not fall into:
           # upstream/assets.go embeds public/default/generated/manifests only, and the runtime resolves
-          # tokenizer data from <InstallRoot>/tokenizers or <InstallRoot>/upstream/tokenizers on DISK.
-          # A previous browser capture measured the silent FALLBACK path for exactly this reason.
-          cp -R upstream/tokenizers "stage/tokenizers"
+          # tokenizer data from disk. A previous browser capture measured the silent FALLBACK path -- ids [],
+          # chunks null, counts about 25% high -- for exactly this reason.
+          #
+          # THEY GO UNDER src/ BECAUSE THAT IS WHERE THE PINNED TREE KEEPS THEM. Upstream reads these files
+          # server-side by a relative path (`new SentencePieceTokenizer('src/tokenizers/llama.model')`,
+          # src/endpoints/tokenizers.js:251-254), so an archive that mirrors that layout is the one a user can
+          # compare with a real SillyTavern install, and it is the copy the runtime prefers
+          # (<root>/src/tokenizers, then the legacy <root>/tokenizers, then <root>/upstream/tokenizers).
+          mkdir -p "stage/src"
+          cp -R upstream/tokenizers "stage/src/tokenizers"
           {
             echo "GoTavern release ${GITHUB_REF_NAME}"
             echo "target ${GOOS}"

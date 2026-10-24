@@ -1,77 +1,132 @@
 # GoTavern
 
-GoTavern is a work-in-progress **standalone Go reimplementation of the SillyTavern server/backend**. The goal is to run the unmodified upstream SillyTavern frontend with the same data, browser URLs and frontend-extension ecosystem while using substantially less server memory and requiring no Node.js runtime in production.
+GoTavern is a **standalone Go reimplementation of the SillyTavern 1.19.0 server/backend**. You run the
+unmodified upstream frontend against it, with your existing data, browser URLs and frontend extensions — and
+production needs no Node.js, npm or compiler.
 
-## Status
+Baseline: `SillyTavern 1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
-**Pre-release. Do not use this repository as a working SillyTavern replacement yet.** The Phase 0 asset/oracle foundation is in place and Phase 1 is underway. `gotavern` and `gotavern start` now run command-line/config resolution, ordered data startup, protocol selection, the HTTP/HTTPS listener path, and the configured heartbeat file. Pinned Node probes cover the root page, generated `lib.js`, `/version`, the final 404, IP and host whitelists, global and per-user Basic Auth responses/rate limiting, and per-user session auto-login. Account login/session behavior and both Basic Auth modes are partially implemented. Most SillyTavern routes and shared middleware remain absent.
+> **Status: `v0.1.0-alpha.1` — an ALPHA.** The server is usable for real chats and the compatibility gates below
+> are enforced in CI, but this is not yet a "throw away your SillyTavern" release. Read
+> [What is measured](#what-is-measured-and-what-is-not) before you migrate anything you care about, and keep a
+> backup of your data directory.
 
-The initial compatibility baseline is:
+## Install
 
-```text
-SillyTavern 1.19.0
-06bde939fb1e9c4c8d8641d810f0a916b5bce127
+Every install path downloads a **prebuilt archive**; nothing is compiled on the target machine.
+
+**Linux / macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.1/install.sh | bash -s -- --version v0.1.0-alpha.1
 ```
 
-Implementation must satisfy the compatibility gates in [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/SEMANTIC-COMPATIBILITY.md`](docs/SEMANTIC-COMPATIBILITY.md). A server that merely opens the UI or returns chat text is not considered compatible.
+**Windows (PowerShell)**
 
-The exact pinned upstream `public/**` and `default/**` trees are under [`upstream/`](upstream/), with per-file SHA-256 manifests. The root `LICENSE` is copied from the pinned SillyTavern source. Inventory generation and the isolated generated-library build are documented in the tooling under [`tools/`](tools/).
+```powershell
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.1/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.1
+```
 
-## Intended user experience
+**An explicit `--version` / `-Version` IS REQUIRED WHILE THE NEWEST RELEASE IS A PRERELEASE.** Without it the
+installers fetch `releases/latest/download/...`, which GitHub resolves to the newest **stable** release — and
+there is none yet, so that URL 404s. That is deliberate: a prerelease must never be what an unpinned
+`curl | bash` hands a stranger. Once a stable tag exists the flag becomes optional.
 
-Stable releases will be consumed as **prebuilt binaries**. End users should not need Go, Node.js, npm or a compiler.
+**Manual**, if you prefer an archive: download `gotavern-<os>-<arch>.tar.gz` (or `.zip` on Windows) from the
+release page, verify it against `checksums.txt`, unpack it anywhere writable, and run `./start.sh` /
+`Start.cmd`. An update is the same archive unpacked over the old install: the binary, the launcher and
+`src/tokenizers/` are immutable release files and are replaced, while `config.yaml`, `data/`, `extensions/`
+and `certs/` are never touched.
 
-Planned installation paths:
+**Container**: `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.1`. `:latest` deliberately lags — it only
+moves when a **stable** tag is published, so an operator's `docker pull ...:latest` cannot silently upgrade a
+deployment onto an alpha.
 
-- `install.sh` on Linux/macOS;
-- `install.ps1` on Windows;
-- manual GitHub Release archives;
-- a multi-architecture container image.
+Requirements: a 64-bit Linux, macOS or Windows host. No runtime dependencies. The frontend, the default content
+and the tokenizer *manifest* are embedded in the binary; the tokenizer **data** ships as
+`<install root>/src/tokenizers/` — the same path upstream SillyTavern keeps, because token counts must be exact
+rather than approximated, and a missing tree would silently fall back to estimates while still answering.
 
-The installer scripts are already present to define the release contract, but there is currently no published GoTavern Release for them to download. They intentionally fail instead of compiling source when no release exists.
+## What is measured, and what is not
 
-See [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
+Compatibility here is not "it opens and chats". The claim is checked against a **pinned Node SillyTavern** on
+five observation surfaces, and the numbers below are products of those runs:
+
+| Area | State |
+|---|---|
+| Chat-completion providers | **25 of the 26** pinned sources implemented, each with recorded provider-wire captures. The exception is COMETAPI, which pinned itself refuses before any request is made. The differential fixture holds **187 recorded scenarios**. |
+| Provider wire (`B`/`P`) | Every claimed source is compared against captures: request target, method, header set, body bytes (SHA-256), chunked framing, client-disconnect. A control test fails if a source is claimed without a capture. |
+| Browser legs (`E`/`C`) | **15 sources** carry both a generation and a streaming comparison artifact, printed and enforced by `tools/verify-browser-comparisons.mjs`. Streaming covers frames, cancellation and final text. |
+| Extensions (`F`) | Tavern Helper / JS-Slash-Runner and the standard-SillyTavern-API part of LittleWhiteBox are driven as real probes. |
+| Startup (`F`/`E`) | Startup differential over 353 requests; characters, chats, groups, world info, settings and secrets have replay fixtures. |
+| Release path | Fresh install, idempotent re-install, tampered-archive refusal, update **and cross-baseline rollback** run in CI against the real `install.sh` / `install.ps1` over a loopback mirror, alongside the Windows-only installer behaviours. |
+
+**Not measured, stated rather than implied** — the honest gaps:
+
+- Local in-process ML (`/api/extra/{caption,classify}`, `/api/speech/*`, local embeddings) is **not
+  implemented**: it would mean adopting an ONNX runtime, which contradicts the single-binary distribution.
+- Two image-re-encoding routes (`/api/avatars/upload`'s pixel path and `/thumbnail/<computed>`) are governed by
+  a Jimp-compatible codec decision, not by a missing test.
+- Routes whose wire format lives inside a third-party npm package (Google voice `batchexecute`,
+  `/api/translate/{google,bing}`) are not ported; owning an undocumented protocol is a product decision.
+- VERTEXAI service-account ("full") mode carries the pinned error shape rather than a fabricated credential, and
+  `gemini.apiVersion` is a config value that is not projected. COHERE streaming is recorded as **not measured**:
+  the harness cannot yet speak Cohere's v2 SSE framing, so its artifact says so instead of claiming a render it
+  never saw.
+- A prerelease's `releases/latest` URL is intentionally 404, so **unpinned** installer invocations fail by
+  design until the first stable release.
+
+Arbitrary **Node.js server plugins** are the one explicit ecosystem exclusion: they are neither emulated nor
+faked, and a route that needs one reports that boundary rather than pretending.
+
+## Development
+
+The loop is built for a weak machine; `docs/development-loop.md` lists the tiers and the measurements.
+
+```bash
+node scripts/dev-verify.mjs          # ~7 s: gofmt + build + the tests your change can break
+node scripts/dev-verify.mjs --full   # ~2 min: the whole Go suite, including every fixture replay
+```
+
+`node scripts/dev-verify.mjs` is the **first** step for any change, not a formality: it classifies your diff
+against `origin/main` and runs the smallest falsifying set (measured: 7.2 s for a one-file provider edit —
+gofmt, the targeted package test, the build). CI keeps the expensive gates: the full suite, `go vet`, the
+cross-compiles, the browser comparison gate, and the Linux oracle that re-records every fixture and requires a
+zero diff.
+
+Provider work does **not** wait for the full oracle: a push selects only the probes whose inputs can move, and the
+oracle job publishes any re-recorded bytes as a patch —
+[`docs/oracle-record-loop.md`](docs/oracle-record-loop.md) plus `scripts/apply-oracle-rerecord.mjs` do the
+mechanical part and refuse on the two hazards that invalidate a patch.
+
+Read [`AGENTS.md`](AGENTS.md) before changing anything: it carries the verification rules this project learned
+the hard way, including the ones about mutations that cannot fail, fixtures that prove only themselves, and
+`go test` caches.
 
 ## Compatibility target
 
 GoTavern keeps SillyTavern's frontend and data model rather than designing substitutes:
 
-- pinned upstream `public/**` frontend, unchanged;
-- pinned upstream default content/scaffold for fresh installs;
-- same HTTP routes, auth, CSRF, uploads, redirects, errors and streaming semantics;
-- same `config.yaml` behavior, including upstream startup migrations/default insertion;
-- same data-root layout and file formats;
-- same characters/cards, chats, groups, world info, presets/templates, Quick Replies, settings and secrets;
-- equivalent provider requests for complex prompt/preset workflows;
-- frontend extension installation/loading/update and runtime compatibility;
-- read-only copy migration from existing SillyTavern installs plus direct-use mode;
-- ability to return to a data-compatible SillyTavern baseline without data conversion.
+- pinned upstream `public/**` frontend, unchanged; pinned `default/**` content for fresh installs;
+- the same HTTP routes, auth, CSRF, uploads, redirects, errors and streaming semantics;
+- the same `config.yaml` behaviour, including upstream startup migrations and default insertion;
+- the same data-root layout and file formats — characters/cards, chats, groups, world info,
+  presets/templates, Quick Replies, settings and secrets;
+- equivalent provider requests for complex prompt/preset workflows (message order and roles, world info, stops,
+  token limits, tools/schema, reasoning, provider-specific members);
+- extension installation/loading/update and runtime compatibility;
+- read-only copy migration from an existing SillyTavern install, plus direct-use mode;
+- the ability to return to a data-compatible SillyTavern without converting anything.
 
-Arbitrary **Node.js server plugins** are the explicit ecosystem exception.
-
-## Compatibility validation
-
-The project uses the pinned Node SillyTavern server as an oracle and compares more than response JSON:
-
-1. browser -> backend contract;
-2. backend -> model-provider wire request;
-3. provider stream/error -> browser behavior;
-4. filesystem/startup side effects and browser event/final state.
-
-Real pinned extension probes include Tavern Helper / JS-Slash-Runner and the standard-SillyTavern-API portion of LittleWhiteBox. See [`docs/extension-route-coverage.md`](docs/extension-route-coverage.md).
-
-Some fixtures can only be recorded on Linux. A source can land its scenario inputs without captures; CI's
-oracle job re-records on the runner and publishes the difference as a patch. See
-[`docs/oracle-record-loop.md`](docs/oracle-record-loop.md) for the loop, the two hazards that invalidate a
-patch, and `scripts/apply-oracle-rerecord.mjs`, which performs the mechanical part and refuses on every
-condition a human would otherwise have to check.
-
-## Development
-
-Read [`AGENTS.md`](AGENTS.md) before making implementation changes. Phase 0 inventory/differential infrastructure is mandatory before broad endpoint implementation.
-
-Production runtime must not depend on Node.js. Node/npm may be used in CI/development to run the pinned reference server and reproduce upstream-generated frontend assets.
+The reachable ceiling is the route count **minus** the exclusions above; the ledgers say so per row rather than
+implying full parity. [`ARCHITECTURE.md`](ARCHITECTURE.md),
+[`docs/SEMANTIC-COMPATIBILITY.md`](docs/SEMANTIC-COMPATIBILITY.md) and
+[`docs/api-inventory.md`](docs/api-inventory.md) / [`docs/compat-matrix.md`](docs/compat-matrix.md) /
+[`docs/surface-coverage.md`](docs/surface-coverage.md) are the authority, and every partially-covered row labels
+its evidence as measured, derived, or not covered.
 
 ## License
 
-GoTavern is intended to be released under **AGPL-3.0**, consistent with its use of the SillyTavern frontend. The repository must include the complete license/notices before the first distributable release.
+GoTavern is released under **AGPL-3.0**, consistent with its use of the SillyTavern frontend. The root `LICENSE`
+is copied from the pinned SillyTavern source, and `THIRD_PARTY_NOTICES.txt` ships in every release archive.

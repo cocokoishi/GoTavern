@@ -86,9 +86,13 @@ if (!external) {
     }
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
     if (!(await exists(tokenizerSource))) {
-        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
+        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them at <install root>/src/tokenizers`);
     }
-    await fs.cp(tokenizerSource, path.join(dataRoot, 'tokenizers'), { recursive: true });
+    // THE RELEASE LAYOUT IS `src/tokenizers`, not `tokenizers` at the install root: the archive mirrors the
+    // pinned SillyTavern tree (upstream reads it as `src/tokenizers/...`, src/endpoints/tokenizers.js:251-254)
+    // and the runtime prefers that path, so staging it here keeps the measurement on the layout that ships.
+    await fs.mkdir(path.join(dataRoot, 'src'), { recursive: true });
+    await fs.cp(tokenizerSource, path.join(dataRoot, 'src', 'tokenizers'), { recursive: true });
     // `public/` IS NOT STAGED. The release archive ships no public/ tree (the frontend is embedded
     // and ARCHITECTURE 8.1 allows an install with none), startup creates an EMPTY
     // public/scripts/extensions, and discovery plus the static fallback read the EMBEDDED tree. An

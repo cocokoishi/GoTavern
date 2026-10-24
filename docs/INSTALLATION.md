@@ -126,7 +126,8 @@ Installers must:
 - support latest stable and an explicit release tag;
 - download `checksums.txt` from the same release;
 - verify SHA-256 before installing anything;
-- install `tokenizers/` beside the binary as immutable release data, and refuse an archive that lacks it;
+- install `src/tokenizers/` (the pinned SillyTavern layout, and the path the runtime prefers) as immutable
+  release data, and refuse an archive that lacks it;
 - use a temporary directory for download/extraction;
 - replace immutable executable/launcher files only after successful verification;
 - preserve user config/data/extensions/certs on re-run;

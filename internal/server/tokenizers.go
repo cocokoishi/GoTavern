@@ -94,10 +94,10 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 
 // tokenizerAssetCandidates lists where the tokenizer tree may be found, most specific first:
 //
-//	<InstallRoot>/tokenizers           the GoTavern RELEASE layout (matching how the frontend tree is
-//	                                   placed at <InstallRoot>/public)
-//	<InstallRoot>/src/tokenizers       the PINNED SillyTavern layout, and therefore also what a MIGRATED
-//	                                   installation has
+//	<InstallRoot>/src/tokenizers       the RELEASE layout AND the pinned SillyTavern layout, which are the
+//	                                   same path on purpose (see below)
+//	<InstallRoot>/tokenizers           the layout release v0.1.0-alpha.1 shipped, kept as a fallback so an
+//	                                   installation made from it still tokenizes exactly
 //	<InstallRoot>/upstream/tokenizers  the development layout, where the repository root holds the tree
 //
 // THE PINNED LOCATION IS NOT A NICETY. Upstream reads these files SERVER-SIDE by a path relative to its own
@@ -112,16 +112,18 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 // the Guesstimate path and keep answering with token counts that are simply wrong. That is the worst shape a
 // tokenizer defect can take, which is why the migration layout is a candidate rather than a documented caveat.
 //
-// The order matters and is deliberate: a GoTavern release tree wins over a stale SillyTavern tree sitting beside
-// it, so upgrading in place cannot be dragged backwards by leftover files, while a migrated install with only
-// src/tokenizers/ still works.
+// The order matters and is deliberate. `src/tokenizers` is FIRST because it is now BOTH the pinned layout and the
+// release layout: the published archive ships the tree there, so that is the copy a fresh install should use, and
+// a stale `tokenizers/` left behind by release v0.1.0-alpha.1 must not win over it after an upgrade in place. The
+// legacy root path is second rather than deleted, because an installation made from that release must keep
+// tokenizing exactly after the binary is updated without re-running the installer.
 func tokenizerAssetCandidates(options HTTPHandlerOptions) []string {
 	if options.InstallRoot == "" {
 		return nil
 	}
 	return []string{
-		filepath.Join(options.InstallRoot, "tokenizers"),
 		filepath.Join(options.InstallRoot, "src", "tokenizers"),
+		filepath.Join(options.InstallRoot, "tokenizers"),
 		filepath.Join(options.InstallRoot, "upstream", "tokenizers"),
 	}
 }

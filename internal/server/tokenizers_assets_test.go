@@ -19,12 +19,14 @@ import (
 	"testing"
 )
 
-func TestTokenizerAssetCandidatesPreferTheReleaseTreeOverAMigratedOne(t *testing.T) {
+func TestTokenizerAssetCandidatesPreferSrcTokenizersOverTheLegacyRootTree(t *testing.T) {
 	root := t.TempDir()
-	release := filepath.Join(root, "tokenizers")
-	migrated := filepath.Join(root, "src", "tokenizers")
+	// `src/tokenizers` is now BOTH the pinned layout and the release layout; `tokenizers/` at the root is what
+	// release v0.1.0-alpha.1 shipped. Both may exist after an upgrade in place, and the stale one must not win.
+	src := filepath.Join(root, "src", "tokenizers")
+	legacy := filepath.Join(root, "tokenizers")
 	development := filepath.Join(root, "upstream", "tokenizers")
-	for _, directory := range []string{release, migrated, development} {
+	for _, directory := range []string{src, legacy, development} {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -34,19 +36,27 @@ func TestTokenizerAssetCandidatesPreferTheReleaseTreeOverAMigratedOne(t *testing
 	if !ok {
 		t.Fatal("no tokenizer tree resolved even though all three layouts exist")
 	}
-	// The release tree wins so that upgrading an installation in place cannot be dragged backwards by leftover
-	// files from the tree it replaced.
-	if assets != release {
-		t.Fatalf("resolved %q, want the release tree %q to take precedence", assets, release)
+	if assets != src {
+		t.Fatalf("resolved %q, want %q: the pinned/release layout must beat the legacy root tree", assets, src)
 	}
 
-	// Remove the release tree: the migrated layout must be next, not the development one.
-	if err := os.RemoveAll(release); err != nil {
+	// Remove the release tree: the LEGACY root tree is next, so an installation made from the old release keeps
+	// tokenizing exactly after only the binary is replaced.
+	if err := os.RemoveAll(src); err != nil {
 		t.Fatal(err)
 	}
 	assets, ok = tokenizerAssets(HTTPHandlerOptions{InstallRoot: root})
-	if !ok || assets != migrated {
-		t.Fatalf("with the release tree gone, resolved %q (ok=%t), want the pinned layout %q", assets, ok, migrated)
+	if !ok || assets != legacy {
+		t.Fatalf("with src/tokenizers gone, resolved %q (ok=%t), want the legacy root tree %q", assets, ok, legacy)
+	}
+
+	// Finally the development layout, which is what a repository checkout has.
+	if err := os.RemoveAll(legacy); err != nil {
+		t.Fatal(err)
+	}
+	assets, ok = tokenizerAssets(HTTPHandlerOptions{InstallRoot: root})
+	if !ok || assets != development {
+		t.Fatalf("with both install layouts gone, resolved %q (ok=%t), want the dev layout %q", assets, ok, development)
 	}
 }
 

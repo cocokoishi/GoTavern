@@ -131,12 +131,18 @@ func verifyInstalledTokenizers() error {
 		return fmt.Errorf("resolve executable path: %w", err)
 	}
 	installRoot := filepath.Dir(executable)
-	// Two real layouts exist and both must verify. A RELEASE puts tokenizers/ beside the binary,
-	// because that is where the routes look. A REPOSITORY CHECKOUT (and CI, which builds the binary
-	// at the repo root) keeps them at upstream/tokenizers. Trying only the release path would fail
-	// CI while trying only the repository path would miss a broken release, so both are accepted and
-	// the one that matched is named.
+	// THREE real layouts exist and all must verify, because each belongs to a supported installation:
+	//
+	//	src/tokenizers         the RELEASE layout from this version on, which is also the pinned SillyTavern
+	//	                       layout -- so a package unpacked over an existing tree verifies either way
+	//	tokenizers             the layout release v0.1.0-alpha.1 shipped; still accepted so an install made
+	//	                       from it verifies after only the binary is replaced
+	//	upstream/tokenizers    a REPOSITORY CHECKOUT (and CI, which builds the binary at the repo root)
+	//
+	// Trying only the newest path would fail those older installs, and trying only the repository path would
+	// miss a broken release. The path that matched is printed, so the log says which layout was verified.
 	for _, candidate := range []struct{ dir, tree string }{
+		{dir: filepath.Join(installRoot, "src", "tokenizers"), tree: "."},
 		{dir: installRoot, tree: "tokenizers"},
 		{dir: filepath.Join(installRoot, "upstream", "tokenizers"), tree: "."},
 	} {
@@ -149,7 +155,7 @@ func verifyInstalledTokenizers() error {
 		fmt.Printf("verified installed tokenizers (%s)\n", filepath.Join(candidate.dir, candidate.tree))
 		return nil
 	}
-	return fmt.Errorf("tokenizers are missing from %s and %s: the tokenizer routes would silently fall back to guesstimates", installRoot, filepath.Join(installRoot, "upstream", "tokenizers"))
+	return fmt.Errorf("tokenizers are missing from %s, %s and %s: the tokenizer routes would silently fall back to guesstimates", filepath.Join(installRoot, "src", "tokenizers"), installRoot, filepath.Join(installRoot, "upstream", "tokenizers"))
 }
 
 func runServer(args []string) error {

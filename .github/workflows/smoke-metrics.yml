@@ -84,13 +84,15 @@ jobs:
           # The same flags release.yml uses, so the measured artefact is the shipped one.
           go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
             -o smoke-work/install/gotavern ./cmd/gotavern
-          # tokenizers/ is read from the INSTALL ROOT at runtime (it is not embedded). Leaving it out
+          # src/tokenizers/ is read from the INSTALL ROOT at runtime (it is not embedded). Leaving it out
           # would measure a binary that silently takes the tokenizer fallback on every prompt -- a
-          # different product behaviour and a different memory footprint.
+          # different product behaviour and a different memory footprint. The path mirrors release.yml and
+          # the pinned layout: upstream reads these files from src/tokenizers/.
           cp LICENSE THIRD_PARTY_NOTICES.txt smoke-work/install/
-          cp -R upstream/tokenizers smoke-work/install/tokenizers
+          mkdir -p smoke-work/install/src
+          cp -R upstream/tokenizers smoke-work/install/src/tokenizers
           test -x smoke-work/install/gotavern
-          test -d smoke-work/install/tokenizers
+          test -d smoke-work/install/src/tokenizers
           # A FRESH INSTALL means no config.yaml: the release archive contains none either, and the
           # cold-start number is only meaningful if startup has to create it.
           test ! -e smoke-work/install/config.yaml

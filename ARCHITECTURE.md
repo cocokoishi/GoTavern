@@ -359,7 +359,7 @@ GoTavern/
 │   ├── public/                   # byte-identical pinned source frontend
 │   ├── default/                  # pinned default content/config/scaffold
 │   ├── generated/                # pinned build-generated browser assets
-│   ├── tokenizers/               # tokenizer data as a DISK asset (not embedded; see the note below)
+│   ├── tokenizers/               # vendored source tree; a RELEASE ships it at <root>/src/tokenizers (see note)
 │   └── manifests/
 ├── tools/
 │   ├── sync-upstream/
@@ -402,9 +402,9 @@ GoTavern/
 > server-side by a path relative to its own working directory (`new SentencePieceTokenizer('src/tokenizers/...')`,
 > `src/endpoints/tokenizers.js:251-254`), so a real SillyTavern tree keeps them at `<root>/src/tokenizers/`. The only
 > static mount upstream has is `public/` (`server-main.js:242`), so nothing serves `/src/tokenizers/...` over HTTP.
-> GoTavern's release places the same tree at `<root>/tokenizers/`, does **not** embed it in the binary
+> GoTavern's release places the same tree at the SAME path, `<root>/src/tokenizers/`, does **not** embed it in the binary
 > (`upstream/assets.go` embeds only `public/default/generated/manifests`), and resolves, in this order:
-> `<root>/tokenizers`, then `<root>/src/tokenizers`, then `<root>/upstream/tokenizers`
+> `<root>/src/tokenizers`, then the legacy `<root>/tokenizers` (what v0.1.0-alpha.1 shipped), then `<root>/upstream/tokenizers`
 > (`internal/server/tokenizers.go`). The second candidate is what makes a MIGRATED SillyTavern installation work:
 > without it the routes fell back to the pinned Guesstimate and answered with wrong token counts instead of failing.
 

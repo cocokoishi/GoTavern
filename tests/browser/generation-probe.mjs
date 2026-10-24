@@ -173,25 +173,26 @@ for (const [command, args] of buildSteps) {
 }
 
 // RELEASE LAYOUT: `gotavern start` resolves InstallRoot as the directory of the executable
-// (cmd/gotavern/main.go), and tokenizer routes look for <InstallRoot>/tokenizers. This probe builds
+// (cmd/gotavern/main.go), and tokenizer routes look for <InstallRoot>/src/tokenizers. This probe builds
 // the binary into a scratch directory, so without this the server silently takes the pinned
 // fallback path (guesstimate counts, empty ids) and the two legs cannot be compared on token counts
-// at all. A release puts `tokenizers/` beside the binary; stage the same layout instead of changing
-// production code to make a probe work.
+// at all. A release puts the tree at `src/tokenizers/` -- the pinned SillyTavern layout, and the copy the
+// runtime prefers -- so stage THAT layout rather than changing production code to make a probe work.
 if (!external) {
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
     // BESIDE THE BINARY THAT ACTUALLY RUNS, which is not always the one this probe builds. When
     // GOTAVERN_BINARY supplies a lane artifact, `dataRoot` is NOT its install root, so staging there left
-    // the server with no `tokenizers/` and every count route answered the GUESSTIMATE fallback
+    // the server with no tokenizer tree and every count route answered the GUESSTIMATE fallback
     // (ceil(bytes/3.35)) instead of tokenizing: `[{content:'probe user marker'}]` came back as 10 and the
     // role-ful body as 15, which are exactly those byte-lengths divided by 3.35, while pinned answered
     // 9 and 10. That is the failure this comment block already describes, one level down: the probe
     // staged the release layout faithfully for a binary it had just built and not for one it was handed.
-    const tokenizerTarget = path.join(path.dirname(binary), 'tokenizers');
+    const tokenizerTarget = path.join(path.dirname(binary), 'src', 'tokenizers');
     if (await fs.stat(tokenizerSource).then(() => true, () => false)) {
+        await fs.mkdir(path.join(path.dirname(binary), 'src'), { recursive: true });
         await fs.cp(tokenizerSource, tokenizerTarget, { recursive: true });
     } else {
-        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them beside the binary`);
+        throw new Error(`tokenizer assets missing at ${tokenizerSource}; a release layout must stage them at <install root>/src/tokenizers`);
     }
 }
 // STREAMING / CANCELLATION MODE.
@@ -220,10 +221,10 @@ function startStreamingPeer(mode, protocol) {
     const server = http.createServer((request, response) => {
         const pathEntry = { method: request.method, path: request.url, status: null };
         state.paths.push(pathEntry);
-        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
-        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
-        // online_status and the send was silently refused, on a source whose Go arm is not in question.
-        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
+        // `includes`, NOT `startsWith`, FOR THE MODEL LIST: cohere's status arm asks the /v1 base for
+        // `/v1/models`, and a prefix test answered 404 -- the frontend never reached a connected
+        // online_status and the send was silently refused, on a source whose Go arm is not in question.
+        // Same lesson as the completion path and as workers_ai/pollinations/fireworks, one level over.
         if (request.method === 'GET' && request.url.includes('/models')) {
             pathEntry.status = 200;
             // A MODEL LIST THE OPENROUTER UI CAN CONSUME. The custom source ignores this body, so it only
@@ -255,10 +256,10 @@ function startStreamingPeer(mode, protocol) {
         // builds its target from a scheme-less base, so the request line arrives as `//chat/completions`
         // and a prefix test 404s a completely correct request -- which then looks like a product defect
         // on both legs and a missing surface in the artifact.
-        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
-        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
-        // product one. The predicate admits either shape and the peer's own path log still shows exactly
-        // which one arrived, so nothing is inferred.
+        // COHERE'S COMPLETION ROUTE IS `/v2/chat`, not `/chat/completions` (Cohere's v2 API), so a peer that
+        // keyed on the OpenAI path name answered a correct request 404 and the recorded failure read as a
+        // product one. The predicate admits either shape and the peer's own path log still shows exactly
+        // which one arrived, so nothing is inferred.
         if (request.method !== 'POST' || !(request.url.includes(completionPath) || request.url.includes('/chat'))) {
             pathEntry.status = 404;
             response.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -1493,38 +1494,38 @@ try {
             report.failure = report.failure ?? 'streaming peer received no POST /chat/completions';
         }
     } else {
-        // A REQUEST-KEYED PEER HAS NO /__mock/recording ENDPOINT, and polling it made a working drive
-        // report `Unexpected token 'o', "not found" is not valid JSON`: the 404 body of the peer, read
-        // as the recorder's answer. Its own `state` is the recording, so read that instead and keep the
-        // same report shape (paths = what the peer was asked, with the status it answered).
-        if (streamingPeer) {
-            report.requestArrived = streamingPeer.state.requests.some(request => request.method === 'POST');
-            report.streamingPeerPaths = streamingPeer.state.paths;
-            report.recording = streamingPeer.state.requests.map(request => {
-                let parsedBody = null;
-                try {
-                    parsedBody = request.body ? JSON.parse(request.body) : null;
-                } catch {
-                    parsedBody = null;
-                }
-                return {
-                    method: request.method,
-                    path: request.path,
+        // A REQUEST-KEYED PEER HAS NO /__mock/recording ENDPOINT, and polling it made a working drive
+        // report `Unexpected token 'o', "not found" is not valid JSON`: the 404 body of the peer, read
+        // as the recorder's answer. Its own `state` is the recording, so read that instead and keep the
+        // same report shape (paths = what the peer was asked, with the status it answered).
+        if (streamingPeer) {
+            report.requestArrived = streamingPeer.state.requests.some(request => request.method === 'POST');
+            report.streamingPeerPaths = streamingPeer.state.paths;
+            report.recording = streamingPeer.state.requests.map(request => {
+                let parsedBody = null;
+                try {
+                    parsedBody = request.body ? JSON.parse(request.body) : null;
+                } catch {
+                    parsedBody = null;
+                }
+                return {
+                    method: request.method,
+                    path: request.path,
                     // THE FRAMING, for the artifacts that record it: header NAMES only. No value is
                     // recorded, because `authorization` carries the source key and a committed artifact must
                     // never hold one; content-length IS recorded because node-fetch COMPUTES it from the body
                     // and a body-only diff hides it.
                     headerNames: Object.keys(request.headers ?? {}).sort(),
                     receivedContentLength: request.headers?.['content-length'] ?? null,
-                    bodyLength: request.bodyLength,
-                    body: request.body,
-                    bodySha256: request.bodySha256,
-                    model: parsedBody?.model ?? null,
-                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
-                    clientDisconnected: request.clientDisconnected,
-                    framesWritten: request.framesWritten,
-                };
-            });
+                    bodyLength: request.bodyLength,
+                    body: request.body,
+                    bodySha256: request.bodySha256,
+                    model: parsedBody?.model ?? null,
+                    messageCount: Array.isArray(parsedBody?.messages) ? parsedBody.messages.length : null,
+                    clientDisconnected: request.clientDisconnected,
+                    framesWritten: request.framesWritten,
+                };
+            });
             // The seam NAME is recorded per source: a record that named the groq variable for a
             // nanogpt run would misdescribe the drive that produced it.
             const seamEnvBySource = {
@@ -1540,8 +1541,8 @@ try {
                 deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
             };
             const seamEnv = seamEnvBySource[probeSource] ?? null;
-            report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
-        } else {
+            report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
+        } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.
         for (let attempt = 0; attempt < 300; attempt++) {
