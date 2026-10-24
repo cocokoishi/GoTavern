@@ -108,11 +108,13 @@ env:
 jobs:
   smoke-published-linux-amd64:
     runs-on: ubuntu-latest
-    # SIZED FROM THE MEASURED RUN, not guessed: see the header of this file's lane report and the final
-    # commit of lane/release-smoke. The job downloads 7 assets (~360 MB), extracts two, runs one installer
-    # and boots the server once, so a wedged download or a server that never answers must fail here
-    # rather than hold a runner.
-    timeout-minutes: 20
+    # SIZED FROM THE MEASURED RUN, not guessed: run 40072321355 (v0.1.0-alpha.1, tag resolved, nothing
+    # cached) took 26 s of job wall time -- 29 s door to door -- of which the largest single item was the
+    # 360 MB download. 8 minutes is ~16x that, which is headroom for a congested runner without leaving a
+    # wedged step holding the runner for long: the internal budgets this job can spend are one 60 s
+    # `/version` readiness loop and two ~60 MB TLS downloads, so a run past 8 minutes is stuck rather than
+    # slow, and it should fail rather than sit.
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -587,10 +589,17 @@ jobs:
           # it to the newest NON-prerelease release. So this is the assertion that a user who runs the
           # documented one-liner can never receive an alpha.
           url="https://github.com/${REPO}/releases/latest/download/checksums.txt"
+          rm -f latest-checksums.txt
           status="$(curl -sS -L -o latest-checksums.txt -w '%{http_code}' "${url}" || true)"
           echo "GET ${url} -> ${status}"
-          if [ -s latest-checksums.txt ]; then
+          # A 404 STILL WRITES ITS RESPONSE BODY TO THE -o FILE. Hashing it and printing the result next to
+          # this release's hash invites exactly the wrong comparison, and the first green run of this
+          # workflow did print it: the `0019dfc4...` line in that log is GitHub's 404 page, not a release.
+          # The digest is only meaningful for a 200, so it is only taken for a 200.
+          if [ "${status}" = "200" ]; then
             echo "latest/download/checksums.txt sha256: $(sha256sum latest-checksums.txt | awk '{print $1}')"
+          else
+            rm -f latest-checksums.txt
           fi
           echo "this release's checksums.txt sha256:   $(sha256sum dist/checksums.txt | awk '{print $1}')"
 
