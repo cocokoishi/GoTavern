@@ -1,4 +1,4 @@
-// Generation probe: does a send driven from the PINNED frontend produce a provider request?
+﻿// Generation probe: does a send driven from the PINNED frontend produce a provider request?
 //
 // WHAT IT MEASURES. It boots GoTavern (or is pointed at any other server with PROBE_BASE_URL), drives
 // one send the way the frontend itself does -- load and select a character through the frontend's own
@@ -24,7 +24,7 @@
 //
 // ONE question: does a send driven from the pinned frontend produce a provider request at all?
 // It drives one generation against the recording mock provider, then reports whether a request
-// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape —
+// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape â€”
 // those come later and only if this answers yes.
 //
 // Why this is separate from the pinned suite: no spec in that suite drives a generation turn, so
@@ -855,7 +855,7 @@ try {
     if (presetMode) {
         await page.addScriptTag({ content: `globalThis.__applyPresetKit = (${applyPresetKit.toString()});` });
     }
-    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor }) => {
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor, presetContextOverride }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -1007,7 +1007,12 @@ try {
         let presetApplied = null;
         if (presetSpec && presetBoundary) {
             const kit = await globalThis.__applyPresetKit(presetSpec);
-            const maxContext = presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext;
+            // THE CONTEXT MAY BE MEASURED, NOT INHERITED. `presetContextOverride` is the context a boundary
+            // search is probing. The legs the differential compares are driven WITH an explicit override,
+            // so the context they run at is the one the PINNED LEG ITSELF was measured at.
+            const maxContext = Number.isInteger(presetContextOverride) && presetContextOverride > 0
+                ? presetContextOverride
+                : (presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext);
             // UNLOCK THE SLIDER BEFORE SETTING IT. With `max_context_unlocked` false the frontend clamps
             // `openai_max_context` to the model select's `max` attribute whenever a model change fires
             // (openai.js:5701), and that clamp lands AFTER this assignment -- silently replacing the
@@ -1528,7 +1533,8 @@ try {
         presetSpec: presetMode ? presetFixture.capture.spec : null,
         presetVariant,
         presetBoundary: presetMode ? presetFixture.capture.boundary : null,
-        presetAnchor: presetMode ? presetFixture.capture.tokenizerAnchor : null });
+        presetAnchor: presetMode ? presetFixture.capture.tokenizerAnchor : null,
+        presetContextOverride: Number.isInteger(Number(process.env.PROBE_PRESET_CONTEXT ?? '')) ? Number(process.env.PROBE_PRESET_CONTEXT) : null });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));

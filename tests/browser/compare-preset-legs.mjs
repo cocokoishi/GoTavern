@@ -1,4 +1,4 @@
-// Compare the COMPLEX-PRESET legs: same scenario, two context boundaries, both servers.
+﻿// Compare the COMPLEX-PRESET legs: same scenario, two context boundaries, both servers.
 //
 // THE CONTRACT IS BYTES, THE DIAGNOSIS IS PARSED (AGENTS.md "Differential-testing doctrine" 2). The
 // compared observation is the provider request the drive actually produced: `bodySha256` and
@@ -203,9 +203,26 @@ function legPreset(report) {
     };
 }
 
-export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fixture, inputs }) {
+export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fixture, inputs, boundaryFile = null }) {
     const scenario = fixture?.capture?.spec ?? null;
-    const boundary = fixture?.capture?.boundary ?? {};
+    let boundary = fixture?.capture?.boundary ?? {};
+    // THE MEASURED PAIR COMES FROM THE PINNED LEG'S OWN DRIVES when a boundary file is supplied: the
+    // same program, arguments and clean state as the compared leg, so the pair is reproducible by
+    // construction. The fixture's numbers remain the capture's hint and are used only when no search ran.
+    if (boundaryFile) {
+        boundary = {
+            ...boundary,
+            keepContext: boundaryFile.keepContext,
+            dropContext: boundaryFile.dropContext,
+            keepMessages: boundaryFile.keep?.total ?? null,
+            dropMessages: boundaryFile.drop?.total ?? null,
+            keepHistoryMessages: boundaryFile.keep?.history ?? null,
+            dropHistoryMessages: boundaryFile.drop?.history ?? null,
+            measuredBy: boundaryFile.measuredBy ?? null,
+            searchTable: Array.isArray(boundaryFile.search) ? boundaryFile.search : null,
+            bracket: boundaryFile.bracket ?? null,
+        };
+    }
     const variants = {
         keep: { gotavern: gotavernKeep, pinned: pinnedKeep, context: boundary.keepContext, expectedMessages: boundary.keepMessages },
         drop: { gotavern: gotavernDrop, pinned: pinnedDrop, context: boundary.dropContext, expectedMessages: boundary.dropMessages },
@@ -326,6 +343,10 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             // used to predict. The capture now bisects by sending; this guard is what keeps a future edit
             // from quietly going back to the cheaper measurement.
             guards.boundaryMeasuredOnARealSend = (boundary.assemblyMode ?? null) === 'real-send';
+            // AND IT MUST HAVE BEEN MEASURED BY THE LEG THAT PRODUCES THE COMPARED REQUEST. Seven runs
+            // measured a merely similar procedure; when a search file is supplied its table is the pair and
+            // this guard says so.
+            guards.boundaryMeasuredByThePinnedLegItself = (boundary.measuredBy ?? null) === 'pinned-leg';
             // THE BOUNDARY BINDS: this is the property that makes the pair a measurement. If the pinned
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
@@ -406,6 +427,9 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
         },
         boundary: {
             keepContext: boundary.keepContext ?? null,
+            measuredBy: boundary.measuredBy ?? null,
+            // EVERY CANDIDATE THE SEARCH DROVE, with its numbers: (max_context/total/history/oldestPresent).
+            searchTable: boundary.searchTable ?? null,
             dropContext: boundary.dropContext ?? null,
             keepMessages: boundary.keepMessages ?? null,
             dropMessages: boundary.dropMessages ?? null,
@@ -453,13 +477,19 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
 const main = () => {
     const args = process.argv.slice(2);
     const fixtureIndex = args.indexOf('--fixture');
-    const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1));
+    const boundaryIndex = args.indexOf('--boundary');
+    const boundaryPath = boundaryIndex >= 0 ? path.resolve(args[boundaryIndex + 1]) : null;
+    const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1) && !(boundaryIndex >= 0 && index === boundaryIndex + 1));
     if (files.length !== 4) {
         console.error('usage: node compare-preset-legs.mjs <keep-gotavern.json> <keep-pinned.json> <drop-gotavern.json> <drop-pinned.json> [--fixture <path>]');
         process.exit(2);
     }
     const fixturePath = fixtureIndex >= 0 ? path.resolve(args[fixtureIndex + 1]) : PRESET_FIXTURE;
     const fixture = readJSON(fixturePath);
+    if (!boundaryPath) {
+        console.error('compare-preset-legs needs --boundary <preset-boundary.json>: the pair must be measured by the pinned leg itself (preset-boundary-search.mjs), not inferred from the capture');
+        process.exit(2);
+    }
     const inputNames = Object.fromEntries(['gotavernKeep', 'pinnedKeep', 'gotavernDrop', 'pinnedDrop'].map((name, index) => [name, path.basename(files[index])]));
     const artifact = compare({
         gotavernKeep: readJSON(files[0]),
@@ -467,6 +497,7 @@ const main = () => {
         gotavernDrop: readJSON(files[2]),
         pinnedDrop: readJSON(files[3]),
         fixture,
+        boundaryFile: boundaryPath ? readJSON(boundaryPath) : null,
         inputs: inputNames,
     });
     console.log(JSON.stringify(artifact, null, 2));
