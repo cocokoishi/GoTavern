@@ -37,10 +37,8 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -319,55 +317,8 @@ func pinnedMistralPlan(body orderedNodeJSON, directories startup.UserDirectories
 	if parseErr != nil || parsedEndpoint.Host == "" {
 		return nil, pinnedMistralCatchFailure()
 	}
-	names := make([]string, 0, len(headers)+2)
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 	return &outbound.Request{URL: endpointURL, Method: http.MethodPost, Headers: requestHeaders, Body: encoded}, nil
-}
-
-// serveMistralChatCompletionResponse is the MISTRAL side of the response.
-//
-//   - a stream is piped through the shared forwarder, so Mistral's own `data: [DONE]` terminator and
-//     its event names reach the caller verbatim (:943-944);
-//   - a non-2xx NON-stream answer is answered 500 with the PARSED PROVIDER BODY, falling back to
-//     {"error":true} only when the body is not JSON (:946-951);
-//   - a 2xx answer is passed through UNCHANGED (:954) -- there is no rewrap to reproduce;
-//   - a body that does not parse, or a read failure, is the pinned catch: 200 {"error":true}.
-func serveMistralChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if response.Status < 200 || response.Status > 299 {
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
-		return
-	}
-	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-	if parseErr != nil {
-		// `await generateResponse.json()` throws inside the pinned try.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }
 
 // serveMistralChatCompletionStatus is the MISTRALAI branch of the pinned status matrix

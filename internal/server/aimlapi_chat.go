@@ -37,11 +37,8 @@ package server
 // `{error:true}` when the fetch or the parse throws.
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
@@ -176,17 +173,7 @@ func pinnedAimlapiPlan(body orderedNodeJSON, directories startup.UserDirectories
 	if parseErr != nil || parsedEndpoint.Host == "" {
 		return nil, pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlag())
 	}
-	names := make([]string, 0, len(headers)+2)
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 	return &outbound.Request{URL: endpointURL, Method: http.MethodPost, Headers: requestHeaders, Body: encoded}, nil
 }
 
@@ -202,38 +189,6 @@ func lowerHeaderName(name string) string {
 		lowered[index] = character
 	}
 	return string(lowered)
-}
-
-// serveAimlapiChatCompletionResponse is the aimlapi response side (:1359-1382): the shared forwarder for
-// a stream (with NO ok-check), the PARSED provider body at 500 for a non-stream non-2xx, a 2xx body
-// passed through unchanged, and 200 {"error":true} for anything that throws.
-func serveAimlapiChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if response.Status < 200 || response.Status > 299 {
-		// `tryParse(errorText) ?? { error: true }` -- a non-JSON error body becomes the bare flag.
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
-		return
-	}
-	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-	if parseErr != nil {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }
 
 // serveAimlapiChatCompletionStatus is the AIMLAPI arm of the pinned status matrix (:1832-1835) plus the

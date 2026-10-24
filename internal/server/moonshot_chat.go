@@ -50,6 +50,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -236,4 +237,23 @@ func (runtime *accountRuntime) serveMoonshotChatCompletionStatus(w http.Response
 		return
 	}
 	respondOrderedNodeJSON(w, http.StatusOK, parsed)
+}
+
+// pinnedMoonshotChatPlan is MOONSHOT as the shared path sees it: the branch is an arm INSIDE the shared
+// openai-compatible path, so it supplies the URL, the key split and its body folds and the shared assembly
+// does the rest. The folds must run BEFORE the assembly because they MUTATE body.messages, and the assembly
+// copies that member into the request body afterwards.
+func pinnedMoonshotChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	bodyParams := nodeObject()
+	if moonshotErr := pinnedChatCompletionMoonshotBodyParams(&bodyParams, &body); moonshotErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(moonshotErr)
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceMoonshot, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedChatCompletionMoonshotURLFor(body),
+		apiKey:        pinnedChatCompletionMoonshotKeyFor(body, request.directories),
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }
