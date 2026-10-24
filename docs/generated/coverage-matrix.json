@@ -86,80 +86,7 @@
       "surface": "streaming"
     }
   ],
-  "reRecordQueue": [
-    {
-      "path": "tests/browser/generation-chutes-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "chutes",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-chutes-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "chutes",
-      "surface": "streaming"
-    },
-    {
-      "path": "tests/browser/generation-comparison.json",
-      "reason": "guards.finalTextNonEmpty missing; generationInvocations missing; generationUnmatchedAfterData missing",
-      "source": "custom",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-comparison.json",
-      "reason": "streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
-      "source": "custom",
-      "surface": "streaming"
-    },
-    {
-      "path": "tests/browser/generation-electronhub-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "electronhub",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-electronhub-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "electronhub",
-      "surface": "streaming"
-    },
-    {
-      "path": "tests/browser/generation-groq-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "groq",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-groq-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "groq",
-      "surface": "streaming"
-    },
-    {
-      "path": "tests/browser/generation-mistral-comparison.json",
-      "reason": "guards.finalTextNonEmpty missing; generationUnmatchedAfterData missing; driveParameters.seamEnvVar missing",
-      "source": "mistralai",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-mistral-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "mistralai",
-      "surface": "streaming"
-    },
-    {
-      "path": "tests/browser/generation-siliconflow-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing",
-      "source": "siliconflow",
-      "surface": "E"
-    },
-    {
-      "path": "tests/browser/streaming-siliconflow-comparison.json",
-      "reason": "driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
-      "source": "siliconflow",
-      "surface": "streaming"
-    }
-  ],
+  "reRecordQueue": [],
   "rows": [
     {
       "E": {
@@ -283,8 +210,7 @@
     {
       "E": {
         "path": "tests/browser/generation-chutes-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
@@ -300,9 +226,9 @@
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-chutes-comparison.json",
-        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -313,8 +239,7 @@
       "source": "chutes",
       "streaming": {
         "path": "tests/browser/streaming-chutes-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -325,6 +250,7 @@
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "claude-abort",
           "claude-error-status",
           "claude-limited-sampling",
           "claude-merge-roles",
@@ -339,7 +265,7 @@
           "claude-thinking",
           "claude-tools"
         ],
-        "scenarios": 13,
+        "scenarios": 14,
         "status": "yes"
       },
       "cancellation": {
@@ -424,21 +350,24 @@
     {
       "E": {
         "path": "tests/browser/generation-comparison.json",
-        "reason": "guards.finalTextNonEmpty missing; generationInvocations missing; generationUnmatchedAfterData missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
-          "custom-source-nonstream"
+          "custom-exclude-body",
+          "custom-include-body",
+          "custom-source-abort",
+          "custom-source-nonstream",
+          "custom-source-stream"
         ],
-        "scenarios": 1,
+        "scenarios": 5,
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-comparison.json",
-        "reason": "streaming artefact: streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -449,8 +378,7 @@
       "source": "custom",
       "streaming": {
         "path": "tests/browser/streaming-comparison.json",
-        "reason": "streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -499,8 +427,7 @@
     {
       "E": {
         "path": "tests/browser/generation-electronhub-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
@@ -521,9 +448,9 @@
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-electronhub-comparison.json",
-        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -534,8 +461,7 @@
       "source": "electronhub",
       "streaming": {
         "path": "tests/browser/streaming-electronhub-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -574,24 +500,24 @@
     {
       "E": {
         "path": "tests/browser/generation-groq-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "groq-abort",
           "groq-error-status",
           "groq-nonstream",
           "groq-status",
           "groq-stream"
         ],
-        "scenarios": 4,
+        "scenarios": 5,
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-groq-comparison.json",
-        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -602,8 +528,7 @@
       "source": "groq",
       "streaming": {
         "path": "tests/browser/streaming-groq-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -676,8 +601,7 @@
     {
       "E": {
         "path": "tests/browser/generation-mistral-comparison.json",
-        "reason": "guards.finalTextNonEmpty missing; generationUnmatchedAfterData missing; driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
@@ -699,9 +623,9 @@
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-mistral-comparison.json",
-        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -712,8 +636,7 @@
       "source": "mistralai",
       "streaming": {
         "path": "tests/browser/streaming-mistral-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -797,13 +720,18 @@
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "openai-abort",
+          "openai-custom-prompt-post-processing",
+          "openai-reasoning-effort-fixed",
+          "openai-reasoning-effort-map",
+          "openai-reasoning-effort-outside-table",
           "openai-reverse-proxy-abort",
           "openai-reverse-proxy-error-status",
           "openai-reverse-proxy-midstream-truncation",
           "openai-reverse-proxy-nonstream",
           "openai-reverse-proxy-stream"
         ],
-        "scenarios": 5,
+        "scenarios": 10,
         "status": "yes"
       },
       "cancellation": {
@@ -834,14 +762,19 @@
         "scenarioNames": [
           "openrouter-abort",
           "openrouter-error-status",
+          "openrouter-media-audio-embed",
+          "openrouter-media-passthrough",
           "openrouter-midstream-truncation",
           "openrouter-nonstream",
+          "openrouter-reasoning-signatures",
+          "openrouter-reasoning-signatures-flag-off",
+          "openrouter-reasoning-signatures-unknown-model",
           "openrouter-shaping",
           "openrouter-status",
           "openrouter-stream",
           "openrouter-transforms-off"
         ],
-        "scenarios": 8,
+        "scenarios": 13,
         "status": "yes"
       },
       "cancellation": {
@@ -857,7 +790,6 @@
       "productRegistered": true,
       "source": "openrouter",
       "streaming": {
-        "note": "documentation-only staleness: pinnedRedirectRequired",
         "path": "tests/browser/streaming-openrouter-comparison.json",
         "status": "yes"
       }
@@ -932,8 +864,7 @@
     {
       "E": {
         "path": "tests/browser/generation-siliconflow-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing",
-        "status": "stale"
+        "status": "yes"
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
@@ -949,9 +880,9 @@
         "status": "yes"
       },
       "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
         "path": "tests/browser/streaming-siliconflow-comparison.json",
-        "reason": "streaming artefact: driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
-        "status": "stale"
+        "status": "yes"
       },
       "pinnedScenarioInputs": true,
       "preset": {
@@ -962,8 +893,7 @@
       "source": "siliconflow",
       "streaming": {
         "path": "tests/browser/streaming-siliconflow-comparison.json",
-        "reason": "driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
-        "status": "stale"
+        "status": "yes"
       }
     },
     {
@@ -976,9 +906,10 @@
         "scenarioNames": [
           "vertexai-express-no-project",
           "vertexai-express-with-project",
-          "vertexai-proxy"
+          "vertexai-proxy",
+          "vertexai-stream"
         ],
-        "scenarios": 3,
+        "scenarios": 4,
         "status": "yes"
       },
       "cancellation": {
@@ -1080,12 +1011,13 @@
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "zai-coding-endpoint",
           "zai-error-status",
           "zai-json-schema",
           "zai-nonstream",
           "zai-stream"
         ],
-        "scenarios": 4,
+        "scenarios": 5,
         "status": "yes"
       },
       "cancellation": {
@@ -1108,21 +1040,21 @@
   "schemaVersion": 1,
   "summary": {
     "cancellationNo": 11,
-    "cancellationStale": 7,
-    "cancellationYes": 8,
-    "documentationOnlyNotes": 2,
+    "cancellationStale": 1,
+    "cancellationYes": 14,
+    "documentationOnlyNotes": 1,
     "generationNo": 11,
-    "generationStale": 7,
-    "generationYes": 8,
+    "generationStale": 1,
+    "generationYes": 14,
     "notReRecordable": 2,
     "presetYes": 0,
     "providerWireExcluded": 1,
     "providerWireYes": 25,
-    "reRecordQueue": 12,
+    "reRecordQueue": 0,
     "rows": 26,
-    "staleArtefacts": 14,
+    "staleArtefacts": 2,
     "streamingNo": 11,
-    "streamingStale": 7,
-    "streamingYes": 8
+    "streamingStale": 1,
+    "streamingYes": 14
   }
 }
