@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "name": "openrouter-reasoning-signatures-flag-off",
+  "purpose": "The config gate inside the signature transform, and the one case where the two signature SOURCES disagree: addOpenRouterSignatures adds a MESSAGE-level signature only when `gemini.thoughtSignatures` is on (prompt-converters.js:1433-1438) but always converts a TOOL-CALL signature (prompt-converters.js:1439-1446); either way the source member is deleted. This scenario boots with `gemini.thoughtSignatures: false`, so the recorded body must carry the tool-call detail and NO message-level detail, with both `signature` members gone. The flag is read at MODULE LOAD (prompt-converters.js:34) and the config file is written before the server starts, and the pinned CLI sets the config path during argument parsing (server.js:8 -> command-line.js:286 -> config-init.js:251) before server-main is imported, so the value in this scenario's config.yaml is the one the transform sees.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "openrouter",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false",
+    "gemini:",
+    "  thoughtSignatures: false"
+  ],
+  "secrets": {
+    "api_key_openrouter": [
+      {
+        "id": "probe-id-api_key_openrouter",
+        "value": "synthetic-openrouter-key",
+        "label": "api_key_openrouter",
+        "active": true
+      }
+    ]
+  },
+  "expectedAuthorizationKey": "synthetic-openrouter-key",
+  "transportRedirect": [
+    {
+      "from": "https://openrouter.ai/api/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_OPENROUTER_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://openrouter.ai/api/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "openrouter",
+      "model": "anthropic/claude-3-7-sonnet",
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        },
+        {
+          "role": "assistant",
+          "content": "probe assistant marker",
+          "signature": "probe-signature-suppressed",
+          "tool_calls": [
+            {
+              "id": "call_probe_flag_off",
+              "type": "function",
+              "function": {
+                "name": "probe_tool",
+                "arguments": "{}"
+              },
+              "signature": "probe-signature-tool-kept"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "probe_tool",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "max_tokens": 64,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"id\":\"mock-openrouter\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[authorization]",
+        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+        "reason": "The scenario supplies a synthetic key; the header's presence and scheme are the contract, the value is not.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "OPENROUTER has no reverse_proxy and no custom_url: chat-completions.js:2302 is the hardcoded literal, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:2302 apiUrl = 'https://openrouter.ai/api/v1'"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
