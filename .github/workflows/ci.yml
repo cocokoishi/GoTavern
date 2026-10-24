@@ -34,127 +34,72 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
-  # The oracle job re-records every fixture on Linux and requires a zero diff. It is the only
-  # slow job (~30 min, because it boots the pinned server for dozens of probes twice), so running
-  # it for a documentation or harness-only push means the answer about that commit arrives half an
-  # hour later than it needed to. This gate decides whether the commit can possibly have changed a
-  # fixture, and the oracle job is skipped when it cannot.
+  # THE ORACLE SELECTION IS NOT IN THIS FILE ANY MORE.
   #
-  # WHY Go CHANGES ARE NOT IN THE LIST: the oracle job re-records fixtures from the PINNED server
-  # and regenerates inventories from the PINNED source, and the diff it checks is
-  # docs/api-inventory.md, docs/config-inventory.md, upstream/generated, the generated manifest and
-  # tests/oracle. A change to internal/ or cmd/ cannot affect any of those, and it is already covered
-  # by the verify job, which replays every fixture through the Go implementation. Including them
-  # made every product commit wait ~35-40 minutes -- the oracle runs 104 probe runs twice at
-  # concurrency 3 -- for an answer that could not change.
+  # `tools/oracle/manifest.mjs` derives the dependency graph from the probes' own declarations, and
+  # `tools/oracle/plan.mjs` turns a changed-file list into a plan; `tests/oracle/plan.test.mjs` is the
+  # gate on both. This job only produces the changed-file list, calls the planner, and republishes
+  # three of its fields.
   #
-  # The failure mode this fixes is real: for a stretch of this project's history no run completed
-  # at all, because every push queued behind an oracle job and the verdict never arrived. A gate
-  # that keeps failing to report is worse than a slower gate that reports.
+  # WHY IT MOVED. The previous version of this job WAS the architecture: a bash regex and two `case`
+  # loops that had to be read as prose by every reviewer, plus a `grep -l "fixture=..."` filename
+  # heuristic. It skipped the whole oracle job for `internal/**`, `cmd/**` and `tools/*/main.go`,
+  # although ~20 probes `go run` a repository Go helper and record its output, and
+  # `tests/oracle/sillytavern-1.19.0-runtime-roundtrip.json` records three `"subject": "gotavern"`
+  # steps. A selection rule that cannot be unit-tested cannot be trusted to fail closed.
   #
-  # The first attempt at this gate was itself unparseable and broke CI for a minute, so it is now
-  # validated with a real YAML parser before it is pushed rather than by reading the indentation.
+  # A NON-ZERO EXIT FROM THE PLANNER FAILS THIS JOB ON PURPOSE: an unknown requested probe, or a graph
+  # that is not a total function from fixture to owner, must be red rather than quietly select nothing.
   changes:
     runs-on: ubuntu-latest
     outputs:
-      oracle: ${{ steps.diff.outputs.oracle }}
-      probes: ${{ steps.diff.outputs.probes }}
+      oracle: ${{ steps.plan.outputs.oracle }}
+      probes: ${{ steps.plan.outputs.probes }}
+      stability: ${{ steps.plan.outputs.stability }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: diff
-        name: Which probes must re-record, if any?
-        # TWO DECISIONS, because a full oracle run is now measured in HOURS: it re-records every
-        # declared probe TWICE, and each run boots the pinned server. On a push that changed one route
-        # that is most of this repository's CI cost for no extra information.
-        #
-        #   oracle=false              nothing a fixture depends on changed.
-        #   oracle=true, probes=""    run EVERY probe -- when the change can move any fixture
-        #                             (tools/lib/**, the generator, the inventories input, upstream/**),
-        #                             and on a schedule or by dispatch, which is now the only place a
-        #                             full re-record happens.
-        #   oracle=true, probes=<csv> re-record ONLY those probes: whose SCRIPT changed, plus every
-        #                             probe whose DECLARED fixture changed (resolved by grepping the
-        #                             declarations, so the mapping cannot drift from the probes).
-        #
-        # The zero-diff check still covers EVERY fixture, so narrowing removes recording work, not
-        # verification: a skipped probe whose output would have moved still fails this job.
+      - id: plan
+        name: Plan the oracle re-record
+        # The changed-file list is the only thing bash still computes here; the decision is JSON from
+        # the planner, printed in full so the log carries the reasons, not just a boolean.
         run: |
           set -eu
-          event="${{ github.event_name }}"
-          # A DISPATCH MAY NAME ITS SCOPE. Empty means every probe (a full parity sweep); a comma-separated list
-          # means exactly those. This is how an agent asks for the expensive proof deliberately, instead of
-          # waiting for a commit that happens to touch a shared input.
-          if [ "${event}" = "workflow_dispatch" ] && [ -n "${{ inputs.probes }}" ]; then
-            echo "dispatched run: re-recording the requested probes"
-            echo "oracle=true" >> "$GITHUB_OUTPUT"
-            echo "probes=${{ inputs.probes }}" >> "$GITHUB_OUTPUT"
-            exit 0
+          case "${{ github.event_name }}" in
+            schedule) run_type=schedule ;;
+            workflow_dispatch) run_type=dispatch ;;
+            *) run_type=push ;;
+          esac
+          if [ "${run_type}" = "push" ]; then
+            base="${{ github.event.before }}"
+            if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+              base="$(git rev-parse 'HEAD^' 2>/dev/null || echo '')"
+            fi
+            if [ -z "${base}" ]; then
+              echo "no parent commit to diff against: asking the planner for a full sweep"
+              node tools/oracle/plan.mjs --run-type dispatch > oracle-plan.json
+            else
+              git diff --name-only "${base}" HEAD > oracle-changed.txt
+              node tools/oracle/plan.mjs --run-type push --changed oracle-changed.txt > oracle-plan.json
+            fi
+          else
+            node tools/oracle/plan.mjs --run-type "${run_type}" --requested "${{ inputs.probes }}" > oracle-plan.json
           fi
-          if [ "${event}" = "schedule" ] || [ "${event}" = "workflow_dispatch" ]; then
-            echo "scheduled or dispatched run: re-recording every probe"
-            echo "oracle=true" >> "$GITHUB_OUTPUT"
-            echo "probes=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          base="${{ github.event.before }}"
-          if [ -z "${base}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            base="$(git rev-parse 'HEAD^' 2>/dev/null || echo '')"
-          fi
-          if [ -z "${base}" ]; then
-            echo "no parent commit to diff against; running the oracle"
-            echo "oracle=true" >> "$GITHUB_OUTPUT"
-            echo "probes=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          changed="$(git diff --name-only "${base}" HEAD)"
-          echo "${changed}"
-          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|tests/provider-wire/scenarios/|upstream/)'; then
-            echo "oracle=false" >> "$GITHUB_OUTPUT"
-            echo "probes=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if printf '%s\n' "${changed}" | grep -qE '^(tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|upstream/)'; then
-            echo "a shared input changed; re-recording every probe"
-            echo "oracle=true" >> "$GITHUB_OUTPUT"
-            echo "probes=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          probes=""
-          for path in ${changed}; do
-            case "${path}" in
-              tools/probe-*.mjs) probes="${probes} $(basename "${path}")" ;;
-                # A NEW SCENARIO INPUT IS A FIXTURE INPUT. tests/provider-wire/scenarios/*.json is discovered by
-                # probe-provider-wire.mjs, so adding one changes that fixture. Without this arm the selection saw only a
-                # Go/test change, ran no provider-wire recording, and 74 waiting inputs sat unrecorded while the job
-                # reported on probe-backends -- the bounded-selector lesson in workflow form.
-                tests/provider-wire/scenarios/*.json) probes="${probes} probe-provider-wire.mjs" ;;
-            esac
-          done
-          for path in ${changed}; do
-            case "${path}" in
-              tests/oracle/*.json)
-                fixture="$(basename "${path}")"
-                owners="$(grep -l "fixture=${fixture}" tools/probe-*.mjs 2>/dev/null | xargs -r -n1 basename || true)"
-                if [ -z "${owners}" ]; then
-                  echo "fixture ${fixture} is declared by no probe; re-recording everything"
-                  echo "oracle=true" >> "$GITHUB_OUTPUT"
-                  echo "probes=" >> "$GITHUB_OUTPUT"
-                  exit 0
-                fi
-                probes="${probes} ${owners}"
-                ;;
-            esac
-          done
-          selected="$(printf '%s\n' ${probes} | sort -u | tr '\n' ',' | sed 's/,$//')"
-          echo "oracle=true" >> "$GITHUB_OUTPUT"
-          echo "probes=${selected}" >> "$GITHUB_OUTPUT"
+          cat oracle-plan.json
+          node -e "
+            const plan = require('./oracle-plan.json');
+            require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, [
+              'oracle=' + String(plan.recordPinned),
+              'probes=' + (plan.full ? '' : plan.probes.join(',')),
+              'stability=' + plan.stabilityMode,
+            ].join('\n') + '\n');
+          "
       - name: Report the decision
         run: |
-          echo "oracle job will run: ${{ steps.diff.outputs.oracle }}"
-          echo "probes to re-record: '${{ steps.diff.outputs.probes }}' (empty means all)"
-
+          echo "oracle job will run: ${{ steps.plan.outputs.oracle }}"
+          echo "probes to re-record: '${{ steps.plan.outputs.probes }}' (empty with oracle=true means every probe)"
+          echo "stability mode: ${{ steps.plan.outputs.stability }}"
   oracle:
     needs: changes
     if: needs.changes.outputs.oracle == 'true'
@@ -193,11 +138,17 @@ jobs:
           echo "GOTAVERN_BINARY=${PWD}/.oracle-bin/gotavern" >> "$GITHUB_ENV"
       - name: Rebuild pinned assets, inventories, and Node oracle
         # GOTAVERN_ORACLE_PROBES narrows WHICH probes re-record; empty means every probe, which is
-        # what a schedule/dispatch run and any shared-input change does. The zero-diff step below still
-        # covers every fixture, so a narrowed run is cheaper, not weaker.
+        # what a schedule/dispatch run and any shared-input or unresolved-path change does. The choice
+        # is the planner's (`tools/oracle/plan.mjs`), not this file's.
+        #
+        # GOTAVERN_ORACLE_DOUBLE_RUN carries the planner's stabilityMode. It is the same policy the
+        # runner documents (full sweep -> every probe twice, narrowed -> once); passing it explicitly
+        # means the runner never has to re-derive it. The runner does not read the variable at HEAD, so
+        # this line is inert until the runner lands its half -- it cannot change today's behaviour.
         env:
           GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
           GOTAVERN_ORACLE_CONCURRENCY: ${{ inputs.oracle_concurrency }}
+          GOTAVERN_ORACLE_DOUBLE_RUN: ${{ needs.changes.outputs.stability == 'double' && 'all' || 'none' }}
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Capture the Linux re-record for retrieval
         # WHY THIS EXISTS. Some fixtures CANNOT be recorded faithfully on the Windows development host.
@@ -274,6 +225,12 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Verify the Oracle dependency graph and planner
+        # The `changes` job's decision is only as good as this gate: the graph, the planner and their
+        # table tests live in tools/oracle/ and are what replaced the selection rules that used to be
+        # written in this file. The glob is expanded by Node, not by bash, so the same command means
+        # the same set of files on every runner (a bare directory path is refused by Node 24).
+        run: node --test "tests/oracle/*.test.mjs"
       - name: Verify the release channel classifier decides tags correctly
         # `release.yml` and `docker.yml` both ask scripts/classify-version-tag.sh whether a tag is stable, and the
         # answer decides two things users feel: whether a tag becomes a GitHub PRE-release (so it is not what

@@ -63,14 +63,24 @@ streaming, persistence, the shared HTTP client, secrets, or static-asset routing
 
 - the nightly cron (`17 4 * * *`);
 - a `workflow_dispatch`, with an empty `probes` input for everything or a list for a named subset;
-- a push that touches a shared harness input (`tools/lib/**`, the generator, `upstream/**`), because such a
-  change can move any fixture;
+- a push that touches a shared harness input (`tools/lib/**`, the generator, `upstream/**`) or any path the
+  planner cannot attribute, because such a change can move any fixture;
 - a release candidate, by using the same dispatch.
 
 It must never be the default for an ordinary provider change, and it must never be skipped for a change that
-CAN move a fixture. The `changes` job in `.github/workflows/ci.yml` is the single place that decision lives,
-and it resolves the mapping by grepping the probes' own `@gotavern-oracle: fixture=` declarations, so the
-mapping cannot drift away from the probes.
+CAN move a fixture. That decision lives in CODE, not in YAML: `tools/oracle/manifest.mjs` derives one
+dependency graph from the probes' own `@gotavern-oracle: fixture=` declarations -- each probe's script,
+`tools/lib/` when it imports the harness, `tests/provider-wire/scenarios/` when it reads them, every
+`tools/<helper>/` Go program it runs, and a `go-product` edge when it records GoTavern's own output -- and
+`tools/oracle/plan.mjs` turns a changed-file list into a JSON plan. `tests/oracle/plan.test.mjs` is the
+table test over every rule and runs in the `verify` job. The `changes` job now only produces the
+changed-file list and reads that plan.
+
+Skipping the oracle is possible only when every changed path is on the planner's explicit irrelevant list.
+Anything else -- a Go change, an unknown directory, a path nothing declares -- forces a FULL sweep with the
+reason printed beside the decision. **The residual risk, stated rather than papered over:** a Go change that
+moves a fixture through a dependency the derivation cannot see is caught only by the nightly full sweep,
+because the per-push planner has no way to attribute it.
 
 ## What is not locally verifiable, and must not be pretended otherwise
 
