@@ -1,0 +1,671 @@
+name: GoTavern published-release install smoke
+
+# EXECUTE THE PUBLISHED RELEASE. Nothing in this repository used to.
+#
+# The three workflows that already exercise a release each stop short of the bytes a user downloads:
+#   - `release.yml` builds and uploads six archives, then PUBLISHES them. It never unpacks one;
+#   - `release-qualification.yml` asserts contents, modes, boot, update and rollback -- over archives it
+#     built ITSELF from the same source in the same run, never over a published asset;
+#   - `scripts/qualify-install.sh` runs BOTH installers, but against a LOOPBACK MIRROR, so no installer
+#     execution has ever resolved a real `github.com` release URL over TLS (HANDOFF §3, "NOT COVERED").
+#
+# So `docs/INSTALLATION.md` §11 item 2 -- "installer latest/version-pinned download path works" -- was
+# gated only against a mirror, which answers "the parsing and the mirror seam are right", not "the
+# published release is installable today". The gap was closed once by hand (the v0.1.0-alpha.1 audit) and
+# a hand audit is not a gate: it does not run again, and it does not run after the next tag.
+#
+# WHAT THIS WORKFLOW PROVES, in order:
+#   1. the tag the job names is a real release tag, it HAS a published release, and the local channel
+#      classifier agrees with the channel GitHub recorded (two independent sources, not one);
+#   2. every asset downloaded from that release matches the published `checksums.txt`, and that file is
+#      in the exact `<64 hex>  <bare name>` shape both installers parse -- line endings and the absent
+#      `./` prefix asserted on the BYTES, because a prefixed or CRLF file silently parses to no entry;
+#   3. all six archives are structurally sound, and the linux tar and windows zip are EXTRACTED and
+#      content-asserted against the release contract: binary, launcher, notices, BUILD-INFO naming the
+#      tag, `src/tokenizers/` non-empty and byte-identical to `upstream/tokenizers` AT THAT TAG, and no
+#      `config.yaml` / `data/` / `extensions/`;
+#   4. `install.sh --version <tag>` installs the real artefact over TLS into a scratch prefix, its
+#      checksum parse succeeds, and the prefix passes `assets verify` naming the `src/tokenizers` layout;
+#   5. the installed binary boots, `/version` answers, and the TOKENIZER ROUTES return real ids from
+#      `<root>/src/tokenizers` -- see the next block, because this is the assertion that the archive
+#      layout is actually USABLE and it is the one no other job makes;
+#   6. a prerelease tag never becomes `releases/latest`, so an alpha cannot reach a user who installed
+#      without pinning a version.
+#
+# WHY THE TOKENIZER CLAIM IS ROUTE-LEVEL, AND WHY IT CANNOT BE A STATUS CODE. `gotavern assets verify`
+# hashes the tree on disk against the embedded manifest, which proves the FILES are correct. It does not
+# prove the RUNNING server reads them: the routes try `<root>/src/tokenizers`, then `<root>/tokenizers`,
+# then `<root>/upstream/tokenizers`, and when none has the model they answer from the pinned fallback
+# with HTTP 200 -- `{"ids":[],"count":<a guesstimate>,"chunks":null}` for SentencePiece and
+# `{"ids":[],"count":0,"chunks":[]}` for tiktoken (internal/server/tokenizers.go). A wrong layout is
+# therefore a GREEN answer that counts every prompt wrong, which is exactly how the installer shipped
+# without `tokenizers/` for months. The assertion below is `ids` NON-EMPTY across two engines and three
+# models, so it can only pass when a real model file was loaded.
+#
+# WHAT A GREEN HERE DOES NOT COVER, stated so nobody reads it as more:
+#   - `install.ps1`, `Start.cmd`, Windows separators and replacing a RUNNING `gotavern.exe` are NOT
+#     executed: this runner is Linux. Those live in `release-qualification.yml`'s qualify-windows-amd64
+#     job (windows-latest) -- but against IN-RUN archives, so the published WINDOWS INSTALLER remains
+#     unexecuted by any job. The windows ZIP here is opened and content-asserted, never installed.
+#   - `releases/latest/download/...` is asserted NOT to serve a prerelease, not asserted to serve a
+#     stable one: no stable release exists yet, and inventing that expectation would be a promise the
+#     repository cannot currently keep.
+#   - the archives are booted on one platform only (linux-amd64). darwin and linux-arm64 are opened, not
+#     run; a runner of each architecture is the only thing that could change that.
+#
+# IT RUNS ON A SCHEDULE AND ON DEMAND, never per push: it downloads ~360 MB of release assets and boots
+# a server. It reads only the `main` tree, so it needs no build cache -- and therefore carries NO
+# `setup-go`: no step here compiles anything, and a toolchain cache with no consumer is a cost that
+# proves nothing. (This is the one deviation from the task's caching instruction, taken deliberately and
+# flagged in the lane report so it can be overruled in one line.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to smoke (leave empty for the newest v* tag)'
+        required: false
+        type: string
+  # TEMPORARY, AND TO BE REMOVED BEFORE THIS FILE LANDS ON `main`.
+  #
+  # `schedule` only ever fires on the default branch, and a branch-only `workflow_dispatch` answers
+  # "workflow not found on the default branch" -- measured, not assumed: it is recorded in
+  # smoke-metrics.yml's header, which was proved the same way. Without this trigger the first run of this
+  # file could only happen after the merge, leaving its timeout and its very syntax unmeasured. The final
+  # commit of this lane deletes these four lines; the run they produce is where the numbers in the
+  # header come from.
+  push:
+    branches: ['lane/release-smoke']
+    paths: ['.github/workflows/release-install-smoke.yml']
+  schedule:
+    # Thursdays, 05:47 UTC. Deliberately not the nightly oracle (`17 4 * * *`) or the Monday smoke-metrics
+    # slot (`23 5 * * 1`): a job that contends for a runner measures the queue, and GitHub honours an
+    # off-peak, non-round minute far more reliably than a round hour.
+    - cron: '47 5 * * 4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-install-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REPO: cocokoishi/GoTavern
+  PORT: '8899'
+  # THE CANONICAL NAMES, typed once. docs/INSTALLATION.md §2 and release.yml's build matrix are the
+  # source of truth; the step that compares them asserts equality rather than assuming it.
+  CANONICAL: >-
+    checksums.txt
+    gotavern-linux-amd64.tar.gz gotavern-linux-arm64.tar.gz
+    gotavern-darwin-amd64.tar.gz gotavern-darwin-arm64.tar.gz
+    gotavern-windows-amd64.zip gotavern-windows-arm64.zip
+
+jobs:
+  smoke-published-linux-amd64:
+    runs-on: ubuntu-latest
+    # SIZED FROM THE MEASURED RUN, not guessed: see the header of this file's lane report and the final
+    # commit of lane/release-smoke. The job downloads 7 assets (~360 MB), extracts two, runs one installer
+    # and boots the server once, so a wedged download or a server that never answers must fail here
+    # rather than hold a runner.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- 1. WHICH RELEASE, AND DOES IT EXIST -------------------------------------------------
+      - name: Resolve the release tag and refuse one that is not a version tag
+        id: release
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -eu
+          # EVERY TOOL THIS JOB ASSUMES IS ASSERTED, because a runner image change that drops one would
+          # otherwise surface as a confusing empty-variable failure much later.
+          for tool in gh jq curl git sha256sum tar unzip; do
+            command -v "$tool" >/dev/null 2>&1 || {
+              echo "::error::required tool missing from the runner: $tool" >&2
+              exit 1
+            }
+          done
+
+          # THE TAG IS NEVER FABRICATED. An empty input means "resolve", and the resolution is printed
+          # with its candidate list so the log proves which tag was chosen instead of implying it.
+          #
+          # `sed -n '1p'` rather than `head -n 1`: with GitHub's default `-o pipefail`, a reader that
+          # exits early can hand the writer a SIGPIPE and fail the step for no real reason.
+          if [ -n "${REQUESTED}" ]; then
+            VERSION="${REQUESTED}"
+            echo "tag source: workflow_dispatch input"
+          else
+            git fetch --tags --force --quiet origin
+            VERSION="$(git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/v*' | sed -n '1p')"
+            if [ -z "${VERSION}" ]; then
+              echo "::error::no v* tag exists in this repository, so there is no release to smoke" >&2
+              exit 1
+            fi
+            echo "tag source: newest v* tag in the repository"
+            echo "candidates, newest first:"
+            git for-each-ref --sort=-v:refname --format='  %(refname:short) %(objectname:short)' 'refs/tags/v*' | sed -n '1,10p'
+          fi
+          echo "release tag: ${VERSION}"
+
+          # The classifier is the SAME rule release.yml used to choose `--prerelease`/`--latest=false`, and
+          # it exits 2 for a name that is not version-shaped -- which doubles as the guard that the tag is
+          # safe to interpolate into a URL path and a directory name below. It is taken from the CHECKOUT
+          # (main), not from the tag, because an old tag can predate the script; the released tree is not
+          # required to be new enough to classify itself, and main's rule is the one under test.
+          channel="$(bash scripts/classify-version-tag.sh "${VERSION}")"
+          echo "channel per scripts/classify-version-tag.sh (from ${GITHUB_SHA}): ${channel}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+
+      - name: Fail loudly when the tag has no published release
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          CHANNEL: ${{ steps.release.outputs.channel }}
+        run: |
+          set -eu
+          if ! gh release view "${VERSION}" --repo "${REPO}" \
+                 --json tagName,isDraft,isPrerelease,assets,publishedAt > release.json 2> release-error.txt; then
+            echo "::error::tag ${VERSION} exists but has NO published release; there is nothing to smoke" >&2
+            cat release-error.txt >&2
+            exit 1
+          fi
+          cat release.json
+          echo
+
+          # A DRAFT RELEASE IS NOT DOWNLOADABLE ANONYMOUSLY, so it would fail later with a 404 that reads
+          # like a missing asset. Name it here instead.
+          draft="$(jq -r .isDraft release.json)"
+          if [ "${draft}" != "false" ]; then
+            echo "::error::release ${VERSION} is a DRAFT; a draft is not a published artefact" >&2
+            exit 1
+          fi
+
+          # TWO INDEPENDENT SOURCES MUST AGREE about the channel. GitHub's `prerelease` flag is what the
+          # publish step asked for; the classifier is the rule that decided it. If they disagree, either
+          # the release was created outside this pipeline or the rule changed under an existing tag, and
+          # both are worth failing on rather than reporting.
+          api_prerelease="$(jq -r .isPrerelease release.json)"
+          case "${CHANNEL}:${api_prerelease}" in
+            prerelease:true|stable:false) echo "channel cross-check: ok (${CHANNEL} / prerelease=${api_prerelease})" ;;
+            *)
+              echo "::error::the classifier says '${CHANNEL}' but GitHub records prerelease=${api_prerelease} for ${VERSION}" >&2
+              exit 1
+              ;;
+          esac
+
+          # THE EXACT ASSET SET, both ways: a missing canonical name breaks an installer at the user's
+          # machine, and an EXTRA uploaded file is a claim nobody verified. Counted, then compared.
+          printf '%s\n' ${CANONICAL} | LC_ALL=C sort > expected-assets.txt
+          jq -r '.assets[].name' release.json | LC_ALL=C sort > actual-assets.txt
+          jq -r '.assets[] | "  \(.name)  \(.size) bytes"' release.json
+          if ! diff -u expected-assets.txt actual-assets.txt > assets.diff; then
+            echo "::error::the release's asset set is not the canonical one:" >&2
+            cat assets.diff >&2
+            exit 1
+          fi
+          # A ZERO-BYTE ASSET is a successful upload of nothing; the API reports its size, so this costs
+          # no download.
+          zero="$(jq -r '[.assets[] | select(.size == 0) | .name] | join(", ")' release.json)"
+          if [ -n "${zero}" ]; then
+            echo "::error::zero-byte assets in the release: ${zero}" >&2
+            exit 1
+          fi
+
+      # ---- 2. THE PUBLISHED BYTES ---------------------------------------------------------------
+      - name: Download the published assets and verify every digest
+        run: |
+          set -eu
+          rm -rf dist && mkdir -p dist
+          gh release download "${{ steps.release.outputs.version }}" --repo "${REPO}" --dir dist
+          ls -l dist
+
+          # THE FORMAT IS AN INSTALLER CONTRACT, so it is asserted on the BYTES rather than eyeballed:
+          # install.sh:167 matches `$2 == asset` and install.ps1:92 matches `^([0-9A-Fa-f]{64})\s+\*?(.+)$`
+          # then trims. `sha256sum ./*.tar.gz` would write `./name` and both would parse to no entry, and a
+          # CRLF file leaves a trailing CR on the name field. Neither is visible in a rendered view.
+          if grep -q $'\r' dist/checksums.txt; then
+            echo "::error::dist/checksums.txt contains CR; the asset name field would carry a trailing CR" >&2
+            exit 1
+          fi
+          lines="$(wc -l < dist/checksums.txt)"
+          if [ "${lines}" -ne 6 ]; then
+            echo "::error::checksums.txt has ${lines} lines, expected 6 (one per archive)" >&2
+            cat dist/checksums.txt >&2
+            exit 1
+          fi
+
+          entry=0
+          while read -r hash name; do
+            entry=$((entry + 1))
+            if ! printf '%s' "${name}" | grep -Eq '^gotavern-(linux|darwin)-(amd64|arm64)\.tar\.gz$|^gotavern-windows-(amd64|arm64)\.zip$'; then
+              echo "::error::checksums.txt entry ${entry}: '${name}' is not a canonical bare asset name (no './' prefix, no suffix)" >&2
+              exit 1
+            fi
+            # THE INDEPENDENT RECOMPUTE. `sha256sum -c` below agrees with itself by construction, so this
+            # loop is what catches a line whose digest and file agree with each other but name a file the
+            # installer never asks for -- and it is the digest the user's installer will compare against.
+            actual="$(sha256sum "dist/${name}" | awk '{print $1}')"
+            if [ "${actual}" != "${hash}" ]; then
+              echo "::error::${name}: published ${hash}, downloaded ${actual}" >&2
+              exit 1
+            fi
+            echo "ok: ${name} ${actual}"
+          done < dist/checksums.txt
+
+          # And the format's own consumer, run literally, so the parse is exercised and not only reasoned
+          # about.
+          ( cd dist && sha256sum -c checksums.txt | tee ../checksums-verify.log )
+          ok_lines="$(grep -c ': OK$' checksums-verify.log || true)"
+          if [ "${ok_lines}" -ne 6 ]; then
+            echo "::error::sha256sum -c reported ${ok_lines} OK lines, expected 6" >&2
+            exit 1
+          fi
+
+          # A truncated asset would only match a checksums.txt generated from the same truncation by
+          # accident; the size floor catches the placeholder case the digest cannot.
+          for asset in dist/gotavern-*.tar.gz dist/gotavern-*.zip; do
+            size="$(stat -c%s "${asset}")"
+            if [ "${size}" -lt 1000000 ]; then
+              echo "::error::${asset} is only ${size} bytes, which is not a release archive" >&2
+              exit 1
+            fi
+          done
+
+      # ---- 3. THE ARCHIVES ----------------------------------------------------------------------
+      - name: Open one linux archive and one windows zip
+        run: |
+          set -eu
+          rm -rf linux-root win-root && mkdir -p linux-root win-root
+          tar -xzf dist/gotavern-linux-amd64.tar.gz -C linux-root
+          unzip -q dist/gotavern-windows-amd64.zip -d win-root
+          echo "linux-amd64 root:"
+          find linux-root -maxdepth 1 -mindepth 1 -printf '  %y %f\n' | LC_ALL=C sort
+          echo "windows-amd64 root:"
+          find win-root -maxdepth 1 -mindepth 1 -printf '  %y %f\n' | LC_ALL=C sort
+
+      - name: Assert the release contract inside both archives
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -eu
+
+          # assert_archive <root> <binary> <launcher> <label>
+          assert_archive() {
+            root="$1"; binary="$2"; launcher="$3"; label="$4"
+            fail() { echo "::error::${label}: $1" >&2; exit 1; }
+
+            [ -s "${root}/${binary}" ]               || fail "missing or empty ${binary}"
+            [ -s "${root}/${launcher}" ]             || fail "missing or empty launcher ${launcher}"
+            [ -s "${root}/LICENSE" ]                 || fail "missing or empty LICENSE"
+            [ -s "${root}/THIRD_PARTY_NOTICES.txt" ] || fail "missing or empty THIRD_PARTY_NOTICES.txt"
+            [ -s "${root}/BUILD-INFO.txt" ]          || fail "missing or empty BUILD-INFO.txt"
+
+            # BUILD-INFO MUST NAME THIS RELEASE. release.yml generates it from GITHUB_REF_NAME as
+            # "GoTavern release <tag>", so a mismatch means the archive came from a different tag.
+            grep -q "GoTavern release ${VERSION}" "${root}/BUILD-INFO.txt" || {
+              echo "::error::${label}: BUILD-INFO.txt does not name ${VERSION}:" >&2
+              cat "${root}/BUILD-INFO.txt" >&2
+              exit 1
+            }
+            echo "${label} BUILD-INFO.txt:"
+            sed 's/^/  /' "${root}/BUILD-INFO.txt"
+
+            # NO RUNTIME STATE. An archive carrying config.yaml or data/ would hand a user someone else's
+            # configuration, and an extensions/ directory would carry code the user never installed.
+            for forbidden in config.yaml data extensions; do
+              if [ -e "${root}/${forbidden}" ]; then
+                fail "the archive carries ${forbidden}, which must never ship"
+              fi
+            done
+
+            # THE TREE MUST EXIST *AND* BE REAL. Counted and sized, because an empty directory is the shape
+            # a packaging regression takes and `test -d` would accept it.
+            [ -d "${root}/src/tokenizers" ] || {
+              echo "::error::${label}: no src/tokenizers/; the runtime would silently guesstimate every count. It carries:" >&2
+              find "${root}" -maxdepth 2 -mindepth 1 | LC_ALL=C sort >&2
+              exit 1
+            }
+            files="$(find "${root}/src/tokenizers" -type f | wc -l)"
+            bytes="$(find "${root}/src/tokenizers" -type f -printf '%s\n' | awk '{n+=$1} END {print n+0}')"
+            empties="$(find "${root}/src/tokenizers" -type f -empty | wc -l)"
+            echo "${label} src/tokenizers: ${files} files, ${bytes} bytes, ${empties} empty"
+            [ "${files}" -gt 0 ] || fail "src/tokenizers/ holds no files"
+            [ "${empties}" -eq 0 ] || fail "src/tokenizers/ holds ${empties} empty file(s)"
+            # A real SentencePiece model is ~0.5-4 MB; this is a floor, not a size contract.
+            model_bytes="$(stat -c%s "${root}/src/tokenizers/llama.model" 2>/dev/null || echo 0)"
+            [ "${model_bytes}" -gt 100000 ] || fail "src/tokenizers/llama.model is missing or implausibly small"
+            # The duplicate-layout trap the qualification job already names: one archive must not ship both
+            # layouts, because the runtime would then be free to read a stale tree.
+            [ ! -e "${root}/tokenizers" ] || fail "carries a duplicate tokenizers/ tree at the archive root"
+          }
+
+          # Modes are asserted for the TAR only. `zip` records Unix permission bits as metadata and this
+          # extraction honours them, but a zip opened on Windows has no executable bit at all, so an -x
+          # assertion on the windows payload would encode this runner's behaviour rather than the contract.
+          assert_archive linux-root gotavern start.sh linux-amd64
+          [ -x linux-root/gotavern ] || { echo "::error::linux-amd64: gotavern is not executable" >&2; exit 1; }
+          [ -x linux-root/start.sh ] || { echo "::error::linux-amd64: start.sh is not executable" >&2; exit 1; }
+          echo "ok: linux-amd64 launchers are executable (gotavern, start.sh)"
+
+          assert_archive win-root gotavern.exe Start.cmd windows-amd64
+
+          # The remaining four archives are OPENED, not extracted: this proves each is a readable archive
+          # carrying the release payload, at the cost of a listing rather than another 240 MB of disk. Both
+          # launcher spellings are accepted here because the payload differs by format, and the two
+          # archives that matter were asserted strictly above.
+          for asset in dist/gotavern-*.tar.gz dist/gotavern-*.zip; do
+            name="$(basename "${asset}")"
+            case "${name}" in
+              gotavern-linux-amd64.tar.gz|gotavern-windows-amd64.zip) continue ;;
+            esac
+            case "${name}" in
+              *.tar.gz) listing="$(tar -tzf "${asset}")" || { echo "::error::${name} is not a readable tar.gz" >&2; exit 1; } ;;
+              *.zip)    listing="$(unzip -Z1 "${asset}")" || { echo "::error::${name} is not a readable zip" >&2; exit 1; } ;;
+            esac
+            for want in '(^|/)gotavern(\.exe)?$' 'BUILD-INFO\.txt$' 'LICENSE$' 'THIRD_PARTY_NOTICES\.txt$' 'src/tokenizers/'; do
+              printf '%s\n' "${listing}" | grep -Eq "${want}" || {
+                echo "::error::${name} listing lacks an entry matching ${want}" >&2
+                exit 1
+              }
+            done
+            echo "ok: ${name} listing carries both launcher/binary payloads, the notices and src/tokenizers/"
+          done
+
+      - name: Require the archived tokenizer tree to be byte-identical to upstream/tokenizers at that tag
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -eu
+          # THE COMPARISON IS AGAINST THE TAG'S OWN TREE, not the checkout's: the release was built from
+          # that commit, and comparing with main would silently pass an archive whose vendored model files
+          # were changed after the tag existed.
+          git fetch --depth 1 --force origin "refs/tags/${VERSION}:refs/tags/${VERSION}"
+          tag_commit="$(git rev-parse --verify "${VERSION}^{commit}")"
+          echo "tag ${VERSION} -> commit ${tag_commit}"
+          rm -rf ref-tree && mkdir -p ref-tree
+          git archive "${tag_commit}" upstream/tokenizers | tar -x -C ref-tree
+          [ -d ref-tree/upstream/tokenizers ] || {
+            echo "::error::the tag carries no upstream/tokenizers to compare against" >&2
+            exit 1
+          }
+
+          ref_files="$(find ref-tree/upstream/tokenizers -type f | wc -l)"
+          echo "upstream/tokenizers at ${VERSION}: ${ref_files} files"
+
+          # `diff -r` reports a missing file, an extra file AND a differing byte, which is why it is used
+          # rather than a count comparison: equal counts with one swapped file would pass a count.
+          for root in linux-root/src/tokenizers win-root/src/tokenizers; do
+            if ! diff -r --brief ref-tree/upstream/tokenizers "${root}" > tokenizers.diff 2>&1; then
+              echo "::error::${root} differs from upstream/tokenizers at ${VERSION}:" >&2
+              cat tokenizers.diff >&2
+              exit 1
+            fi
+            echo "ok: ${root} is byte-identical to upstream/tokenizers at ${VERSION} (${ref_files} files)"
+          done
+
+      # ---- 4. THE INSTALLER, OVER THE REAL NETWORK ----------------------------------------------
+      - name: Install the published release with install.sh over TLS
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -eu
+          # THE INSTALLER IS MAIN'S, not the tag's, and that is the deliberate choice: the documented
+          # install command fetches the DEFAULT BRANCH script, so this is the path a user takes today when
+          # they install an older release. The digest is printed so the log names which installer ran.
+          echo "installer: install.sh at ${GITHUB_SHA}, sha256 $(sha256sum install.sh | awk '{print $1}')"
+
+          # `--version` IS THE TAG SEAM (install.sh:32-35). There is no `GOTAVERN_VERSION` environment
+          # variable anywhere in this repository, and inventing one here would smuggle a product change
+          # into a test; the flag is what the documented interface takes.
+          #
+          # NO GOTAVERN_RELEASES_BASE_URL: the whole point is that this run resolves
+          # https://github.com/<repo>/releases/download/<tag>/... over TLS, which every other installer
+          # execution in this repository reaches only through a loopback mirror.
+          prefix="${PWD}/install-prefix"
+          rm -rf "${prefix}"
+          sh ./install.sh --dir "${prefix}" --version "${VERSION}" 2>&1 | tee installer.log
+
+          # The parse the user depends on, asserted by the line the installer prints only when the entry
+          # resolved AND the digest compared equal (install.sh:167-180).
+          grep -q '^Checksum verified\.$' installer.log || {
+            echo "::error::the installer did not report a verified checksum; its checksum parse failed" >&2
+            exit 1
+          }
+          grep -q "release: ${VERSION}" installer.log || {
+            echo "::error::the installer did not report release: ${VERSION}" >&2
+            exit 1
+          }
+          grep -q "Installed GoTavern into: ${prefix}" installer.log || {
+            echo "::error::the installer did not report installing into ${prefix}" >&2
+            exit 1
+          }
+
+          [ -x "${prefix}/gotavern" ] || { echo "::error::the installed prefix has no executable gotavern" >&2; exit 1; }
+          [ -x "${prefix}/start.sh" ] || { echo "::error::the installed prefix has no executable start.sh" >&2; exit 1; }
+          [ -d "${prefix}/src/tokenizers" ] || { echo "::error::the installed prefix has no src/tokenizers/" >&2; exit 1; }
+          find "${prefix}" -maxdepth 2 -mindepth 1 -printf '  %y %P\n' | LC_ALL=C sort
+
+          # THE INSTALLED BINARY MUST BE THE RELEASE'S BUILD. release.yml passes
+          # -X main.version=${GITHUB_REF_NAME}, so `gotavern version` printing the tag is the proof that
+          # this prefix holds the published build rather than a stale or locally produced one.
+          "${prefix}/gotavern" version | tee version.txt
+          grep -q "${VERSION}" version.txt || {
+            echo "::error::the installed binary does not report ${VERSION}; it is not the published build" >&2
+            exit 1
+          }
+
+          # The installer contract's own gate, run from the INSTALLED prefix, and it must name the RELEASE
+          # layout. This proves the FILES; the next step proves the running server uses them.
+          "${prefix}/gotavern" assets verify 2>&1 | tee assets-verify.log
+          grep -q '/src/tokenizers' assets-verify.log || {
+            echo "::error::assets verify did not confirm the src/tokenizers layout" >&2
+            exit 1
+          }
+
+      # ---- 5. BOOT IT AND MAKE THE ROUTES PROVE THE TREE ---------------------------------------
+      - name: Boot the installed binary and require /version
+        run: |
+          set -eu
+          work="${PWD}/smoke-work"
+          rm -rf "${work}" && mkdir -p "${work}/data"
+          BIN="${PWD}/install-prefix/gotavern"
+
+          # CWD IS THE INSTALL PREFIX because config.yaml resolves against the working directory -- the
+          # same shape release-qualification.yml boots, so a difference here is not a difference in how
+          # the server is started.
+          ( cd install-prefix && exec "${BIN}" start --port "${PORT}" --dataRoot "${work}/data" ) > server.log 2>&1 &
+          echo $! > server.pid
+
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${PORT}/version" -o version-endpoint.json 2>/dev/null; then
+              echo "GET /version after ${attempt}s:"
+              cat version-endpoint.json
+              echo
+              exit 0
+            fi
+            if ! kill -0 "$(cat server.pid)" 2>/dev/null; then
+              echo "::error::the installed binary exited before answering /version:" >&2
+              cat server.log >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::the installed binary never answered /version within 60 s:" >&2
+          cat server.log >&2
+          exit 1
+
+      - name: Require the tokenizer routes to load a REAL model, not the guesstimate fallback
+        run: |
+          set -eu
+          cookies="${PWD}/smoke-work/cookies.txt"
+          base="http://127.0.0.1:${PORT}"
+
+          # THE CSRF HANDSHAKE IS THE BROWSER'S, done in full because the fallback and the real answer are
+          # both HTTP 200 -- a 403 here must not be mistaken for a tokenizer finding. GET /csrf-token is
+          # public (internal/server/accounts.go:421); the token is then sent in the header the pinned
+          # middleware reads (internal/server/csrf_session.go:229), with the session cookie curl keeps.
+          csrf_status="$(curl -sS -c "${cookies}" -b "${cookies}" -o csrf.json -w '%{http_code}' "${base}/csrf-token")"
+          if [ "${csrf_status}" != "200" ]; then
+            echo "::error::GET /csrf-token = ${csrf_status}, so the tokenizer assertion could not run" >&2
+            exit 1
+          fi
+          token="$(jq -r .token csrf.json)"
+          if [ -z "${token}" ] || [ "${token}" = "null" ]; then
+            echo "::error::GET /csrf-token returned no token:" >&2
+            cat csrf.json >&2
+            exit 1
+          fi
+          echo "csrf handshake: 200, token ${#token} chars"
+
+          # TWO ENGINES, THREE MODELS, and the discriminator is the SAME for all of them:
+          #
+          #   real      {"ids":[<non-empty>],"count":<len(ids)>,"chunks":[...]}
+          #   fallback  {"ids":[],"count":<guesstimate or 0>,"chunks":null or []}
+          #
+          # so `ids` non-empty separates a loaded model from the pinned Guesstimate path, and
+          # `count == len(ids)` additionally rejects a response carrying a stale count. The text is a real
+          # sentence rather than "" because an empty string tokenizes to zero ids even from a real model,
+          # which would make the assertion vacuous.
+          text='Hello, world! This is the GoTavern release smoke test, and it must tokenize for real.'
+          for model in llama mistral gpt2; do
+            body="$(jq -cn --arg t "${text}" '{text: $t}')"
+            response="encode-${model}.json"
+            status="$(curl -sS -c "${cookies}" -b "${cookies}" \
+                        -H "X-CSRF-Token: ${token}" -H 'Content-Type: application/json' \
+                        -d "${body}" -o "${response}" -w '%{http_code}' \
+                        "${base}/api/tokenizers/${model}/encode")"
+            if [ "${status}" != "200" ]; then
+              echo "::error::POST /api/tokenizers/${model}/encode = ${status}" >&2
+              cat "${response}" >&2
+              exit 1
+            fi
+            ids="$(jq -r '.ids | length' "${response}")"
+            count="$(jq -r '.count' "${response}")"
+            chunks="$(jq -r '.chunks | type' "${response}")"
+            echo "/api/tokenizers/${model}/encode: ${ids} ids, count=${count}, chunks=${chunks}"
+            if [ "${ids}" -eq 0 ]; then
+              echo "::error::${model}/encode returned NO ids. That is the Guesstimate fallback signature: the" >&2
+              echo "::error::running server did not load a model from <root>/src/tokenizers. Response:" >&2
+              cat "${response}" >&2
+              exit 1
+            fi
+            if [ "${count}" -ne "${ids}" ]; then
+              echo "::error::${model}/encode: count=${count} but ids holds ${ids} entries" >&2
+              exit 1
+            fi
+          done
+          echo "ok: three models across two engines returned real ids from the installed src/tokenizers tree"
+
+      # ---- 6. AN ALPHA MUST NEVER BECOME `latest` ----------------------------------------------
+      - name: Assert releases/latest does not serve a prerelease
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          CHANNEL: ${{ steps.release.outputs.channel }}
+        run: |
+          set -eu
+          # `releases/latest` is what both installers fetch when no version is pinned, and GitHub resolves
+          # it to the newest NON-prerelease release. So this is the assertion that a user who runs the
+          # documented one-liner can never receive an alpha.
+          url="https://github.com/${REPO}/releases/latest/download/checksums.txt"
+          status="$(curl -sS -L -o latest-checksums.txt -w '%{http_code}' "${url}" || true)"
+          echo "GET ${url} -> ${status}"
+          if [ -s latest-checksums.txt ]; then
+            echo "latest/download/checksums.txt sha256: $(sha256sum latest-checksums.txt | awk '{print $1}')"
+          fi
+          echo "this release's checksums.txt sha256:   $(sha256sum dist/checksums.txt | awk '{print $1}')"
+
+          if [ "${CHANNEL}" = "prerelease" ]; then
+            # TWO WAYS TO BE CORRECT, and both are checked: either `latest` serves nothing at all (no
+            # stable release exists yet, which is the current state, so the default install path fails
+            # loudly rather than silently) or it serves SOMETHING ELSE -- and "something else" is decided
+            # by the BYTES, not by a status code.
+            case "${status}" in
+              200)
+                if cmp -s latest-checksums.txt dist/checksums.txt; then
+                  echo "::error::releases/latest/download/checksums.txt is ${VERSION}'s own file: a PRERELEASE" >&2
+                  echo "::error::has become the repository's latest release, so every unpinned install would" >&2
+                  echo "::error::receive it. release.yml must pass --prerelease --latest=false." >&2
+                  exit 1
+                fi
+                echo "ok: latest serves a DIFFERENT release than the prerelease ${VERSION}"
+                ;;
+              404)
+                echo "ok: latest serves nothing, because no stable release exists yet; an unpinned install"
+                echo "    fails loudly instead of receiving the prerelease ${VERSION}"
+                ;;
+              *)
+                echo "::error::unexpected status ${status} for ${url}" >&2
+                exit 1
+                ;;
+            esac
+            # And the tag-addressed path DOES work, which is the installer path for a pinned prerelease.
+            tag_status="$(curl -sS -L -o /dev/null -w '%{http_code}' \
+              "https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt" || true)"
+            echo "GET releases/download/${VERSION}/checksums.txt -> ${tag_status}"
+            if [ "${tag_status}" != "200" ]; then
+              echo "::error::the tag-addressed download path returns ${tag_status}; install.sh --version ${VERSION} could not work" >&2
+              exit 1
+            fi
+          else
+            # A STABLE tag must be servable as latest. If it is not, `latest/download` is broken for real
+            # users, which is a different and louder failure than an alpha leak.
+            if [ "${status}" != "200" ]; then
+              echo "::error::${VERSION} is a stable tag but releases/latest serves ${status}" >&2
+              exit 1
+            fi
+            latest_tag="$(gh api "repos/${REPO}/releases/latest" --jq .tag_name)"
+            latest_pre="$(gh api "repos/${REPO}/releases/latest" --jq .prerelease)"
+            echo "releases/latest is ${latest_tag} (prerelease=${latest_pre})"
+            if [ "${latest_pre}" != "false" ]; then
+              echo "::error::releases/latest resolves to a prerelease (${latest_tag})" >&2
+              exit 1
+            fi
+          fi
+
+      # ---- EVIDENCE, AND THE STATE A RED RUN NEEDS ---------------------------------------------
+      - name: Write the summary
+        if: always()
+        run: |
+          {
+            echo "## Published-release install smoke"
+            echo
+            echo "| fact | value |"
+            echo "|---|---|"
+            echo "| release tag | \`${{ steps.release.outputs.version }}\` |"
+            echo "| channel (classifier) | \`${{ steps.release.outputs.channel }}\` |"
+            echo "| installer | \`install.sh\` at \`${GITHUB_SHA}\`, \`--version\` (tag-addressed, real github.com over TLS) |"
+            echo "| runner | ${ImageOS:-unknown} ${ImageVersion:-} |"
+            if [ -s version.txt ]; then
+              echo "| installed binary | \`$(tr -d '\n' < version.txt)\` |"
+            fi
+            for model in llama mistral gpt2; do
+              if [ -s "encode-${model}.json" ]; then
+                echo "| /api/tokenizers/${model}/encode | $(jq -c '{ids: (.ids|length), count, chunks: (.chunks|type)}' "encode-${model}.json") |"
+              fi
+            done
+            echo
+            echo "Every digest was recomputed after download; the linux tar and windows zip were extracted and"
+            echo "content-asserted; the tokenizer routes returned real ids (the fallback answers \`ids:[]\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report failure context
+        if: failure()
+        run: |
+          echo "::group::server log"
+          if [ -f server.log ]; then tail -100 server.log; else echo "(no server.log)"; fi
+          echo "::endgroup::"
+          echo "::group::installer log"
+          if [ -f installer.log ]; then tail -60 installer.log; else echo "(no installer.log)"; fi
+          echo "::endgroup::"
+          echo "::group::tokenizer responses"
+          for f in encode-llama.json encode-mistral.json encode-gpt2.json; do
+            if [ -f "$f" ]; then echo "--- $f ---"; cat "$f"; echo; fi
+          done
+          echo "::endgroup::"
+          echo "::group::checksums and asset set"
+          if [ -f dist/checksums.txt ]; then cat dist/checksums.txt; else echo "(no checksums.txt)"; fi
+          if [ -f assets.diff ]; then cat assets.diff; fi
+          echo "::endgroup::"
