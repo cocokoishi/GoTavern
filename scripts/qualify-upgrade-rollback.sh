@@ -237,6 +237,21 @@ INSTALLED_TAG=$("$INSTALLED" version --json | python3 -c 'import json,sys; print
 [ "$INSTALLED_TAG" = "$OLDER_TAG" ] || fail "the installed binary reports $INSTALLED_TAG, expected the older tag $OLDER_TAG"
 ok "installed the older release $OLDER_TAG through install.sh and the mirror seam"
 
+# THE OLDER RELEASE'S OWN BINARY DOES NOT KNOW THE src/tokenizers TIER. This installer ships with the CURRENT
+# source and installs the PINNED layout (`<prefix>/src/tokenizers`), which is what a user installing THIS release
+# gets -- but the older archive's binary only looks at `<prefix>/tokenizers` and `<prefix>/upstream/tokenizers`, so
+# `assets verify` from the older prefix would fail against a tree no installer of its era could have produced.
+#
+# Reproducing the state a user of the older release actually had means mirroring the tree to the legacy path: the
+# SAME bytes, because both releases vendor the same tokenizer tree (asserted just below, where the installed tree
+# is compared with the older archive's own manifest). This is a harness accommodation and it says so: the point of
+# this job is UPDATE AND ROLLBACK over a user tree written by a different build, not a binary judged against a
+# layout that did not exist when it was built.
+[ -d "$PREFIX/src/tokenizers" ] || fail "the installer did not install src/tokenizers/, so the older release's tree cannot be reproduced"
+rm -rf "$PREFIX/tokenizers"
+cp -R "$PREFIX/src/tokenizers" "$PREFIX/tokenizers"
+ok "mirrored the tree to the legacy root path, which is the layout $OLDER_TAG's own installer produced"
+
 ( cd "$PREFIX" && "$INSTALLED" assets verify ) >"$WORK_ROOT/assets-older.log" 2>&1 \
     || fail "assets verify failed from the installed prefix for $OLDER_TAG"
 ok "assets verify passes from the prefix for $OLDER_TAG"
