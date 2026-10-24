@@ -38,6 +38,18 @@ import {
     sharedWritePaths,
 } from './oracle/execution.mjs';
 
+import {
+    BUILD_LOCK_FILE,
+    BUILD_ROOT_ENV,
+    buildLockRecord,
+    buildRootReuseDecision,
+    formatBuildRootDecision,
+    formatTempBuildRoot,
+    isSafeBuildRoot,
+    parseBuildLock,
+    resolveBuildRootMode,
+} from './oracle/build-root.mjs';
+
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -306,17 +318,117 @@ for (const relative of [
     }
 }
 
+// THE REPEATED COST. Every run used to pay mkdtemp + `git clone --shared` + `git checkout` of the
+// pinned commit + `npm ci` before it recorded anything, and none of that depends on WHICH probes run.
+// GOTAVERN_ORACLE_BUILD_ROOT=<dir> keeps that tree between runs; the decision whether the directory is
+// provably usable lives in tools/oracle/build-root.mjs (pure, unit-tested), and this file does the I/O.
+//
+// UNSET KEEPS TODAY'S BEHAVIOUR EXACTLY: a temporary root, cloned and deleted inside one run, so a
+// developer run and a fixture-only CI run cannot inherit anything.
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-upstream-webpack-'));
-const buildRoot = path.join(tempRoot, 'source');
+const buildRootMode = resolveBuildRootMode({ envValue: process.env[BUILD_ROOT_ENV] });
+const buildRoot = buildRootMode.mode === 'persistent'
+    ? path.resolve(buildRootMode.dir)
+    : path.join(tempRoot, 'source');
 const outputPath = path.join(repositoryRoot, 'upstream', 'generated', 'lib.js');
 
+// WHAT A REUSED ROOT MUST PROVE: the pinned commit, the exact dependency graph (the reference's
+// package-lock.json), and the Node that installed it. The node version is part of the identity because
+// build-info.json records it and a different Node can change what a bundler emits.
+//
+// Computed ONLY for a persistent root, so the temporary path performs exactly the I/O it performed
+// before this feature existed.
+const buildRootIdentity = buildRootMode.mode === 'persistent'
+    ? buildLockRecord({
+        commit: PINNED_COMMIT,
+        lockHash: createHash('sha256').update(readFileSync(path.join(upstreamRoot, 'package-lock.json'))).digest('hex'),
+        nodeVersion: process.version,
+    })
+    : null;
+
+// Probes a persistent root without trusting anything in it: a directory that is not a git checkout, is
+// on the wrong commit, has no node_modules, has no (or an unreadable) lock, or has modified tracked
+// files is reported as a rebuild, never repaired.
+function inspectBuildRoot(dir) {
+    let headSha = null;
+    try {
+        headSha = execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    } catch {
+        headSha = null;
+    }
+    let worktreeClean = false;
+    if (headSha) {
+        try {
+            // --untracked-files=no on purpose: the webpack output and the copied probe scripts are
+            // untracked BY DESIGN, and counting them as dirt would make reuse impossible.
+            worktreeClean = execFileSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).trim() === '';
+        } catch {
+            worktreeClean = false;
+        }
+    }
+    let lockText = null;
+    try {
+        lockText = readFileSync(path.join(dir, BUILD_LOCK_FILE), 'utf8');
+    } catch {
+        lockText = null;
+    }
+    return buildRootReuseDecision({
+        headSha,
+        worktreeClean,
+        nodeModulesPresent: existsSync(path.join(dir, 'node_modules')),
+        lock: parseBuildLock(lockText),
+        expected: buildRootIdentity,
+    });
+}
+
+const buildRootDecision = buildRootMode.mode === 'persistent' ? inspectBuildRoot(buildRoot) : null;
+if (buildRootMode.mode === 'persistent') {
+    // ONE LINE, printed once, so a reviewer can tell whether the persistence worked instead of
+    // assuming it: "build root: reuse <dir> (pinned ..., lock ...)" or "build root: rebuild <dir> (why)".
+    console.log(formatBuildRootDecision({ dir: buildRoot, decision: buildRootDecision }));
+    if (!buildRootDecision.reuse) {
+        if (!isSafeBuildRoot({ dir: buildRoot, protectedPaths: [repositoryRoot, upstreamRoot, tempRoot] })) {
+            throw new Error(
+                `refusing to wipe the reusable build root ${buildRoot}: it is the repository, the pinned `
+                + 'reference checkout, this run\'s temporary root, something inside any of those, or an '
+                + 'ancestor of any of them. A wipe here would delete the checkout the fixtures are recorded '
+                + 'from (or the whole temp tree), so GOTAVERN_ORACLE_BUILD_ROOT must name a dedicated '
+                + 'directory, outside the repository.');
+        }
+        // WIPE AND REBUILD IN PLACE. Never repair a half-built tree: a clone that lost its install, or an
+        // npm ci that died midway, builds a lib.js that is NEARLY right, and no fixture would name the
+        // difference.
+        rmSync(buildRoot, { recursive: true, force: true });
+    }
+} else {
+    console.log(formatTempBuildRoot({ dir: buildRoot }));
+}
+
 try {
-    run('git', ['clone', '--shared', '--no-checkout', upstreamRoot, buildRoot], repositoryRoot);
-    // Give the isolated runtime probe a stable branch name. The checkout is
-    // still pinned to the exact commit, but /version's branch field is now a
-    // real and reproducible observation instead of a machine-dependent value.
-    run('git', ['checkout', '--force', '-B', 'release', PINNED_COMMIT], buildRoot);
-    runNpm(['ci', '--no-audit', '--no-fund'], buildRoot);
+    if (buildRootDecision && buildRootDecision.reuse) {
+        // REUSE: give the bundler the same starting state a fresh clone would, and keep only the install.
+        // `git clean -xdf -e node_modules` removes every untracked and ignored file -- including
+        // `dist/_webpack`, which pinned webpack.config.js would otherwise adopt as its own filesystem
+        // cache (forceDist roots it at <cwd>/dist/_webpack; pruneCache deletes only cache directories
+        // whose version differs, so this run's cache would be a PREVIOUS run's). The saving is the clone
+        // and the dependency install; the library is still built cold, from the same empty state.
+        run('git', ['clean', '-xdfq', '-e', 'node_modules'], buildRoot);
+        // `git clean` removed the lock with the other untracked files, and this root is still the tree the
+        // decision just proved, so its completeness claim is rewritten before anything can depend on it.
+        writeFileSync(path.join(buildRoot, BUILD_LOCK_FILE), `${JSON.stringify(buildRootIdentity, null, 2)}\n`);
+    } else {
+        run('git', ['clone', '--shared', '--no-checkout', upstreamRoot, buildRoot], repositoryRoot);
+        // Give the isolated runtime probe a stable branch name. The checkout is
+        // still pinned to the exact commit, but /version's branch field is now a
+        // real and reproducible observation instead of a machine-dependent value.
+        run('git', ['checkout', '--force', '-B', 'release', PINNED_COMMIT], buildRoot);
+        runNpm(['ci', '--no-audit', '--no-fund'], buildRoot);
+        if (buildRootMode.mode === 'persistent') {
+            // WRITTEN LAST, because it IS the claim "this root is complete": a job that dies during npm ci
+            // must leave a root the next run rebuilds rather than one it reuses.
+            writeFileSync(path.join(buildRoot, BUILD_LOCK_FILE), `${JSON.stringify(buildRootIdentity, null, 2)}\n`);
+        }
+    }
 
     const inventoryScript = path.join(buildRoot, '.gotavern-generate-inventories.mjs');
     copyFileSync(path.join(repositoryRoot, 'tools', 'generate-upstream-inventories.mjs'), inventoryScript);

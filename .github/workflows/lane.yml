@@ -35,6 +35,11 @@ concurrency:
 jobs:
   lane:
     runs-on: ubuntu-latest
+    # MEASURED: 1m52s - 2m20s on the lane runs of this workflow (gofmt, two Go builds, four release/binary
+    # builds, vet, and the whole Go suite with -count=1). Thirty minutes is ~13x that, which absorbs a cold
+    # module cache, while a wedged test or a hung build fails the lane at 30 min instead of GitHub's
+    # 360-minute default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
