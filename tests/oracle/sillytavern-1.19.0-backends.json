@@ -3496,6 +3496,150 @@
         "replayed": true,
         "peer": "mock"
       },
+      "status.ai21.noBranch": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "ai21"
+        },
+        "bodyText": "{\"chat_completion_source\":\"ai21\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.ai21.reverseProxy": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "ai21",
+          "reverse_proxy": "https://probe.invalid/v1",
+          "proxy_password": "probe"
+        },
+        "bodyText": "{\"chat_completion_source\":\"ai21\",\"reverse_proxy\":\"https://probe.invalid/v1\",\"proxy_password\":\"probe\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.vertexai.noBranch": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "vertexai"
+        },
+        "bodyText": "{\"chat_completion_source\":\"vertexai\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.vertexai.reverseProxy": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "vertexai",
+          "reverse_proxy": "https://probe.invalid/v1",
+          "proxy_password": "probe"
+        },
+        "bodyText": "{\"chat_completion_source\":\"vertexai\",\"reverse_proxy\":\"https://probe.invalid/v1\",\"proxy_password\":\"probe\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.perplexity.noBranch": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "perplexity"
+        },
+        "bodyText": "{\"chat_completion_source\":\"perplexity\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
+      "status.perplexity.reverseProxy": {
+        "route": "chat-completions/status",
+        "query": "",
+        "body": {
+          "chat_completion_source": "perplexity",
+          "reverse_proxy": "https://probe.invalid/v1",
+          "proxy_password": "probe"
+        },
+        "bodyText": "{\"chat_completion_source\":\"perplexity\",\"reverse_proxy\":\"https://probe.invalid/v1\",\"proxy_password\":\"probe\"}",
+        "seam": null,
+        "secrets": {
+          "api_key_chutes": "probe-chutes-key",
+          "api_key_mistralai": "probe-mistral-key",
+          "api_key_xai": "probe-xai-key",
+          "api_key_moonshot": "probe-moonshot-key",
+          "api_key_workers_ai": "probe-workers-key",
+          "api_key_koboldcpp": "probe-koboldcpp-key",
+          "api_key_generic": "probe-generic-key",
+          "api_key_tabby": "probe-tabby-key",
+          "api_key_custom": "probe-custom-key"
+        },
+        "upstream": [],
+        "replayed": true,
+        "peer": "mock"
+      },
       "status.deepseek.ok": {
         "route": "chat-completions/status",
         "query": "",
@@ -7274,6 +7418,162 @@
       }
     },
     "status.claude.reverseProxy": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.ai21.noBranch": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.ai21.reverseProxy": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.vertexai.noBranch": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.vertexai.reverseProxy": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.perplexity.noBranch": {
+      "status": 400,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "14",
+      "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+      "specialHeader": null,
+      "body": "{\"error\":true}",
+      "outbound": [],
+      "comparison": {
+        "compared": [
+          "status",
+          "contentType",
+          "contentLength",
+          "etag",
+          "specialHeader",
+          "body",
+          "outbound"
+        ],
+        "shape": [
+          "outbound[].transportConnection"
+        ],
+        "shapeReason": {
+          "outbound[].transportConnection": "the stub records the headers the route passed, not the transport Connection Node would append; the value is a property of the shared outbound client, so the replay asserts presence only"
+        }
+      }
+    },
+    "status.perplexity.reverseProxy": {
       "status": 400,
       "contentType": "application/json; charset=utf-8",
       "contentLength": "14",
