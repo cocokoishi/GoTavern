@@ -20,6 +20,25 @@
 #
 # COST. Each source costs six browser drives (stream, cancel, non-stream x two legs) plus a generation
 # pair, so a full sweep is ~30-60 minutes. Narrow it with the `sources` input.
+#
+# SETUP IS PERSISTED, NOT REPEATED. Three actions/cache entries (pinned server node_modules, harness
+# node_modules, Playwright's browser download) are restored before the installs and let an install step
+# SKIP, and each key is composed so a hit can only mean "this is the install this run would have made":
+# the pinned commit + that checkout's lockfile for the reference, the harness lockfile for the harness
+# and for the browser bundle. Measured on run 40068803201 (no cache), setup was only 1.2 minutes, so the
+# saving today is small; what the cache really buys is that the dependency state is stated by a key
+# instead of implied by whatever the runner image happens to carry, and that the setup cost does not
+# grow with every dependency the harness acquires.
+#
+# WHAT A HIT CAN STILL HIDE, stated because a skip is a decision not to run something:
+#   * a cached node_modules that is INCOMPLETE — the key proves which install it should be, never that
+#     the archive is intact. A truncated cache restores, skips `npm ci`, and fails later inside a drive;
+#   * for Playwright, the OS packages are NOT cached (they are apt-installed), which is why a browser-cache
+#     hit still runs `playwright install-deps` rather than skipping the whole step;
+#   * a stale cache whose key still matches cannot happen by construction (the key contains the commit and
+#     the lockfile hash, and no restore-keys are configured), but a cache written by a DIFFERENT workflow
+#     with the same key could. The key prefix per cache is that guard, and it is why the three prefixes
+#     differ.
 
 name: Browser differential
 
@@ -64,10 +83,23 @@ concurrency:
   group: browser-differential-${{ github.ref }}
   cancel-in-progress: false
 
+# THE BASELINE IS ONE STRING, used by the reference checkout AND by the cache keys below. Two literals
+# would let a cache populated for one pinned tree be restored against a checkout of another: the keys are
+# the only thing that distinguishes "the install this cache holds" from "the install this run needs".
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
 jobs:
   differential:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # SIZED FROM THE MEASUREMENT, not from a round number. Run 40068803201 (the first full sweep, before
+    # any cache) recorded its setup in 1.2 minutes total and was still inside the drive step at 25.5
+    # minutes, with 15 sources x 8 browser drives to pay for; the whole job is projected at ~45 minutes.
+    # 90 = twice that projection, which tolerates one slow source without letting a wedged browser hold a
+    # runner for hours. The probe also has its own deadlines (30 s server wait, 60 s settings-ready, 60 s
+    # quiescence, 60 s settle, 30 s connect), so a hung page normally fails in a few minutes and this cap
+    # is the backstop rather than the first line of defence.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +108,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: SillyTavern/SillyTavern
-          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+          ref: ${{ env.PINNED_BASELINE_COMMIT }}
           path: .reference/SillyTavern
           persist-credentials: false
 
@@ -88,22 +120,93 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # ---------------------------------------------------------------------------------------------------
+      # PERSISTENT SETUP. Three caches, each keyed so that a hit PROVES the install is the one this run
+      # needs, because a hit SKIPS the install:
+      #
+      #   pinned server node_modules  <- pinned COMMIT + that checkout's own package-lock.json hash.
+      #       The commit is what pins the tree (and therefore the manifest); the lockfile hash is what
+      #       pins the dependency graph resolved from it. A baseline bump changes the commit, a lockfile
+      #       change changes the hash: either one misses and the install runs.
+      #   harness node_modules        <- tests/browser/package-lock.json hash (+ OS).
+      #       The harness's only dependency is @playwright/test at a pinned version, so the lockfile hash
+      #       IS the install identity. A different Playwright version cannot hit this key.
+      #   Playwright browsers         <- the same lockfile hash (+ OS).
+      #       The browser bundle is versioned BY the Playwright package that downloads it, and the path is
+      #       OS-specific, so lockfile + OS identifies the download exactly.
+      #
+      # NO `restore-keys`. A partial restore would hand back an older tree while reporting cache-hit=false,
+      # and the two states ("restored something" and "this is the right something") would then differ only
+      # inside npm's own behaviour. Exact keys make the skip condition and the key one and the same fact.
+      # ---------------------------------------------------------------------------------------------------
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
       # The pinned leg is served by the pinned checkout's OWN server.js, which needs its own node_modules
       # (the comparator also reads node-fetch from there to install the transport redirect hook).
       - name: Install the pinned server's dependencies
         run: |
           set -euo pipefail
-          cd .reference/SillyTavern
-          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
 
       # The harness is pinned to the baseline's own Playwright version (tests/browser/package.json says
       # why: a newer driver changes wait semantics and makes the measurement incomparable).
+      #
+      # THE TWO HALVES OF THIS STEP ARE KEYED SEPARATELY, because they are cached separately: node_modules
+      # by the lockfile, the browser bundle by the Playwright version that ships in that same lockfile. A
+      # hit on one and a miss on the other must still produce a working pair, which is why the skip is
+      # decided per half rather than for the step as a whole.
       - name: Install the browser harness
         run: |
           set -euo pipefail
-          cd tests/browser
-          npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            # THE BROWSER BUNDLE IS NOT THE OS PACKAGES. `install --with-deps` is download + apt; a cache hit
+            # covers only the download, so the apt half still runs. Skipping it as well would make the job
+            # depend on whatever the runner image happens to ship, which is the kind of implicit input that
+            # turns a green run into a mystery failure the day the image changes.
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Which setup branches this run took
+        run: |
+          echo "pinned server node_modules cache-hit: ${{ steps.cache-pinned-modules.outputs.cache-hit }}"
+          echo "harness node_modules cache-hit:       ${{ steps.cache-harness-modules.outputs.cache-hit }}"
+          echo "playwright browsers cache-hit:        ${{ steps.cache-playwright.outputs.cache-hit }}"
+          echo "(true = the install above was skipped; false or empty = it ran)"
 
       # The catalogue's own contract: complete rows, every artefact claimed by exactly one source, and
       # ignore patterns that cover every leg name the harness writes. Cheap, and it fails before any
