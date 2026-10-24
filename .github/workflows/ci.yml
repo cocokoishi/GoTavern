@@ -3,7 +3,13 @@ name: GoTavern CI
 on:
   push:
     branches: [main]
-  pull_request:
+
+  # NO `pull_request` TRIGGER, DELIBERATELY. Since 2026-10-24 a task is one lane branch pushed once and
+  # merged into `main` by the lead; there are no pull requests (AGENTS.md, "Working mode"). While this
+  # trigger existed, a single stray PR started an oracle job whose full sweep is bounded at 120 minutes, and
+  # five concurrent PRs meant five duplicate sweeps -- the waste that produced this rule. The `changes` job
+  # below still understands a pull-request base, so re-adding the trigger is a one-line decision rather than
+  # a rediscovery, but it must come with a reason.
 
   # A NIGHTLY FULL PARITY RUN, and a way for an agent to ask for one on purpose. Until this existed the full
   # oracle could only be triggered by a commit that happened to touch a shared input, so "run everything" was
@@ -52,6 +58,10 @@ jobs:
   # that is not a total function from fixture to owner, must be red rather than quietly select nothing.
   changes:
     runs-on: ubuntu-latest
+    # MEASURED: 0.1 min on every recent run (it checks out and greps a diff). Ten minutes leaves two
+    # orders of magnitude of headroom and bounds a wedged `git` instead of allowing GitHub's 360-minute
+    # default to sit on a runner.
+    timeout-minutes: 10
     outputs:
       oracle: ${{ steps.plan.outputs.oracle }}
       probes: ${{ steps.plan.outputs.probes }}
@@ -131,6 +141,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.oracle == 'true'
     runs-on: ubuntu-latest
+    # MEASURED REALITY (docs/development-loop.md): the full parity sweep is 51 min observed max, and a run
+    # narrowed to one probe is 13-15 min. 120 minutes is 2.35x the observed full sweep -- enough for a slow
+    # runner or a legitimately slow probe -- while a WEDGED probe (one probe hangs forever and the job sits
+    # on a runner) now fails at two hours instead of GitHub's default six. Raise this in one line if a real
+    # sweep approaches it, and record the new measurement here rather than guessing again.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -150,6 +166,41 @@ jobs:
         run: |
           npm install --global npm@11.17.0 --no-audit --no-fund
           test "$(npm --version)" = 11.17.0
+      - name: Compute the reusable build-root identity
+        id: oracle-build-cache
+        # THE KEY MUST PROVE WHAT IT RESTORES, not merely suggest it: the pinned commit, the sha256 of the
+        # reference package-lock.json that actually produced node_modules, and the Node that installed it.
+        # A key that only LOOKED right would restore a tree built from a different dependency graph and hand
+        # it to the recorder -- which is worse than re-paying the install, because the fixture bytes would
+        # then be produced by dependencies nobody recorded with.
+        run: |
+          set -eu
+          pinned="$(git -C .reference/SillyTavern rev-parse HEAD)"
+          lock_hash="$(sha256sum .reference/SillyTavern/package-lock.json | cut -d' ' -f1)"
+          node_version="$(node --version)"
+          key="oracle-buildroot-${RUNNER_OS}-${node_version}-${pinned}-${lock_hash}"
+          echo "pinned=${pinned}" >> "$GITHUB_OUTPUT"
+          echo "lock_hash=${lock_hash}" >> "$GITHUB_OUTPUT"
+          echo "key=${key}" >> "$GITHUB_OUTPUT"
+          echo "reusable build root key: ${key}"
+      - name: Restore the reusable oracle build root
+        id: oracle-build-root
+        # The build root lives in runner.temp, OUTSIDE the checkout: the generator refuses to wipe a path
+        # that is the repository, the reference checkout, or an ancestor of either, because the rebuild
+        # path starts with `rm -rf` (tools/oracle/build-root.mjs:isSafeBuildRoot).
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/oracle-build
+          key: ${{ steps.oracle-build-cache.outputs.key }}
+      - name: Restore the npm cache
+        # Restoring ~/.npm does not change WHAT is installed (the lockfile does), only how much of it has
+        # to be downloaded again.
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: oracle-npm-${{ runner.os }}-${{ steps.oracle-build-cache.outputs.lock_hash }}
+          restore-keys: |
+            oracle-npm-${{ runner.os }}-
       - name: Test observer comparison harness
         run: node --test tests/oracle/compare-observations.test.mjs
       - name: Build the GoTavern binary a runtime probe drives
@@ -177,7 +228,52 @@ jobs:
           GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
           GOTAVERN_ORACLE_CONCURRENCY: ${{ inputs.oracle_concurrency }}
           GOTAVERN_ORACLE_DOUBLE_RUN: ${{ needs.changes.outputs.stability == 'double' && 'all' || 'none' }}
+          # THE REPEATED COST, PAID ONCE PER CACHE KEY INSTEAD OF ONCE PER RUN: the clone and the
+          # dependency install are skipped when this directory is provably the pinned tree with the same
+          # dependency graph, and the decision is printed in this step's log as
+          # `build root: reuse ...` or `build root: rebuild ... (why)`.
+          GOTAVERN_ORACLE_BUILD_ROOT: ${{ runner.temp }}/oracle-build
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
+      - name: Report the build-root persistence
+        # A cache HIT must be visible in the log, or a reviewer can only ASSUME the persistence worked.
+        # Both halves are printed: what the cache action decided, and what the generator actually did
+        # with the directory (the authoritative answer, because a restored tree can still fail a check).
+        if: always()
+        run: |
+          set -eu
+          echo "cache restore for this key: cache-hit='${{ steps.oracle-build-root.outputs.cache-hit }}' ('' = miss, 'true' = exact match)"
+          echo "matched key: '${{ steps.oracle-build-root.outputs.cache-matched-key }}'"
+          lock="${{ runner.temp }}/oracle-build/.gotavern-oracle-build-lock.json"
+          if [ -f "${lock}" ]; then
+            echo "build root lock present: $(cat "${lock}" | tr -d '\n')"
+          else
+            echo "build root lock absent: the run did not finish building a reusable root (it will be rebuilt next time)"
+          fi
+      - name: Mark the reusable build root complete
+        id: oracle-build-root-ready
+        if: always()
+        run: |
+          if [ -f "${{ runner.temp }}/oracle-build/.gotavern-oracle-build-lock.json" ]; then
+            echo "complete=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save the reusable build root
+        # NEVER CACHE A HALF-BUILT TREE. The lock file is written only after `npm ci` succeeds, so its
+        # presence IS the completeness proof that the next run's reuse check will demand; without it the
+        # save is skipped and the next run rebuilds. The `cache-hit != 'true'` guard is not decoration:
+        # actions/cache/save FAILS on a key that already exists, which would turn a cache hit into a red job.
+        if: always() && steps.oracle-build-root.outputs.cache-hit != 'true' && steps.oracle-build-root-ready.outputs.complete == 'true'
+        # The cache is an OPTIMISATION: a save that loses a race with a concurrent run on the same key
+        # (the nightly cron and a push can overlap) reports "Unable to reserve cache" and exits 1, which
+        # would turn a healthy recording into a red job for a reason that changes no byte. The restore side
+        # and the generator's own reuse check are what the correctness rests on, so a save failure is
+        # swallowed here and remains visible in the log.
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/oracle-build
+          key: ${{ steps.oracle-build-cache.outputs.key }}
       - name: Capture the Linux re-record for retrieval
         # WHY THIS EXISTS. Some fixtures CANNOT be recorded faithfully on the Windows development host.
         # Re-recording the tokenizer corpus there altered 326 pre-existing anchors by decoding UTF-8 as
@@ -239,6 +335,9 @@ jobs:
   # to .github/workflows/browser-differential.yml, which re-records and diffs.
   browser-evidence:
     runs-on: ubuntu-latest
+    # MEASURED: 0.2 min (it reads committed artifacts and recomputes their claims; it boots nothing).
+    # Ten minutes bounds a wedged read instead of GitHub's 360-minute default.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -251,6 +350,11 @@ jobs:
 
   verify:
     runs-on: ubuntu-latest
+    # MEASURED: 158 s door to door (docs/development-loop.md) and 3.6 min on the recent runs of this file;
+    # the step list is gofmt + assets verify + the ORACLE EXECUTION CORE tests + `go test ./...` + vet +
+    # `go build` + `gotavern assets verify` + six cross-compiles. Thirty minutes is 8x the measurement, so a
+    # cold module cache or a slow runner still fits, and a wedged compile fails at 30 min rather than 6 h.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
