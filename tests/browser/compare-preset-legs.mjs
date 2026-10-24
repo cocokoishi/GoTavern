@@ -186,6 +186,11 @@ function legPreset(report) {
     return {
         variant: preset?.variant ?? null,
         maxContext: preset?.maxContext ?? null,
+        // WHAT THE LEG ACTUALLY RAN AT, recorded next to what it was asked for: a budget the frontend
+        // replaced is then visible in the artefact instead of being indistinguishable from a correct
+        // drive that happened to agree on both legs (run 40073821604 recorded two identical variants).
+        maxContextApplied: preset?.maxContextApplied ?? null,
+        maxContextUnlocked: preset?.maxContextUnlocked ?? null,
         chatTurns: preset?.chatTurns ?? null,
         typedMessage: preset?.typedMessage ?? null,
         problems: preset?.problems ?? [],
@@ -278,6 +283,18 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 && providerRequests.keep.pinned.stream === false;
             guards.nonStreamingOnBothLegs = providerRequests.keep.pinned.stream === false && providerRequests.keep.gotavern.stream === false;
             guards.presetAppliedOnBothLegs = (legs.keep.gotavern.problems ?? []).length === 0 && (legs.keep.pinned.problems ?? []).length === 0;
+            // EACH VARIANT MUST HAVE RUN AT THE CONTEXT THE CAPTURE MEASURED FOR IT. Without this the
+            // differential can compare two runs of the SAME budget and report agreement: run 40073821604
+            // recorded keep and drop as identical (26 messages, 11 history turns, oldest absent on both),
+            // which the boundary guards below caught but could not name. The value is read back from the
+            // leg after the drive set it, so a frontend clamp is a named failure here.
+            guards.keepVariantRanAtTheCapturedContext =
+                legs.keep.gotavern.maxContextApplied === variants.keep.context
+                && legs.keep.pinned.maxContextApplied === variants.keep.context;
+            guards.dropVariantRanAtTheCapturedContext =
+                legs.drop.gotavern.maxContextApplied === variants.drop.context
+                && legs.drop.pinned.maxContextApplied === variants.drop.context;
+            guards.variantsUsedDifferentContexts = variants.keep.context !== variants.drop.context;
             // THE BOUNDARY BINDS: this is the property that makes the pair a measurement. If the pinned
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.

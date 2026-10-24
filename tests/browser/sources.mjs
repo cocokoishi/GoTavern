@@ -490,6 +490,14 @@ export const SOURCES = [
         // check lives in its own module (tools/browser-evidence/source-hooks.mjs) instead of an
         // `if (source === 'ai21')` inside a generic function.
         hooks: ['ai21-request-framing'],
+        // AND THE COMPARATOR EMITS THE BLOCK THAT HOOK CHECKS. Until this flag existed the ai21
+        // artefact carried a `requestFraming` block that NO revision of any comparator produced: it was
+        // written by hand in commit cd5f66f, which changed only the two artefact JSONs. Every re-record
+        // therefore deleted recorded evidence, and the verifier did not notice (run 40068803201: fresh
+        // 8353 B against 9717 B committed). `emitsRequestFraming` makes the recorder responsible for the
+        // field; the leg reports already carry what it needs (headerNames / receivedContentLength /
+        // bodyLength, recorded by the request-keyed peer on both legs).
+        emitsRequestFraming: true,
     }),
     define({
         id: 'xai',

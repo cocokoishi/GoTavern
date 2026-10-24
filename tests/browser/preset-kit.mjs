@@ -111,13 +111,25 @@ export function presetSpec() {
             jailbreak: `${MARKERS.jailbreak} post-history instruction that must stay last in the prompt block.`,
         },
         world: {
-            // TWO books' worth of entries in one world: a char-position entry and a depth-0 entry, so
-            // both the prompt-block path and the in-chat injection path are exercised, and their
-            // ORDER is observable (a depth-0 injection lands after the newest chat message).
+            // THREE ENTRIES, ONE PER POSITION CLASS the comparator checks: before the prompt block,
+            // after it, and injected at depth. The `before` entry was MISSING while `MARKERS.wiBefore`
+            // was declared and the comparator required every marker -- so `wiBefore` could never arrive
+            // and `everyMarkerArrived` was false by construction (run 40073821604). A marker with no
+            // producer is the same class of defect as an artefact field with no producer.
             name: 'GoTavern Probe Lore',
             entries: [
                 {
                     uid: 0,
+                    comment: 'before-character anchor',
+                    key: ['glade'],
+                    content: `${MARKERS.wiBefore} The glade remembers every name spoken in it.`,
+                    position: 'before',
+                    depth: 4,
+                    constant: true,
+                    order: 50,
+                },
+                {
+                    uid: 1,
                     comment: 'after-character anchor',
                     key: ['glade'],
                     content: `${MARKERS.wiAfter} The glade answers to whoever speaks its name.`,
@@ -127,7 +139,7 @@ export function presetSpec() {
                     order: 100,
                 },
                 {
-                    uid: 1,
+                    uid: 2,
                     comment: 'in-chat depth zero',
                     key: ['lantern'],
                     content: `${MARKERS.wiDepth} The lantern burns without fuel.`,
@@ -271,12 +283,24 @@ export async function applyPresetKit(spec) {
         live.constant = entry.constant;
         live.selective = false;
         live.disable = false;
-        live.position = entry.position === 'after' ? positions.after : positions.atDepth;
+        // POSITION IS MAPPED BY NAME, NOT BY "after OR ELSE". The previous form was
+        // `entry.position === 'after' ? positions.after : positions.atDepth`, so a `before` entry would
+        // have silently become an IN-CHAT injection -- the same slot as the depth-0 entry, which would
+        // have made the `before` marker arrive in the wrong place even after the entry existed.
+        const positionNames = { before: 'before', after: 'after', atDepth: 'atDepth' };
+        const positionValue = positions[positionNames[entry.position]];
+        if (typeof positionValue !== 'number') {
+            problems.push(`world-info entry ${entry.uid} wants position ${JSON.stringify(entry.position)} but world_info_position exposes no ${JSON.stringify(positionNames[entry.position])} slot (it holds ${JSON.stringify(Object.keys(positions ?? {}))})`);
+            continue;
+        }
+        live.position = positionValue;
         live.depth = entry.depth;
         live.order = entry.order;
         live.probability = entry.probability ?? 100;
         live.useProbability = Boolean(entry.useProbability);
-        live.role = entry.position === 'after' ? null : 0;
+        // A role belongs to the IN-CHAT path only; before/after entries carry no role. Same name-based
+        // reasoning as the position mapping above -- "not after" is not "in chat".
+        live.role = entry.position === 'atDepth' ? 0 : null;
     }
     // IMMEDIATE save: the default is a debounced write, and a capture that read the world back before
     // the debounce fired would record an empty book.
