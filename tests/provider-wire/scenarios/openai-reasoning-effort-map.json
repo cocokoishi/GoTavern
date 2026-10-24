@@ -1,0 +1,94 @@
+{
+    "schemaVersion": 1,
+    "name": "openai-reasoning-effort-map",
+    "purpose": "OPENAI reasoning_effort through OPENAI_REASONING_EFFORT_MAP, and the VERBOSITY model gate at the same time. Model 'o3' IS in OPENAI_REASONING_EFFORT_MODELS and is NOT matched by OPENAI_VERBOSITY_MODELS (/^(?:gpt-5|gpt-6-astra)/), so the pinned body carries reasoning_effort 'minimal' (the map rewrites 'min') and NO verbosity at all even though the request sends one. The Go side sends neither member, so both the mapped value and the verbosity gate are observable here. Its sibling openai-reasoning-effort-fixed.json has an identical body apart from `model`, which is what makes the table the only possible explanation.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "openai",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {
+        "api_key_openai": [
+            {
+                "id": "probe-id-api_key_openai",
+                "value": "synthetic-openai-key",
+                "label": "api_key_openai",
+                "active": true
+            }
+        ]
+    },
+    "expectedAuthorizationKey": "synthetic-openai-key",
+    "transportRedirect": [
+        {
+            "from": "https://api.openai.com/v1",
+            "to": "<mock>"
+        }
+    ],
+    "goSeam": {
+        "environmentVariable": "GOTAVERN_OPENAI_CHAT_URL",
+        "value": "<mock>",
+        "pinnedLiteral": "https://api.openai.com/v1"
+    },
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "openai",
+            "model": "o3",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "probe system marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe user marker"
+                }
+            ],
+            "max_tokens": 64,
+            "reasoning_effort": "min",
+            "verbosity": "low",
+            "stream": false
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"mock-openai\",\"model\":\"o3\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers.authorization",
+                "rule": "the value is compared as a redacted Bearer token; the scenario declares the key separately through expectedAuthorizationKey",
+                "reason": "the scenario plants a synthetic key, so a wrong secret NAME would send a different or no token and the declared key catches it",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2283 apiKey = readSecret(request.user.directories, SECRET_KEYS.OPENAI, request.body.secret_id)"
+            },
+            {
+                "path": "provider.requests[].url",
+                "rule": "the recorder origin is replaced with <mock>",
+                "reason": "OPENAI with no reverse_proxy uses the hardcoded literal https://api.openai.com/v1, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH stays compared, which is the part the literal decides.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2282 apiUrl = new URL(request.body.reverse_proxy || API_OPENAI).toString()"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}
