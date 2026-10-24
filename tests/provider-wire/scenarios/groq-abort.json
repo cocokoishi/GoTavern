@@ -75,9 +75,9 @@
         "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
       },
       {
-        "path": "provider.requests[].headers[authorization]",
-        "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
-        "reason": "The scenario supplies a synthetic key; the header's presence and scheme are the contract, the value is not.",
+        "path": "provider.requests[].headers.authorization",
+        "rule": "compared as \"Bearer <redacted>\"; the credential itself is asserted by expectedAuthorizationKey",
+        "reason": "The credential is redacted by the harness for every Bearer header, so naming it here keeps it in the COMPARED set instead of moving it to the normalised one; presence and scheme stay compared, which is the contract. Every other groq scenario declares it this way, and TestChatCompletionGroqKeyIsVerifiedInTheRecording fails a groq scenario whose authorization header is not in the compared set.",
         "pinnedSource": "src/endpoints/backends/chat-completions.js:2457 apiKey = readSecret(request.user.directories, SECRET_KEYS.GROQ, request.body.secret_id)"
       },
       {
