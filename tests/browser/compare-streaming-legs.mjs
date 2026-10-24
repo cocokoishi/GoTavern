@@ -12,6 +12,7 @@
 // legs; `compatibleReady` is the conjunction, and is what a `compatible` row may be proposed from.
 
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 import { BY_ID } from './sources.mjs';
 
@@ -206,7 +207,19 @@ const main = async () => {
         ...sourceDriveParameters(streamGotavern),
     },
     question: 'do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?',
-        captures: { streamGotavern: streamGotavernPath, streamPinned: streamPinnedPath, cancelGotavern: cancelGotavernPath, cancelPinned: cancelPinnedPath, nonstreamGotavern: nonstreamGotavernPath, nonstreamPinned: nonstreamPinnedPath },
+        // BARE NAMES, NOT THE PATHS THE COMPARATOR WAS GIVEN. A run in CI passes absolute paths
+        // (`/home/runner/work/_temp/...`), and recording them put a host path into EVERY streaming
+        // artefact -- which the verifier's host-derived sweep then rejected, correctly. compare-extension-
+        // legs.mjs and compare-data-domain-legs.mjs already record basenames for this reason; this file
+        // was the one that did not, and a local run with relative arguments hid it.
+        captures: {
+            streamGotavern: path.basename(streamGotavernPath),
+            streamPinned: path.basename(streamPinnedPath),
+            cancelGotavern: path.basename(cancelGotavernPath),
+            cancelPinned: path.basename(cancelPinnedPath),
+            nonstreamGotavern: path.basename(nonstreamGotavernPath),
+            nonstreamPinned: path.basename(nonstreamPinnedPath),
+        },
         streaming,
         cancellation,
         nonstream,

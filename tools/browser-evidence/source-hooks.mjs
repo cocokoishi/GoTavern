@@ -57,5 +57,11 @@ const ai21RequestFraming = (ctx, artifact) => {
 };
 
 export const SOURCE_HOOKS = {
-    'ai21-request-framing': ai21RequestFraming,
+    // EACH HOOK DECLARES THE SURFACE(S) WHOSE ARTEFACT CARRIES ITS DATA, and is then either RUN (and
+    // required to find what it checks) or not applicable -- never "run only if the block happens to be
+    // there". The first version of this registry was invoked from inside `if (artifact.requestFraming)`,
+    // so a re-recorded ai21 artefact WITHOUT the block passed the gate silently: the exact
+    // absent-check-is-a-pass failure this lane removed everywhere else. Run 40068803201's fresh ai21
+    // artefact has no `requestFraming` at all, and the gate said nothing.
+    'ai21-request-framing': { surfaces: ['generation'], check: ai21RequestFraming },
 };
