@@ -274,6 +274,21 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Test the oracle execution core
+        # The double-run policy and the probe-execution primitive are CONTROL-PLANE code: they decide how many
+        # times every probe runs, what happens when a run fails, and whether an empty selection is a success.
+        # Until these tests existed, the policy function was defined and called from NOWHERE, so 118
+        # declarations executed twice in every mode and GOTAVERN_ORACLE_DOUBLE_RUN had no effect -- and no CI
+        # job could see it, because a fixture records what a probe OBSERVED, never how many times it ran.
+        # These tests use injected fakes: no probe process, no browser, no network, a few hundred milliseconds.
+        #
+        # THE ARGUMENT IS A GLOB, NOT A DIRECTORY, BECAUSE A DIRECTORY DOES NOT DISCOVER ANYTHING. Measured on
+        # the Node version this workflow pins (24.19.0): `node --test tests/oracle/` loads the directory as a
+        # MODULE and dies with `Cannot find module .../tests/oracle`, running zero tests. A step like that fails
+        # loudly for the wrong reason or, once it is "fixed" by wrapping it in `|| true`, passes while running
+        # nothing -- the same class as `go test -run` matching no test. `node --test <glob>` discovers both files
+        # here (and bash expands the glob before Node sees it), so this step cannot silently test nothing.
+        run: node --test tests/oracle/*.test.mjs
       - name: Verify the release channel classifier decides tags correctly
         # `release.yml` and `docker.yml` both ask scripts/classify-version-tag.sh whether a tag is stable, and the
         # answer decides two things users feel: whether a tag becomes a GitHub PRE-release (so it is not what
