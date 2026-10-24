@@ -70,15 +70,15 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 11837
+            "t": 3157
           },
           {
             "dryRun": false,
-            "t": 13946
+            "t": 4092
           },
           {
             "dryRun": true,
-            "t": 15652
+            "t": 5812
           }
         ]
       }
@@ -106,15 +106,15 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 14809
+            "t": 3585
           },
           {
             "dryRun": false,
-            "t": 16695
+            "t": 4515
           },
           {
             "dryRun": true,
-            "t": 18573
+            "t": 5851
           }
         ]
       }
@@ -125,14 +125,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 904,
+        "waitedMs": 507,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1551,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -141,14 +141,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 895,
+        "waitedMs": 501,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1552,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -162,6 +162,9 @@
     "mode": "nonstream",
     "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
     "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
+    "seamEnvVar": "GOTAVERN_ELECTRONHUB_CHAT_URL",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.",
     "sourceShape": "ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: its route is a bare literal and always reads the ELECTRONHUB secret, so a request carrying a proxy is IGNORED rather than proxied. `proxyPasswordPresent: false` on both legs therefore means UNSUPPORTED, not unused, and the artifact says so because a reader would otherwise read the false as \"proxy available and untouched\"."
   },
   "guards": {
@@ -178,7 +181,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 13946,
+        "t": 4092,
         "afterData": [
           false
         ]
@@ -187,7 +190,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 16696,
+        "t": 4515,
         "afterData": [
           false
         ]
@@ -202,29 +205,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 11837
+        "t": 3157
       },
       {
         "dryRun": false,
-        "t": 13946
+        "t": 4092
       },
       {
         "dryRun": true,
-        "t": 15652
+        "t": 5812
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 14809
+        "t": 3585
       },
       {
         "dryRun": false,
-        "t": 16695
+        "t": 4515
       },
       {
         "dryRun": true,
-        "t": 18573
+        "t": 5851
       }
     ]
   },
@@ -257,11 +260,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14147,
+          "t": 4211,
           "text": "probe user marker"
         },
         {
-          "t": 14576,
+          "t": 4332,
           "text": "probe reply"
         }
       ],
@@ -280,11 +283,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 16919,
+          "t": 4638,
           "text": "probe user marker"
         },
         {
-          "t": 17497,
+          "t": 4735,
           "text": "probe reply"
         }
       ],

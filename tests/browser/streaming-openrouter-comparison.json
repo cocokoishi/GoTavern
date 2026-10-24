@@ -1,20 +1,21 @@
 {
   "schemaVersion": 1,
   "driveParameters": {
-    "streamFrameCount": "peer default (5 stream / 12 cancel)",
+    "streamFrameCount": "14",
     "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
     "seamEnvVar": "GOTAVERN_OPENROUTER_CHAT_URL",
-    "peerRoute": "the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source",
-    "proxyPasswordMeaning": "proxyPasswordPresent false on BOTH legs is the evidence that seam plus redirect were the only route to the peer"
+    "peerRoute": "the seam on the GoTavern leg and the https://openrouter.ai/api/v1 transport redirect on the pinned leg -- openrouter has no reverse_proxy and no custom_url, so no request member can carry a peer",
+    "proxyPasswordMeaning": "proxyPasswordPresent false on BOTH legs is the EVIDENCE that the seam and the redirect were the only route; a true would mean the drive had started travelling as a proxy and the artifact would no longer describe a proxy:false source",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional: without it the pinned leg fetches the real provider and an empty peer log reads like a product hang"
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "stream-or-gotavern.json",
-    "streamPinned": "stream-or-pinned.json",
-    "cancelGotavern": "cancel-or-gotavern.json",
-    "cancelPinned": "cancel-or-pinned.json",
-    "nonstreamGotavern": "gen-or-gotavern.json",
-    "nonstreamPinned": "gen-or-pinned.json"
+    "streamGotavern": "stream-openrouter-gotavern.json",
+    "streamPinned": "stream-openrouter-pinned.json",
+    "cancelGotavern": "cancel-openrouter-gotavern.json",
+    "cancelPinned": "cancel-openrouter-pinned.json",
+    "nonstreamGotavern": "nonstream-openrouter-gotavern.json",
+    "nonstreamPinned": "nonstream-openrouter-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -31,10 +32,17 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
+        "Hello from the",
         "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
@@ -59,11 +67,15 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
+        "Hello from the",
         "Hello from the stream",
+        "Hello from the stream?",
         "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
@@ -91,7 +103,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -119,7 +131,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 15451,
+        "stopClickedAt": 4332,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -148,7 +160,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 20652,
+        "stopClickedAt": 4589,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,

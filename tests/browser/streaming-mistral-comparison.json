@@ -2,16 +2,19 @@
   "schemaVersion": 1,
   "driveParameters": {
     "streamFrameCount": "14",
-    "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other"
+    "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
+    "seamEnvVar": "GOTAVERN_MISTRAL_CHAT_URL",
+    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs -- mistralai is proxy-capable, and a reverse-proxy drive is the route a user takes",
+    "seamUsage": "safety net only: GOTAVERN_MISTRAL_CHAT_URL exists in the Go arm and is aimed here so a leg preferring the pinned literal cannot reach the real provider, but the route this drive took is the setting, which is why proxyPasswordPresent is TRUE on both legs"
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "mis-stream-a.json",
-    "streamPinned": "mis-stream-p.json",
-    "cancelGotavern": "mis-cancel-a.json",
-    "cancelPinned": "mis-cancel-p.json",
-    "nonstreamGotavern": "mis-nonstream-a.json",
-    "nonstreamPinned": "mis-nonstream-p.json"
+    "streamGotavern": "stream-mistralai-gotavern.json",
+    "streamPinned": "stream-mistralai-pinned.json",
+    "cancelGotavern": "cancel-mistralai-gotavern.json",
+    "cancelPinned": "cancel-mistralai-pinned.json",
+    "nonstreamGotavern": "nonstream-mistralai-gotavern.json",
+    "nonstreamPinned": "nonstream-mistralai-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -28,10 +31,18 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
+        "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
+        "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
       "finalAssistantText": "Hello from the stream? incremental rendering is genuinely observed and paced by the",
@@ -55,18 +66,25 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
+        "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
       "finalAssistantText": "Hello from the stream? incremental rendering is genuinely observed and paced by the",
       "streamState": {
         "sawIncremental": true,
-        "contentSnapshotsBeforeEnd": 2,
-        "snapshotsBeforeEnd": 4
+        "contentSnapshotsBeforeEnd": 1,
+        "snapshotsBeforeEnd": 3
       }
     },
     "checks": {
@@ -84,7 +102,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -112,7 +130,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 19632,
+        "stopClickedAt": 4664,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -133,20 +151,19 @@
       "renderTexts": [
         "probe user marker",
         "…",
-        "Hello from",
-        "Hello from the"
+        "Hello from"
       ],
-      "finalAssistantText": "Hello from the",
+      "finalAssistantText": "Hello from",
       "streamState": {
         "sawIncremental": true,
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 17827,
-        "snapshotsAtStopPlus1200": 4,
-        "textAfterStop": "Hello from the",
-        "snapshotsLater": 4,
-        "textLater": "Hello from the"
+        "stopClickedAt": 4676,
+        "snapshotsAtStopPlus1200": 3,
+        "textAfterStop": "Hello from",
+        "snapshotsLater": 3,
+        "textLater": "Hello from"
       }
     },
     "checks": {
@@ -166,7 +183,7 @@
       "finalTextEqualsAfterAbortState": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true,
@@ -178,7 +195,7 @@
         ]
       },
       "pinned": {
-        "text": "Hello from the",
+        "text": "Hello from",
         "framesWritten": [
           14
         ]
@@ -258,6 +275,10 @@
     "proven": true
   },
   "compatibleReady": true,
+  "proxyPasswordPresent": {
+    "gotavern": true,
+    "pinned": true
+  },
   "notes": [
     "The probe previously awaited response.clone().text() for EVERY response before returning it to the frontend, so a streamed generate response was fully buffered before the fetch promise resolved: incremental rendering was impossible to observe and an aborted stream observed an empty message. That was a probe defect on both legs (rule 10), fixed by skipping the clone read for text/event-stream and for the generate route. Earlier captures in this directory were taken with that defect; these captures are not.",
     "The peer records clientDisconnected only when the caller closes before the scripted stream finishes; it is the provider-side proof of cancellation.",

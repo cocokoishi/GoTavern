@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
   "driveParameters": {
-    "streamFrameCount": "peer default (5 stream / 12 cancel)",
+    "streamFrameCount": "14",
     "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
     "seamEnvVar": "GOTAVERN_NANOGPT_CHAT_URL",
-    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
-    "peerKeying": "the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls."
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls."
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "stream-gotavern.json",
-    "streamPinned": "stream-pinned.json",
-    "cancelGotavern": "cancel-gotavern.json",
-    "cancelPinned": "cancel-pinned.json",
-    "nonstreamGotavern": "nonstream-gotavern.json",
-    "nonstreamPinned": "nonstream-pinned.json"
+    "streamGotavern": "stream-nanogpt-gotavern.json",
+    "streamPinned": "stream-nanogpt-pinned.json",
+    "cancelGotavern": "cancel-nanogpt-gotavern.json",
+    "cancelPinned": "cancel-nanogpt-pinned.json",
+    "nonstreamGotavern": "nonstream-nanogpt-gotavern.json",
+    "nonstreamPinned": "nonstream-nanogpt-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -32,11 +32,15 @@
         "probe user marker",
         "…",
         "Hello from",
+        "Hello from the",
         "Hello from the stream",
+        "Hello from the stream?",
         "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
@@ -62,12 +66,17 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
         "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
+        "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
@@ -93,7 +102,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -121,7 +130,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 15053,
+        "stopClickedAt": 4376,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -150,7 +159,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 18885,
+        "stopClickedAt": 4817,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,

@@ -70,15 +70,15 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 12256
+            "t": 3207
           },
           {
             "dryRun": false,
-            "t": 14013
+            "t": 4168
           },
           {
             "dryRun": true,
-            "t": 15794
+            "t": 5896
           }
         ]
       }
@@ -106,15 +106,15 @@
         "invocations": [
           {
             "dryRun": true,
-            "t": 15278
+            "t": 3645
           },
           {
             "dryRun": false,
-            "t": 17248
+            "t": 4580
           },
           {
             "dryRun": true,
-            "t": 19152
+            "t": 5921
           }
         ]
       }
@@ -125,14 +125,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 605,
+        "waitedMs": 517,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1559,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -141,14 +141,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 606,
+        "waitedMs": 501,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1542,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -165,7 +165,7 @@
     "seamEnvVar": "GOTAVERN_AIMLAPI_CHAT_URL",
     "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
     "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.",
-    "proxyMemberSupport": "UNSUPPORTED, not merely unset: the aimlapi route never reads request.body.reverse_proxy, so proxyPasswordPresent false on both legs is what the SOURCE makes possible, not what this drive happened to choose"
+    "proxyMemberSupport": "UNSUPPORTED: aimlapi_chat.go:24,152 guards on `!apiKey` and the route NEVER READS reverse_proxy, so the peer is unreachable through a proxy for this source. proxyPasswordPresent false on both legs is therefore a statement about the SOURCE, not a choice this drive made"
   },
   "guards": {
     "finalTextNonEmpty": true,
@@ -181,7 +181,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 14013,
+        "t": 4168,
         "afterData": [
           false
         ]
@@ -190,7 +190,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 17249,
+        "t": 4580,
         "afterData": [
           false
         ]
@@ -205,29 +205,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 12256
+        "t": 3207
       },
       {
         "dryRun": false,
-        "t": 14013
+        "t": 4168
       },
       {
         "dryRun": true,
-        "t": 15794
+        "t": 5896
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 15278
+        "t": 3645
       },
       {
         "dryRun": false,
-        "t": 17248
+        "t": 4580
       },
       {
         "dryRun": true,
-        "t": 19152
+        "t": 5921
       }
     ]
   },
@@ -260,11 +260,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14242,
+          "t": 4287,
           "text": "probe user marker"
         },
         {
-          "t": 14663,
+          "t": 4412,
           "text": "probe reply"
         }
       ],
@@ -283,11 +283,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 17491,
+          "t": 4702,
           "text": "probe user marker"
         },
         {
-          "t": 18069,
+          "t": 4809,
           "text": "probe reply"
         }
       ],

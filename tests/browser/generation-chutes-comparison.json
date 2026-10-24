@@ -49,7 +49,7 @@
   "surrounding": {
     "gotavern": {
       "beforeClick": {
-        "events": 10
+        "events": 5
       },
       "sendWindow": {
         "events": 7,
@@ -62,27 +62,23 @@
         "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 11874
-          },
-          {
-            "dryRun": true,
-            "t": 14002
+            "t": 3233
           },
           {
             "dryRun": false,
-            "t": 14396
+            "t": 4192
           },
           {
             "dryRun": true,
-            "t": 16120
+            "t": 5915
           }
         ]
       }
@@ -97,32 +93,28 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 14178
+            "t": 3614
           },
           {
             "dryRun": false,
-            "t": 16151
+            "t": 4546
           },
           {
             "dryRun": true,
-            "t": 17149
-          },
-          {
-            "dryRun": true,
-            "t": 18017
+            "t": 5911
           }
         ]
       }
@@ -130,17 +122,17 @@
   },
   "eventWindow": {
     "gotavern": {
-      "eventsBeforeClick": 10,
+      "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 1388,
+        "waitedMs": 513,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
-        "generateInvocationsBeforeSend": 2
+        "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1561,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -149,14 +141,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 614,
+        "waitedMs": 502,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1561,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -170,6 +162,9 @@
     "mode": "nonstream",
     "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
     "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
+    "seamEnvVar": "GOTAVERN_CHUTES_CHAT_URL",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.",
     "sourceShape": "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy. This is the case that makes a shared-helper implementation look correct and be wrong: a source whose MESSAGE side has no processor at all cannot be served by a helper that quietly reshapes messages for its siblings, and the recorded body digest is what would catch it."
   },
   "guards": {
@@ -186,7 +181,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 14397,
+        "t": 4192,
         "afterData": [
           false
         ]
@@ -195,7 +190,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 16152,
+        "t": 4546,
         "afterData": [
           false
         ]
@@ -210,37 +205,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 11874
-      },
-      {
-        "dryRun": true,
-        "t": 14002
+        "t": 3233
       },
       {
         "dryRun": false,
-        "t": 14396
+        "t": 4192
       },
       {
         "dryRun": true,
-        "t": 16120
+        "t": 5915
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 14178
+        "t": 3614
       },
       {
         "dryRun": false,
-        "t": 16151
+        "t": 4546
       },
       {
         "dryRun": true,
-        "t": 17149
-      },
-      {
-        "dryRun": true,
-        "t": 18017
+        "t": 5911
       }
     ]
   },
@@ -273,11 +260,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14634,
+          "t": 4312,
           "text": "probe user marker"
         },
         {
-          "t": 15027,
+          "t": 4435,
           "text": "probe reply"
         }
       ],
@@ -296,11 +283,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 16363,
+          "t": 4668,
           "text": "probe user marker"
         },
         {
-          "t": 16930,
+          "t": 4769,
           "text": "probe reply"
         }
       ],

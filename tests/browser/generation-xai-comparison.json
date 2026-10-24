@@ -57,39 +57,35 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 12110
+            "t": 3193
           },
           {
             "dryRun": false,
-            "t": 14290
+            "t": 4175
           },
           {
             "dryRun": true,
-            "t": 15166
-          },
-          {
-            "dryRun": true,
-            "t": 16292
+            "t": 5855
           }
         ]
       }
     },
     "pinned": {
       "beforeClick": {
-        "events": 15
+        "events": 5
       },
       "sendWindow": {
         "events": 7,
@@ -102,31 +98,23 @@
         "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 5,
-        "dryStarted": 4,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 4,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 16853
-          },
-          {
-            "dryRun": true,
-            "t": 18951
-          },
-          {
-            "dryRun": true,
-            "t": 20189
+            "t": 3617
           },
           {
             "dryRun": false,
-            "t": 21460
+            "t": 4798
           },
           {
             "dryRun": true,
-            "t": 23313
+            "t": 6161
           }
         ]
       }
@@ -137,30 +125,30 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 518,
+        "waitedMs": 531,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1522,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
     },
     "pinned": {
-      "eventsBeforeClick": 15,
+      "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 1778,
-        "inFlightMaxBeforeSend": 2,
+        "waitedMs": 502,
+        "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
-        "generateInvocationsBeforeSend": 3
+        "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1531,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -193,7 +181,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 14290,
+        "t": 4175,
         "afterData": [
           false
         ]
@@ -202,7 +190,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 21461,
+        "t": 4798,
         "afterData": [
           false
         ]
@@ -217,41 +205,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 12110
+        "t": 3193
       },
       {
         "dryRun": false,
-        "t": 14290
+        "t": 4175
       },
       {
         "dryRun": true,
-        "t": 15166
-      },
-      {
-        "dryRun": true,
-        "t": 16292
+        "t": 5855
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 16853
-      },
-      {
-        "dryRun": true,
-        "t": 18951
-      },
-      {
-        "dryRun": true,
-        "t": 20189
+        "t": 3617
       },
       {
         "dryRun": false,
-        "t": 21460
+        "t": 4798
       },
       {
         "dryRun": true,
-        "t": 23313
+        "t": 6161
       }
     ]
   },
@@ -279,22 +255,22 @@
       "chatDomMessages": 3,
       "textareaValue": "",
       "tokenCountProbe": "resolved:9",
-      "popupClicks": 3,
+      "popupClicks": 2,
       "popupSeen": [
         {
           "id": "",
           "className": "popup popup--animation-fast",
-          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"8597d3f0-d848-4aa2-aec6-169d659e5d23\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"f507b046-5005-49a9-813d-70f3621d8e64\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
         }
       ],
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14519,
+          "t": 4295,
           "text": "probe user marker"
         },
         {
-          "t": 14958,
+          "t": 4436,
           "text": "probe reply"
         }
       ],
@@ -308,22 +284,22 @@
       "chatDomMessages": 3,
       "textareaValue": "",
       "tokenCountProbe": "resolved:9",
-      "popupClicks": 3,
+      "popupClicks": 2,
       "popupSeen": [
         {
           "id": "",
           "className": "popup popup--animation-fast",
-          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"0a3e17ba-cac1-4699-8d8a-00b12eb09c94\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i18n=\"Cancel\" t"
+          "html": "<dialog class=\"popup popup--animation-fast\" data-id=\"1ff2b4e5-7fd9-4a11-903b-eff8eb566286\" opening=\"\" open=\"\">\n                <div class=\"popup-body\">\n                    <div class=\"popup-content\"><h3>Connecting To Proxy</h3>\n            <span data-i18n=\"Are you sure you want to connect to the following proxy URL?\">Are you sure you want to connect to the following proxy URL?</span><var>http://<mock></var></div>\n                    <div class=\"popup-crop-wrap\" style=\"display: none;\">\n                        <img class=\"popup-crop-image\" src=\"\">\n                    </div>\n                    <textarea class=\"popup-input text_pole result-control auto-select\" rows=\"1\" data-result=\"1\" data-result-event=\"submit\" style=\"display: none;\"></textarea>\n                    <div class=\"popup-inputs\" style=\"display: none;\"></div>\n                    <div class=\"popup-controls\">\n                        <div class=\"popup-button-ok menu_button result-control menu_button_default interactable\" data-result=\"1\" data-i18n=\"OK\" autofocus=\"\" tabindex=\"0\" role=\"button\">Yes</div>\n                        <div class=\"popup-button-cancel menu_button result-control interactable\" data-result=\"0\" data-i"
         }
       ],
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 21711,
+          "t": 4920,
           "text": "probe user marker"
         },
         {
-          "t": 22245,
+          "t": 5016,
           "text": "probe reply"
         }
       ],

@@ -49,7 +49,7 @@
   "surrounding": {
     "gotavern": {
       "beforeClick": {
-        "events": 10
+        "events": 5
       },
       "sendWindow": {
         "events": 7,
@@ -62,27 +62,23 @@
         "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 13481
-          },
-          {
-            "dryRun": true,
-            "t": 16205
+            "t": 3250
           },
           {
             "dryRun": false,
-            "t": 16723
+            "t": 4227
           },
           {
             "dryRun": true,
-            "t": 18486
+            "t": 5956
           }
         ]
       }
@@ -97,32 +93,28 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 14835
+            "t": 3722
           },
           {
             "dryRun": false,
-            "t": 17210
+            "t": 4664
           },
           {
             "dryRun": true,
-            "t": 18277
-          },
-          {
-            "dryRun": true,
-            "t": 19142
+            "t": 6141
           }
         ]
       }
@@ -130,17 +122,17 @@
   },
   "eventWindow": {
     "gotavern": {
-      "eventsBeforeClick": 10,
+      "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 1514,
+        "waitedMs": 521,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
-        "generateInvocationsBeforeSend": 2
+        "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1542,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -149,14 +141,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 525,
+        "waitedMs": 501,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1564,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -188,7 +180,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 16724,
+        "t": 4227,
         "afterData": [
           false
         ]
@@ -197,7 +189,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 17211,
+        "t": 4664,
         "afterData": [
           false
         ]
@@ -212,37 +204,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 13481
-      },
-      {
-        "dryRun": true,
-        "t": 16205
+        "t": 3250
       },
       {
         "dryRun": false,
-        "t": 16723
+        "t": 4227
       },
       {
         "dryRun": true,
-        "t": 18486
+        "t": 5956
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 14835
+        "t": 3722
       },
       {
         "dryRun": false,
-        "t": 17210
+        "t": 4664
       },
       {
         "dryRun": true,
-        "t": 18277
-      },
-      {
-        "dryRun": true,
-        "t": 19142
+        "t": 6141
       }
     ]
   },
@@ -275,11 +259,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 16948,
+          "t": 4349,
           "text": "probe user marker"
         },
         {
-          "t": 17404,
+          "t": 4475,
           "text": "probe reply"
         }
       ],
@@ -298,11 +282,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 17440,
+          "t": 4786,
           "text": "probe user marker"
         },
         {
-          "t": 18065,
+          "t": 4884,
           "text": "probe reply"
         }
       ],
