@@ -17,7 +17,7 @@ if [ -z "${range}" ]; then
   fi
 fi
 
-allowed='108864988\+cocokoishi@users.noreply.github.com|glados@aperturescience.invalid|datamaid@example.invalid|sd-comfy@local|consolidation@example.invalid|e2c-batch2@example.invalid'
+allowed='108864988\+cocokoishi@users.noreply.github.com|glados@aperturescience.invalid|datamaid@example.invalid|sd-comfy@local|consolidation@example.invalid|e2c-batch2@example.invalid|ci@gotavern.invalid'
 bad=0
 while IFS=$'\t' read -r sha author_email committer_email subject; do
   for email in "${author_email}" "${committer_email}"; do
