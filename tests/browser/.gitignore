@@ -46,3 +46,9 @@ dd*-*.json
 extension-*-gotavern.json
 extension-*-pinned.json
 *-leg.json
+# COMPLEX-PRESET LEGS: preset-keep-gotavern.json, preset-keep-pinned.json, preset-drop-gotavern.json,
+# preset-drop-pinned.json. The committed artefact is `preset-complex-comparison.json`, which matches
+# NEITHER pattern: the boundary variant is anchored on the `-`, so a committed `preset-complex-*` name can
+# never be swallowed by the ignore list (tests/browser/catalog.test.mjs asserts both directions).
+preset-keep-*.json
+preset-drop-*.json

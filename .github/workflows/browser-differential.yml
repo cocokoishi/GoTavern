@@ -54,6 +54,9 @@ on:
       - 'tests/browser/generation-probe.mjs'
       - 'tests/browser/sources.mjs'
       - 'tests/browser/compare-*-legs.mjs'
+      - 'tests/browser/preset-kit.mjs'
+      - 'tests/browser/capture-preset.mjs'
+      - 'tests/browser/preset-gate-selftest.mjs'
       - 'tests/browser/run-against-pinned.mjs'
       - 'tests/browser/catalog.test.mjs'
       - 'tools/browser-evidence/**'
@@ -62,15 +65,24 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Which surface to re-record: generation | stream | cancel | all'
+        description: 'Which surface to re-record: generation | stream | cancel | preset | all'
         required: true
         default: 'all'
         type: choice
-        options: [generation, stream, cancel, all]
+        options: [generation, stream, cancel, preset, all]
       sources:
         description: 'Comma-separated source ids (custom, groq, mistralai, ...), or empty for every source with a committed artefact'
         required: false
         default: ''
+      commit_artifacts:
+        # THE ONLY REASON THIS WORKFLOW MAY WRITE. A `preset` run produces two files that are EVIDENCE and
+        # must live in the tree: the captured complex-preset fixture and the comparison artefact built from
+        # it. They are committed by a separate, tiny job (`publish-preset`) that has write permission and
+        # does nothing else, so the differential job itself stays read-only.
+        description: 'Commit the captured preset fixture and its comparison artefact back to this branch'
+        required: false
+        default: false
+        type: boolean
   schedule:
     # Nightly, off-peak and at a non-round minute. The freshness report is the thing that tells us the
     # committed evidence has drifted from HEAD; without a schedule it only runs when someone remembers.
@@ -232,6 +244,10 @@ jobs:
       # committed version is saved first so freshness.mjs has something to compare against.
       - name: Record the selected drives
         id: record
+        # A `preset`-only run must NOT fall into this step's "everything that is not generation is
+        # streaming" branch and pay for fifteen sources' streaming drives. The preset lane has its own
+        # steps below, and `all` still runs both.
+        if: ${{ (inputs.mode || 'all') != 'preset' }}
         env:
           # A SCHEDULED RUN HAS NO INPUTS, so an empty mode means "everything": the nightly job is the
           # one that must compare every surface, and a `|| 'all'` here is what makes that true without a
@@ -334,11 +350,114 @@ jobs:
           done
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
 
+      # -------------------------------------------------------------------------------------------------
+      # THE COMPLEX-PRESET DIFFERENTIAL (AGENTS.md rule 8 and rule 9).
+      #
+      # TWO SCENARIOS, ONE ARTEFACT. `keep` drives the scenario at the smallest `openai_max_context` at
+      # which the pinned frontend RETAINS the oldest history turn; `drop` drives it one token lower, where
+      # the pinned frontend drops that turn. Both numbers are bisected from the pinned frontend itself
+      # (capture-preset.mjs) and committed in the fixture, so the pair is a measured boundary rather than a
+      # guess. The claim of the resulting artefact is: the SAME preset produces the same request BYTES on
+      # both servers at BOTH sides of that boundary -- which cannot pass if a token count is off by one,
+      # because the retained message set changes.
+      #
+      # The streaming/cancel surfaces are untouched by this lane: they are three-drive artefacts with their
+      # own comparator, and mixing them in here would make one failure unattributable.
+      # -------------------------------------------------------------------------------------------------
+      - name: Capture the complex preset from the pinned frontend
+        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs" "$work/committed"
+          # The capture runs against the PINNED leg only: the fixture is what the pinned frontend held,
+          # and both legs then replay it. `run-against-pinned` supplies --base-url and GOTAVERN_REFERENCE.
+          # THE PATH IS ABSOLUTE ON PURPOSE: that wrapper spawns the capture with `cwd: tests/browser`, so
+          # a relative --out would land in tests/browser/tests/browser/fixtures/.
+          node tests/browser/run-against-pinned.mjs capture-preset.mjs -- \
+            --out "$PWD/tests/browser/fixtures/preset-complex-settings.json"
+
+      - name: Record the preset boundary pair (both legs)
+        id: preset
+        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          for variant in keep drop; do
+            echo "::group::preset $variant"
+            # The GoTavern leg builds and boots itself; the pinned leg is the reference checkout. The
+            # source is `custom` because its peer travels in `custom_url` on BOTH legs, so neither leg can
+            # reach a real provider (rule 14) and no transport redirect is needed.
+            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" \
+              node tests/browser/generation-probe.mjs --report "$work/legs/preset-$variant-gotavern.json"; then
+              echo "::error::preset $variant: the GoTavern leg failed to drive"
+              failures=$((failures + 1))
+            fi
+            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" \
+              PROBE_PINNED_REDIRECT_FILE="$work/legs/redirect-preset-$variant.json" \
+              node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report "$work/legs/preset-$variant-pinned.json"; then
+              echo "::error::preset $variant: the pinned leg failed to drive"
+              failures=$((failures + 1))
+            fi
+            echo "::endgroup::"
+          done
+          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compare the preset legs
+        if: ${{ steps.preset.outputs.failures == '0' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          artifact=preset-complex-comparison.json
+          if git cat-file -e "HEAD:tests/browser/$artifact" 2>/dev/null; then
+            git show "HEAD:tests/browser/$artifact" > "$work/committed/$artifact"
+          else
+            # The freshness report distinguishes "this run did not produce it" from "there was nothing
+            # committed to compare against", so a first run says which by writing the marker the report
+            # already understands instead of leaving the loop to guess from a missing file.
+            : > "$work/committed/$artifact.absent"
+          fi
+          # The comparator prints the artefact on stdout whether the verdict is equal or not, and exits
+          # non-zero for BOTH an unfaithful differential and a genuine mismatch. The file is kept either
+          # way (uploaded as evidence) but only an exit 0 lets the publish job commit it.
+          node tests/browser/compare-preset-legs.mjs \
+            "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
+            "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
+            > "tests/browser/$artifact"
+
+      - name: Prove the preset gate has teeth
+        if: ${{ steps.preset.outputs.failures == '0' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/preset-gate-selftest.mjs \
+            "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
+            "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json"
+
+      - name: Stage the preset evidence for publishing
+        if: ${{ inputs.commit_artifacts }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/publish/tests/browser/fixtures"
+          cp tests/browser/preset-complex-comparison.json "$RUNNER_TEMP/publish/tests/browser/"
+          cp tests/browser/fixtures/preset-complex-settings.json "$RUNNER_TEMP/publish/tests/browser/fixtures/"
+
+      - name: Upload the preset evidence to publish
+        if: ${{ inputs.commit_artifacts }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: preset-evidence
+          path: ${{ runner.temp }}/publish
+          retention-days: 14
+
       # THE VERIFIER, against the artefacts this run just produced. This is the step that can fail the
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
       # or in the harness, not a stale document.
       - name: Verify the FRESH artefacts support their claims
-        if: steps.record.outputs.failures == '0'
+        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
       # FRESHNESS: does the fresh artefact still say what the committed one says? Report-only, with the
@@ -394,12 +513,55 @@ jobs:
           name: browser-differential-${{ github.run_id }}
           path: |
             tests/browser/*-comparison.json
+            tests/browser/fixtures/preset-*.json
             ${{ runner.temp }}/browser-differential/**
           retention-days: 14
           if-no-files-found: warn
 
+      # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
+      # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: steps.record.outputs.failures != '0'
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') }}
         run: |
-          echo "::error::${{ steps.record.outputs.failures }} source(s) could not be recorded or were judged unfaithful; see the group output above."
+          echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
+          echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
+          echo "preset failures:            ${{ steps.preset.outputs.failures }}"
           exit 1
+
+  # THE ONLY JOB THAT MAY WRITE, and it does nothing but commit the preset evidence produced by the run
+  # above. Keeping `contents: read` on the differential job means a compromised probe cannot push; keeping
+  # the commit in its own job means the evidence is still committed by the SAME run that produced it, so a
+  # green run and the committed bytes cannot describe different code (AGENTS.md rule 5).
+  publish-preset:
+    needs: differential
+    if: ${{ inputs.commit_artifacts && needs.differential.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: preset-evidence
+          path: .
+      - name: Commit the captured fixture and its comparison artefact
+        run: |
+          set -euo pipefail
+          git config user.name 'gotavern-ci'
+          git config user.email 'ci@gotavern.invalid'
+          git add tests/browser/fixtures/preset-complex-settings.json tests/browser/preset-complex-comparison.json
+          if git diff --cached --quiet; then
+            echo "the recorded evidence is byte-identical to the commit that produced it; nothing to publish"
+            exit 0
+          fi
+          git commit -m "Record the complex-preset differential (run ${{ github.run_id }})
+
+Captured from the pinned frontend by capture-preset.mjs, driven on both legs at the bisected
+context boundary, compared byte-for-byte by compare-preset-legs.mjs, and published by the same
+run that proved the gate has teeth (preset-gate-selftest.mjs)."
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "committed: $(git rev-parse --short HEAD)"
+

@@ -1,0 +1,134 @@
+// DOES THE PRESET GATE HAVE TEETH? Mutate the legs and require the comparator to go red.
+//
+// WHY THIS FILE EXISTS (AGENTS.md "Differential-testing doctrine" 4): a gate whose failure has never
+// been observed is a gate nobody can trust, and this project has already shipped several greensor
+// assertions that could not fail. The comparator's own guards are checked here against DELIBERATELY
+// broken copies of the legs from the run that just finished, so the verdict "faithful and equal" is
+// preceded by three demonstrations that it is not unconditional:
+//
+//   1. one character inside one message of the pinned KEEP leg  -> the byte digest differs and the
+//      parsed diff names that message index;
+//   2. the `stop` array of the GoTavern DROP leg removed        -> the digest differs and the diff names
+//      the member;
+//   3. the oldest history turn put BACK into the pinned DROP leg -> the boundary no longer binds, so the
+//      comparator reports an UNFAITHFUL differential rather than a difference.
+//
+// It mutates in MEMORY only: no leg file and no artefact is written, so this can run beside the real
+// comparison without touching the evidence.
+//
+// Usage: node tests/browser/preset-gate-selftest.mjs <keep-gotavern> <keep-pinned> <drop-gotavern> <drop-pinned> [--fixture <path>]
+
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+import { PRESET_FIXTURE, findMessage } from './preset-kit.mjs';
+import { compare } from './compare-preset-legs.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+const clone = value => JSON.parse(JSON.stringify(value));
+
+function readJSON(file) {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+// replaceProviderBody rewrites the recorded POST body of a leg AND the digest/length the comparator
+// treats as the contract, so a mutation is visible in the BYTES rather than only in the parsed view.
+function replaceProviderBody(report, mutate) {
+    const copy = clone(report);
+    const entry = (copy.recording ?? []).find(item => item.method === 'POST' && item.body);
+    if (!entry) {
+        throw new Error('this leg recorded no POST body, so the self-test cannot mutate it');
+    }
+    const body = JSON.parse(entry.body);
+    mutate(body);
+    entry.body = JSON.stringify(body);
+    entry.bodyLength = Buffer.byteLength(entry.body, 'utf8');
+    entry.bodySha256 = createHash('sha256').update(entry.body).digest('hex');
+    return copy;
+}
+
+const args = process.argv.slice(2);
+const fixtureIndex = args.indexOf('--fixture');
+const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1));
+if (files.length !== 4) {
+    console.error('usage: node tests/browser/preset-gate-selftest.mjs <keep-gotavern> <keep-pinned> <drop-gotavern> <drop-pinned> [--fixture <path>]');
+    process.exit(2);
+}
+const fixture = readJSON(fixtureIndex >= 0 ? path.resolve(args[fixtureIndex + 1]) : PRESET_FIXTURE);
+const legs = {
+    gotavernKeep: readJSON(files[0]),
+    pinnedKeep: readJSON(files[1]),
+    gotavernDrop: readJSON(files[2]),
+    pinnedDrop: readJSON(files[3]),
+};
+const inputs = Object.fromEntries(['gotavernKeep', 'pinnedKeep', 'gotavernDrop', 'pinnedDrop'].map((name, index) => [name, path.basename(files[index])]));
+const run = overrides => compare({ ...legs, ...overrides, fixture, inputs });
+
+const failures = [];
+const record = (name, ok, detail) => {
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` -- ${detail}` : ''}`);
+    if (!ok) failures.push(name);
+};
+
+// 0. THE BASELINE MUST PASS, or the mutations below prove nothing: a comparator that is red on the
+//    faithful pair would "catch" every mutation for the wrong reason.
+const baseline = run({});
+record('baseline is faithful and equal', baseline.providerRequestEqual === true
+    && Object.entries(baseline.guards).every(([, value]) => value !== false),
+    JSON.stringify({ verdict: baseline.verdict, guards: Object.entries(baseline.guards).filter(([, value]) => value === false).map(([name]) => name) }));
+
+const oldestMarker = String(fixture?.capture?.boundary?.oldestMarker ?? '');
+
+// 1. ONE CHARACTER INSIDE ONE MESSAGE OF THE PINNED KEEP LEG.
+const pinnedKeepBody = JSON.parse((legs.pinnedKeep.recording.find(item => item.method === 'POST' && item.body)).body);
+const targetIndex = Math.min(2, (pinnedKeepBody.messages?.length ?? 1) - 1);
+const mutatedKeep = replaceProviderBody(legs.pinnedKeep, body => {
+    const message = body.messages[targetIndex];
+    message.content = `${message.content}Z`;
+});
+const first = run({ pinnedKeep: mutatedKeep });
+record('a one-character change in a message is caught', first.providerRequestEqual === false
+    && first.firstDifferences?.keep?.index === targetIndex,
+    JSON.stringify({ equal: first.providerRequestEqual, firstDifference: first.firstDifferences?.keep ?? null }));
+
+// 2. THE STOP ARRAY REMOVED FROM THE GOTAVERN DROP LEG.
+const mutatedStop = replaceProviderBody(legs.gotavernDrop, body => {
+    delete body.stop;
+});
+const second = run({ gotavernDrop: mutatedStop });
+const namedStop = (second.bodyDifferences?.drop ?? []).some(line => line.includes('stop'));
+record('a missing stop array is caught and named', second.providerRequestEqual === false && namedStop,
+    JSON.stringify({ equal: second.providerRequestEqual, differences: second.bodyDifferences?.drop ?? [] }));
+
+// 3. THE OLDEST TURN PUT BACK INTO THE PINNED DROP LEG: the pair stops binding, which must be reported as
+//    an unfaithful differential (a guard), not as a product difference.
+const mutatedDrop = replaceProviderBody(legs.pinnedDrop, body => {
+    const messages = Array.isArray(body.messages) ? body.messages : [];
+    // A kept-by-the-wrong-side drop leg is modelled by re-inserting the oldest turn's marker, which is
+    // exactly the observation the boundary guard reads.
+    messages.splice(1, 0, { role: 'user', content: `${oldestMarker} re-inserted by the self-test` });
+    body.messages = messages;
+});
+const third = run({ pinnedDrop: mutatedDrop });
+record('a drop leg that keeps the oldest turn fails the boundary guard', third.guards?.boundaryBindsOnThePinnedLeg === false
+    || third.guards?.boundaryPairDiscriminates === false,
+    JSON.stringify({ keepDrop: third.keepDrop?.drop ?? null, guards: { binds: third.guards?.boundaryBindsOnThePinnedLeg, discriminates: third.guards?.boundaryPairDiscriminates } }));
+
+// 4. A MISSING TOKENIZER ANCHOR MUST REFUSE: this is the Guesstimate path, and comparing counts that are
+//    not counts is the failure this lane exists to prevent.
+const noAnchor = clone(legs.gotavernKeep);
+if (noAnchor.preset) {
+    noAnchor.preset.tokenizerAnchor = { model: 'llama', status: 200, count: 13, pinnedCount: 7 };
+}
+const fourth = run({ gotavernKeep: noAnchor });
+record('a guesstimating tokenizer fails the anchor guard', fourth.guards?.tokenizerAnchorExactOnBothLegs === false,
+    JSON.stringify(fourth.guards?.tokenizerTree ?? null));
+
+console.log(failures.length === 0
+    ? `preset gate self-test: ${4} mutations caught, baseline green`
+    : `preset gate self-test: ${failures.length} mutation(s) NOT caught: ${failures.join(', ')}`);
+process.exit(failures.length === 0 ? 0 : 1);
