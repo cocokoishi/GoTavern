@@ -66,17 +66,13 @@ on:
         description: 'Release tag to smoke (leave empty for the newest v* tag)'
         required: false
         type: string
-  # TEMPORARY, AND TO BE REMOVED BEFORE THIS FILE LANDS ON `main`.
-  #
-  # `schedule` only ever fires on the default branch, and a branch-only `workflow_dispatch` answers
-  # "workflow not found on the default branch" -- measured, not assumed: it is recorded in
-  # smoke-metrics.yml's header, which was proved the same way. Without this trigger the first run of this
-  # file could only happen after the merge, leaving its timeout and its very syntax unmeasured. The final
-  # commit of this lane deletes these four lines; the run they produce is where the numbers in the
-  # header come from.
-  push:
-    branches: ['lane/release-smoke']
-    paths: ['.github/workflows/release-install-smoke.yml']
+  # HOW THIS FILE WAS PROVED BEFORE IT COULD FIRE. `schedule` only ever fires on the default branch, and a
+  # branch-only `workflow_dispatch` answers "workflow not found on the default branch" -- measured, not
+  # assumed; smoke-metrics.yml's header records the same measurement. This file therefore carried a
+  # temporary `push` trigger on its own lane while it was being written, which produced run 40072321355
+  # (green, 26 s job time) and run 40072470162 (green, 21 s, the logic that ships). The trigger is removed
+  # here, so those run ids -- not a scheduled run -- are the evidence behind `timeout-minutes` and behind
+  # every claim in this header. The scheduled and dispatched triggers that ship first fire on `main`.
   schedule:
     # Thursdays, 05:47 UTC. Deliberately not the nightly oracle (`17 4 * * *`) or the Monday smoke-metrics
     # slot (`23 5 * * 1`): a job that contends for a runner measures the queue, and GitHub honours an

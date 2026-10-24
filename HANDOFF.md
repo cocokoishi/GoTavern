@@ -143,12 +143,19 @@ separators, registry, cmd.exe)", which is the four behaviours no other runner ca
 `install.sh` is held to. Both jobs are green in run 39907640873, and the gate has teeth: the mutation run
 39908014487 fails it.
 
-**NOT COVERED (unexecuted as of 2026-10-23, each with its reason rather than a to-do)**: an existing
-SillyTavern install migrated IN PLACE (the cross-baseline job below updates an older GoTavern release,
-not a SillyTavern tree), replacing a binary under a RUNNING server on Linux, and proxy/TLS against the
-real github.com download path -- every installer run uses a loopback mirror, so no run has ever resolved
-a `releases/latest/download/...` URL over TLS. `gotavern migrate` EXISTS (`cmd/gotavern/main.go:103`,
-`internal/migrate/migrate_test.go:174-611`); it copies to `--dest`, which is not an in-place migration.
+**NOT COVERED (each with its reason rather than a to-do)**: an existing SillyTavern install migrated IN
+PLACE (the cross-baseline job below updates an older GoTavern release, not a SillyTavern tree), and
+replacing a binary under a RUNNING server on Linux. `gotavern migrate` EXISTS
+(`cmd/gotavern/main.go:103`, `internal/migrate/migrate_test.go:174-611`); it copies to `--dest`, which is
+not an in-place migration.
+
+**COVERED SINCE, and it used to be on that list**: proxy/TLS against the real github.com download path.
+`release-install-smoke.yml` (weekly + dispatch) resolves the TAG-addressed release URL over TLS, runs
+`install.sh --dir … --version <tag>` against it, requires the checksum parse to succeed, boots the
+installed prefix, and requires the tokenizer ROUTES to return real ids -- plus a byte-level assertion that
+`releases/latest/download/checksums.txt` never serves a prerelease. Runs 40072321355 and 40072470162
+(green, 21-26 s). What it still does not reach: the PUBLISHED WINDOWS installer, which is opened and
+content-asserted but never executed, because that job runs on Linux.
 
 ## 4. The working model (this is what makes the CI budget survivable)
 
