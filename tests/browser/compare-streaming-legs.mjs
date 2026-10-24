@@ -13,6 +13,24 @@
 
 import fs from 'node:fs/promises';
 import process from 'node:process';
+import { BY_ID } from './sources.mjs';
+
+// THE DRIVE FACTS FOR THE SOURCE THIS LEG WAS RUN WITH, from the catalog. Same helper and same
+// reasoning as compare-generation-legs.mjs: the streaming artifact and the generation artifact for one
+// source must describe the SAME route, and they were maintained by hand in two places until now --
+// siliconflow's seam was recorded in one and not the other, and the workers_ai row disagreed about
+// which facts a reader needs. An unknown PROBE_SOURCE is an error rather than an empty object.
+const sourceDriveParameters = report => {
+    const id = process.env.PROBE_SOURCE ?? 'custom';
+    const source = BY_ID.get(id);
+    if (!source) {
+        throw new Error(`PROBE_SOURCE=${id} is not a source in tests/browser/sources.mjs, so this comparison cannot say how its legs were aimed`);
+    }
+    if (!source.driveParameters) {
+        return {};
+    }
+    return source.driveParameters(report);
+};
 
 const [streamGotavernPath, streamPinnedPath, cancelGotavernPath, cancelPinnedPath, nonstreamGotavernPath, nonstreamPinnedPath] = process.argv.slice(2);
 if (!streamGotavernPath || !streamPinnedPath || !cancelGotavernPath || !cancelPinnedPath || !nonstreamGotavernPath || !nonstreamPinnedPath) {
@@ -175,60 +193,17 @@ const main = async () => {
     // assume the same one. Frame count comes from PROBE_FRAME_COUNT (the peer's default is 5 for a stream
     // and 12 for a cancel), and the OpenRouter legs below were driven at 14.
     driveParameters: {
+        // WHICH DRIVE PRODUCED THIS. Frame count comes from PROBE_FRAME_COUNT at RE-RECORD time; the
+        // comparator can only report what its own environment says, which is why the verifier now reads
+        // the frame count back from the recorded framesWritten instead of trusting this string.
         streamFrameCount: process.env.PROBE_FRAME_COUNT ?? 'peer default (5 stream / 12 cancel)',
-        customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
-            ...(process.env.PROBE_SOURCE === 'chutes' ? {
-                sourceShape: "CHUTES forwards messages VERBATIM, with `top_k` and `logit_bias` members no sibling source sends: the recorded provider body IS the evidence, and the artifact carries its digest rather than a re-shaped copy. This is the case that makes a shared-helper implementation look correct and be wrong: a source whose MESSAGE side has no processor at all cannot be served by a helper that quietly reshapes messages for its siblings, and the recorded body digest is what would catch it.",
-            } : {}),
-            ...(process.env.PROBE_SOURCE === 'electronhub' ? {
-                sourceShape: "ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: its route is a bare literal and always reads the ELECTRONHUB secret, so a request carrying a proxy is IGNORED rather than proxied. `proxyPasswordPresent: false` on both legs therefore means UNSUPPORTED, not unused, and the artifact says so because a reader would otherwise read the false as \"proxy available and untouched\".",
-            } : {}),
-
-        // See the generation comparator: openrouter is proxy:false with a pinned literal, so the seam and
-        // the redirect are the only route and proxyPasswordPresent false on both legs is the evidence.
-        // See the generation comparator: claude is proxy-capable and no-validate, so the peer travels in
-        // reverse_proxy and NO /models call may appear on either leg.
-        ...(process.env.PROBE_SOURCE === 'claude' ? {
-            seamEnvVar: 'GOTAVERN_CLAUDE_CHAT_URL',
-            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs, because claude is proxy-capable',
-            seamUsage: 'safety net only: the seam is aimed so a leg preferring the pinned literal cannot reach the real provider, but the route is the setting',
-            noValidate: 'claude must record ZERO /models calls on both legs; a status call is the harness bug, not a product finding',
-        } : {}),
-        ...(process.env.PROBE_SOURCE === 'openrouter' ? {
-            seamEnvVar: 'GOTAVERN_OPENROUTER_CHAT_URL',
-            peerRoute: 'the seam on the GoTavern leg and the openrouter.ai transport redirect on the pinned leg, because no request member can carry a peer for this source',
-            proxyPasswordMeaning: 'proxyPasswordPresent false on BOTH legs is the evidence that seam plus redirect were the only route to the peer',
-        } : {}),
-        ...(process.env.PROBE_SOURCE === 'groq' || process.env.PROBE_SOURCE === 'siliconflow' || process.env.PROBE_SOURCE === 'nanogpt' || process.env.PROBE_SOURCE === 'deepseek' ? {
-            // NAMED PER SOURCE, for the same reason as the generation artifact: the seam that aimed
-            // this leg must be the one recorded.
-            seamEnvVar: { groq: 'GOTAVERN_GROQ_CHAT_URL', siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL', nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL', deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL', aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL', ai21: 'GOTAVERN_AI21_CHAT_URL' }[process.env.PROBE_SOURCE] ?? null,
-            // THE TWO FACTS A READER CANNOT RECONSTRUCT FROM THESE NUMBERS. Both were measured the hard
-            // way in this lane, and they belong in the artifact rather than in a message about it.
-            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds here. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.',
-            // SILICONFLOW'S ENDPOINT IS A BODY FIELD: the drive selects the DEFAULT through the
-            // frontend's own control and the seam aims that host. The CN endpoint is not measured.
-            ...(process.env.PROBE_SOURCE === 'siliconflow' ? {
-                endpointMode: 'global (selected through #siliconflow_endpoint, the control a user sets)',
-                endpointBreadth: 'the DEFAULT endpoint only; the CN host is a second supported endpoint and is not exercised by this drive',
-            } : {}),
-            peerKeying: 'the scripted mock provider matches POSITIONALLY and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. This drive therefore uses a peer that answers by REQUEST (GET -> model list every time, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.',
-        } : {}),
-        // OPENAI: the same seam/redirect pair as the generation artifact, and the same measured fact -- openai IS
-        // proxy:true, so the absent reverse_proxy is a deliberate drive choice, not a control the frontend lacks.
-        // See the generation comparator: xAI's route is the SETTING, the seam is a safety net, and
-        // proxyPasswordPresent true on both legs is what distinguishes this row from every seam-routed one.
-        ...(process.env.PROBE_SOURCE === 'xai' ? {
-            seamEnvVar: 'GOTAVERN_XAI_CHAT_URL',
-            peerRoute: 'the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184), which is a path a user can take because xAI is proxy-capable',
-            seamUsage: 'safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but neither is the route this drive took; proxyPasswordPresent true on both legs is the evidence',
-            converterNote: 'xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content and deletes msg.name; a wrong port still yields a parseable body, so the provider bytes are the assertion',
-        } : {}),        ...(process.env.PROBE_SOURCE === 'openai' ? {
-            seamEnvVar: 'GOTAVERN_OPENAI_CHAT_URL',
-            proxySettingDeliberatelyUnset: 'apiSourceConfig marks openai proxy:true, so oai_settings.reverse_proxy was available and deliberately left unset; proxyPasswordPresent false on both legs is the measurement, not an assumption',
-            pinnedRedirectRequired: 'PROBE_PINNED_REDIRECT_FILE aims the pinned leg at the same peer the seam aims the GoTavern leg at; without it the pinned server fetches api.openai.com and the peer log stays empty',
-        } : {}),
-
+        customArtifactFrameCount: 'different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other',
+        // THE SOURCE-SPECIFIC FACTS COME FROM THE CATALOG. This object used to hold six
+        // `...(process.env.PROBE_SOURCE === 'x' ? {...} : {})` blocks that had drifted from the
+        // generation comparator's copies of the same prose (the workers_ai row here named a redirect
+        // requirement and a peerKeying fact the generation row omitted; siliconflow's seam went
+        // unrecorded here while the generation artifact recorded it).
+        ...sourceDriveParameters(streamGotavern),
     },
     question: 'do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?',
         captures: { streamGotavern: streamGotavernPath, streamPinned: streamPinnedPath, cancelGotavern: cancelGotavernPath, cancelPinned: cancelPinnedPath, nonstreamGotavern: nonstreamGotavernPath, nonstreamPinned: nonstreamPinnedPath },

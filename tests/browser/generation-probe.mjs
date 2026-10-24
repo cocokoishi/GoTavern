@@ -41,6 +41,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -85,11 +86,17 @@ async function waitFor(url, label, deadlineMs = 30000) {
 // the provider protocol as well, so a claude drive is served an ANTHROPIC response and every other source an
 // OpenAI one. A leg that silently fell back to the OpenAI script would show as a DIFFERENT final text rather
 // than as an equal empty one.
+//
+// THE SOURCE IS A CATALOG ENTRY NOW, NOT A NAME THIS FILE KNOWS. Everything below that used to be a
+// per-source `if` -- the protocol, the scripted /models count, the peer circuit, the seam env vars, the
+// redirect origin, the model setting, the key field, the connect preconditions -- is read from
+// tests/browser/sources.mjs, which is DRIVER-ONLY by contract. Adding a source must not need an edit here.
 const probeSource = process.env.PROBE_SOURCE ?? 'custom';
-if (!['custom', 'openrouter', 'claude', 'mistralai', 'groq', 'siliconflow', 'nanogpt', 'deepseek', 'openai', 'cohere', 'chutes', 'electronhub', 'aimlapi', 'ai21', 'xai'].includes(probeSource)) {
-    throw new Error(`PROBE_SOURCE must be custom, openrouter, claude, mistralai, groq, siliconflow, nanogpt, deepseek, openai, cohere, chutes, electronhub, aimlapi, ai21 or xai, got ${probeSource}`);
-}
-const peerProtocol = probeSource === 'claude' ? 'anthropic' : 'openai';
+const source = sourceFor(probeSource);
+const peerProtocol = source.probe.peer.protocol;
+// HOW MANY MODEL-LIST ANSWERS THE POSITIONAL SCRIPT CARRIES. Only the scripted circuit consumes them;
+// a request-keyed peer answers by REQUEST and needs no count at all (which is why most sources use it).
+const scriptedModelAnswers = source.probe.peer.circuit === PEER_CIRCUIT.SCRIPTED ? source.probe.peer.scriptedModelsAnswers : 0;
 const mockScript = {
     // The Connect step asks the chat-completions status route for GET {custom_url}/models, which the
     // server proxies to this peer. The scripted responses are SEQUENTIAL, so the models answer must
@@ -106,17 +113,14 @@ const mockScript = {
         // connect). The script is SEQUENTIAL, so ONE models entry is consumed by the first call and the
         // second receives the COMPLETION body, which no model renderer can read: measured on the groq
         // pinned leg, onlineStatus ended "no_connection", the peer was never asked for a completion, and
-        // the send was silently refused -- while the GoTavern leg, which asks once, sent fine. Three
-        // models entries keep every status call answerable and leave the completion request's body
-        // unchanged.
-        // SCOPE MATTERS: the script is sequential, so an extra entry shifts every LATER response. Only
-        // groq gets the extra model-list answers; every other source keeps exactly the two responses it
-        // has always had, so their completion body cannot move.
-        ...(peerProtocol === 'anthropic' ? [] : [1, ...(probeSource === 'groq' ? [2, 3] : [])].map(() => ({
+        // the send was silently refused -- while the GoTavern leg, which asks once, sent fine.
+        // SCOPE MATTERS: the script is sequential, so an extra entry shifts every LATER response, which
+        // is exactly why the count is a per-source CATALOG FIELD and not a shared constant.
+        ...Array.from({ length: scriptedModelAnswers }, () => ({
             status: 200,
             headers: [{ name: 'Content-Type', value: 'application/json' }],
             body: JSON.stringify({ data: [{ id: 'probe-model' }] }),
-        }))),
+        })),
 
         {
             status: 200,
@@ -377,12 +381,12 @@ function startStreamingPeer(mode, protocol) {
 let mock = null;
 let streamingPeer = null;
 let mockAddress = '';
-// GROQ USES THE IN-PROCESS PEER IN EVERY MODE. Its page asks for the model list a source-dependent
-// number of times, and the Go mock script is POSITIONAL: with one models answer the second status call
-// receives the completion body, and with three the completion receives a models body -- measured both,
-// and each produced a different wrong outcome on the pinned leg. A peer that answers by REQUEST is the
-// shape that needs no per-source count at all, so groq is served by it even when not streaming.
-if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || probeSource === 'nanogpt' || probeSource === 'cohere' || probeSource === 'chutes' || probeSource === 'electronhub' || probeSource === 'aimlapi' || probeSource === 'ai21' || probeSource === 'xai' || probeSource === 'deepseek' || probeSource === 'openai') {
+// THE PEER CIRCUIT COMES FROM THE CATALOG. A source that needs more than one status answer, or any
+// streamed/cancelled drive, is served by the in-process peer that answers by REQUEST: it needs no
+// per-source count at all, which is why the whole class moved to it rather than each source keeping
+// its own entries in a positional script.
+const useInProcessPeer = streamingMode || source.probe.peer.circuit === PEER_CIRCUIT.REQUEST_KEYED;
+if (useInProcessPeer) {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
 } else {
@@ -402,137 +406,33 @@ if (streamingMode || probeSource === 'groq' || probeSource === 'siliconflow' || 
     }
 }
 
-// AIM THE LEGS AT THE PEER IN BOTH MODES. This block used to sit INSIDE the non-stream branch, so a
-// streaming drive exported no seam and wrote no redirect mapping: the peer's own path log showed it was
-// never asked for anything, on EITHER leg, because neither backend was pointed at it. That is a harness
-// defect that presents exactly like a product one -- both legs refused for the same reason and the
-// downstream symptom was 'the frontend never reached a connected online_status'.
-    // OPENROUTER'S PEER CANNOT TRAVEL IN THE REQUEST. Its URL is the pinned literal
-    // `https://openrouter.ai/api/v1` with no reverse_proxy and no custom_url, so the GoTavern leg is aimed at
-    // the recording peer through the seam the provider-wire lane added, and the PINNED leg through the
-    // transport redirect tools/run-against-pinned.mjs installs for the same origin.
-    if (probeSource === 'openrouter' && !external) {
-        process.env.GOTAVERN_OPENROUTER_CHAT_URL = `http://${mockAddress}`;
+// AIM THE LEGS AT THE PEER IN BOTH MODES, FROM THE CATALOG.
+//
+// This block used to be a dozen `if (probeSource === 'x') { process.env.GOTAVERN_X_CHAT_URL = ... }`
+// statements followed by a dozen redirect writes: two lists that had to agree with each other, with the
+// Go arm and with the pinned literal, and that had ALREADY drifted (openai and openrouter had a seam but
+// no entry in the recorded seam map, and claude/mistralai had neither). Both lists now come from
+// `probe.seams` and `probe.redirectFrom` on the catalog entry, so a source cannot be half-aimed.
+//
+// WHY BOTH MECHANISMS ARE SET FOR A PROXY-CAPABLE SOURCE: the request member (custom_url /
+// reverse_proxy) is the ROUTE a user takes, and the seam plus the transport redirect are SAFETY NETS --
+// they exist so that a leg which stopped honouring the member cannot reach the real provider. Setting
+// them is what makes the recorded claim true rather than prose: claude and mistralai artifacts said
+// "seam aimed as a safety net" while nothing aimed it (AGENTS verification rule 14: a probe must not be
+// able to reach the live network).
+for (const seam of source.probe.seams) {
+    if (!external) {
+        process.env[seam.env] = `http://${mockAddress}${seam.suffix}`;
     }
-    // GROQ IS THE SAME SHAPE AND THE STRONGER CASE: apiSourceConfig marks it 'proxy: false'
-    // (openai.js:6050), so the frontend cannot be pointed at a peer through reverse_proxy AT ALL. The
-    // seam below and the pinned transport redirect are the ONLY way both legs reach one peer, which is
-    // also why the submitted settings record proxyPasswordPresent false on both legs here and true for
-    // claude/mistralai, whose drives carry the peer in reverse_proxy.
-    if (probeSource === 'groq' && !external) {
-        process.env.GOTAVERN_GROQ_CHAT_URL = `http://${mockAddress}`;
-    }
-    // SILICONFLOW HAS TWO HOSTS and the BODY chooses between them, so the seam must match the endpoint
-    // the drive drives. The drive exercises the DEFAULT (global) endpoint through the frontend's own
-    // control and records which one, and this aims THAT endpoint's seam (siliconflow_chat.go:32-35).
-    if (probeSource === 'siliconflow' && !external) {
-        process.env.GOTAVERN_SILICONFLOW_CHAT_URL = `http://${mockAddress}`;
-    }
-    // NANOGPT IS THE SAME SHAPE AS GROQ, and the same class of source: openai.js:6053 marks it
-    // `proxy: false` with selector '#api_key_nanogpt', so the frontend CANNOT carry the peer in
-    // reverse_proxy, and this seam plus the pinned redirect are the only way BOTH legs reach one peer.
-    // Its base URL is the pinned literal in internal/server/nanogpt_chat.go, replaceable only by
-    // GOTAVERN_NANOGPT_CHAT_URL.
-    if (probeSource === 'nanogpt' && !external) {
-        process.env.GOTAVERN_NANOGPT_CHAT_URL = `http://${mockAddress}`;
-    }
-    // DEEPSEEK'S HOST IS A PINNED LITERAL for the generate route: pinned strips `/beta` and appends
-    // `/chat/completions`, so the Go leg is aimed with its own seam and the pinned leg with a redirect on
-    // the ORIGIN (which covers both `/chat/completions` and the `/beta/models` status call). The peer
-    // matches by `includes` on the completion path, so the Go leg's `/beta` prefix and pinned's absence of
-    // it are both answerable -- a strict equality match would 404 one of them.
-    if (probeSource === 'deepseek' && !external) {
-        // THE SEAM TARGET CARRIES `/beta`, because the seam REPLACES the whole base rather than its
-        // origin (internal/server/deepseek_chat.go:58, and the status base strips `/beta` at :64).
-        // Measured the other way first: with the bare origin the Go leg asked the peer for
-        // `/chat/completions` while the pinned leg asked for `/beta/chat/completions`, so the two legs
-        // recorded DIFFERENT provider paths and the difference was the harness, not the product --
-        // production Go uses the pinned literal, which has `/beta`.
-        process.env.GOTAVERN_DEEPSEEK_CHAT_URL = `http://${mockAddress}/beta`;
-    }
-    // OPENAI'S BASE IS THE PINNED LITERAL https://api.openai.com/v1 (chat_completions.go:50; seam declared in
-    // openai_chat_status.go:49). This drive puts no base in the request, so the GoTavern leg is aimed by this seam and
-    // the pinned leg by the redirect written below.
-    if (probeSource === 'openai' && !external) {
-        process.env.GOTAVERN_OPENAI_CHAT_URL = `http://${mockAddress}`;
-    }
-    // COHERE HAS TWO BASES: /v2 for generate and /v1 for the status arm, which is the shared models GET
-    // (cohere_chat.go:69-75). Both are aimed, because aiming only generate leaves the status call at the
-    // real host and the send is then silently refused with no provider request at all.
-    if (probeSource === 'cohere' && !external) {
-        process.env.GOTAVERN_COHERE_CHAT_URL = `http://${mockAddress}/v2`;
-        process.env.GOTAVERN_COHERE_STATUS_URL = `http://${mockAddress}/v1`;
-    }
-    if (probeSource === 'chutes' && !external) {
-        process.env.GOTAVERN_CHUTES_CHAT_URL = `http://${mockAddress}`;
-    }
-    // ELECTRONHUB NEVER CONSULTS reverse_proxy (electronhub_chat.go:22-23, :133): a request carrying one is
-    // IGNORED rather than proxied, so the seam and the redirect are the only route. That is why the recorded
-    // proxyPasswordPresent is false AND the artifact must say the setting is UNSUPPORTED, not unused.
-    if (probeSource === 'electronhub' && !external) {
-        process.env.GOTAVERN_ELECTRONHUB_CHAT_URL = `http://${mockAddress}`;
-    }
-    // AIMLAPI'S BASE IS THE PINNED LITERAL https://api.aimlapi.com/v1 (aimlapi_chat.go:53), replaceable only by
-    // this seam (aimlapi_chat.go:54). No request member carries a base for this source, so both legs are aimed
-    // here and by the redirect below.
-    if (probeSource === 'aimlapi' && !external) {
-        process.env.GOTAVERN_AIMLAPI_CHAT_URL = `http://${mockAddress}`;
-    }
-    // AI21'S BASE IS THE PINNED LITERAL https://api.ai21.com/studio/v1 (ai21_chat.go:42), replaceable only by
-    // this seam (ai21_chat.go:43).
-    if (probeSource === 'ai21' && !external) {
-        process.env.GOTAVERN_AI21_CHAT_URL = `http://${mockAddress}`;
-    }
-    // XAI IS PROXY-CAPABLE, so this drive carries the peer in the frontend's own `reverse_proxy` setting
-    // and BOTH legs follow it (chat-completions.js:1184 `new URL(request.body.reverse_proxy || API_XAI)`).
-    // That makes proxyPasswordPresent a MEANINGFUL recorded value here: true on both legs shows the
-    // credential arrived as proxy_password, which a seam-routed leg cannot show because it sends none. The
-    // seam and the redirect are SAFETY NETS so a leg preferring the pinned literal cannot reach the real
-    // api.x.ai; the artifact records that they were AIMED while the route was the setting.
-    if (probeSource === 'xai' && !external) {
-        process.env.GOTAVERN_XAI_CHAT_URL = `http://${mockAddress}`;
-    }
-    // The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
-    // this file is named: the hook re-reads it per request, which is why it can be written only now that the
-    // peer has an address.
-    const redirectFile = process.env.PROBE_PINNED_REDIRECT_FILE;
-    if (probeSource === 'openrouter' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://openrouter.ai/api/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'groq' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.groq.com/openai/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'siliconflow' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.siliconflow.com/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'nanogpt' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://nano-gpt.com/api/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'openai' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.openai.com/v1', to: `http://${mockAddress}` }]));
-    }
-    // COHERE's two bases are on ONE host with different API versions, so the redirect is by ORIGIN.
-    if (probeSource === 'cohere' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.cohere.ai', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'chutes' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://llm.chutes.ai/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'electronhub' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.electronhub.ai/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'aimlapi' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.aimlapi.com/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'ai21' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.ai21.com/studio/v1', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'xai' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.x.ai', to: `http://${mockAddress}` }]));
-    }
-    if (probeSource === 'deepseek' && external && redirectFile) {
-        await fs.writeFile(redirectFile, JSON.stringify([{ from: 'https://api.deepseek.com', to: `http://${mockAddress}` }]));
-    }
+}
+// The PINNED leg reaches the same peer through the loader hook tools/run-against-pinned.mjs installs when
+// this file is named: the hook re-reads the mapping per request, which is why it can be written only now
+// that the peer has an address. A source whose redirect list is empty carries the peer in the request and
+// needs no redirect; anything else would be a leg that can reach the real provider.
+const redirectFile = process.env.PROBE_PINNED_REDIRECT_FILE;
+if (external && redirectFile && source.probe.redirectFrom.length > 0) {
+    await fs.writeFile(redirectFile, JSON.stringify(source.probe.redirectFrom.map(origin => ({ from: origin, to: `http://${mockAddress}` }))));
+}
 
 const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 const serverLog = [];
@@ -856,7 +756,26 @@ try {
             globalThis.__capturedSettings = settings;
         }, capturedSettings);
     }
-    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource }) => {
+    // THE DRIVE PLAN, DERIVED FROM THE CATALOG AND PASSED INTO THE PAGE AS DATA.
+    //
+    // Everything the page-side drive used to decide with `if (probeSource === ...)` is here instead:
+    // which setting names the model, which control a user sets, whether the peer travels in reverse_proxy
+    // or custom_url, which secret slot and which key field. The page applies the plan generically, so a
+    // new source is a catalog row rather than a branch in a function that also drives every other source.
+    const plan = {
+        source: source.id,
+        browserSource: source.browserSource,
+        secretKey: source.probe.secretKey,
+        keySelector: source.probe.keySelector,
+        modelSetting: source.probe.modelSetting,
+        modelControl: source.probe.modelControl,
+        reverseProxy: source.probe.reverseProxy,
+        customUrl: source.probe.customUrl,
+        expectsModelsCall: source.probe.expectsModelsCall,
+        noValidate: source.probe.noValidate,
+    };
+    const modelControlRecords = plan.modelControl ? [plan.modelControl.record] : [];
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -865,25 +784,10 @@ try {
         const script = await import('./script.js');
         const { oai_settings } = await import('./scripts/openai.js');
         const secretsModule = await import('./scripts/secrets.js');
-        // The custom OpenAI-compatible source needs a key in secret_state; a user would paste one.
-        const sourceSecretKey = {
-            openrouter: secretsModule.SECRET_KEYS.OPENROUTER,
-            claude: secretsModule.SECRET_KEYS.CLAUDE,
-            mistralai: secretsModule.SECRET_KEYS.MISTRALAI,
-            groq: secretsModule.SECRET_KEYS.GROQ,
-            siliconflow: secretsModule.SECRET_KEYS.SILICONFLOW,
-            nanogpt: secretsModule.SECRET_KEYS.NANOGPT,
-            cohere: secretsModule.SECRET_KEYS.COHERE,
-            chutes: secretsModule.SECRET_KEYS.CHUTES,
-            electronhub: secretsModule.SECRET_KEYS.ELECTRONHUB,
-            aimlapi: secretsModule.SECRET_KEYS.AIMLAPI,
-            ai21: secretsModule.SECRET_KEYS.AI21,
-            xai: secretsModule.SECRET_KEYS.XAI,
-            deepseek: secretsModule.SECRET_KEYS.DEEPSEEK,
-        openai: secretsModule.SECRET_KEYS.OPENAI,
-            custom: secretsModule.SECRET_KEYS.CUSTOM,
-        }[probeSource];
-        await secretsModule.writeSecret(sourceSecretKey, 'probe-synthetic-key');
+        // The key goes in the source's own secret slot: a user would paste one, and the connect
+        // handler refuses a source with no secret in secret_state. WHICH slot is a catalog fact
+        // (plan.secretKey names a SECRET_KEYS member), so this file no longer carries a map.
+        await secretsModule.writeSecret(secretsModule.SECRET_KEYS[plan.secretKey], 'probe-synthetic-key');
 
         await script.getCharacters();
         if (!Array.isArray(script.characters) || script.characters.length === 0) {
@@ -914,90 +818,45 @@ try {
         oai_settings.stream_openai = streaming;
 
         // WHICH SOURCE THIS DRIVE SELECTS. The captured fixture is a custom-source setup, so the source is
-        // assigned AFTER it: without this, an openrouter run would silently be a custom run. For openrouter
-        // the peer cannot travel in the request (its URL is a pinned literal with no request member), so the
-        // legacy `custom_url` is left alone and the GoTavern leg is aimed by its seam below.
+        // assigned AFTER it: without this, an openrouter run would silently be a custom run.
         oai_settings.chat_completion_source = probeSource;
-        // CLAUDE AND MISTRALAI ARE AIMED THROUGH THE FRONTEND'S OWN `reverse_proxy` SETTING, not a
-        // test-only seam: both read it (their provider-wire scenarios include a reverse-proxy variant), so
-        // the peer address travels the way a user's endpoint would and BOTH legs follow it.
-        if (probeSource === 'openrouter') {
-            oai_settings.openrouter_model = 'probe-model';
-        } else if (probeSource === 'claude') {
-            oai_settings.claude_model = 'probe-model';
+        // HOW THIS SOURCE IS POINTED AT THE PEER AND WHICH MODEL IT SELECTS -- three catalog facts, applied
+        // generically. Every `else if (probeSource === ...)` that used to sit here was a copy of the same
+        // two lines (a model setting, and whether the peer travels in reverse_proxy or custom_url), and the
+        // copies had drifted: the probe's list and the comparator's prose did not agree about which sources
+        // carry a proxy credential.
+        //
+        // The rule the catalog encodes, which a user can also follow: a proxy-capable source is driven
+        // through the frontend's own `reverse_proxy` setting (so the peer address travels the way a user's
+        // endpoint would and BOTH legs follow it); a `proxy: false` source has that control at all, so its
+        // peer arrives by seam + transport redirect instead and proxyPasswordPresent stays false.
+        if (plan.modelSetting) {
+            oai_settings[plan.modelSetting] = 'probe-model';
+        }
+        if (plan.reverseProxy) {
             oai_settings.reverse_proxy = mockUrl;
-        } else if (probeSource === 'siliconflow') {
-            // NO reverse_proxy: siliconflow is proxy:false. The ENDPOINT is a body field, and a user
-            // sets it with this control, so the drive drives the DEFAULT through the same control and
-            // records what it drove rather than writing the settings object directly.
-            oai_settings.siliconflow_model = 'probe-model';
-            const endpointSelect = document.querySelector('#siliconflow_endpoint');
-            if (!endpointSelect) {
-                return { status: 'not-driven', reason: 'no #siliconflow_endpoint control in the served frontend' };
+        }
+        if (plan.customUrl) {
+            oai_settings.custom_url = mockUrl;
+        }
+        // A BODY-DERIVED HOST IS DRIVEN THROUGH THE FRONTEND'S OWN CONTROL, GENERICALLY: the drive selects
+        // the control's OWN default option (never an invented value) and records what it drove, so an
+        // artifact that does not say which host it measured cannot be produced.
+        if (plan.modelControl) {
+            const control = document.querySelector(plan.modelControl.selector);
+            if (!control) {
+                return { status: 'not-driven', reason: `no ${plan.modelControl.selector} control in the served frontend` };
             }
-            const endpoints = [...endpointSelect.options].map(option => option.value);
-            const defaultEndpoint = endpointSelect.options[endpointSelect.selectedIndex]?.value ?? null;
-            endpointSelect.value = defaultEndpoint ?? 'global';
-            endpointSelect.dispatchEvent(new Event('input', { bubbles: true }));
-            globalThis.__siliconflowEndpoint = { mode: defaultEndpoint ?? 'global', available: endpoints, control: '#siliconflow_endpoint', via: 'input event' };
-        } else if (probeSource === 'groq') {
-            // NO reverse_proxy: groq is proxy:false, so setting one would be driving something a user
-            // cannot, and the leg would reach the peer by a path the product does not offer.
-            oai_settings.groq_model = 'probe-model';
-        } else if (probeSource === 'nanogpt') {
-            // NO reverse_proxy: nanogpt is `proxy: false` exactly like groq, so setting one would drive
-            // a control the product does not offer for this source and would let the leg reach the peer
-            // by a path a user cannot take. The model is the panel's own select, which the status call
-            // that Connect makes is what fills.
-            oai_settings.nanogpt_model = 'probe-model';
-        } else if (probeSource === 'cohere') {
-            // NO reverse_proxy: the peer travels by seam and redirect, so proxyPasswordPresent stays false
-            // and the artifact says which route the legs took.
-            oai_settings.cohere_model = 'probe-model';
-        } else if (probeSource === 'chutes') {
-            oai_settings.chutes_model = 'probe-model';
-        } else if (probeSource === 'electronhub') {
-            // ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: the route is a bare literal and always reads
-            // the ELECTRONHUB secret, ignoring a proxy if one were sent. Setting one would drive a control
-            // the product does not offer, so the peer is reached by seam + redirect and the artifact states
-            // that the setting is UNSUPPORTED, not merely unused.
-            oai_settings.electronhub_model = 'probe-model';
-        } else if (probeSource === 'aimlapi') {
-            // AIMLAPI IS proxy:false AND ITS KEY GUARD HAS NO reverse_proxy ESCAPE AT ALL (aimlapi_chat.go:24,152
-            // -- the guard is `!apiKey` and the route never consults `reverse_proxy`), so a user cannot aim this
-            // source with a proxy and neither can this drive. The peer is reached by the GoTavern seam and the
-            // pinned transport redirect, which is why proxyPasswordPresent must come out FALSE on BOTH legs: that
-            // false is the measurement that the route read no reverse-proxy credential, not an absence of evidence.
-            oai_settings.aimlapi_model = 'probe-model';
-        } else if (probeSource === 'ai21') {
-            // AI21 IS proxy:false in apiSourceConfig and is a NO-VALIDATE source (openai.js:4459): the frontend
-            // never asks it for a model list, so the peer sees ONLY the completion POST. The peer answers by
-            // REQUEST, which is what makes a single-call source work at all.
-            oai_settings.ai21_model = 'probe-model';
-        } else if (probeSource === 'xai') {
-            // THE PEER TRAVELS IN THE SETTING, as a user's own endpoint would, so both legs follow it and
-            // the request carries reverse_proxy + proxy_password. xAI is proxy-capable, so this is a path
-            // a user can take; driving the seam alone would leave proxyPasswordPresent false and would not
-            // exercise the :1185 key split at all.
-            oai_settings.xai_model = 'probe-model';
-            oai_settings.reverse_proxy = mockUrl;
-        } else if (probeSource === 'deepseek') {
-            // Deepseek HONOURS reverse_proxy in pinned, but this drive does NOT set one: the peer is
-            // reached through the seam on the Go leg and the transport redirect on the pinned leg, so
-            // proxyPasswordPresent stays false on both and the artifact says the peer was reached WITHOUT
-            // a reverse-proxy credential. Driving a reverse proxy instead would make that recorded false
-            // impossible and would hide which route the legs actually took.
-            oai_settings.deepseek_model = 'probe-model';
-        } else if (probeSource === 'openai') {
-            // OPENAI IS proxy:true, so this drive COULD carry the peer in reverse_proxy; it deliberately does not.
-            oai_settings.openai_model = 'probe-model';
-        } else if (probeSource === 'mistralai') {
-            oai_settings.mistralai_model = 'probe-model';
-            oai_settings.reverse_proxy = mockUrl;
-        } else if (captured) {
-            oai_settings.custom_url = mockUrl;
-        } else {
-            oai_settings.custom_url = mockUrl;
+            const options = [...control.options].map(option => option.value);
+            const selected = control.options[control.selectedIndex]?.value ?? null;
+            control.value = selected ?? options[0] ?? '';
+            control.dispatchEvent(new Event('input', { bubbles: true }));
+            globalThis[plan.modelControl.record] = {
+                mode: selected ?? options[0] ?? null,
+                available: options,
+                control: plan.modelControl.selector,
+                via: 'input event',
+            };
         }
 
         // The API dispatch flag is NOT part of oai_settings, and `main_api` is an exported `let` that
@@ -1086,14 +945,10 @@ try {
         // drive that writes /api/secrets/write directly leaves the page's map stale (it is populated once at
         // load, secrets.js:419), so the handler's `!secret_state[config.key]` guard fires and returns BEFORE
         // any status call -- measured as an empty peer path log on both legs with no status request at all.
-        const sourceKeySelector = {
-            claude: '#api_key_claude',
-            mistralai: '#api_key_mistralai',
-            openrouter: '#api_key_openrouter',
-            nanogpt: '#api_key_nanogpt',
-            deepseek: '#api_key_deepseek',
-            custom: '#api_key_custom',
-        }[probeSource];
+        // WHICH KEY FIELD THIS DRIVE TYPES, from the catalog. A null selector is a fact worth recording
+        // rather than a gap: several sources have a per-source key input the connect handler does not
+        // require, and typing a field the product does not offer would be a state a user cannot reach.
+        const sourceKeySelector = plan.keySelector;
         // THE PROXY FIELD IS TYPED, NOT ASSIGNED. `oai_settings.reverse_proxy` is written by the
         // `#openai_reverse_proxy` handler (openai.js:6031); assigning the property directly left the connect
         // guard `!secret_state[MISTRALAI] && (!proxy || !reverse_proxy)` (openai.js:6089) firing, which is
@@ -1161,13 +1016,13 @@ try {
             const fallbackConnect = document.querySelector('#api_button_openai, .api_button[data-server-connect="openai"]');
             fallbackConnect?.click();
         }
-        // NO-VALIDATE SOURCES (openai.js:4459 `getStatusOpen`): claude, ai21, vertexai, perplexity, zai,
-        // minimax. For these the page sets a STATUS MESSAGE ("Key saved; press \"Test Message\" to verify.")
-        // and returns BEFORE the status route is called, so a drive that waits for a connected online_status
-        // waits for a state a user of these sources never reaches. Assert the state the page DOES reach and
-        // record its text; a real user's only verification is the first message, so the drive sends.
-        const NO_VALIDATE_SOURCES = ['claude', 'ai21', 'vertexai', 'perplexity', 'zai', 'minimax'];
-        const noValidate = NO_VALIDATE_SOURCES.includes(probeSource);
+        // NO-VALIDATE SOURCES (openai.js:4459 `getStatusOpen`). For these the page sets a STATUS MESSAGE
+        // ("Key saved; press \"Test Message\" to verify.") and returns BEFORE the status route is called,
+        // so a drive that waits for a connected online_status waits for a state a user of these sources
+        // never reaches. Assert the state the page DOES reach and record its text; a real user's only
+        // verification is the first message, so the drive sends. WHICH sources are in that list is a
+        // catalog fact (plan.noValidate) -- the same list, but no longer a second copy of it here.
+        const noValidate = plan.noValidate === true;
         const connectionDeadline = performance.now() + 30000;
         let onlineStatus = 'unknown';
         while (performance.now() < connectionDeadline) {
@@ -1417,7 +1272,7 @@ try {
             streamState,
         };
         return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend };
-    }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource });
+    }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource, plan });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
@@ -1472,10 +1327,11 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
-    // WHICH ENDPOINT THIS DRIVE DROVE. siliconflow's host is chosen by a body field, so an artifact that
-    // does not say which endpoint was driven cannot be read: the seam aims one host and the drive must
-    // have selected it.
-    report.endpoint = await page.evaluate(() => globalThis.__siliconflowEndpoint ?? null);
+    // WHICH BODY-DERIVED VALUE THIS DRIVE DROVE. A source whose host depends on a body field cannot be
+    // read back unless the record says which value the drive selected, so every model-control record
+    // the plan declared is copied out here by name.
+    report.controls = await page.evaluate(names => Object.fromEntries(names.map(name => [name, globalThis[name] ?? null])), modelControlRecords);
+    report.endpoint = report.controls[modelControlRecords[0]] ?? null;
     if (streamingMode) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the
         // stream before it finished (cancellation), and how many frames it wrote.
@@ -1526,22 +1382,16 @@ try {
                     framesWritten: request.framesWritten,
                 };
             });
-            // The seam NAME is recorded per source: a record that named the groq variable for a
-            // nanogpt run would misdescribe the drive that produced it.
-            const seamEnvBySource = {
-                siliconflow: 'GOTAVERN_SILICONFLOW_CHAT_URL',
-                groq: 'GOTAVERN_GROQ_CHAT_URL',
-                nanogpt: 'GOTAVERN_NANOGPT_CHAT_URL',
-                cohere: 'GOTAVERN_COHERE_CHAT_URL',
-                chutes: 'GOTAVERN_CHUTES_CHAT_URL',
-                electronhub: 'GOTAVERN_ELECTRONHUB_CHAT_URL',
-                aimlapi: 'GOTAVERN_AIMLAPI_CHAT_URL',
-                ai21: 'GOTAVERN_AI21_CHAT_URL',
-                xai: 'GOTAVERN_XAI_CHAT_URL',
-                deepseek: 'GOTAVERN_DEEPSEEK_CHAT_URL',
+            // WHICH SEAMS AIMED THIS LEG, recorded from the catalog rather than from a second list: a
+            // record that named the groq variable for a nanogpt run would misdescribe the drive that
+            // produced it, and the previous hand-written map had already lost two of its own entries
+            // (openai and openrouter had seams the map never named).
+            report.peer = {
+                kind: 'request-keyed',
+                seams: source.probe.seams.map(seam => ({ env: seam.env, value: process.env[seam.env] ?? null })),
+                redirectFrom: source.probe.redirectFrom,
+                route: source.pinnedRoute,
             };
-            const seamEnv = seamEnvBySource[probeSource] ?? null;
-            report.peer = { kind: 'request-keyed', seam: { env: seamEnv, value: seamEnv ? (process.env[seamEnv] ?? null) : null } };
         } else {
         // Poll the recorder rather than the page: arrival is the fact under test. 300 attempts at
         // 200ms is a 60s window, which prompt assembly has repeatedly needed.

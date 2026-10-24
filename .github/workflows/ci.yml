@@ -230,6 +230,13 @@ jobs:
   # coherent with themselves and with the claim they underwrite -- no unexplained divergence, the
   # provider-wire claim actually true, and the faithfulness guards still holding. A `compatible` row
   # resting on a false core claim is the failure mode this catches.
+  #
+  # IT ALSO CHECKS THE CATALOGUE. tests/browser/sources.mjs is the one place that says how each source is
+  # DRIVEN, and generation-probe.mjs plus both comparators read it instead of carrying their own lists.
+  # The test here proves the rows are complete, that every committed artefact belongs to exactly one
+  # source, and that the leg-name ignore patterns cover the names the harness writes -- all without a
+  # browser. Whether the committed evidence still describes HEAD is a different question, and it belongs
+  # to .github/workflows/browser-differential.yml, which re-records and diffs.
   browser-evidence:
     runs-on: ubuntu-latest
     steps:
@@ -239,6 +246,8 @@ jobs:
           node-version: 24.19.0
       - name: Verify the browser comparison artifacts support their claims
         run: node tools/verify-browser-comparisons.mjs
+      - name: Verify the source catalogue, its coverage and the leg-name ignore patterns
+        run: node --test tests/browser/catalog.test.mjs
 
   verify:
     runs-on: ubuntu-latest
