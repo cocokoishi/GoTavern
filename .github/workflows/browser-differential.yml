@@ -31,7 +31,7 @@
 # grow with every dependency the harness acquires.
 #
 # WHAT A HIT CAN STILL HIDE, stated because a skip is a decision not to run something:
-#   * a cached node_modules that is INCOMPLETE — the key proves which install it should be, never that
+#   * a cached node_modules that is INCOMPLETE -- the key proves which install it should be, never that
 #     the archive is intact. A truncated cache restores, skips `npm ci`, and fails later inside a drive;
 #   * for Playwright, the OS packages are NOT cached (they are apt-installed), which is why a browser-cache
 #     hit still runs `playwright install-deps` rather than skipping the whole step;
