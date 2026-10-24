@@ -80,19 +80,12 @@ function checkGeneration(ctx, source, artifact) {
         source,
         requestsFor: report => [['gotavern', report.providerRequests?.gotavern], ['pinned', report.providerRequests?.pinned]],
     });
-    // Hooks are per-SOURCE and, since a hook reads the schema of one artefact, per-SURFACE: the ai21
-    // framing block exists only in the generation artefact, and running it against the streaming one
-    // reported three findings for a record it was never written for.
-    if (artifact.requestFraming) {
-        for (const hook of source.hooks ?? []) {
-            const check = SOURCE_HOOKS[hook];
-            if (!check) {
-                ctx.fail(`declares the hook ${JSON.stringify(hook)}, which tools/browser-evidence/source-hooks.mjs does not implement`);
-                continue;
-            }
-            check(ctx, artifact, source);
-        }
-    }
+    // Hooks are per-SOURCE and per-SURFACE: the ai21 framing block exists only in the generation
+    // artefact, so running that hook against the streaming one reported findings for a record it was
+    // never written for. The surface is DECLARED by the hook now -- see runHooks -- rather than inferred
+    // from whether the block happens to be present, which let a re-recorded artefact lose the block and
+    // still pass (measured on run 40068803201's fresh ai21 artefact).
+    runHooks(ctx, source, artifact, 'generation');
 }
 
 function checkStreaming(ctx, source, artifact) {
@@ -107,6 +100,27 @@ function checkStreaming(ctx, source, artifact) {
             [`${surface}.pinned`, report[surface]?.pinned?.providerRequests],
         ]),
     });
+    runHooks(ctx, source, artifact, 'streaming');
+}
+
+/**
+ * Runs the hooks a source declares FOR THIS SURFACE.
+ *
+ * A hook applicable to this surface MUST run and MUST find the data it checks; a hook for the other
+ * surface is not applicable. That distinction is the whole point: the previous version ran hooks only
+ * when a field they wanted happened to exist, so an artefact could lose that field and pass -- which is
+ * the absent-check-is-a-pass failure this lane exists to remove, reintroduced one level up.
+ */
+function runHooks(ctx, source, artifact, surface) {
+    for (const hook of source.hooks ?? []) {
+        const entry = SOURCE_HOOKS[hook];
+        if (!entry) {
+            ctx.fail(`declares the hook ${JSON.stringify(hook)}, which tools/browser-evidence/source-hooks.mjs does not implement`);
+            continue;
+        }
+        if (!entry.surfaces.includes(surface)) continue;
+        entry.check(ctx, artifact, source);
+    }
 }
 
 /**

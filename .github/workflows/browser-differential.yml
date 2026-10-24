@@ -271,8 +271,20 @@ jobs:
             # nothing to learn from the attempt.
             node -e 'import("./tests/browser/sources.mjs").then(m => { const s = m.SOURCES.filter(x => x.evidence && x.evidence[process.argv[1]] && x.driveSupported !== false); console.log(s.map(x => x.id).join(" ")); })' "$1"
           }
-          slug_for() {
-            node -e 'import("./tests/browser/sources.mjs").then(m => { const s = m.BY_ID.get(process.argv[1]); const f = s.evidence.generation || s.evidence.streaming; console.log(f.replace(/^(generation|streaming)-/, "").replace(/-comparison\.json$/, "")); })' "$1"
+          # THE ARTEFACT NAME COMES FROM THE CATALOGUE, not from string surgery on a slug. The first
+          # version derived it with `replace(/^(generation|streaming)-/, "")` + `-comparison.json`, which
+          # is right for every source EXCEPT custom: its artefact is `generation-comparison.json`, the
+          # slice left `comparison.json`, and run 40068803201 therefore wrote
+          # `generation-comparison.json-comparison.json` while leaving the real custom artefact untouched
+          # -- a stale file, a junk file, and a freshness block for neither. The catalogue already knows
+          # the exact file name, so it is asked instead.
+          artifact_for() {
+            node -e 'import("./tests/browser/sources.mjs").then(m => {
+              const source = m.BY_ID.get(process.argv[1]);
+              const file = source && source.evidence ? source.evidence[process.argv[2]] : null;
+              if (!file) { console.error("no " + process.argv[2] + " artefact for " + process.argv[1]); process.exit(1); }
+              console.log(file);
+            })' "$1" "$2"
           }
           # One leg pair: the GoTavern leg builds/serves itself, the pinned leg is given the reference.
           record_pair() {
@@ -307,13 +319,15 @@ jobs:
           failures=0
 
           for src in $SOURCES; do
-            slug="$(slug_for "$src")"
-            echo "::group::$src ($slug)"
+            # The tag names the LEG FILES in $RUNNER_TEMP and may be anything unique; the ARTEFACT name
+            # is the catalogue's own filename, because that is the only name a reader and the verifier
+            # agree on.
+            echo "::group::$src"
             if [ "$MODE" = "generation" ] || [ "$MODE" = "all" ]; then
-              artifact="generation-$slug-comparison.json"
+              artifact="$(artifact_for "$src" generation)"
               save_committed "$artifact"
-              if record_pair "$src" "gen-$slug" ""; then
-                if PROBE_SOURCE="$src" node tests/browser/compare-generation-legs.mjs "$work/legs/gen-$slug-gotavern.json" "$work/legs/gen-$slug-pinned.json" > "tests/browser/$artifact"; then
+              if record_pair "$src" "gen-$src" ""; then
+                if PROBE_SOURCE="$src" node tests/browser/compare-generation-legs.mjs "$work/legs/gen-$src-gotavern.json" "$work/legs/gen-$src-pinned.json" > "tests/browser/$artifact"; then
                   echo "recorded $artifact"
                 else
                   echo "::error::$src: the generation comparison was judged UNFAITHFUL; see the comparator output in the uploaded legs"
@@ -327,18 +341,18 @@ jobs:
               fi
             fi
             if [ "$MODE" != "generation" ]; then
-              artifact="streaming-$slug-comparison.json"
+              artifact="$(artifact_for "$src" streaming)"
               save_committed "$artifact"
               # The streaming artefact covers THREE surfaces (stream, cancel, non-stream), so all three
               # drives are recorded whatever the dispatch asked for; `mode` only chooses which artefacts
               # this run refreshes.
-              if record_pair "$src" "stream-$slug" "stream" \
-                 && record_pair "$src" "cancel-$slug" "cancel" \
-                 && record_pair "$src" "nonstream-$slug" ""; then
+              if record_pair "$src" "stream-$src" "stream" \
+                 && record_pair "$src" "cancel-$src" "cancel" \
+                 && record_pair "$src" "nonstream-$src" ""; then
                 PROBE_SOURCE="$src" node tests/browser/compare-streaming-legs.mjs \
-                  "$work/legs/stream-$slug-gotavern.json" "$work/legs/stream-$slug-pinned.json" \
-                  "$work/legs/cancel-$slug-gotavern.json" "$work/legs/cancel-$slug-pinned.json" \
-                  "$work/legs/nonstream-$slug-gotavern.json" "$work/legs/nonstream-$slug-pinned.json" \
+                  "$work/legs/stream-$src-gotavern.json" "$work/legs/stream-$src-pinned.json" \
+                  "$work/legs/cancel-$src-gotavern.json" "$work/legs/cancel-$src-pinned.json" \
+                  "$work/legs/nonstream-$src-gotavern.json" "$work/legs/nonstream-$src-pinned.json" \
                   > "tests/browser/$artifact" || { echo "::error::$src: the streaming comparison refused"; failures=$((failures + 1)); }
                 echo "recorded $artifact"
               else
@@ -559,9 +573,9 @@ jobs:
           fi
           git commit -m "Record the complex-preset differential (run ${{ github.run_id }})
 
-Captured from the pinned frontend by capture-preset.mjs, driven on both legs at the bisected
-context boundary, compared byte-for-byte by compare-preset-legs.mjs, and published by the same
-run that proved the gate has teeth (preset-gate-selftest.mjs)."
+          Captured from the pinned frontend by capture-preset.mjs, driven on both legs at the bisected
+          context boundary, compared byte-for-byte by compare-preset-legs.mjs, and published by the same
+          run that proved the gate has teeth (preset-gate-selftest.mjs)."
           git push origin "HEAD:${{ github.ref_name }}"
           echo "committed: $(git rev-parse --short HEAD)"
 
