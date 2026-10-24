@@ -33,6 +33,8 @@ const SURFACE_DOCUMENT = 'docs/surface-coverage.md';
 const BLOCK_NAME = 'coverage.matrix';
 const PROVIDER_WIRE_FIXTURE = 'tests/oracle/sillytavern-1.19.0-provider-wire.json';
 const PROVIDER_WIRE_SCENARIOS = 'tests/provider-wire/scenarios';
+const PRESET_COMPARISON = 'tests/browser/preset-complex-comparison.json';
+const PRESET_SETTINGS = 'tests/browser/fixtures/preset-complex-settings.json';
 const REGISTRY_PATH = 'internal/server/chat_completions_registry.go';
 const ROUTE_LEVEL_PATH = 'internal/server/chat_completion_control_test.go';
 const GENERATION_PREFIX = 'generation-';
@@ -224,10 +226,76 @@ function classifyCancellation(source) {
     return { status: 'yes', path: streaming.path, evidence: 'cancellation.clientDisconnected true on both legs' };
 }
 
-function classifyPreset() {
+function readPresetEvidence() {
+    if (!exists(PRESET_COMPARISON) || !exists(PRESET_SETTINGS)) {
+        return {
+            status: 'absent',
+            reason: 'no complex-preset differential artifact',
+            comparison: PRESET_COMPARISON,
+            settings: PRESET_SETTINGS,
+        };
+    }
+    const comparison = readJSON(PRESET_COMPARISON);
+    const settings = readJSON(PRESET_SETTINGS);
+    const source = settings?.capture?.oaiSettings?.chat_completion_source;
+    if (typeof source !== 'string' || source.length === 0) {
+        throw new Error(`${PRESET_SETTINGS}: capture.oaiSettings.chat_completion_source not found`);
+    }
+    const boundary = comparison.boundary ?? {};
+    const keepDifferences = comparison.bodyDifferences?.keep;
+    const dropDifferences = comparison.bodyDifferences?.drop;
+    const equal = comparison.providerRequestEqual === true
+        && Array.isArray(keepDifferences) && keepDifferences.length === 0
+        && Array.isArray(dropDifferences) && dropDifferences.length === 0;
     return {
-        status: 'no',
-        reason: 'no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap',
+        status: 'measured',
+        source,
+        comparison: PRESET_COMPARISON,
+        settings: PRESET_SETTINGS,
+        verdict: comparison.verdict ?? null,
+        providerRequestEqual: comparison.providerRequestEqual === true,
+        bodyDifferencesEmpty: equal,
+        keepContext: boundary.keepContext ?? null,
+        dropContext: boundary.dropContext ?? null,
+        measuredBy: boundary.measuredBy ?? null,
+        keepMessages: boundary.keepMessages ?? null,
+        dropMessages: boundary.dropMessages ?? null,
+        keepHistoryMessages: boundary.keepHistoryMessages ?? null,
+        dropHistoryMessages: boundary.dropHistoryMessages ?? null,
+    };
+}
+
+function classifyPreset(source, evidence) {
+    if (evidence.status !== 'measured') {
+        return { status: 'no', reason: evidence.reason };
+    }
+    if (evidence.source !== source) {
+        return {
+            status: 'no',
+            reason: `no complex-preset differential for this source; the measured scenario uses ${evidence.source}`,
+        };
+    }
+    if (evidence.verdict !== 'match' || !evidence.providerRequestEqual || !evidence.bodyDifferencesEmpty || evidence.measuredBy !== 'pinned-leg') {
+        return {
+            status: 'no',
+            reason: `complex-preset differential verdict ${evidence.verdict ?? 'missing'}, measuredBy=${evidence.measuredBy ?? 'missing'}, providerRequestEqual=${evidence.providerRequestEqual}`,
+            path: evidence.comparison,
+        };
+    }
+    return {
+        status: 'yes',
+        path: evidence.comparison,
+        settingsPath: evidence.settings,
+        scenario: 'complex preset',
+        boundary: {
+            keepContext: evidence.keepContext,
+            dropContext: evidence.dropContext,
+            measuredBy: evidence.measuredBy,
+            keepMessages: evidence.keepMessages,
+            dropMessages: evidence.dropMessages,
+            keepHistoryMessages: evidence.keepHistoryMessages,
+            dropHistoryMessages: evidence.dropHistoryMessages,
+        },
     };
 }
 
@@ -266,6 +334,7 @@ function deriveMatrix() {
     const captured = readProviderWireFixture();
     const product = readProductRegistry();
     const catalogue = catalogueById();
+    const presetEvidence = readPresetEvidence();
 
     const pinnedSources = [...scenariosBySource.keys()].sort();
     const productSources = product.sources;
@@ -295,7 +364,7 @@ function deriveMatrix() {
             E: generation,
             streaming,
             cancellation,
-            preset: classifyPreset(),
+            preset: classifyPreset(source, presetEvidence),
         };
     });
 
@@ -336,6 +405,7 @@ function deriveMatrix() {
             productOnly,
             catalogueOnly,
         },
+        presetEvidence,
         summary: {
             rows: rows.length,
             providerWireYes: count('P', 'yes'),

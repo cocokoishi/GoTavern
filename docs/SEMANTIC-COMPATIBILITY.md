@@ -128,9 +128,22 @@ Every normalization rule lives next to the test with a written reason.
 
 ## 4. Complex preset torture fixture
 
-**NOT YET MAINTAINED (2026-10-23).** No synthetic “kitchen sink” character/user fixture exists. The provider-wire fixture measures per-source request transforms; the browser drives submit one captured configuration (`tests/browser/capture-settings.mjs`); there is no complex-preset differential, no world-info/author's-note/stops observation through both legs, and no token-boundary anchor for the resulting request. `tests/provider-wire/DESIGN.md:14-19` records that a provider-wire capture is not preset-level evidence.
+**MEASURED (2026-10-24; run `40096436669`).** The complex-preset differential now exists as
+`tests/browser/fixtures/preset-complex-settings.json` and `tests/browser/preset-complex-comparison.json`.
+At the pinned-measured boundary (`keepContext` 4260 / `dropContext` 4259, `measuredBy: 'pinned-leg'`)
+both servers produced byte-identical provider requests: `providerRequestEqual: true`, empty
+`bodyDifferences` on BOTH variants, verdict `match`; 24 vs 26 total messages and 12 vs 11 history turns;
+the oldest history turn is present at 4260 and absent at 4259 on both legs. The scenario covers character
+fields, 12 history turns, three world-info entries (before/after/atDepth), author's note, stops, samplers,
+main/nsfw/jailbreak prompts and their order. This is separate evidence from the provider-wire fixture;
+`tests/provider-wire/DESIGN.md:14-19` still correctly says a provider-wire capture is not preset-level
+evidence.
 
-The fixture, when it exists, should include all applicable pinned-baseline features below.
+NOT MEASURED in this scenario, and therefore still open: instruct/context templates (they are set to
+ChatML, but the capture notes a chat-completion request must be identical with different templates),
+secondary WI keys, recursion/probability/outlets, and group chats. Token-budget boundaries other than
+the measured pair are also outside this artefact. The list below remains the full checklist; the
+scenario covers the subset named above, and everything else in the checklist remains the honest gap.
 
 ### 4.1 Prompt Manager / Chat Completion state
 
@@ -304,7 +317,7 @@ Construct fixtures at thresholds where a one-token difference changes observable
 6. CJK/emoji/special-token text changes counts significantly;
 7. provider-specific tokenizer selection changes based on configured model.
 
-Assert both token count endpoints and, where the boundary is claimed, the resulting provider message/prompt payload. **NOT YET MAINTAINED (2026-10-23):** the route-level contract in `docs/compat-matrix.md:54` asserts the count endpoints only; the provider-request leg is explicitly “not asserted here” because the pinned frontend trims client-side and nothing in this repository trims. The matching provider payload therefore remains unmeasured until a browser E2E or a trimmer exists.
+Assert both token count endpoints and, where the boundary is claimed, the resulting provider message/prompt payload. **PARTIAL (2026-10-24):** the route-level contract in `docs/compat-matrix.md:54` asserts the count endpoints, and the complex-preset differential now measures the provider payload at one context boundary (`keepContext` 4260 / `dropContext` 4259; `tests/browser/preset-complex-comparison.json`). The other boundaries in this list (world-info barely fitting, Author's Note competing with history, example truncation, CJK/emoji, provider-specific tokenizer selection) still have no provider-payload observation.
 
 ---
 
