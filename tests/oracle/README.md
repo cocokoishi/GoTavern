@@ -10,6 +10,42 @@ node tools/build-generated-lib.mjs /path/to/SillyTavern-at-06bde939
 
 The tool clones from that local checkout, installs the pinned package lock in a temporary clone, and deletes the temporary clone and runtime directories after recording observations. It does not install dependencies into or write to the supplied checkout.
 
+## Which probe owns a fixture, and which change re-records it
+
+Ownership is a DECLARATION, not a filename convention: the line
+`// @gotavern-oracle: fixture=<name> label="<label>" [args=...] [sharedWrite=true]` in the probe that
+writes the fixture. `tools/oracle/manifest.mjs` parses those declarations exactly as
+`tools/build-generated-lib.mjs` does, and derives per declaration what the probe actually reads: its own
+script, `tools/lib/` when it imports the harness, `tests/provider-wire/scenarios/` when it reads them,
+every `tools/<helper>/` directory it references (`go run ./tools/image-metadata-roundtrip` and friends),
+and a `go-product` edge when it drives the GoTavern binary or a repository Go helper. A declaration may
+add `inputs=a,b`, which REPLACES the derivation for that probe and must still name its own script.
+
+`node tools/oracle/manifest.mjs --validate` refuses a tree in which a committed fixture has no owner
+(unless it is explicitly classified `external` or `generated`), a declaration names a missing script or
+fixture, a fixture has two writers that are not declared in `SHARED_FIXTURES`, or a `probe-*.mjs` declares
+nothing. `--dump` prints the whole graph for review.
+
+`tools/oracle/plan.mjs` is the only thing that decides which probes re-record for a change:
+
+```sh
+node tools/oracle/plan.mjs --run-type push --changed changed-files.txt
+# {"recordPinned":true,"full":false,"probes":["probe-heartbeat.mjs"],"stabilityMode":"single",...}
+```
+
+It fails closed. `recordPinned: false` (no oracle run at all) is possible only when every changed path is
+on its explicit irrelevant list (`docs/**`, workflow files other than `ci.yml`/`lane.yml`,
+`tests/browser/**`, fixture documentation and tests, the planner itself, `scripts/**`, top-level markdown,
+`LICENSE`). A change to `ci.yml`/`lane.yml` or to the probe execution primitive is a FULL sweep instead:
+a change to the gate that selects work is not evidence that the selection is right, so it is proven against
+the real corpus. `internal/**` and `cmd/**` select the probes that record Go output rather than skipping
+the job; a path nothing declares forces a full sweep and the reason says `unresolved dependency: <path>`.
+`tests/oracle/plan.test.mjs` is the gate on both files: `node --test "tests/oracle/*.test.mjs"`.
+
+**The residual risk, stated rather than papered over:** a Go change that moves a fixture through a
+dependency the derivation cannot see (a package a helper imports in a way the text does not show, a new
+input directory) cannot be attributed per push, so it is caught only by the nightly full sweep.
+
 The fresh-start fixture is a Node oracle capture. Go tests compare `/`, `/version`, `/lib.js`, the initial account-store record, the pinned public/per-user directory template, and the seeded content paths/bytes/content logs. `TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory` compares the complete `dataRoot` inventory produced by the Go startup coordinator, including the cookie secret, account store, uploads staging, settings backup, statistics, system-prompt marker, and seeded files. It excludes only `_webpack`, which is produced by the separate Node Webpack middleware compiler. The `seededContent` projection excludes the stats file, settings backup, and `.migrated` marker because the whole-tree comparison covers them. Provider and browser-event observers are explicitly marked unobserved for this startup-only scenario. Nondeterministic fields are listed in the fixture and normalized only there.
 
 `sillytavern-1.19.0-config-init.json` captures pinned `addMissingConfigValues()` output for a missing config, a legacy YAML config with unknown fields, and a deprecated environment variable. It stores exact output YAML so Go config initialization can compare startup writes byte-for-byte.
