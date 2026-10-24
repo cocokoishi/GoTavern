@@ -372,6 +372,11 @@ jobs:
         # hand-copied in four documents and had already drifted to 73 / 86 / 187 for the same fact. The
         # generator owns the marked blocks; this step fails when a committed number disagrees with the tree.
         run: node tools/generate-doc-facts.mjs --check
+      - name: Verify the computed chat-completion coverage matrix is current
+        # P comes from the provider-wire fixture, E/streaming/cancellation from committed browser
+        # artefacts; the Go registry is a cross-check, never evidence. A stale/absent artefact is its
+        # own cell status, and a pinned-vs-product source mismatch fails here instead of being smoothed.
+        run: node tools/generate-coverage-matrix.mjs --check
       - name: Test the oracle execution core
         # The double-run policy and the probe-execution primitive are CONTROL-PLANE code: they decide how many
         # times every probe runs, what happens when a run fails, and whether an empty selection is a success.

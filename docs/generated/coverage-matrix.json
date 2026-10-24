@@ -1,0 +1,1128 @@
+{
+  "crossCheck": {
+    "catalogueOnly": [],
+    "pinned": {
+      "count": 25,
+      "definition": "unique request.body.chat_completion_source across tests/provider-wire/scenarios/*.json",
+      "path": "tests/provider-wire/scenarios",
+      "sources": [
+        "ai21",
+        "aimlapi",
+        "azure_openai",
+        "chutes",
+        "claude",
+        "cohere",
+        "custom",
+        "deepseek",
+        "electronhub",
+        "fireworks",
+        "groq",
+        "makersuite",
+        "minimax",
+        "mistralai",
+        "moonshot",
+        "nanogpt",
+        "openai",
+        "openrouter",
+        "perplexity",
+        "pollinations",
+        "siliconflow",
+        "vertexai",
+        "workers_ai",
+        "xai",
+        "zai"
+      ]
+    },
+    "pinnedOnly": [],
+    "product": {
+      "count": 25,
+      "definition": "newChatCompletionSource rows plus pinnedRouteLevelChatCompletionSources",
+      "paths": [
+        "internal/server/chat_completions_registry.go",
+        "internal/server/chat_completion_control_test.go:50"
+      ],
+      "sources": [
+        "ai21",
+        "aimlapi",
+        "azure_openai",
+        "chutes",
+        "claude",
+        "cohere",
+        "custom",
+        "deepseek",
+        "electronhub",
+        "fireworks",
+        "groq",
+        "makersuite",
+        "minimax",
+        "mistralai",
+        "moonshot",
+        "nanogpt",
+        "openai",
+        "openrouter",
+        "perplexity",
+        "pollinations",
+        "siliconflow",
+        "vertexai",
+        "workers_ai",
+        "xai",
+        "zai"
+      ]
+    },
+    "productOnly": []
+  },
+  "generatedBy": "tools/generate-coverage-matrix.mjs",
+  "notReRecordable": [
+    {
+      "path": "tests/browser/generation-workersai-comparison.json",
+      "reason": "the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised",
+      "source": "workers_ai",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-workersai-comparison.json",
+      "reason": "the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised",
+      "source": "workers_ai",
+      "surface": "streaming"
+    }
+  ],
+  "reRecordQueue": [
+    {
+      "path": "tests/browser/generation-chutes-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "chutes",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-chutes-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "chutes",
+      "surface": "streaming"
+    },
+    {
+      "path": "tests/browser/generation-comparison.json",
+      "reason": "guards.finalTextNonEmpty missing; generationInvocations missing; generationUnmatchedAfterData missing",
+      "source": "custom",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-comparison.json",
+      "reason": "streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
+      "source": "custom",
+      "surface": "streaming"
+    },
+    {
+      "path": "tests/browser/generation-electronhub-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "electronhub",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-electronhub-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "electronhub",
+      "surface": "streaming"
+    },
+    {
+      "path": "tests/browser/generation-groq-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "groq",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-groq-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "groq",
+      "surface": "streaming"
+    },
+    {
+      "path": "tests/browser/generation-mistral-comparison.json",
+      "reason": "guards.finalTextNonEmpty missing; generationUnmatchedAfterData missing; driveParameters.seamEnvVar missing",
+      "source": "mistralai",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-mistral-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "mistralai",
+      "surface": "streaming"
+    },
+    {
+      "path": "tests/browser/generation-siliconflow-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing",
+      "source": "siliconflow",
+      "surface": "E"
+    },
+    {
+      "path": "tests/browser/streaming-siliconflow-comparison.json",
+      "reason": "driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
+      "source": "siliconflow",
+      "surface": "streaming"
+    }
+  ],
+  "rows": [
+    {
+      "E": {
+        "path": "tests/browser/generation-ai21-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "ai21-error-status",
+          "ai21-json-schema",
+          "ai21-message-conversion",
+          "ai21-nonstream",
+          "ai21-stream"
+        ],
+        "scenarios": 5,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-ai21-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "ai21",
+      "streaming": {
+        "path": "tests/browser/streaming-ai21-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-aimlapi-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "aimlapi-error-status",
+          "aimlapi-error-status-nonjson",
+          "aimlapi-json-schema",
+          "aimlapi-json-schema-strict-false",
+          "aimlapi-logprobs",
+          "aimlapi-logprobs-zero",
+          "aimlapi-nonstream",
+          "aimlapi-reasoning-effort",
+          "aimlapi-reasoning-effort-empty",
+          "aimlapi-status",
+          "aimlapi-status-nonOk",
+          "aimlapi-stop",
+          "aimlapi-stop-empty",
+          "aimlapi-stream",
+          "aimlapi-stream-control-nonstream",
+          "aimlapi-tools",
+          "aimlapi-tools-empty"
+        ],
+        "scenarios": 17,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-aimlapi-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "aimlapi",
+      "streaming": {
+        "path": "tests/browser/streaming-aimlapi-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "azure-openai-deployment-escaping",
+          "azure-openai-error-status",
+          "azure-openai-error-status-nonjson",
+          "azure-openai-json-schema",
+          "azure-openai-logprobs",
+          "azure-openai-nonstream",
+          "azure-openai-reasoning-effort",
+          "azure-openai-reasoning-fixed",
+          "azure-openai-status-nonok",
+          "azure-openai-status-ok",
+          "azure-openai-stream"
+        ],
+        "scenarios": 11,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "azure_openai",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-chutes-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "chutes-error-status",
+          "chutes-nonstream",
+          "chutes-status-ok",
+          "chutes-stream",
+          "chutes-stream-control-nonstream",
+          "chutes-verbatim-messages-and-unique-members"
+        ],
+        "scenarios": 6,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-chutes-comparison.json",
+        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "chutes",
+      "streaming": {
+        "path": "tests/browser/streaming-chutes-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-claude-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "claude-error-status",
+          "claude-limited-sampling",
+          "claude-merge-roles",
+          "claude-no-sysprompt",
+          "claude-nonstream",
+          "claude-nonthinking-model",
+          "claude-prefill",
+          "claude-reverse-proxy",
+          "claude-stream",
+          "claude-stream-control-nonstream",
+          "claude-system-multiple",
+          "claude-thinking",
+          "claude-tools"
+        ],
+        "scenarios": 13,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-claude-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "claude",
+      "streaming": {
+        "path": "tests/browser/streaming-claude-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "reason": "drivable but never recorded: cohere has no generation- or streaming-comparison.json, so no browser claim may cite it",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "cohere-error-status",
+          "cohere-folds",
+          "cohere-message-names",
+          "cohere-nonstream",
+          "cohere-status",
+          "cohere-status-nonok",
+          "cohere-stream",
+          "cohere-stream-control-nonstream",
+          "cohere-tool-calls"
+        ],
+        "scenarios": 9,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "drivable but never recorded: cohere has no generation- or streaming-comparison.json, so no browser claim may cite it",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "cohere",
+      "streaming": {
+        "reason": "drivable but never recorded: cohere has no generation- or streaming-comparison.json, so no browser claim may cite it",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "reason": "pinned assembles the URL and key and then throws before sending (src/endpoints/backends/chat-completions.js)",
+        "status": "excluded"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": false,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": false,
+      "source": "cometapi",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-comparison.json",
+        "reason": "guards.finalTextNonEmpty missing; generationInvocations missing; generationUnmatchedAfterData missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "custom-source-nonstream"
+        ],
+        "scenarios": 1,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-comparison.json",
+        "reason": "streaming artefact: streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "custom",
+      "streaming": {
+        "path": "tests/browser/streaming-comparison.json",
+        "reason": "streaming.checks.finalTextNonEmpty missing; cancellation.checks.finalTextNonEmpty missing; nonstream.checks.finalTextNonEmpty missing; cancellation.checks.abortTextIsPrefixOfStreamedReply missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-deepseek-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "deepseek-error-status",
+          "deepseek-error-status-nonjson",
+          "deepseek-json-schema",
+          "deepseek-logprobs",
+          "deepseek-nonstream",
+          "deepseek-prefix-flag",
+          "deepseek-reasoning",
+          "deepseek-reasoning-effort-without-include",
+          "deepseek-reverse-proxy-no-password",
+          "deepseek-stream",
+          "deepseek-stream-control-nonstream",
+          "deepseek-tools-required-empty",
+          "deepseek-tools-suppress-prefix",
+          "deepseek-tools-without-choice"
+        ],
+        "scenarios": 14,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-deepseek-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "deepseek",
+      "streaming": {
+        "path": "tests/browser/streaming-deepseek-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-electronhub-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "electronhub-claude-model-no-cache",
+          "electronhub-error-status",
+          "electronhub-error-status-nonjson",
+          "electronhub-json-schema",
+          "electronhub-json-schema-nonstrict",
+          "electronhub-nonstream",
+          "electronhub-reasoning-effort",
+          "electronhub-stream",
+          "electronhub-stream-control-nonstream",
+          "electronhub-tools",
+          "electronhub-web-search"
+        ],
+        "scenarios": 11,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-electronhub-comparison.json",
+        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "electronhub",
+      "streaming": {
+        "path": "tests/browser/streaming-electronhub-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "fireworks-error-status",
+          "fireworks-nonstream",
+          "fireworks-reasoning-schema",
+          "fireworks-status",
+          "fireworks-stream"
+        ],
+        "scenarios": 5,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "fireworks",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-groq-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "groq-error-status",
+          "groq-nonstream",
+          "groq-status",
+          "groq-stream"
+        ],
+        "scenarios": 4,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-groq-comparison.json",
+        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "groq",
+      "streaming": {
+        "path": "tests/browser/streaming-groq-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "makersuite-error-status",
+          "makersuite-json-schema",
+          "makersuite-nonstream",
+          "makersuite-stream",
+          "makersuite-stream-control-nonstream",
+          "makersuite-thinking"
+        ],
+        "scenarios": 6,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "makersuite",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "minimax-cn-endpoint",
+          "minimax-error-status",
+          "minimax-max-tokens-clamp",
+          "minimax-nonstream",
+          "minimax-stream"
+        ],
+        "scenarios": 5,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "minimax",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-mistral-comparison.json",
+        "reason": "guards.finalTextNonEmpty missing; generationUnmatchedAfterData missing; driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "mistral-error-status",
+          "mistral-error-status-nonjson",
+          "mistral-json-schema",
+          "mistral-json-schema-nonstrict",
+          "mistral-message-shaping",
+          "mistral-nonstream",
+          "mistral-reverse-proxy",
+          "mistral-seed-and-stop",
+          "mistral-stream",
+          "mistral-stream-control-nonstream",
+          "mistral-tool-messages",
+          "mistral-tools-raw"
+        ],
+        "scenarios": 12,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-mistral-comparison.json",
+        "reason": "streaming artefact: driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "mistralai",
+      "streaming": {
+        "path": "tests/browser/streaming-mistral-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "moonshot-error-status",
+          "moonshot-json-schema",
+          "moonshot-nonstream",
+          "moonshot-reasoning",
+          "moonshot-status-nonOk",
+          "moonshot-status-ok",
+          "moonshot-stream",
+          "moonshot-stream-control-nonstream",
+          "moonshot-tool-role"
+        ],
+        "scenarios": 9,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "moonshot",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-nanogpt-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "nanogpt-error-status",
+          "nanogpt-nonstream",
+          "nanogpt-online-already-suffixed",
+          "nanogpt-provider-payg-reasoning",
+          "nanogpt-status",
+          "nanogpt-stream",
+          "nanogpt-web-search-appends"
+        ],
+        "scenarios": 7,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-nanogpt-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "nanogpt",
+      "streaming": {
+        "path": "tests/browser/streaming-nanogpt-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-openai-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "openai-reverse-proxy-abort",
+          "openai-reverse-proxy-error-status",
+          "openai-reverse-proxy-midstream-truncation",
+          "openai-reverse-proxy-nonstream",
+          "openai-reverse-proxy-stream"
+        ],
+        "scenarios": 5,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-openai-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "openai",
+      "streaming": {
+        "note": "documentation-only staleness: peerKeying",
+        "path": "tests/browser/streaming-openai-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-openrouter-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "openrouter-abort",
+          "openrouter-error-status",
+          "openrouter-midstream-truncation",
+          "openrouter-nonstream",
+          "openrouter-shaping",
+          "openrouter-status",
+          "openrouter-stream",
+          "openrouter-transforms-off"
+        ],
+        "scenarios": 8,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-openrouter-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "openrouter",
+      "streaming": {
+        "note": "documentation-only staleness: pinnedRedirectRequired",
+        "path": "tests/browser/streaming-openrouter-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "perplexity-error-status",
+          "perplexity-json-schema",
+          "perplexity-nonstream",
+          "perplexity-reasoning-absent",
+          "perplexity-stream"
+        ],
+        "scenarios": 5,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "perplexity",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "pollinations-anonymous",
+          "pollinations-error-status",
+          "pollinations-nonstream",
+          "pollinations-reasoning-schema",
+          "pollinations-status",
+          "pollinations-stream"
+        ],
+        "scenarios": 6,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "pollinations",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-siliconflow-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "siliconflow-cn-endpoint",
+          "siliconflow-error-status",
+          "siliconflow-json-object",
+          "siliconflow-nonstream",
+          "siliconflow-status",
+          "siliconflow-stream"
+        ],
+        "scenarios": 6,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-siliconflow-comparison.json",
+        "reason": "streaming artefact: driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "siliconflow",
+      "streaming": {
+        "path": "tests/browser/streaming-siliconflow-comparison.json",
+        "reason": "driveParameters.seamEnvVar missing; driveParameters.endpointControl missing; driveParameters.endpointsOffered missing",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "vertexai-express-no-project",
+          "vertexai-express-with-project",
+          "vertexai-proxy"
+        ],
+        "scenarios": 3,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "vertexai",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-workersai-comparison.json",
+        "reason": "the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised",
+        "status": "stale"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "workers-ai-account-escaping",
+          "workers-ai-error-status",
+          "workers-ai-json-schema",
+          "workers-ai-nonstream",
+          "workers-ai-status",
+          "workers-ai-stream"
+        ],
+        "scenarios": 6,
+        "status": "yes"
+      },
+      "cancellation": {
+        "path": "tests/browser/streaming-workersai-comparison.json",
+        "reason": "streaming artefact: the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised",
+        "status": "stale"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "workers_ai",
+      "streaming": {
+        "path": "tests/browser/streaming-workersai-comparison.json",
+        "reason": "the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised",
+        "status": "stale"
+      }
+    },
+    {
+      "E": {
+        "path": "tests/browser/generation-xai-comparison.json",
+        "status": "yes"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "xai-error-status",
+          "xai-error-status-nonjson",
+          "xai-json-schema",
+          "xai-nonstream",
+          "xai-reasoning-effort-mapped",
+          "xai-status",
+          "xai-status-nonok",
+          "xai-stream",
+          "xai-stream-control-nonstream"
+        ],
+        "scenarios": 9,
+        "status": "yes"
+      },
+      "cancellation": {
+        "evidence": "cancellation.clientDisconnected true on both legs",
+        "path": "tests/browser/streaming-xai-comparison.json",
+        "status": "yes"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "xai",
+      "streaming": {
+        "path": "tests/browser/streaming-xai-comparison.json",
+        "status": "yes"
+      }
+    },
+    {
+      "E": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "P": {
+        "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
+        "scenarioNames": [
+          "zai-error-status",
+          "zai-json-schema",
+          "zai-nonstream",
+          "zai-stream"
+        ],
+        "scenarios": 4,
+        "status": "yes"
+      },
+      "cancellation": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      },
+      "pinnedScenarioInputs": true,
+      "preset": {
+        "reason": "no complex-preset differential artifact; HANDOFF section 8 item 3 records the gap",
+        "status": "no"
+      },
+      "productRegistered": true,
+      "source": "zai",
+      "streaming": {
+        "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
+        "status": "no"
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "summary": {
+    "cancellationNo": 11,
+    "cancellationStale": 7,
+    "cancellationYes": 8,
+    "documentationOnlyNotes": 2,
+    "generationNo": 11,
+    "generationStale": 7,
+    "generationYes": 8,
+    "notReRecordable": 2,
+    "presetYes": 0,
+    "providerWireExcluded": 1,
+    "providerWireYes": 25,
+    "reRecordQueue": 12,
+    "rows": 26,
+    "staleArtefacts": 14,
+    "streamingNo": 11,
+    "streamingStale": 7,
+    "streamingYes": 8
+  }
+}

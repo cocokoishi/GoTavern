@@ -84,12 +84,14 @@ paragraph is silently overwritten and fails the zero-diff gate.
   upload handler, and `globalThis.quickReplyApi`). Chutes and Electron Hub are `compatible` for the
   flows their own rows measure. A drive that cannot reach its gate reports which precondition is
   missing instead of looking like a product gap.
-- **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> chat-completions sources have P, E and C**: the custom pair plus
+- **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> chat-completions source pairs have committed E/streaming artefacts**: the custom pair plus
   OPENROUTER, CLAUDE, MISTRALAI, GROQ, SILICONFLOW, NANOGPT, WORKERS_AI, DEEPSEEK (`POST
   /beta/chat/completions` asserted on both legs), OPENAI, CHUTES, ELECTRONHUB, AIMLAPI, AI21 and XAI --
-  `tests/browser/{generation,streaming}-<source>-comparison.json`, all gated by
-  `tools/verify-browser-comparisons.mjs`. Cancellation is proved at the provider by
-  `clientDisconnected` on both legs in every streaming artifact.
+  `tests/browser/{generation,streaming}-<source>-comparison.json`. Not all are current: the computed
+  matrix in `docs/surface-coverage.md` is authoritative for which rows are current, stale pending the
+  browser re-record, or have no browser drive. Cancellation is proved at the provider by
+  `clientDisconnected` on both legs in each current streaming artefact; stale artefacts are listed in
+  the matrix rather than counted as coverage.
 - **E, both canaries**: `tests/browser/extension-littlewhitebox-comparison.json` is committed and gated
   too -- 452 rows all equal, same single non-row difference (`/thumbnail`). It was WITHHELD for one
   round on purpose: its one real difference was `/user/files/LittleWhiteBox_User.json` answering 404
