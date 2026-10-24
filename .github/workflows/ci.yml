@@ -274,6 +274,8 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Verify generated documentation facts are current
+        run: node tools/generate-doc-facts.mjs --check
       - name: Verify the release channel classifier decides tags correctly
         # `release.yml` and `docker.yml` both ask scripts/classify-version-tag.sh whether a tag is stable, and the
         # answer decides two things users feel: whether a tag becomes a GitHub PRE-release (so it is not what

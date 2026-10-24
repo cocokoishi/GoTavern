@@ -28,7 +28,7 @@ Those differences are compatibility bugs even if a casual user sees “a reply�
 
 ---
 
-## 2. Four-observer differential harness
+## 2. Observer surfaces (canonical five-surface list)
 
 Every semantic scenario runs twice from equivalent isolated fixtures:
 
@@ -37,7 +37,7 @@ real pinned frontend -> Node SillyTavern -> recording/mock provider
 real pinned frontend -> GoTavern        -> recording/mock provider
 ```
 
-Capture and compare four observers.
+The canonical list is **five surfaces** in `docs/surface-coverage.md:4-10` (browser to server, server to provider, filesystem/startup, browser events/final state, stream/cancel), matching `AGENTS.md:13`. The four capture roles below are a mapping onto that list, not a second taxonomy: A = browser to server, B = server to provider, C = provider to browser (the E/C surfaces), D = persistent/browser state (F/E).
 
 ### Observer A — browser -> backend
 
@@ -128,9 +128,9 @@ Every normalization rule lives next to the test with a written reason.
 
 ## 4. Complex preset torture fixture
 
-Maintain at least one synthetic “kitchen sink” character/user fixture specifically designed to make semantic drift obvious.
+**NOT YET MAINTAINED (2026-10-23).** No synthetic “kitchen sink” character/user fixture exists. The provider-wire fixture measures per-source request transforms; the browser drives submit one captured configuration (`tests/browser/capture-settings.mjs`); there is no complex-preset differential, no world-info/author's-note/stops observation through both legs, and no token-boundary anchor for the resulting request. `tests/provider-wire/DESIGN.md:14-19` records that a provider-wire capture is not preset-level evidence.
 
-It should include all applicable pinned-baseline features below.
+The fixture, when it exists, should include all applicable pinned-baseline features below.
 
 ### 4.1 Prompt Manager / Chat Completion state
 
@@ -304,7 +304,7 @@ Construct fixtures at thresholds where a one-token difference changes observable
 6. CJK/emoji/special-token text changes counts significantly;
 7. provider-specific tokenizer selection changes based on configured model.
 
-Assert both token count endpoints and the resulting provider message/prompt payload.
+Assert both token count endpoints and, where the boundary is claimed, the resulting provider message/prompt payload. **NOT YET MAINTAINED (2026-10-23):** the route-level contract in `docs/compat-matrix.md:54` asserts the count endpoints only; the provider-request leg is explicitly “not asserted here” because the pinned frontend trims client-side and nothing in this repository trims. The matching provider payload therefore remains unmeasured until a browser E2E or a trimmer exists.
 
 ---
 
@@ -507,7 +507,7 @@ Capture the request arriving at `/api/backends/chat-completions/generate` and, m
 
 ### Route coverage
 
-Maintain `docs/extension-route-coverage.md` from both static scans and dynamic browser capture. A route observed from the pinned extension but missing from the Go inventory is a release failure.
+Maintain `docs/extension-route-coverage.md` from both static scans and dynamic browser capture. A route observed from the pinned extension but missing from the Go inventory is a release failure. **NOT YET MAINTAINED (2026-10-23):** `docs/extension-route-coverage.md:23` records that the document is still “based on static inspection”; the dynamic-capture half has not been added. The extension E2E artifacts under `tests/browser/extension-*-comparison.json` cover the canaries' runtime surface, not a route-by-route dynamic inventory.
 
 ---
 
