@@ -20,14 +20,16 @@ grown to eighty lanes. Nothing was lost: the deleted history is archived in
 What has landed since the previous checkpoint (latest first; every count below is from the generated
 facts or a named fixture):
 
-1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 187). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
+1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 205 before the final sweep). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
 2. **The status fall-through is CLOSED.** AI21, VERTEXAI and PERPLEXITY now answer the pinned closing-else `400 {"error":true}` with ZERO outbound, not 501. The six new observations are `status.{ai21,vertexai,perplexity}.{noBranch,reverseProxy}` in `tests/oracle/sillytavern-1.19.0-backends.json`, which moved from 110 to 116 observations. The route is `internal/server/backends_status.go` (the no-arm set and the shared refusal at `:75-84`).
 3. **The route-wide request gaps are recorded.** `custom_prompt_post_processing` is observed by `openai-custom-prompt-post-processing`; the OPENAI reasoning-effort/verbosity tables by `openai-reasoning-effort-{fixed,map,outside-table}`; OpenRouter audio embedding by `openrouter-media-audio-embed` and `-passthrough`; OpenRouter reasoning signatures by `openrouter-reasoning-signatures*`. The Go side is `chat_completions.go:176-219` (post-processing) and `:423-534` (tables), plus `openrouter_media.go`.
 4. **ZAI has two per-literal seams.** `GOTAVERN_ZAI_CHAT_URL` targets the common literal and `GOTAVERN_ZAI_CODING_CHAT_URL` the coding literal (`internal/server/zai_chat.go:51-90`); `zai-coding-endpoint` records the path split. A single seam had made the two modes byte-identical.
 5. **The replay honours a scenario's `backendConfig`.** `internal/server/chat_completions_oracle_test.go:302-303` writes the scenario config before each leg, and `tools/probe-provider-wire.mjs:211` does the same for the pinned leg. Before this, every config-driven scenario replayed on defaults, so the flag-off reasoning-signature case could not pass for the right reason.
 6. **Browser evidence is green and computed.** `tools/verify-browser-comparisons.mjs` reports 0 findings across 30 catalogued source artefacts; the generated matrix in `docs/surface-coverage.md` says 14 of 26 sources have E/streaming/cancellation, 11 have no browser drive and 1 is stale (`workers_ai`, not re-recordable today). The pinned-derived and product source lists are 25 and 25 with no mismatch (`docs/generated/coverage-matrix.json`).
+7. **The complex-preset differential is MEASURED.** `tests/browser/fixtures/preset-complex-settings.json` and `tests/browser/preset-complex-comparison.json` (run `40096436669`) record `keepContext` 4260 / `dropContext` 4259, `measuredBy: 'pinned-leg'`, 24 vs 26 total messages, 12 vs 11 history turns, `providerRequestEqual: true`, empty `bodyDifferences` on both variants, verdict `match`. The measured contract does NOT assert instruct/context templates (they are set to ChatML, but the capture notes a chat-completion request must be identical with different templates), secondary WI keys, recursion/probability/outlets, or group chats; the token-budget suite's other boundaries remain unmeasured.
+8. **Placeholders, Claude cache and Mistral prefix are recorded; multimodal is recorded.** All four empty-message converters (`ai21`, `claude`, `cohere`, `deepseek`) carry `[Start a new chat]`, because pinned merges `default/config.yaml:324` into the runtime config at startup, not the module's `Let's get started.` fallback. Claude's `promptPlaceholder`, `enableSystemPromptCache`, `cachingAtDepth`, `extendedTTL` and Mistral's `enablePrefix` have fixtures (`claude-*`, `mistral-prefix-*`). Makersuite inline image, video-with-mediaResolution and audio-without-it are recorded by `makersuite-inline-{image,video-resolution,audio}`; every payload is a data URL because a remote media URL is silently dropped by the pinned converter.
 
-Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), the oracle execution core and planner landed, documentation counts moved to generated blocks, and the chat-completion dispatch moved to one registry row per source. **Still open:** the complex-preset differential has not produced an artefact, so no preset-parity claim is made; cohere is catalogued but never recorded.
+Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), the oracle execution core and planner landed, documentation counts moved to generated blocks, and the chat-completion dispatch moved to one registry row per source. The provider-wire fixture is 219 captured scenarios against 219 declared inputs. **Still open:** the preset features named above, the OpenRouter prompt-cache transform and the gemini `/models` cache probe, and cohere is catalogued but never recorded.
 
 
 ## 1. Where the project stands
@@ -208,10 +210,11 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
    seven false claims, two of which would have cost a user real time. The matrix is the file that tells a
    reader what is compatible, and a stale row is indistinguishable from a verified one at a glance.
 
-4. **The named gaps inside the two new sources**, each recorded rather than implied: OpenRouter media
-   embedding, reasoning signatures, the config-gated prompt-cache transforms and the gemini
-   `isOpenRouterModelCacheable()` `/models` probe (deliberately deferred because it changes the request
-   COUNT); Claude's caching helpers and `promptPlaceholder`; Mistral's `mistral.enablePrefix`.
+4. **The named gaps inside the two new sources are CLOSED, except two cache probes.** OpenRouter media
+   embedding and reasoning signatures, Claude's cache/`promptPlaceholder` branches, Mistral's
+   `mistral.enablePrefix`, and makersuite inline media all have recorded fixtures. OpenRouter's
+   config-gated prompt-cache transform and the gemini `isOpenRouterModelCacheable()` `/models` probe
+   remain open; the `/models` probe is deliberately deferred because it changes the request COUNT.
 
 5. **The Windows-only installer behaviours** -- replacing a RUNNING `gotavern.exe` (the branch Windows
    users actually hit on update), path separators, registry/shortcuts, `cmd.exe` -- are EXECUTED, by the
@@ -242,11 +245,16 @@ the evidence, and what is still open; none is softened into "in progress".
 2. **Moonshot wiring is CLOSED.** `internal/server/chat_completions.go:870-879` wires the plan arm,
    `internal/server/moonshot_chat.go:187` implements the status shape, and the `moonshot-*` captures are in
    the same fixture under the same missing-capture test.
-3. **Preset-level equivalence is OPEN.** The <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios --> provider-wire scenarios are per-source request transforms;
-   the browser drives submit ONE captured configuration (`tests/browser/capture-settings.mjs`). There is no
-   complex-preset differential, no observation of world info at depth, author's note or stops through both
-   legs, and no token-boundary anchor for the request body that would be compared. `tests/provider-wire/DESIGN.md:14-19`
-   states that a provider-wire capture is not preset-level evidence.
+3. **Preset-level equivalence is MEASURED for one complex scenario.** The
+   <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios -->
+   provider-wire scenarios are per-source request transforms and are NOT preset-level evidence
+   (`tests/provider-wire/DESIGN.md:14-19`). The separate complex-preset differential is
+   `tests/browser/preset-complex-comparison.json` with settings
+   `tests/browser/fixtures/preset-complex-settings.json`: at the pinned-measured boundary
+   (`keepContext` 4260 / `dropContext` 4259) both legs produced byte-identical provider requests
+   (`providerRequestEqual: true`, empty `bodyDifferences`, verdict `match`), with 24 vs 26 total
+   messages and 12 vs 11 history turns. Still OPEN: instruct/context templates, secondary WI keys,
+   recursion/probability/outlets, group chats, and token-budget boundaries other than 4260/4259.
 4. **Cross-baseline is SPLIT.** GoTavern release-to-release update and rollback IS executed:
    `.github/workflows/release-qualification.yml:383` runs `scripts/qualify-upgrade-rollback.sh` over two
    archives built from two commits (runs 39997932741 and 39998226861, cited in `docs/INSTALLATION.md:469`).

@@ -1,0 +1,1092 @@
+{
+  "schemaVersion": 1,
+  "surface": "preset",
+  "question": "does the SAME complex preset, at the measured context boundary, produce byte-identical provider requests on both servers?",
+  "scenario": {
+    "name": "GoTavern Complex Probe",
+    "markers": {
+      "main": "PRESET_MAIN_7F",
+      "nsfw": "PRESET_AUX_7F",
+      "description": "PRESET_DESC_7F",
+      "personality": "PRESET_PERS_7F",
+      "scenario": "PRESET_SCEN_7F",
+      "example": "PRESET_EXAMPLE_7F",
+      "jailbreak": "PRESET_JAIL_7F",
+      "wiBefore": "PRESET_WI_BEFORE_7F",
+      "wiAfter": "PRESET_WI_AFTER_7F",
+      "wiDepth": "PRESET_WI_DEPTH_7F",
+      "authorsNote": "PRESET_AN_7F",
+      "history": "PRESET_HIST_7F",
+      "userMarker": "probe user marker",
+      "send": "PRESET_SEND_7F"
+    },
+    "samplers": {
+      "temperature": 0.42,
+      "top_p": 0.81,
+      "presence_penalty": 0.35,
+      "frequency_penalty": 0.17,
+      "top_k": 0,
+      "seed": 424242
+    },
+    "stops": [
+      "STOP_A_7F",
+      "STOP_B_7F"
+    ],
+    "maxTokens": 64,
+    "namesBehavior": 1,
+    "authorsNote": {
+      "text": "PRESET_AN_7F Keep the reply under four sentences.",
+      "depth": 3,
+      "position": "IN_CHAT",
+      "role": "system"
+    },
+    "world": {
+      "name": "GoTavern Probe Lore",
+      "entries": [
+        {
+          "uid": 0,
+          "comment": "before-character anchor",
+          "key": [
+            "glade"
+          ],
+          "content": "PRESET_WI_BEFORE_7F The glade remembers every name spoken in it.",
+          "position": "before",
+          "depth": 4,
+          "constant": true,
+          "order": 50
+        },
+        {
+          "uid": 1,
+          "comment": "after-character anchor",
+          "key": [
+            "glade"
+          ],
+          "content": "PRESET_WI_AFTER_7F The glade answers to whoever speaks its name.",
+          "position": "after",
+          "depth": 4,
+          "constant": true,
+          "order": 100
+        },
+        {
+          "uid": 2,
+          "comment": "in-chat depth zero",
+          "key": [
+            "lantern"
+          ],
+          "content": "PRESET_WI_DEPTH_7F The lantern burns without fuel.",
+          "position": "atDepth",
+          "depth": 0,
+          "constant": true,
+          "order": 200
+        }
+      ]
+    },
+    "historyTurns": 12,
+    "typedMessage": "probe user marker PRESET_SEND_7F"
+  },
+  "boundary": {
+    "keepContext": 4260,
+    "measuredBy": "pinned-leg",
+    "searchTable": [
+      {
+        "context": 3230,
+        "total": 24,
+        "history": 9,
+        "oldestPresent": false,
+        "bodySha256": "520740192d93ec76de41fae5361519427500989d4d618c1eacca179269cc0086",
+        "bodyLength": 10136,
+        "failure": null
+      },
+      {
+        "context": 3998,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "3a291b53c8b6bc04b43329a2ce2ce0ce53825bd2fc07a30bc43a606d5c35733e",
+        "bodyLength": 12416,
+        "failure": null
+      },
+      {
+        "context": 4190,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "bodyLength": 13138,
+        "failure": null
+      },
+      {
+        "context": 4238,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "bodyLength": 13138,
+        "failure": null
+      },
+      {
+        "context": 4250,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "bodyLength": 13138,
+        "failure": null
+      },
+      {
+        "context": 4256,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "bodyLength": 13138,
+        "failure": null
+      },
+      {
+        "context": 4259,
+        "total": 26,
+        "history": 11,
+        "oldestPresent": false,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "bodyLength": 13138,
+        "failure": null
+      },
+      {
+        "context": 4260,
+        "total": 24,
+        "history": 12,
+        "oldestPresent": true,
+        "bodySha256": "529fed72fc2de778521564fcb844f944c9cd0fb225a357085338d3857b407839",
+        "bodyLength": 14581,
+        "failure": null
+      },
+      {
+        "context": 4262,
+        "total": 24,
+        "history": 12,
+        "oldestPresent": true,
+        "bodySha256": "529fed72fc2de778521564fcb844f944c9cd0fb225a357085338d3857b407839",
+        "bodyLength": 14581,
+        "failure": null
+      },
+      {
+        "context": 4286,
+        "total": 25,
+        "history": 12,
+        "oldestPresent": true,
+        "bodySha256": "06c02469b11d709d1f8761a3764bd22cece1a43f68562fc7ab2a68c3e905a02a",
+        "bodyLength": 14695,
+        "failure": null
+      },
+      {
+        "context": 4382,
+        "total": 28,
+        "history": 12,
+        "oldestPresent": true,
+        "bodySha256": "31ee3f1a45d87867a86e32e26cf6845d72db05a5a56954bacc81e3e63c2f6d05",
+        "bodyLength": 14931,
+        "failure": null
+      },
+      {
+        "context": 4766,
+        "total": 28,
+        "history": 12,
+        "oldestPresent": true,
+        "bodySha256": "31ee3f1a45d87867a86e32e26cf6845d72db05a5a56954bacc81e3e63c2f6d05",
+        "bodyLength": 14931,
+        "failure": null
+      }
+    ],
+    "dropContext": 4259,
+    "keepMessages": 24,
+    "dropMessages": 26,
+    "keepHistoryMessages": 12,
+    "dropHistoryMessages": 11,
+    "assemblyMode": "real-send",
+    "dryPreScanFlip": 4254,
+    "preSend": {
+      "chatTurns": 13,
+      "dropChatTurns": 13,
+      "outgoingText": "probe user marker PRESET_SEND_7F"
+    },
+    "bracket": {
+      "bottom": 3230,
+      "top": 4766,
+      "searchedLow": 120,
+      "searchedHigh": 8192
+    },
+    "contract": {
+      "asserted": [
+        "the oldest history turn is present at keepContext and absent at dropContext",
+        "the number of HISTORY turns differs by exactly one across the pair",
+        "the comparator recomputes both from the provider BODY on each leg, never from a probe claim",
+        "the pinned tokenizer anchor (count 7) is answered by both servers and the tokenizer tree resolved"
+      ],
+      "historyTurns": {
+        "keep": 12,
+        "drop": 11
+      },
+      "totalMessages": {
+        "keep": 24,
+        "drop": 26
+      },
+      "measuredOn": "the provider request produced by a REAL SEND (#send_but) at each context, not a dry assembly",
+      "totalMessagesNotAsserted": "the TOTAL message count is recorded per probe and is NOT part of the contract. The frontend emits its own example and world-info messages as the budget allows, independently of the trimmer, so the total is not monotone in openai_max_context: the run that produced this fixture measured 26 total messages holding 11 history turns at max_context 4252, and 24 total messages holding 12 history turns at 4253. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted"
+    },
+    "method": "capture-preset.mjs bisects openai_max_context with the pinned frontend dry assembly; the predicate is \"the oldest history marker is in the assembled messages\""
+  },
+  "inputs": {
+    "gotavernKeep": "preset-keep-gotavern.json",
+    "pinnedKeep": "preset-keep-pinned.json",
+    "gotavernDrop": "preset-drop-gotavern.json",
+    "pinnedDrop": "preset-drop-pinned.json"
+  },
+  "legs": {
+    "keep": {
+      "gotavern": {
+        "variant": "keep",
+        "maxContext": 4260,
+        "maxContextApplied": 4260,
+        "maxContextUnlocked": true,
+        "chatTurns": 13,
+        "typedMessage": "probe user marker PRESET_SEND_7F",
+        "problems": [],
+        "steps": 9,
+        "settings": {
+          "openai_max_context": 4260,
+          "openai_max_tokens": 64,
+          "temp_openai": 0.42,
+          "top_p_openai": 0.81,
+          "pres_openai": 0.35,
+          "freq_openai": 0.17,
+          "names_behavior": 1,
+          "stream_openai": false
+        },
+        "tokenizerAnchor": {
+          "model": "llama",
+          "status": 200,
+          "count": 7,
+          "pinnedCount": 7,
+          "csrfHeaderPresent": true
+        },
+        "preSend": {
+          "chatTurns": 13,
+          "outgoingText": "probe user marker PRESET_SEND_7F",
+          "contextApplied": 4260,
+          "resetProblems": [],
+          "dryAssembly": {
+            "messageCount": 23,
+            "historyMessages": 12,
+            "oldestPresent": true
+          }
+        }
+      },
+      "pinned": {
+        "variant": "keep",
+        "maxContext": 4260,
+        "maxContextApplied": 4260,
+        "maxContextUnlocked": true,
+        "chatTurns": 13,
+        "typedMessage": "probe user marker PRESET_SEND_7F",
+        "problems": [],
+        "steps": 9,
+        "settings": {
+          "openai_max_context": 4260,
+          "openai_max_tokens": 64,
+          "temp_openai": 0.42,
+          "top_p_openai": 0.81,
+          "pres_openai": 0.35,
+          "freq_openai": 0.17,
+          "names_behavior": 1,
+          "stream_openai": false
+        },
+        "tokenizerAnchor": {
+          "model": "llama",
+          "status": 200,
+          "count": 7,
+          "pinnedCount": 7,
+          "csrfHeaderPresent": true
+        },
+        "preSend": {
+          "chatTurns": 13,
+          "outgoingText": "probe user marker PRESET_SEND_7F",
+          "contextApplied": 4260,
+          "resetProblems": [],
+          "dryAssembly": {
+            "messageCount": 23,
+            "historyMessages": 12,
+            "oldestPresent": true
+          }
+        }
+      }
+    },
+    "drop": {
+      "gotavern": {
+        "variant": "drop",
+        "maxContext": 4259,
+        "maxContextApplied": 4259,
+        "maxContextUnlocked": true,
+        "chatTurns": 13,
+        "typedMessage": "probe user marker PRESET_SEND_7F",
+        "problems": [],
+        "steps": 9,
+        "settings": {
+          "openai_max_context": 4259,
+          "openai_max_tokens": 64,
+          "temp_openai": 0.42,
+          "top_p_openai": 0.81,
+          "pres_openai": 0.35,
+          "freq_openai": 0.17,
+          "names_behavior": 1,
+          "stream_openai": false
+        },
+        "tokenizerAnchor": {
+          "model": "llama",
+          "status": 200,
+          "count": 7,
+          "pinnedCount": 7,
+          "csrfHeaderPresent": true
+        },
+        "preSend": {
+          "chatTurns": 13,
+          "outgoingText": "probe user marker PRESET_SEND_7F",
+          "contextApplied": 4259,
+          "resetProblems": [],
+          "dryAssembly": {
+            "messageCount": 23,
+            "historyMessages": 12,
+            "oldestPresent": true
+          }
+        }
+      },
+      "pinned": {
+        "variant": "drop",
+        "maxContext": 4259,
+        "maxContextApplied": 4259,
+        "maxContextUnlocked": true,
+        "chatTurns": 13,
+        "typedMessage": "probe user marker PRESET_SEND_7F",
+        "problems": [],
+        "steps": 9,
+        "settings": {
+          "openai_max_context": 4259,
+          "openai_max_tokens": 64,
+          "temp_openai": 0.42,
+          "top_p_openai": 0.81,
+          "pres_openai": 0.35,
+          "freq_openai": 0.17,
+          "names_behavior": 1,
+          "stream_openai": false
+        },
+        "tokenizerAnchor": {
+          "model": "llama",
+          "status": 200,
+          "count": 7,
+          "pinnedCount": 7,
+          "csrfHeaderPresent": true
+        },
+        "preSend": {
+          "chatTurns": 13,
+          "outgoingText": "probe user marker PRESET_SEND_7F",
+          "contextApplied": 4259,
+          "resetProblems": [],
+          "dryAssembly": {
+            "messageCount": 23,
+            "historyMessages": 12,
+            "oldestPresent": true
+          }
+        }
+      }
+    }
+  },
+  "providerRequests": {
+    "keep": {
+      "gotavern": {
+        "present": true,
+        "bodyLength": 14581,
+        "bodySha256": "529fed72fc2de778521564fcb844f944c9cd0fb225a357085338d3857b407839",
+        "messageCount": 24,
+        "memberOrder": [
+          "messages",
+          "model",
+          "temperature",
+          "max_tokens",
+          "stream",
+          "presence_penalty",
+          "frequency_penalty",
+          "top_p",
+          "stop",
+          "seed"
+        ],
+        "stream": false,
+        "maxTokens": 64,
+        "stop": [
+          "STOP_A_7F",
+          "STOP_B_7F"
+        ],
+        "model": "probe-model",
+        "names": [
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User"
+        ]
+      },
+      "pinned": {
+        "present": true,
+        "bodyLength": 14581,
+        "bodySha256": "529fed72fc2de778521564fcb844f944c9cd0fb225a357085338d3857b407839",
+        "messageCount": 24,
+        "memberOrder": [
+          "messages",
+          "model",
+          "temperature",
+          "max_tokens",
+          "stream",
+          "presence_penalty",
+          "frequency_penalty",
+          "top_p",
+          "stop",
+          "seed"
+        ],
+        "stream": false,
+        "maxTokens": 64,
+        "stop": [
+          "STOP_A_7F",
+          "STOP_B_7F"
+        ],
+        "model": "probe-model",
+        "names": [
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User"
+        ]
+      }
+    },
+    "drop": {
+      "gotavern": {
+        "present": true,
+        "bodyLength": 13138,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "messageCount": 26,
+        "memberOrder": [
+          "messages",
+          "model",
+          "temperature",
+          "max_tokens",
+          "stream",
+          "presence_penalty",
+          "frequency_penalty",
+          "top_p",
+          "stop",
+          "seed"
+        ],
+        "stream": false,
+        "maxTokens": 64,
+        "stop": [
+          "STOP_A_7F",
+          "STOP_B_7F"
+        ],
+        "model": "probe-model",
+        "names": [
+          "example_user",
+          "example_assistant",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User"
+        ]
+      },
+      "pinned": {
+        "present": true,
+        "bodyLength": 13138,
+        "bodySha256": "102099e90c9defd286644da0ed87d56516ac2b5e0650b93650e5373b68fc2a56",
+        "messageCount": 26,
+        "memberOrder": [
+          "messages",
+          "model",
+          "temperature",
+          "max_tokens",
+          "stream",
+          "presence_penalty",
+          "frequency_penalty",
+          "top_p",
+          "stop",
+          "seed"
+        ],
+        "stream": false,
+        "maxTokens": 64,
+        "stop": [
+          "STOP_A_7F",
+          "STOP_B_7F"
+        ],
+        "model": "probe-model",
+        "names": [
+          "example_user",
+          "example_assistant",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User",
+          "Seraphina",
+          "Probe_User"
+        ]
+      }
+    }
+  },
+  "keepDrop": {
+    "keep": {
+      "oldestMarker": "PRESET_HIST_7F TURN_00 oldest older olde",
+      "gotavernPresent": true,
+      "pinnedPresent": true,
+      "gotavernOldestIndex": 8,
+      "pinnedOldestIndex": 8,
+      "gotavernMessages": 24,
+      "pinnedMessages": 24,
+      "gotavernHistoryMessages": 12,
+      "pinnedHistoryMessages": 12
+    },
+    "drop": {
+      "oldestMarker": "PRESET_HIST_7F TURN_00 oldest older olde",
+      "gotavernPresent": false,
+      "pinnedPresent": false,
+      "gotavernOldestIndex": -1,
+      "pinnedOldestIndex": -1,
+      "gotavernMessages": 26,
+      "pinnedMessages": 26,
+      "gotavernHistoryMessages": 11,
+      "pinnedHistoryMessages": 11
+    }
+  },
+  "tokenizer": {
+    "keep": {
+      "gotavernCalls": 73,
+      "pinnedCalls": 67,
+      "gotavern": [
+        3,
+        701,
+        190,
+        380,
+        589,
+        749,
+        225,
+        750,
+        26,
+        702,
+        57,
+        13,
+        191,
+        7,
+        19,
+        20,
+        38,
+        56,
+        225,
+        275,
+        380,
+        589,
+        749,
+        1018,
+        41,
+        987,
+        32,
+        25,
+        24,
+        25,
+        28,
+        57,
+        20,
+        26,
+        13,
+        21,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        20,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        286,
+        289,
+        24,
+        28,
+        11,
+        14,
+        17,
+        25,
+        29,
+        16,
+        19,
+        9,
+        13,
+        9
+      ],
+      "pinned": [
+        3,
+        701,
+        190,
+        380,
+        589,
+        749,
+        225,
+        750,
+        26,
+        702,
+        57,
+        13,
+        191,
+        7,
+        19,
+        20,
+        38,
+        56,
+        275,
+        1018,
+        41,
+        987,
+        32,
+        25,
+        24,
+        25,
+        28,
+        20,
+        26,
+        21,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        20,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        286,
+        289,
+        24,
+        28,
+        11,
+        14,
+        17,
+        25,
+        29,
+        16,
+        19,
+        9,
+        13,
+        9
+      ],
+      "equal": false,
+      "firstDifference": {
+        "index": 18,
+        "pinnedCount": 275,
+        "gotavernCount": 225,
+        "requestText": "Probe User: \"What is the glade?\"\nSeraphina: *Seraphina smiles softly, her eyes sparkling with warmth as she nods.* \"This",
+        "note": "the same message counted differently by the two servers; the pinned count is the oracle"
+      }
+    },
+    "drop": {
+      "gotavernCalls": 73,
+      "pinnedCalls": 67,
+      "gotavern": [
+        3,
+        701,
+        190,
+        380,
+        589,
+        749,
+        225,
+        750,
+        26,
+        702,
+        57,
+        13,
+        191,
+        7,
+        19,
+        20,
+        38,
+        56,
+        225,
+        275,
+        380,
+        589,
+        749,
+        1018,
+        41,
+        987,
+        32,
+        25,
+        24,
+        25,
+        28,
+        57,
+        20,
+        26,
+        13,
+        21,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        20,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        286,
+        289,
+        24,
+        28,
+        11,
+        14,
+        17,
+        25,
+        29,
+        16,
+        19,
+        9,
+        13,
+        9
+      ],
+      "pinned": [
+        3,
+        701,
+        190,
+        380,
+        589,
+        749,
+        225,
+        750,
+        26,
+        702,
+        57,
+        13,
+        191,
+        7,
+        19,
+        20,
+        38,
+        56,
+        275,
+        1018,
+        41,
+        987,
+        32,
+        25,
+        24,
+        25,
+        28,
+        20,
+        26,
+        21,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        20,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        243,
+        246,
+        243,
+        247,
+        286,
+        289,
+        24,
+        28,
+        11,
+        14,
+        17,
+        25,
+        29,
+        16,
+        19,
+        9,
+        13,
+        9
+      ],
+      "equal": false,
+      "firstDifference": {
+        "index": 18,
+        "pinnedCount": 275,
+        "gotavernCount": 225,
+        "requestText": "Probe User: \"What is the glade?\"\nSeraphina: *Seraphina smiles softly, her eyes sparkling with warmth as she nods.* \"This",
+        "note": "the same message counted differently by the two servers; the pinned count is the oracle"
+      }
+    }
+  },
+  "tokenizerCountsAgree": false,
+  "bodyDifferences": {
+    "keep": [],
+    "drop": []
+  },
+  "firstDifferences": {
+    "keep": null,
+    "drop": null
+  },
+  "providerRequestEqual": true,
+  "guards": {
+    "bothLegsProducedAProviderRequest": true,
+    "boundaryMarkersArrivedOnBothLegs": true,
+    "missingBoundaryMarkers": null,
+    "budgetTrimmedMarkersAbsentOnBothLegs": true,
+    "budgetTrimmedMarkersPresentInTheScenario": true,
+    "trimmedAtBoundary": {
+      "markers": [
+        "example"
+      ],
+      "stillPresentPinned": [],
+      "stillPresentGotavern": [],
+      "measuredTotals": [
+        {
+          "context": 3230,
+          "total": 24,
+          "history": 9,
+          "oldestPresent": false
+        },
+        {
+          "context": 3998,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4190,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4238,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4250,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4256,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4259,
+          "total": 26,
+          "history": 11,
+          "oldestPresent": false
+        },
+        {
+          "context": 4260,
+          "total": 24,
+          "history": 12,
+          "oldestPresent": true
+        },
+        {
+          "context": 4262,
+          "total": 24,
+          "history": 12,
+          "oldestPresent": true
+        },
+        {
+          "context": 4286,
+          "total": 25,
+          "history": 12,
+          "oldestPresent": true
+        },
+        {
+          "context": 4382,
+          "total": 28,
+          "history": 12,
+          "oldestPresent": true
+        },
+        {
+          "context": 4766,
+          "total": 28,
+          "history": 12,
+          "oldestPresent": true
+        }
+      ],
+      "why": "the frontend sheds its own example and world-info prompt entries as the budget tightens, before the oldest history turn: the search table records 28 messages at the largest probed context, 24 at the boundary and 26 one token below, and the example is absent from every request at the boundary. Its absence is therefore an observed property of the pinned trimmer, not a missing kit step"
+    },
+    "scenarioAppliedOnThePinnedLeg": true,
+    "scenarioAppliedOnTheGotavernLeg": true,
+    "everyMarkerArrived": true,
+    "stopStringsArrived": true,
+    "samplersArrived": true,
+    "nonStreamingOnBothLegs": true,
+    "presetAppliedOnBothLegs": true,
+    "keepVariantRanAtTheCapturedContext": true,
+    "dropVariantRanAtTheCapturedContext": true,
+    "variantsUsedDifferentContexts": true,
+    "variantStartedFromTheCapturedState": true,
+    "preSendState": {
+      "expected": {
+        "chatTurns": 13,
+        "dropChatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F"
+      },
+      "keepGotavern": {
+        "chatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F",
+        "contextApplied": 4260,
+        "resetProblems": [],
+        "dryAssembly": {
+          "messageCount": 23,
+          "historyMessages": 12,
+          "oldestPresent": true
+        }
+      },
+      "keepPinned": {
+        "chatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F",
+        "contextApplied": 4260,
+        "resetProblems": [],
+        "dryAssembly": {
+          "messageCount": 23,
+          "historyMessages": 12,
+          "oldestPresent": true
+        }
+      },
+      "dropGotavern": {
+        "chatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F",
+        "contextApplied": 4259,
+        "resetProblems": [],
+        "dryAssembly": {
+          "messageCount": 23,
+          "historyMessages": 12,
+          "oldestPresent": true
+        }
+      },
+      "dropPinned": {
+        "chatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F",
+        "contextApplied": 4259,
+        "resetProblems": [],
+        "dryAssembly": {
+          "messageCount": 23,
+          "historyMessages": 12,
+          "oldestPresent": true
+        }
+      }
+    },
+    "boundaryDeclaresItsAssembly": true,
+    "boundaryMeasuredByThePinnedLegItself": true,
+    "boundaryBindsOnThePinnedLeg": true,
+    "boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg": true,
+    "boundaryRetainsExactlyOneMoreTurnOnTheGotavernLeg": true,
+    "boundaryMatchesTheCapture": true,
+    "tokenizerTreeResolvedOnTheGotavernLeg": true,
+    "tokenizerTreeResolvedOnThePinnedLeg": true,
+    "tokenizerAnchorExactOnBothLegs": true,
+    "tokenizerTree": {
+      "gotavern": "src/tokenizers",
+      "pinned": "src/tokenizers",
+      "anchorExpected": 7,
+      "anchors": {
+        "keepGotavern": 7,
+        "keepPinned": 7,
+        "dropGotavern": 7,
+        "dropPinned": 7
+      }
+    },
+    "dropVariantCarriesEveryOtherMarker": true,
+    "noHostDerivedValue": true
+  },
+  "verdict": "match"
+}
