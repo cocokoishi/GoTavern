@@ -1,4 +1,4 @@
-// Generation probe: does a send driven from the PINNED frontend produce a provider request?
+﻿// Generation probe: does a send driven from the PINNED frontend produce a provider request?
 //
 // WHAT IT MEASURES. It boots GoTavern (or is pointed at any other server with PROBE_BASE_URL), drives
 // one send the way the frontend itself does -- load and select a character through the frontend's own
@@ -24,7 +24,7 @@
 //
 // ONE question: does a send driven from the pinned frontend produce a provider request at all?
 // It drives one generation against the recording mock provider, then reports whether a request
-// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape —
+// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape â€”
 // those come later and only if this answers yes.
 //
 // Why this is separate from the pinned suite: no spec in that suite drives a generation turn, so
@@ -855,7 +855,7 @@ try {
     if (presetMode) {
         await page.addScriptTag({ content: `globalThis.__applyPresetKit = (${applyPresetKit.toString()});` });
     }
-    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor }) => {
+    const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor, presetContextOverride }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
@@ -1007,7 +1007,12 @@ try {
         let presetApplied = null;
         if (presetSpec && presetBoundary) {
             const kit = await globalThis.__applyPresetKit(presetSpec);
-            const maxContext = presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext;
+            // THE CONTEXT MAY BE MEASURED, NOT INHERITED. `presetContextOverride` is the context a boundary
+            // search is probing. The legs the differential compares are driven WITH an explicit override,
+            // so the context they run at is the one the PINNED LEG ITSELF was measured at.
+            const maxContext = Number.isInteger(presetContextOverride) && presetContextOverride > 0
+                ? presetContextOverride
+                : (presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext);
             // UNLOCK THE SLIDER BEFORE SETTING IT. With `max_context_unlocked` false the frontend clamps
             // `openai_max_context` to the model select's `max` attribute whenever a model change fires
             // (openai.js:5701), and that clamp lands AFTER this assignment -- silently replacing the
@@ -1326,9 +1331,75 @@ try {
         }
         globalThis.__probeClickT = Date.now();
         globalThis.__probeClickPerf = Math.round(performance.now());
-        // The reported event window starts AT THE CLICK, and because the frontend was quiescent a
-        // moment ago no generation can straddle this boundary. Events recorded before it are kept as
-        // counts (report.eventsBeforeClick) so a reader can see what was excluded and why.
+        // THE PRE-SEND STATE, IN PRESET MODE, MEASURED IMMEDIATELY BEFORE THE CLICK.
+        //
+        // The comparator compares these against what the CAPTURE recorded for the same variant, because a
+        // chat that already carries a previous send, or an assembly that has grown by messages the capture
+        // did not have, makes the differential measure the harness's state instead of the frontend's
+        // behaviour. Run 40087218275 is the case: the capture's own send at max_context 4253 assembled 24
+        // messages with 12 history turns, while the drive at the SAME context assembled 26 with 11 -- same
+        // server, same context, different state at send time.
+        //
+        // The dry assembly is recorded too, and it is what separates the two possible causes: if the DRY
+        // assembly here already counts more messages than the capture measured, the page's prompt state
+        // grew before the send; if it matches and only the sent request differs, the send path itself is
+        // adding them.
+        if (presetSpec) {
+            const presetOpenAI = await import('./scripts/openai.js');
+            const scriptForPresend = await import('./script.js');
+            // RESTORE THE SCENARIO IMMEDIATELY BEFORE THE SEND, the same way the capture does before every
+            // probe: the kit rebuilds the chat from the spec, re-writes the note and the world, and
+            // re-asserts every step, so a page whose state drifted during the drive's own setup cannot
+            // send from a different chat than the one the boundary was measured on.
+            const presendReset = await globalThis.__applyPresetKit(presetSpec);
+            const presendProblems = [...(presendReset?.problems ?? [])];
+            // RE-SELECTING THE CHARACTER MAY TOUCH THE COMPOSER, and a re-applied preset may start a
+            // prompt-manager dry render: re-assert the outgoing text and let the page go idle again, so the
+            // send starts from the same three values the capture recorded.
+            const composerForPresend = document.querySelector('#send_textarea');
+            if (composerForPresend && String(composerForPresend.value ?? '') !== String(presetSpec.send ?? '')) {
+                composerForPresend.value = presetSpec.send ?? '';
+                composerForPresend.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            const presendIdleDeadline = performance.now() + 10000;
+            while (performance.now() < presendIdleDeadline) {
+                const idle = Boolean(scriptForPresend.isGenerating) === false && document.body.dataset.generating === undefined;
+                if (idle) break;
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            let dryAssembly = null;
+            try {
+                const seenPresend = [];
+                const presendHandler = data => seenPresend.push(data);
+                scriptForPresend.eventSource.on(scriptForPresend.event_types.GENERATE_AFTER_DATA, presendHandler);
+                await scriptForPresend.Generate('normal', {}, true);
+                scriptForPresend.eventSource.removeListener(scriptForPresend.event_types.GENERATE_AFTER_DATA, presendHandler);
+                const assembled = seenPresend.length ? seenPresend[seenPresend.length - 1]?.prompt : null;
+                const list = Array.isArray(assembled) ? assembled : [];
+                const text = message => {
+                    const content = message?.content;
+                    if (typeof content === 'string') return content;
+                    if (Array.isArray(content)) return content.map(part => (typeof part === 'string' ? part : part?.text ?? '')).join('\n');
+                    return '';
+                };
+                dryAssembly = {
+                    messageCount: list.length,
+                    historyMessages: list.filter(message => text(message).includes(presetSpec.markers.history)).length,
+                    // Whether the OLDEST turn is still in this pre-send assembly, by the same marker the
+                    // boundary uses.
+                    oldestPresent: list.some(message => text(message).includes(String(presetSpec.history?.[0]?.text ?? '').slice(0, 40))),
+                };
+            } catch (error) {
+                dryAssembly = { error: String(error?.message ?? error).slice(0, 200) };
+            }
+            globalThis.__probePresetPreSend = {
+                chatTurns: scriptForPresend.chat.length,
+                outgoingText: String(document.querySelector('#send_textarea')?.value ?? ''),
+                contextApplied: Number(presetOpenAI.oai_settings.openai_max_context ?? NaN),
+                resetProblems: presendProblems,
+                dryAssembly,
+            };
+        }
         globalThis.__probeEventIndexAtClick = (globalThis.__probeEvents ?? []).length;
         sendButton.click();
 
@@ -1462,7 +1533,8 @@ try {
         presetSpec: presetMode ? presetFixture.capture.spec : null,
         presetVariant,
         presetBoundary: presetMode ? presetFixture.capture.boundary : null,
-        presetAnchor: presetMode ? presetFixture.capture.tokenizerAnchor : null });
+        presetAnchor: presetMode ? presetFixture.capture.tokenizerAnchor : null,
+        presetContextOverride: Number.isInteger(Number(process.env.PROBE_PRESET_CONTEXT ?? '')) ? Number(process.env.PROBE_PRESET_CONTEXT) : null });
 
     report.htmlIntoJson = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.looksLikeMarkup));
     report.fetchFailures = await page.evaluate(() => (window.__probeFetchLog ?? []).filter(entry => entry.status >= 400));
@@ -1509,6 +1581,15 @@ try {
     // whether the leg measured the scenario at all.
     if (presetMode) {
         report.preset = outcome.presetApplied ?? null;
+        // THE STATE THE VARIANT ACTUALLY STARTED FROM, read at the click (chat turns, outgoing text,
+        // applied context) plus one dry assembly taken immediately before it. The comparator compares
+        // these with the capture's recorded values and refuses when they differ: without that, a leg
+        // whose page had drifted measures the harness instead of the frontend.
+        try {
+            report.presetPreSend = await page.evaluate(() => globalThis.__probePresetPreSend ?? null);
+        } catch (error) {
+            report.presetPreSend = { unreadable: String(error?.message ?? error).slice(0, 160) };
+        }
     }
     if (outcome.error) {
         report.failure = `Generate threw: ${outcome.error}`;

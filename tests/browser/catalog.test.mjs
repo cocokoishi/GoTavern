@@ -157,3 +157,57 @@ test('the ignore patterns never swallow a committed artefact', () => {
         assert.equal(isIgnored(file), false, `${file} is committed but tests/browser/.gitignore would ignore it`);
     }
 });
+
+// THE WORKFLOW FILE DECIDES WHETHER ANYTHING RUNS AT ALL, so it is checked here without a YAML library and
+// without a runner. This exists because a commit shipped a workflow whose `run: |` body had one line at
+// column 0 (a `git commit -m` message inside the script): the file stopped parsing, GitHub dropped every
+// job, and the symptom was "CI never ran" rather than "the harness broke". Three ways that happens:
+//
+//   1. a block scalar whose body dedents to its key's indentation (the shipped defect);
+//   2. a TAB in indentation, which YAML forbids and editors insert;
+//   3. a file that is not UTF-8 -- PowerShell `>` writes UTF-16LE -- which GitHub reads as garbage.
+test('the differential workflow is structurally sound (a file nobody can parse runs nobody)', () => {
+    const workflowPath = path.join(repoRoot, '.github', 'workflows', 'browser-differential.yml');
+    const bytes = readFileSync(workflowPath);
+    // NO BOM, AND NOT UTF-16. The first byte is checked explicitly because a BOM decodes perfectly and
+    // renders as nothing (AGENTS verification rule 12), and because PowerShell's `>` writes UTF-16LE --
+    // which is how this repository once committed a workflow that YAML still parsed while git called it
+    // binary. `---` is NOT required by GitHub, so this asserts the absence of the encodings rather than
+    // the presence of a marker.
+    assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'the workflow begins with a UTF-8 BOM');
+    assert.notDeepEqual([...bytes.subarray(0, 2)], [0xff, 0xfe], 'the workflow begins with a UTF-16LE BOM');
+    assert.notDeepEqual([...bytes.subarray(0, 2)], [0xfe, 0xff], 'the workflow begins with a UTF-16BE BOM');
+    assert.notEqual(bytes[1], 0x00, 'the workflow looks UTF-16LE: its second byte is 0x00, so GitHub would read it as noise rather than as YAML');
+    const text = bytes.toString('utf8');
+    assert.equal(text.includes('\uFFFD'), false, 'the workflow is not valid UTF-8');
+    const lines = text.split(/\r?\n/);
+
+    const blocks = [];
+    lines.forEach((line, index) => {
+        const match = line.match(/^(\s*)(?:-\s+)?([A-Za-z0-9_.-]+):\s*[|>][-+]?\s*$/);
+        if (match) blocks.push({ indent: match[1].length, key: match[2], line: index + 1 });
+    });
+    assert.ok(blocks.length >= 5, `expected the workflow's block scalars (run: |); found ${blocks.length}, so this check would be decoration`);
+
+    for (const block of blocks) {
+        let body = 0;
+        for (let index = block.line; index < lines.length; index++) {
+            const line = lines[index];
+            if (line.trim() === '') continue;
+            const indent = line.match(/^\s*/)[0].length;
+            if (indent <= block.indent) break;
+            body += 1;
+            assert.equal(/^\s*\t/.test(line), false,
+                `.github/workflows/browser-differential.yml:${index + 1}: a TAB in the indentation of the "${block.key}" block scalar opened at line ${block.line}; YAML forbids tabs for indentation`);
+        }
+        assert.ok(body > 0, `.github/workflows/browser-differential.yml:${block.line}: the "${block.key}" block scalar has no body, so it would satisfy the indentation check vacuously`);
+    }
+
+    assert.match(text, /^jobs:\s*$/m, 'the workflow has no top-level jobs: key');
+    const jobNames = [...text.matchAll(/^ {2}([A-Za-z0-9_-]+):\s*$/gm)].map(match => match[1]);
+    assert.ok(jobNames.length > 0, 'the workflow declares no jobs at all');
+    for (const job of jobNames) {
+        const body = text.slice(text.indexOf(`  ${job}:`));
+        assert.match(body, /^ {4}runs-on:/m, `job ${job} has no "runs-on:"; the job would never start`);
+    }
+});

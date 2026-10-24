@@ -197,12 +197,32 @@ function legPreset(report) {
         steps: Array.isArray(preset?.steps) ? preset.steps.length : 0,
         settings: preset?.settings ?? null,
         tokenizerAnchor: preset?.tokenizerAnchor ?? null,
+        // THE STATE THIS LEG STARTED ITS SEND FROM, read by the probe at the click: chat turns, outgoing
+        // text, applied context and one dry assembly taken immediately before it.
+        preSend: report.presetPreSend ?? null,
     };
 }
 
-export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fixture, inputs }) {
+export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fixture, inputs, boundaryFile = null }) {
     const scenario = fixture?.capture?.spec ?? null;
-    const boundary = fixture?.capture?.boundary ?? {};
+    let boundary = fixture?.capture?.boundary ?? {};
+    // THE MEASURED PAIR COMES FROM THE PINNED LEG'S OWN DRIVES when a boundary file is supplied: the
+    // same program, arguments and clean state as the compared leg, so the pair is reproducible by
+    // construction. The fixture's numbers remain the capture's hint and are used only when no search ran.
+    if (boundaryFile) {
+        boundary = {
+            ...boundary,
+            keepContext: boundaryFile.keepContext,
+            dropContext: boundaryFile.dropContext,
+            keepMessages: boundaryFile.keep?.total ?? null,
+            dropMessages: boundaryFile.drop?.total ?? null,
+            keepHistoryMessages: boundaryFile.keep?.history ?? null,
+            dropHistoryMessages: boundaryFile.drop?.history ?? null,
+            measuredBy: boundaryFile.measuredBy ?? null,
+            searchTable: Array.isArray(boundaryFile.search) ? boundaryFile.search : null,
+            bracket: boundaryFile.bracket ?? null,
+        };
+    }
     const variants = {
         keep: { gotavern: gotavernKeep, pinned: pinnedKeep, context: boundary.keepContext, expectedMessages: boundary.keepMessages },
         drop: { gotavern: gotavernDrop, pinned: pinnedDrop, context: boundary.dropContext, expectedMessages: boundary.dropMessages },
@@ -295,6 +315,45 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 legs.drop.gotavern.maxContextApplied === variants.drop.context
                 && legs.drop.pinned.maxContextApplied === variants.drop.context;
             guards.variantsUsedDifferentContexts = variants.keep.context !== variants.drop.context;
+            // THE VARIANT MUST START FROM THE STATE THE CAPTURE MEASURED. Run 40087218275 assembled 26
+            // messages in the drive at max_context 4253, where the capture's own send assembled 24 with
+            // 12 history turns: same server, same context, different state at send time. The capture gives
+            // every probe a fresh page and records the chat it sent from; each leg records the same
+            // values at its click, and a mismatch is REFUSED by name here rather than being reported as a
+            // boundary difference. `preSend.dryAssembly` is recorded alongside so the next reader can tell
+            // "the page's state had already grown" from "the send path added messages".
+            const expectedPreSend = boundary.preSend ?? null;
+            const preSendMatches = leg => Boolean(expectedPreSend) && Boolean(leg.preSend)
+                && leg.preSend.chatTurns === expectedPreSend.chatTurns
+                && String(leg.preSend.outgoingText ?? '') === String(expectedPreSend.outgoingText ?? '');
+            guards.variantStartedFromTheCapturedState = preSendMatches(legs.keep.gotavern)
+                && preSendMatches(legs.keep.pinned)
+                && preSendMatches(legs.drop.gotavern)
+                && preSendMatches(legs.drop.pinned);
+            guards.preSendState = {
+                expected: expectedPreSend,
+                keepGotavern: legs.keep.gotavern.preSend,
+                keepPinned: legs.keep.pinned.preSend,
+                dropGotavern: legs.drop.gotavern.preSend,
+                dropPinned: legs.drop.pinned.preSend,
+            };
+            // THE PAIR MUST SAY WHICH ASSEMBLY IT BELONGS TO, AND THE DRIVE IS WHAT PROVES IT BINDS.
+            //
+            // History: run 40082539457 drove a pair bisected on a DRY assembly and BOTH variants produced
+            // the drop shape on BOTH legs, because a dry assembly costs a few tokens less than the send it
+            // predicts; the capture then bisected by SENDING, and run 40087218275 showed even that could
+            // disagree with the drive at the same context (capture 24/12, drive 26/11). The capture now
+            // measures the pair on the PRE-SEND assembly -- the same `Generate(..., true)` pass the drive
+            // uses to record `preSend` -- and records the state each variant must start from. What keeps a
+            // wrong pair from passing is no longer the capture's method but the guards below: the pair must
+            // BIND (oldest turn present at keep, absent at drop, exactly one history message apart) and the
+            // drive must START FROM THE CAPTURED STATE (`variantStartedFromTheCapturedState`). A pair that
+            // does not bind is refused by name, whichever way it was measured.
+            guards.boundaryDeclaresItsAssembly = ['pre-send-assembly', 'real-send'].includes(boundary.assemblyMode ?? null);
+            // AND IT MUST HAVE BEEN MEASURED BY THE LEG THAT PRODUCES THE COMPARED REQUEST. Seven runs
+            // measured a merely similar procedure; when a search file is supplied its table is the pair and
+            // this guard says so.
+            guards.boundaryMeasuredByThePinnedLegItself = (boundary.measuredBy ?? null) === 'pinned-leg';
             // THE BOUNDARY BINDS: this is the property that makes the pair a measurement. If the pinned
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
@@ -375,11 +434,20 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
         },
         boundary: {
             keepContext: boundary.keepContext ?? null,
+            measuredBy: boundary.measuredBy ?? null,
+            // EVERY CANDIDATE THE SEARCH DROVE, with its numbers: (max_context/total/history/oldestPresent).
+            searchTable: boundary.searchTable ?? null,
             dropContext: boundary.dropContext ?? null,
             keepMessages: boundary.keepMessages ?? null,
             dropMessages: boundary.dropMessages ?? null,
             keepHistoryMessages: boundary.keepHistoryMessages ?? null,
             dropHistoryMessages: boundary.dropHistoryMessages ?? null,
+            assemblyMode: boundary.assemblyMode ?? null,
+            dryPreScanFlip: boundary.dryPreScanFlip ?? null,
+            // THE STATE EACH VARIANT WAS REQUIRED TO START FROM (recorded by the capture) and the state
+            // each leg reported at its click (in `legs.*.preSend`).
+            preSend: boundary.preSend ?? null,
+            bracket: boundary.bracket ?? null,
             // THE CONTRACT TRAVELS WITH THE NUMBERS. Carried verbatim from the capture, which wrote the
             // reason the two TOTALS differ beside their values (the frontend's own example/world-info
             // messages are emitted as the budget allows, so the total is not monotone and is not asserted).
@@ -416,13 +484,19 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
 const main = () => {
     const args = process.argv.slice(2);
     const fixtureIndex = args.indexOf('--fixture');
-    const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1));
+    const boundaryIndex = args.indexOf('--boundary');
+    const boundaryPath = boundaryIndex >= 0 ? path.resolve(args[boundaryIndex + 1]) : null;
+    const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1) && !(boundaryIndex >= 0 && index === boundaryIndex + 1));
     if (files.length !== 4) {
         console.error('usage: node compare-preset-legs.mjs <keep-gotavern.json> <keep-pinned.json> <drop-gotavern.json> <drop-pinned.json> [--fixture <path>]');
         process.exit(2);
     }
     const fixturePath = fixtureIndex >= 0 ? path.resolve(args[fixtureIndex + 1]) : PRESET_FIXTURE;
     const fixture = readJSON(fixturePath);
+    if (!boundaryPath) {
+        console.error('compare-preset-legs needs --boundary <preset-boundary.json>: the pair must be measured by the pinned leg itself (preset-boundary-search.mjs), not inferred from the capture');
+        process.exit(2);
+    }
     const inputNames = Object.fromEntries(['gotavernKeep', 'pinnedKeep', 'gotavernDrop', 'pinnedDrop'].map((name, index) => [name, path.basename(files[index])]));
     const artifact = compare({
         gotavernKeep: readJSON(files[0]),
@@ -430,6 +504,7 @@ const main = () => {
         gotavernDrop: readJSON(files[2]),
         pinnedDrop: readJSON(files[3]),
         fixture,
+        boundaryFile: boundaryPath ? readJSON(boundaryPath) : null,
         inputs: inputNames,
     });
     console.log(JSON.stringify(artifact, null, 2));
@@ -437,6 +512,21 @@ const main = () => {
     const failed = Object.entries(artifact.guards).filter(([, value]) => value === false).map(([name]) => name);
     if (failed.length > 0) {
         console.error(`unfaithful preset differential, ${failed.length} guard(s) failed: ${failed.join(', ')}`);
+        if (failed.includes('variantStartedFromTheCapturedState')) {
+            // NAME THE DIVERGENCE, not just the guard. This is the case where a leg measured a page state
+            // the capture never measured, so every boundary difference below it is unattributable.
+            const expected = artifact.boundary?.preSend ?? null;
+            const observed = artifact.guards?.preSendState ?? null;
+            for (const [where, leg] of Object.entries(observed ?? {})) {
+                if (where === 'expected' || !leg) continue;
+                if (leg.chatTurns !== expected?.chatTurns) {
+                    console.error(`  ${where} started from ${leg.chatTurns} chat turns but the capture measured ${expected?.chatTurns}, so this leg did not run the boundary that was measured`);
+                }
+                if (String(leg.outgoingText ?? '') !== String(expected?.outgoingText ?? '')) {
+                    console.error(`  ${where} typed ${JSON.stringify(String(leg.outgoingText ?? ''))} but the capture typed ${JSON.stringify(String(expected?.outgoingText ?? ''))}`);
+                }
+            }
+        }
         console.error(JSON.stringify({ guards: artifact.guards, firstDifferences: artifact.firstDifferences, keepDrop: artifact.keepDrop }, null, 2));
         process.exit(1);
     }

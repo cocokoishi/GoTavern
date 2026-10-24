@@ -1,4 +1,4 @@
-// DOES THE PRESET GATE HAVE TEETH? Mutate the legs and require the comparator to go red.
+﻿// DOES THE PRESET GATE HAVE TEETH? Mutate the legs and require the comparator to go red.
 //
 // WHY THIS FILE EXISTS (AGENTS.md "Differential-testing doctrine" 4): a gate whose failure has never
 // been observed is a gate nobody can trust, and this project has already shipped several greensor
@@ -66,7 +66,16 @@ const legs = {
     pinnedDrop: readJSON(files[3]),
 };
 const inputs = Object.fromEntries(['gotavernKeep', 'pinnedKeep', 'gotavernDrop', 'pinnedDrop'].map((name, index) => [name, path.basename(files[index])]));
-const run = overrides => compare({ ...legs, ...overrides, fixture, inputs });
+const boundaryFile = fixture?.capture?.boundary?.keepContext ? {
+    measuredBy: 'pinned-leg',
+    keepContext: fixture.capture.boundary.keepContext,
+    dropContext: fixture.capture.boundary.dropContext,
+    keep: { total: fixture.capture.boundary.keepMessages, history: fixture.capture.boundary.keepHistoryMessages },
+    drop: { total: fixture.capture.boundary.dropMessages, history: fixture.capture.boundary.dropHistoryMessages },
+    search: [],
+    bracket: null,
+} : null;
+const run = overrides => compare({ ...legs, ...overrides, fixture, boundaryFile, inputs });
 
 const failures = [];
 const record = (name, ok, detail) => {

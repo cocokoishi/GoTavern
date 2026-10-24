@@ -380,6 +380,11 @@ jobs:
       # -------------------------------------------------------------------------------------------------
       - name: Capture the complex preset from the pinned frontend
         if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        # THE CAPTURE NOW BISECTS BY SENDING. A dry assembly does not bind (run 40082539457: a pair one
+        # token apart produced the drop shape on both legs), so the boundary is measured by driving the
+        # real send against a recording peer -- ~30 sends instead of ~15 dry assemblies. 20 minutes is
+        # several times the measured cost and still bounds a wedged page inside the job's own 90.
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -391,32 +396,59 @@ jobs:
           node tests/browser/run-against-pinned.mjs capture-preset.mjs -- \
             --out "$PWD/tests/browser/fixtures/preset-complex-settings.json"
 
+      # THE PAIR IS MEASURED BY THE PINNED LEG THAT PRODUCES THE COMPARED REQUEST, not by the capture.
+      # Seven runs failed because the boundary was measured by a merely similar procedure (first a dry
+      # assembly, then the capture's own sends) and the drive's send assembled a different number of
+      # messages at the same context. preset-boundary-search.mjs drives the pinned leg once per candidate
+      # -- same program, same arguments, same clean state -- and records the provider request each one
+      # produced, then writes the pair to preset-boundary.json.
+      - name: Search the preset boundary with the pinned leg
+        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs" "$work/committed"
+          node tests/browser/preset-boundary-search.mjs --legs "$work/legs" --out "$work/preset-boundary.json"
+
       - name: Record the preset boundary pair (both legs)
         id: preset
         if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
-          mkdir -p "$work/legs"
+          boundary="$work/preset-boundary.json"
+          if [ ! -f "$boundary" ]; then
+            echo "::error::the pinned-leg boundary search produced no pair; the legs are not driven"
+            echo "failures=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          keep=$(node -e 'console.log(require(process.argv[1]).keepContext)' "$boundary")
+          drop=$(node -e 'console.log(require(process.argv[1]).dropContext)' "$boundary")
+          echo "boundary measured by the pinned leg: keep=$keep drop=$drop"
           failures=0
-          for variant in keep drop; do
-            echo "::group::preset $variant"
+          drive() {
+            local variant="$1"
+            local context="$2"
+            echo "::group::preset $variant at max_context=$context"
             # The GoTavern leg builds and boots itself; the pinned leg is the reference checkout. The
             # source is `custom` because its peer travels in `custom_url` on BOTH legs, so neither leg can
             # reach a real provider (rule 14) and no transport redirect is needed.
-            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" \
+            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" PROBE_PRESET_CONTEXT="$context" \
               node tests/browser/generation-probe.mjs --report "$work/legs/preset-$variant-gotavern.json"; then
               echo "::error::preset $variant: the GoTavern leg failed to drive"
               failures=$((failures + 1))
             fi
-            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" \
+            if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" PROBE_PRESET_CONTEXT="$context" \
               PROBE_PINNED_REDIRECT_FILE="$work/legs/redirect-preset-$variant.json" \
               node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report "$work/legs/preset-$variant-pinned.json"; then
               echo "::error::preset $variant: the pinned leg failed to drive"
               failures=$((failures + 1))
             fi
             echo "::endgroup::"
-          done
+          }
+          drive keep "$keep"
+          drive drop "$drop"
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -446,6 +478,7 @@ jobs:
           node tests/browser/compare-preset-legs.mjs \
             "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
             "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
+            --boundary "$work/preset-boundary.json" \
             > "tests/browser/$artifact"
 
       - name: Prove the preset gate has teeth
