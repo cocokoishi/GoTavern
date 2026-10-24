@@ -197,6 +197,9 @@ function legPreset(report) {
         steps: Array.isArray(preset?.steps) ? preset.steps.length : 0,
         settings: preset?.settings ?? null,
         tokenizerAnchor: preset?.tokenizerAnchor ?? null,
+        // THE STATE THIS LEG STARTED ITS SEND FROM, read by the probe at the click: chat turns, outgoing
+        // text, applied context and one dry assembly taken immediately before it.
+        preSend: report.presetPreSend ?? null,
     };
 }
 
@@ -295,6 +298,28 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 legs.drop.gotavern.maxContextApplied === variants.drop.context
                 && legs.drop.pinned.maxContextApplied === variants.drop.context;
             guards.variantsUsedDifferentContexts = variants.keep.context !== variants.drop.context;
+            // THE VARIANT MUST START FROM THE STATE THE CAPTURE MEASURED. Run 40087218275 assembled 26
+            // messages in the drive at max_context 4253, where the capture's own send assembled 24 with
+            // 12 history turns: same server, same context, different state at send time. The capture gives
+            // every probe a fresh page and records the chat it sent from; each leg records the same
+            // values at its click, and a mismatch is REFUSED by name here rather than being reported as a
+            // boundary difference. `preSend.dryAssembly` is recorded alongside so the next reader can tell
+            // "the page's state had already grown" from "the send path added messages".
+            const expectedPreSend = boundary.preSend ?? null;
+            const preSendMatches = leg => Boolean(expectedPreSend) && Boolean(leg.preSend)
+                && leg.preSend.chatTurns === expectedPreSend.chatTurns
+                && String(leg.preSend.outgoingText ?? '') === String(expectedPreSend.outgoingText ?? '');
+            guards.variantStartedFromTheCapturedState = preSendMatches(legs.keep.gotavern)
+                && preSendMatches(legs.keep.pinned)
+                && preSendMatches(legs.drop.gotavern)
+                && preSendMatches(legs.drop.pinned);
+            guards.preSendState = {
+                expected: expectedPreSend,
+                keepGotavern: legs.keep.gotavern.preSend,
+                keepPinned: legs.keep.pinned.preSend,
+                dropGotavern: legs.drop.gotavern.preSend,
+                dropPinned: legs.drop.pinned.preSend,
+            };
             // THE PAIR MUST HAVE BEEN MEASURED ON THE SEND, NOT ON A DRY ASSEMBLY. Run 40082539457 drove a
             // dry-measured pair (4236 kept / 4235 dropped, one token apart) and BOTH variants produced the
             // drop shape on BOTH legs, because a dry assembly costs a few tokens less than the send it is
@@ -388,6 +413,10 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             dropHistoryMessages: boundary.dropHistoryMessages ?? null,
             assemblyMode: boundary.assemblyMode ?? null,
             dryPreScanFlip: boundary.dryPreScanFlip ?? null,
+            // THE STATE EACH VARIANT WAS REQUIRED TO START FROM (recorded by the capture) and the state
+            // each leg reported at its click (in `legs.*.preSend`).
+            preSend: boundary.preSend ?? null,
+            bracket: boundary.bracket ?? null,
             // THE CONTRACT TRAVELS WITH THE NUMBERS. Carried verbatim from the capture, which wrote the
             // reason the two TOTALS differ beside their values (the frontend's own example/world-info
             // messages are emitted as the budget allows, so the total is not monotone and is not asserted).
@@ -445,6 +474,21 @@ const main = () => {
     const failed = Object.entries(artifact.guards).filter(([, value]) => value === false).map(([name]) => name);
     if (failed.length > 0) {
         console.error(`unfaithful preset differential, ${failed.length} guard(s) failed: ${failed.join(', ')}`);
+        if (failed.includes('variantStartedFromTheCapturedState')) {
+            // NAME THE DIVERGENCE, not just the guard. This is the case where a leg measured a page state
+            // the capture never measured, so every boundary difference below it is unattributable.
+            const expected = artifact.boundary?.preSend ?? null;
+            const observed = artifact.guards?.preSendState ?? null;
+            for (const [where, leg] of Object.entries(observed ?? {})) {
+                if (where === 'expected' || !leg) continue;
+                if (leg.chatTurns !== expected?.chatTurns) {
+                    console.error(`  ${where} started from ${leg.chatTurns} chat turns but the capture measured ${expected?.chatTurns}, so this leg did not run the boundary that was measured`);
+                }
+                if (String(leg.outgoingText ?? '') !== String(expected?.outgoingText ?? '')) {
+                    console.error(`  ${where} typed ${JSON.stringify(String(leg.outgoingText ?? ''))} but the capture typed ${JSON.stringify(String(expected?.outgoingText ?? ''))}`);
+                }
+            }
+        }
         console.error(JSON.stringify({ guards: artifact.guards, firstDifferences: artifact.firstDifferences, keepDrop: artifact.keepDrop }, null, 2));
         process.exit(1);
     }

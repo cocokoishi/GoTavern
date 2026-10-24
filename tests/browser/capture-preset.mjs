@@ -289,6 +289,11 @@ async function sendAt(maxContext, peer) {
         maxContext,
         failure: null,
         settled: true,
+        // THE CHAT THE SEND STARTED FROM. The drive records the same value immediately before its own
+        // click and the comparator refuses a variant whose pre-send chat differs from this one, because
+        // run 40087218275 assembled 26 messages in the drive at the context where the capture assembled
+        // 24 -- the same server and context, a different state at send time.
+        chatTurnsBeforeSend: before.chatLength,
         diagnosis,
         ...metricsOfBody(peer.state.posts[peer.state.posts.length - 1], spec.history[0].text.slice(0, 40), spec.markers.history),
     };
@@ -745,6 +750,13 @@ try {
                             + `${keep?.messageCount ?? '?'} total messages holding ${keep?.historyMessages ?? '?'} history turns at ${keepContext ?? '?'}. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted`,
                     },
                     dryPreScanFlip: dryLow,
+                    // THE STATE EACH VARIANT MUST START FROM. The drive reads the same three values at its
+                    // own click and the comparator refuses a variant that differs, naming the numbers.
+                    preSend: {
+                        chatTurns: keep?.chatTurnsBeforeSend ?? null,
+                        dropChatTurns: drop?.chatTurnsBeforeSend ?? null,
+                        outgoingText: spec.send,
+                    },
                     // THE BRACKET THE SEND BISECT ACTUALLY SEARCHED. The pre-scan flip is recorded as a
                     // HINT only: run 40085109802 measured the send's flip BELOW the dry flip (every probe
                     // from 4254 upward kept the turn), so nothing is derived from it.
