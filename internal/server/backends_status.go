@@ -75,14 +75,13 @@ var pinnedChatCompletionStatusNoArmSources = map[string]bool{
 	chatCompletionSourceAI21:       true,
 	chatCompletionSourceVertexAI:   true,
 	chatCompletionSourcePerplexity: true,
-	chatCompletionSourceGroq:       true,
 }
 
 // pinnedChatCompletionStatusUnsupportedRefusal is the pinned closing else (:2062-2065): a JSON body
 // {"error":true} at 400 -- NOT Express's plain-text status message, which is why it goes through
 // respondOrderedNodeJSON -- and no provider call.
 func pinnedChatCompletionStatusUnsupportedRefusal(w http.ResponseWriter) {
-	respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+	respondOrderedNodeJSON(w, http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 }
 
 // serveBackendsChatCompletionStatus is chat-completions.js:1778: one arm per source the pinned chain has,
