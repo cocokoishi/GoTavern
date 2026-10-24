@@ -14,6 +14,25 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
+// unsetEnvForTest removes a variable for the duration of one test. t.Setenv(key, "") is NOT the same
+// thing: `key in process.env` is TRUE for an empty string, and pinned's getConfigValue reads the
+// environment whenever the key is PRESENT (util.js:90-95), so an empty value is an override to "" and
+// not an absent override. This test file learned that the hard way: every case that meant "no
+// environment override" set an empty string and therefore exercised the override path.
+func unsetEnvForTest(t *testing.T, key string) {
+	t.Helper()
+	previous, had := os.LookupEnv(key)
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if had {
+			_ = os.Setenv(key, previous)
+			return
+		}
+		_ = os.Unsetenv(key)
+	})
+}
 func openRouterTestDirectories(t *testing.T) startup.UserDirectories {
 	t.Helper()
 	installRoot := t.TempDir()
@@ -50,7 +69,7 @@ func TestPinnedThoughtSignaturesResolution(t *testing.T) {
 	directories := openRouterTestDirectories(t)
 	writeOpenRouterTestConfig(t, directories, "enableUserAccounts: true\nskipContentCheck: true\ngemini:\n  thoughtSignatures: false\n")
 
-	t.Setenv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES", "")
+	unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
 	if pinnedThoughtSignatures(directories) {
 		t.Fatalf("gemini.thoughtSignatures: false in the config file was read as true")
 	}
@@ -60,7 +79,7 @@ func TestPinnedThoughtSignaturesResolution(t *testing.T) {
 		t.Fatalf("the environment override must win over the file")
 	}
 
-	t.Setenv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES", "")
+	unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
 	writeOpenRouterTestConfig(t, directories, "enableUserAccounts: true\n")
 	if !pinnedThoughtSignatures(directories) {
 		t.Fatalf("an absent gemini section must take the pinned default, true (default/config.yaml:382)")
@@ -93,7 +112,11 @@ func TestPinnedOpenRouterSignatureGateIsWiredThroughThePlan(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			directories := openRouterTestDirectories(t)
 			writeOpenRouterTestConfig(t, directories, testCase.config)
-			t.Setenv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES", testCase.env)
+			if testCase.env == "" {
+				unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
+			} else {
+				t.Setenv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES", testCase.env)
+			}
 			body, err := decodeOrderedNodeJSON([]byte(bodyJSON))
 			if err != nil {
 				t.Fatal(err)
