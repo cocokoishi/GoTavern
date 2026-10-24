@@ -271,7 +271,7 @@ the evidence, and what is still open; none is softened into "in progress".
 2. **Moonshot wiring is CLOSED.** `internal/server/chat_completions.go:870-879` wires the plan arm,
    `internal/server/moonshot_chat.go:187` implements the status shape, and the `moonshot-*` captures are in
    the same fixture under the same missing-capture test.
-3. **Preset-level equivalence is OPEN.** The <!-- BEGIN GENERATED: provider-wire.scenarios -->`187`<!-- END GENERATED: provider-wire.scenarios --> provider-wire scenarios are per-source request transforms;
+3. **Preset-level equivalence is OPEN.** The <!-- BEGIN GENERATED: provider-wire.scenarios -->`205`<!-- END GENERATED: provider-wire.scenarios --> provider-wire scenarios are per-source request transforms;
    the browser drives submit ONE captured configuration (`tests/browser/capture-settings.mjs`). There is no
    complex-preset differential, no observation of world info at depth, author's note or stops through both
    legs, and no token-boundary anchor for the request body that would be compared. `tests/provider-wire/DESIGN.md:14-19`
