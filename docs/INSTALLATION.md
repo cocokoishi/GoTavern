@@ -11,7 +11,7 @@ Stable releases provide three first-class paths:
 1. **One-line installer** (`install.sh` / `install.ps1`): downloads a prebuilt GitHub Release asset and verifies its checksum.
 2. **Manual GitHub Release download**: download the archive for the operating system/architecture, extract it, run `start.sh` / `Start.cmd` or the binary directly.
 3. **Container image**: the PUBLISH PATH IS EXECUTED and gated, but no release tag has published it. `docker.yml`
-pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push (the only event that also moves `:latest`) and on a
+pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push and on a
 `workflow_dispatch` with `push_image=true`, which publishes the named `image_tag` and never `latest`. Dispatch run
 39907882256 is green and its last steps are the ones that matter: it pushed, then PULLED the reference back and ran
 `assets verify` inside the pulled copy, which makes the registry bytes the subject rather than the local daemon. The
@@ -21,6 +21,18 @@ the second of them also refuses to report the tag as published. MEASURED: the pu
 linux/amd64. NOT COVERED: no `v*` tag exists (`git tag -l 'v*'` is empty as of 2026-10-23), so `:latest` has never
 been published and no user can pull a release image; a multi-architecture index is unexecuted; and the Windows
 installer behaviours are covered only by `release-qualification.yml` (see HANDOFF section 3).
+
+   **`:latest` moves only on a STABLE tag, and a prerelease is marked as one on GitHub.** Both decisions come from
+   `scripts/classify-version-tag.sh`, which `docker.yml` and `release.yml` both call: a tag that is exactly
+   `v<major>.<minor>.<patch>` is stable; anything else version-shaped (an `-alpha.1`/`-beta.2`/`-rc.1` suffix, or a
+   `+build` suffix) is a prerelease; and a name that is not a version tag at all is refused rather than guessed,
+   because the guess would decide whether real users receive it. So `v0.1.0-alpha.1` publishes
+   `:v0.1.0-alpha.1` and leaves `:latest` where it is, and its GitHub Release is created with
+   `--prerelease --latest=false` -- which is what keeps `releases/latest/download/...`, the URL both installers
+   fetch, pointing at a stable release. DERIVED-and-gated, not measured on a real tag: the rule is a script with a
+   table test (`scripts/test-classify-version-tag.sh`, run by the `verify` job) precisely because neither behaviour
+   can be observed without cutting a tag, and cutting one must never be an experiment. The step bodies themselves
+   were executed locally against seven ref shapes before this landed; the first real tag remains the confirmation.
 
 Building from source is a developer workflow and must never be required as an implicit fallback when a release asset is missing.
 
