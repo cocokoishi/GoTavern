@@ -14,8 +14,11 @@ package server
 //   - OPENAI with a reverse_proxy pointed at the recording peer REACHES THE FETCH, so it answers the
 //     pinned non-2xx envelope (200 {"error":true,"data":{"data":[]}}) and the peer receives exactly
 //     one request. Reaching the provider is the proof the arm exists.
-//   - AI21 has no arm in this package, so it answers 501 "Not Implemented" and the peer receives
-//     nothing: a visible gap must not make requests.
+//   - an UNKNOWN source name reaches pinned's closing else and answers 400 {"error":true} while the peer
+//     receives nothing, so a refusal stays distinguishable from a gap and neither makes requests. The
+//     bullet used to describe AI21 answering 501; AI21 has since been fixed to answer the pinned 400 (see
+//     backends_status.go's pinnedChatCompletionStatusNoArmSources), which is exactly why the control names
+//     no real source: a control naming one rots the day that source lands.
 //
 // The key/URL/envelope details are not re-derived here -- they are the oracle's job, in
 // status.openai.{ok,reverseProxy,reverseProxyNoPassword,nonOk,noKey}.

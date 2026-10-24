@@ -947,9 +947,13 @@ addScenario({
     route: 'chat-completions/status',
     body: { chat_completion_source: 'claude' },
 });
-// With a reverse_proxy present the :2067 guard is skipped, and the next statement is
-// `new URL(urlJoin('', '/models'))`, i.e. the RELATIVE URL '/models', which throws; the pinned catch
-// answers 200 {"error":true} -- still with no outbound request.
+// `status.claude.reverseProxy` below is the variant that pins WHICH branch answers, and it corrects an
+// earlier reading of this file. That comment said the :2067 guard fires for a source with no arm and that
+// a reverse_proxy then makes the relative URL '/models' throw into the catch, answering 200. The recorded
+// observation is 400 {"error":true} with outbound: [] for BOTH variants, which is only possible if the
+// chain's closing else (:2062-2065) returns first -- the guard is unreachable, not merely skipped. The
+// record wins over the reading (AGENTS.md rule 2), so the reverseProxy variant stays and its 400 is the
+// evidence that the else is the mechanism.
 // ---- MISTRALAI HAS a real status branch (:1796-1799) -------------------------------------------
 //
 // Unlike CLAUDE, this source is in the chain: the URL is `new URL(reverse_proxy || API_MISTRAL)`, the
@@ -981,6 +985,57 @@ addScenario({
     name: 'status.claude.reverseProxy',
     route: 'chat-completions/status',
     body: { chat_completion_source: 'claude', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
+});
+// ---- AI21, VERTEXAI and PERPLEXITY have NO ARM in the status matrix either ---------------------
+//
+// The chain at :1787-2065 has twenty arms and NONE names AI21, VERTEXAI or PERPLEXITY. VERTEXAI is not
+// covered by the MAKERSUITE arm either: the chain compares the source STRING, and the two Google sources
+// are distinct strings. So all three reach the chain's closing `else` and its `return`:
+//
+//	:2062-2065  } else { console.warn('This chat completion source is not supported yet.');
+//	                     return statusResponse.status(400).send({ error: true }); }
+//
+// Two properties follow from that `return`, and both are RECORDED here rather than argued:
+//
+//   - the :2067 key guard is unreachable for these sources, so the answer depends on neither a secret
+//     existing nor `reverse_proxy` being set. The reverseProxy variants below exist to pin exactly that;
+//   - there is NO outbound request (outbound: []), so a Go implementation that dialled a provider for one
+//     of these would show up in the fixture instead of looking plausible.
+//
+// Recorded because the Go route answered 501 (plain text) for all three. 501 is this codebase's "not
+// written yet" marker, so the divergence was not a cosmetic status difference: a pinned REFUSAL and an
+// unimplemented feature were indistinguishable, which is the distinction AGENTS.md rule 17 exists to keep.
+addScenario({
+    name: 'status.ai21.noBranch',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'ai21' },
+});
+addScenario({
+    name: 'status.ai21.reverseProxy',
+    route: 'chat-completions/status',
+    // The variant that distinguishes the closing else from the :2067 guard: the guard is skipped when
+    // reverse_proxy is truthy, so if the guard were the mechanism this would answer something else.
+    body: { chat_completion_source: 'ai21', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
+});
+addScenario({
+    name: 'status.vertexai.noBranch',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'vertexai' },
+});
+addScenario({
+    name: 'status.vertexai.reverseProxy',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'vertexai', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
+});
+addScenario({
+    name: 'status.perplexity.noBranch',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'perplexity' },
+});
+addScenario({
+    name: 'status.perplexity.reverseProxy',
+    route: 'chat-completions/status',
+    body: { chat_completion_source: 'perplexity', reverse_proxy: 'https://probe.invalid/v1', proxy_password: 'probe' },
 });
 // ---- DEEPSEEK has a status branch whose base DIFFERS from the generate base --------------------
 //
