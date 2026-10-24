@@ -1,4 +1,4 @@
-﻿// DOES THE PRESET GATE HAVE TEETH? Mutate the legs and require the comparator to go red.
+// DOES THE PRESET GATE HAVE TEETH? Mutate the legs and require the comparator to go red.
 //
 // WHY THIS FILE EXISTS (AGENTS.md "Differential-testing doctrine" 4): a gate whose failure has never
 // been observed is a gate nobody can trust, and this project has already shipped several greensor
@@ -53,9 +53,12 @@ function replaceProviderBody(report, mutate) {
 
 const args = process.argv.slice(2);
 const fixtureIndex = args.indexOf('--fixture');
-const files = args.filter((value, index) => !value.startsWith('--') && !(fixtureIndex >= 0 && index === fixtureIndex + 1));
+const boundaryIndex = args.indexOf('--boundary');
+const files = args.filter((value, index) => !value.startsWith('--')
+    && !(fixtureIndex >= 0 && index === fixtureIndex + 1)
+    && !(boundaryIndex >= 0 && index === boundaryIndex + 1));
 if (files.length !== 4) {
-    console.error('usage: node tests/browser/preset-gate-selftest.mjs <keep-gotavern> <keep-pinned> <drop-gotavern> <drop-pinned> [--fixture <path>]');
+    console.error('usage: node tests/browser/preset-gate-selftest.mjs <keep-gotavern> <keep-pinned> <drop-gotavern> <drop-pinned> [--fixture <path>] [--boundary <path>]');
     process.exit(2);
 }
 const fixture = readJSON(fixtureIndex >= 0 ? path.resolve(args[fixtureIndex + 1]) : PRESET_FIXTURE);
@@ -66,15 +69,22 @@ const legs = {
     pinnedDrop: readJSON(files[3]),
 };
 const inputs = Object.fromEntries(['gotavernKeep', 'pinnedKeep', 'gotavernDrop', 'pinnedDrop'].map((name, index) => [name, path.basename(files[index])]));
-const boundaryFile = fixture?.capture?.boundary?.keepContext ? {
-    measuredBy: 'pinned-leg',
-    keepContext: fixture.capture.boundary.keepContext,
-    dropContext: fixture.capture.boundary.dropContext,
-    keep: { total: fixture.capture.boundary.keepMessages, history: fixture.capture.boundary.keepHistoryMessages },
-    drop: { total: fixture.capture.boundary.dropMessages, history: fixture.capture.boundary.dropHistoryMessages },
-    search: [],
-    bracket: null,
-} : null;
+// THE MEASURED PAIR, NOT THE CAPTURE'S. The legs were driven at the contexts the PINNED-LEG SEARCH chose
+// (run 40092716313: keep 4260 / drop 4259), while the capture's own pair is only a hint. Feeding the
+// capture's numbers here made the two context guards fail on a faithful baseline -- the self-test was
+// asserting an expectation the comparator no longer has. The real measured file is passed by CI; the
+// synthetic fallback below exists only so the file can be exercised by hand.
+const boundaryFile = boundaryIndex >= 0
+    ? readJSON(path.resolve(args[boundaryIndex + 1]))
+    : (fixture?.capture?.boundary?.keepContext ? {
+        measuredBy: 'pinned-leg',
+        keepContext: fixture.capture.boundary.keepContext,
+        dropContext: fixture.capture.boundary.dropContext,
+        keep: { total: fixture.capture.boundary.keepMessages, history: fixture.capture.boundary.keepHistoryMessages },
+        drop: { total: fixture.capture.boundary.dropMessages, history: fixture.capture.boundary.dropHistoryMessages },
+        search: [],
+        bracket: null,
+    } : null);
 const run = overrides => compare({ ...legs, ...overrides, fixture, boundaryFile, inputs });
 
 const failures = [];
@@ -85,10 +95,20 @@ const record = (name, ok, detail) => {
 
 // 0. THE BASELINE MUST PASS, or the mutations below prove nothing: a comparator that is red on the
 //    faithful pair would "catch" every mutation for the wrong reason.
+//
+//    THE EXPECTATION IS THE COMPARATOR'S ACTUAL CONTRACT: verdict 'match' (not 'equal'), no guard false,
+//    and the two context guards PRESENT AND TRUE -- those are the ones that say each variant ran at the
+//    context the pinned leg chose, and a baseline that silently dropped them would pass while the
+//    differential measured the wrong budget.
 const baseline = run({});
-record('baseline is faithful and equal', baseline.providerRequestEqual === true
-    && Object.entries(baseline.guards).every(([, value]) => value !== false),
-    JSON.stringify({ verdict: baseline.verdict, guards: Object.entries(baseline.guards).filter(([, value]) => value === false).map(([name]) => name) }));
+const failedGuards = Object.entries(baseline.guards).filter(([, value]) => value === false).map(([name]) => name);
+const contextGuardNames = ['keepVariantRanAtTheCapturedContext', 'dropVariantRanAtTheCapturedContext'];
+record('baseline is faithful (verdict match, no guard false, both context guards true)',
+    baseline.verdict === 'match'
+    && baseline.providerRequestEqual === true
+    && failedGuards.length === 0
+    && contextGuardNames.every(name => baseline.guards?.[name] === true),
+    JSON.stringify({ verdict: baseline.verdict, equal: baseline.providerRequestEqual, failedGuards, contextGuards: Object.fromEntries(contextGuardNames.map(name => [name, baseline.guards?.[name] ?? 'ABSENT'])) }));
 
 const oldestMarker = String(fixture?.capture?.boundary?.oldestMarker ?? '');
 

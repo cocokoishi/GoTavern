@@ -393,6 +393,11 @@ jobs:
           # and both legs then replay it. `run-against-pinned` supplies --base-url and GOTAVERN_REFERENCE.
           # THE PATH IS ABSOLUTE ON PURPOSE: that wrapper spawns the capture with `cwd: tests/browser`, so
           # a relative --out would land in tests/browser/tests/browser/fixtures/.
+          # THE SELF-CHECK RUNS FIRST, AND IT IS NOT OPTIONAL. `node --check` validates syntax only and
+          # cannot see an undefined identifier; a plain import would boot a browser. This resolves the
+          # module's top-level constants and exits, so a reference error fails here in under a second
+          # instead of after the pinned server has booted.
+          node tests/browser/capture-preset.mjs --self-check
           node tests/browser/run-against-pinned.mjs capture-preset.mjs -- \
             --out "$PWD/tests/browser/fixtures/preset-complex-settings.json"
 
@@ -409,6 +414,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
           mkdir -p "$work/legs" "$work/committed"
+          node tests/browser/preset-boundary-search.mjs --self-check
           node tests/browser/preset-boundary-search.mjs --legs "$work/legs" --out "$work/preset-boundary.json"
 
       - name: Record the preset boundary pair (both legs)
@@ -490,7 +496,8 @@ jobs:
           work="$RUNNER_TEMP/browser-differential"
           node tests/browser/preset-gate-selftest.mjs \
             "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
-            "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json"
+            "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
+            --boundary "$work/preset-boundary.json"
 
       - name: Stage the preset evidence for publishing
         if: ${{ inputs.commit_artifacts }}

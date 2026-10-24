@@ -1,4 +1,4 @@
-﻿// CHECKS DERIVED FROM THE CATALOGUE ITSELF.
+// CHECKS DERIVED FROM THE CATALOGUE ITSELF.
 //
 // The old verifier restated each source's facts in its own block: siliconflow's control id, workers_ai's
 // account-id keys, groq's expected seam name, openai's `proxySettingDeliberatelyUnset` sentence. Every

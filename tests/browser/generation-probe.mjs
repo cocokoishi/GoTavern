@@ -1,4 +1,4 @@
-﻿// Generation probe: does a send driven from the PINNED frontend produce a provider request?
+// Generation probe: does a send driven from the PINNED frontend produce a provider request?
 //
 // WHAT IT MEASURES. It boots GoTavern (or is pointed at any other server with PROBE_BASE_URL), drives
 // one send the way the frontend itself does -- load and select a character through the frontend's own

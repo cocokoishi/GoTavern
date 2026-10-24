@@ -1,4 +1,4 @@
-// Measure the preset boundary WITH THE PINNED LEG ITSELF.
+﻿// Measure the preset boundary WITH THE PINNED LEG ITSELF.
 //
 // WHY THIS EXISTS, IN ONE SENTENCE: seven runs failed because the boundary was measured by a procedure
 // that was merely SIMILAR to the one that produces the compared request. The capture bisected a dry
@@ -39,6 +39,14 @@ const fixturePath = path.resolve(arg('--fixture', PRESET_FIXTURE));
 const low = 120;
 const high = 8192;
 
+
+// SELF-CHECK: resolve the module's top-level constants and exit before spawning anything. `node --check`
+// cannot see an undefined identifier, and the first thing this script otherwise does is boot a pinned
+// server. CI runs this as its step's first command.
+if (argv.includes('--self-check')) {
+    console.log(JSON.stringify({ selfCheck: 'ok', legsDir: typeof legsDir === 'string' && legsDir.length > 0, outPath: typeof outPath === 'string' && outPath.length > 0, fixturePath: typeof fixturePath === 'string' && fixturePath.length > 0, range: [low, high] }));
+    process.exit(0);
+}
 async function readJSON(file) {
     return JSON.parse(await fs.readFile(file, 'utf8'));
 }
