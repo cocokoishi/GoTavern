@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "name": "makersuite-inline-image",
+  "purpose": "MAKERSUITE inline image media, the branch that had no fixture at all. Pinned: convertGooglePrompt (src/prompt-converters.js:432) converts a user turn whose content is an ARRAY of parts; `part.type === 'image_url'` takes part.image_url.url and part.image_url.detail and calls addDataUrlPart(url, 'image/png', detail) (:561-564). addDataUrlPart (:515-537) splits the URL on its first comma, takes the mime from `header.match(/data:([^;]+)/)` falling back to the passed default (:518), and pushes `{ inlineData: { mimeType, data } }` with that member order (:521-526). The model is gemini-2.5-pro, which does NOT match /gemini-3/ (:529), so no mediaResolution is attached even though this branch passes detail through -- that is the image sibling of makersuite-inline-video-resolution.json, whose only other difference is the model and the detail level.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "makersuite",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_makersuite": [
+      {
+        "id": "probe-id-api_key_makersuite",
+        "value": "synthetic-makersuite-key",
+        "label": "api_key_makersuite",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://generativelanguage.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://generativelanguage.googleapis.com"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "makersuite",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "probe image marker"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,cHJvYmUtaW1hZ2U="
+              }
+            }
+          ]
+        }
+      ],
+      "model": "gemini-2.5-pro",
+      "max_tokens": 128,
+      "temperature": 0.4,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14}}"
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_MAKERSUITE is a pinned literal, so the GoTavern leg reaches the recorder through its seam and the pinned leg through this transport redirect. The PATH and the ?key= parameter are untouched and ARE compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+      },
+      {
+        "path": "http.requests[].body.messages[1].content[1].image_url.url",
+        "rule": "recorded verbatim; the payload is a data: URL, so no authority is substituted and no fetch is involved",
+        "reason": "The media reaches the provider INLINE. It is a data: URL on purpose: addDataUrlPart only accepts a url that startsWith('data:') (src/prompt-converters.js:516) and the handler fetches nothing for this source, so the peer receives the exact bytes the pinned converter embedded and the probe cannot reach the network (doctrine 6). A remote http(s) URL here would be silently DROPPED by the same guard rather than fetched, which would make the scenario pass while proving nothing about transport.",
+        "pinnedSource": "src/prompt-converters.js:515-537 addDataUrlPart"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}
