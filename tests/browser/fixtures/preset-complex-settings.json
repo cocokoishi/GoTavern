@@ -1,0 +1,915 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "capturedAt": "2026-10-24T13:04:48.639Z",
+    "server": "http://127.0.0.1:<port>",
+    "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "uiPath": [
+      "1. getCharacters() + selectCharacterById(0) -- prompt assembly reads characters[this_chid]",
+      "2. character description/personality/scenario/examples set on the bound card and read back",
+      "3. script.chat replaced with the scenario history (greeting + 12 turns) and length asserted",
+      "4. world info built in a local data object through world-info.js createWorldInfoEntry + saveWorldInfo (immediate) and READ BACK with loadWorldInfo (createNewWorldInfo does not populate world_info[name], measured in run 40073802369): one entry at position \"after\", one at \"atDepth\" depth 0, then activated",
+      "5. author's note written into chat_metadata (including note_interval=1), typed into #extension_floating_prompt, and pushed through authors-note.js setFloatingPrompt() -- which reads the VALUE FROM THE DOM, not from the metadata; asserted in extension_prompts['2_floating_prompt']",
+      "6. stop strings set on power_user.custom_stopping_strings and read back through getCustomStoppingStrings(4)",
+      "7. samplers, max_tokens and names_behavior set on oai_settings (no prompt-manager dependency)",
+      "8. main/nsfw/jailbreak prompt content set through promptManager.getPromptById(identifier) and read back; order entries asserted enabled",
+      "9. instruct/context template names set to a non-default preset and recorded",
+      "10. DRY PRE-SCAN through script.Generate(\"normal\", {}, true) to bracket the region (cheap, and NOT the recorded measurement)",
+      "11. REAL SENDS through #send_textarea + #send_but against a recording peer, one per candidate openai_max_context; the bracket is TWO-SIDED around the dry pre-scan hint ([hint-1024, hint+512], widened in whichever direction fails), and the bisect finds the smallest context whose SENT request still carries the oldest history turn; the pair is accepted only if that turn is absent one token lower and exactly ONE history message differs",
+      "12. POST /api/tokenizers/openai/count?model=llama with the oracle anchor body through the frontend's own getRequestHeaders() (the CSRF header a plain fetch lacks, run 40073802369), expected 7"
+    ],
+    "instrumentation": "every probe runs on a FRESH PAGE (bootScenario re-applies the kit, custom_url, samplers and the connect handshake), and records the page console, page errors, the requests the page issued (method + path only) and the frontend state before/after the click, so a \"no request arrived\" failure names WHICH cause it was: no send started, a send with no generate request, or a generate request the server answered non-2xx",
+    "steps": [
+      {
+        "step": "character",
+        "index": 0,
+        "name": "Seraphina"
+      },
+      {
+        "step": "character fields",
+        "fields": [
+          "description",
+          "personality",
+          "scenario",
+          "mes_example"
+        ],
+        "via": "in-memory card"
+      },
+      {
+        "step": "chat history",
+        "turns": 13,
+        "via": "script.chat mutation"
+      },
+      {
+        "step": "world info",
+        "world": "GoTavern Probe Lore",
+        "entries": 3,
+        "positions": {
+          "after": 1,
+          "atDepth": 4
+        },
+        "activated": true,
+        "via": "createWorldInfoEntry -> saveWorldInfo(immediate) -> loadWorldInfo round trip"
+      },
+      {
+        "step": "authors note",
+        "depth": 3,
+        "position": 1,
+        "interval": 1,
+        "keys": {
+          "prompt": "note_prompt",
+          "depth": "note_depth",
+          "position": "note_position",
+          "interval": "note_interval",
+          "role": "note_role"
+        },
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true
+        },
+        "present": true
+      },
+      {
+        "step": "stop strings",
+        "value": [
+          "STOP_A_7F",
+          "STOP_B_7F"
+        ],
+        "via": "power_user.custom_stopping_strings + getCustomStoppingStrings()"
+      },
+      {
+        "step": "samplers and limits",
+        "via": "oai_settings assignment",
+        "values": {
+          "temperature": 0.42,
+          "top_p": 0.81,
+          "presence_penalty": 0.35,
+          "frequency_penalty": 0.17,
+          "max_tokens": 64,
+          "names_behavior": 1,
+          "seed": 424242
+        }
+      },
+      {
+        "step": "prompts",
+        "edited": [
+          "main",
+          "nsfw",
+          "jailbreak"
+        ],
+        "orderEntries": 12
+      },
+      {
+        "step": "templates",
+        "instruct": "ChatML",
+        "context": "ChatML",
+        "note": "text-completion settings; a chat-completion request must be identical with different templates"
+      }
+    ],
+    "boundaryMethod": "bisect over openai_max_context by DRIVING THE REAL SEND against a recording peer and reading the provider request it produced; verified: oldest turn present at keep, absent at keep-1, history-message delta exactly 1. The dry assembly is a pre-scan HINT only -- its flip is not a bound, because run 40085109802 measured the send keeping history above the dry flip (the send fits slightly more than the dry assembly), so the send bracket is two-sided and widened in whichever direction fails. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget",
+    "assemblyMode": "real-send",
+    "note": "Captured from the pinned frontend with per-step assertions, not hand-assembled. Re-run capture-preset.mjs against the pinned baseline to refresh; the fixture must be byte-identical when nothing upstream changed.",
+    "consoleErrors": []
+  },
+  "capture": {
+    "spec": {
+      "name": "GoTavern Complex Probe",
+      "markers": {
+        "main": "PRESET_MAIN_7F",
+        "nsfw": "PRESET_AUX_7F",
+        "description": "PRESET_DESC_7F",
+        "personality": "PRESET_PERS_7F",
+        "scenario": "PRESET_SCEN_7F",
+        "example": "PRESET_EXAMPLE_7F",
+        "jailbreak": "PRESET_JAIL_7F",
+        "wiBefore": "PRESET_WI_BEFORE_7F",
+        "wiAfter": "PRESET_WI_AFTER_7F",
+        "wiDepth": "PRESET_WI_DEPTH_7F",
+        "authorsNote": "PRESET_AN_7F",
+        "history": "PRESET_HIST_7F",
+        "userMarker": "probe user marker",
+        "send": "PRESET_SEND_7F"
+      },
+      "send": "probe user marker PRESET_SEND_7F",
+      "character": {
+        "description": "PRESET_DESC_7F A guardian of the glade who remembers every visitor.",
+        "personality": "PRESET_PERS_7F caring, watchful, precise about her own lore.",
+        "scenario": "PRESET_SCEN_7F A lantern-lit glade at the edge of an old forest.",
+        "examples": "<START>\n{{user}}: Tell me about the glade.\n{{char}}: PRESET_EXAMPLE_7F It keeps its own history, and so do I."
+      },
+      "prompts": {
+        "main": "PRESET_MAIN_7F Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+        "nsfw": "PRESET_AUX_7F auxiliary instruction that must appear once.",
+        "jailbreak": "PRESET_JAIL_7F post-history instruction that must stay last in the prompt block."
+      },
+      "world": {
+        "name": "GoTavern Probe Lore",
+        "entries": [
+          {
+            "uid": 0,
+            "comment": "before-character anchor",
+            "key": [
+              "glade"
+            ],
+            "content": "PRESET_WI_BEFORE_7F The glade remembers every name spoken in it.",
+            "position": "before",
+            "depth": 4,
+            "constant": true,
+            "order": 50
+          },
+          {
+            "uid": 1,
+            "comment": "after-character anchor",
+            "key": [
+              "glade"
+            ],
+            "content": "PRESET_WI_AFTER_7F The glade answers to whoever speaks its name.",
+            "position": "after",
+            "depth": 4,
+            "constant": true,
+            "order": 100
+          },
+          {
+            "uid": 2,
+            "comment": "in-chat depth zero",
+            "key": [
+              "lantern"
+            ],
+            "content": "PRESET_WI_DEPTH_7F The lantern burns without fuel.",
+            "position": "atDepth",
+            "depth": 0,
+            "constant": true,
+            "order": 200
+          }
+        ]
+      },
+      "authorsNote": {
+        "text": "PRESET_AN_7F Keep the reply under four sentences.",
+        "depth": 3,
+        "position": "IN_CHAT",
+        "role": "system"
+      },
+      "history": [
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_00 oldest older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older older olde"
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 turn-01 "
+        },
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 turn-02 "
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 turn-03 "
+        },
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 "
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 "
+        },
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 "
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 "
+        },
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 "
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 "
+        },
+        {
+          "isUser": true,
+          "text": "PRESET_HIST_7F TURN_10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 turn-10 "
+        },
+        {
+          "isUser": false,
+          "text": "PRESET_HIST_7F TURN_11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 turn-11 "
+        }
+      ],
+      "samplers": {
+        "temperature": 0.42,
+        "top_p": 0.81,
+        "presence_penalty": 0.35,
+        "frequency_penalty": 0.17,
+        "top_k": 0,
+        "seed": 424242
+      },
+      "stops": [
+        "STOP_A_7F",
+        "STOP_B_7F"
+      ],
+      "maxTokens": 64,
+      "namesBehavior": 1,
+      "templates": {
+        "instruct": "ChatML",
+        "context": "ChatML"
+      },
+      "defaultTemplates": {
+        "instruct": "Neutral",
+        "context": "Default"
+      }
+    },
+    "oaiSettings": {
+      "preset_settings_openai": "Default",
+      "temp_openai": 0.42,
+      "freq_pen_openai": 0,
+      "pres_pen_openai": 0,
+      "top_p_openai": 0.81,
+      "top_k_openai": 0,
+      "min_p_openai": 0,
+      "top_a_openai": 0,
+      "repetition_penalty_openai": 1,
+      "stream_openai": true,
+      "openai_max_context": 4095,
+      "openai_max_tokens": 64,
+      "prompts": [
+        {
+          "name": "Main Prompt",
+          "system_prompt": true,
+          "role": "system",
+          "content": "PRESET_MAIN_7F Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+          "identifier": "main",
+          "marker": false
+        },
+        {
+          "name": "Auxiliary Prompt",
+          "system_prompt": true,
+          "role": "system",
+          "content": "PRESET_AUX_7F auxiliary instruction that must appear once.",
+          "identifier": "nsfw",
+          "marker": false
+        },
+        {
+          "identifier": "dialogueExamples",
+          "name": "Chat Examples",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "name": "Post-History Instructions",
+          "system_prompt": true,
+          "role": "system",
+          "content": "PRESET_JAIL_7F post-history instruction that must stay last in the prompt block.",
+          "identifier": "jailbreak",
+          "marker": false
+        },
+        {
+          "identifier": "chatHistory",
+          "name": "Chat History",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "worldInfoAfter",
+          "name": "World Info (after)",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "worldInfoBefore",
+          "name": "World Info (before)",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "enhanceDefinitions",
+          "role": "system",
+          "name": "Enhance Definitions",
+          "content": "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+          "system_prompt": true,
+          "marker": false
+        },
+        {
+          "identifier": "charDescription",
+          "name": "Char Description",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "charPersonality",
+          "name": "Char Personality",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "scenario",
+          "name": "Scenario",
+          "system_prompt": true,
+          "marker": true
+        },
+        {
+          "identifier": "personaDescription",
+          "name": "Persona Description",
+          "system_prompt": true,
+          "marker": true
+        }
+      ],
+      "prompt_order": [
+        {
+          "character_id": 100000,
+          "order": [
+            {
+              "identifier": "main",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoBefore",
+              "enabled": true
+            },
+            {
+              "identifier": "charDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charPersonality",
+              "enabled": true
+            },
+            {
+              "identifier": "scenario",
+              "enabled": true
+            },
+            {
+              "identifier": "enhanceDefinitions",
+              "enabled": false
+            },
+            {
+              "identifier": "nsfw",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoAfter",
+              "enabled": true
+            },
+            {
+              "identifier": "dialogueExamples",
+              "enabled": true
+            },
+            {
+              "identifier": "chatHistory",
+              "enabled": true
+            },
+            {
+              "identifier": "jailbreak",
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "character_id": 100001,
+          "order": [
+            {
+              "identifier": "main",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoBefore",
+              "enabled": true
+            },
+            {
+              "identifier": "personaDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charDescription",
+              "enabled": true
+            },
+            {
+              "identifier": "charPersonality",
+              "enabled": true
+            },
+            {
+              "identifier": "scenario",
+              "enabled": true
+            },
+            {
+              "identifier": "enhanceDefinitions",
+              "enabled": false
+            },
+            {
+              "identifier": "nsfw",
+              "enabled": true
+            },
+            {
+              "identifier": "worldInfoAfter",
+              "enabled": true
+            },
+            {
+              "identifier": "dialogueExamples",
+              "enabled": true
+            },
+            {
+              "identifier": "chatHistory",
+              "enabled": true
+            },
+            {
+              "identifier": "jailbreak",
+              "enabled": true
+            }
+          ]
+        }
+      ],
+      "send_if_empty": "",
+      "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Write 1 reply only in internet RP style. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+      "new_chat_prompt": "[Start a new Chat]",
+      "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
+      "new_example_chat_prompt": "[Example Chat]",
+      "continue_nudge_prompt": "[Continue your last message without repeating its original content.]",
+      "bias_preset_selected": "Default (none)",
+      "bias_presets": {
+        "Default (none)": [],
+        "Anti-bond": [
+          {
+            "id": "22154f79-dd98-41bc-8e34-87015d6a0eaf",
+            "text": " bond",
+            "value": -50
+          },
+          {
+            "id": "8ad2d5c4-d8ef-49e4-bc5e-13e7f4690e0f",
+            "text": " future",
+            "value": -50
+          },
+          {
+            "id": "52a4b280-0956-4940-ac52-4111f83e4046",
+            "text": " bonding",
+            "value": -50
+          },
+          {
+            "id": "e63037c7-c9d1-4724-ab2d-7756008b433b",
+            "text": " connection",
+            "value": -25
+          }
+        ]
+      },
+      "wi_format": "{0}",
+      "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
+      "scenario_format": "{{scenario}}",
+      "personality_format": "{{personality}}",
+      "sort_models": "alphabetically",
+      "group_models": false,
+      "openai_model": "gpt-4-turbo",
+      "claude_model": "claude-sonnet-5",
+      "google_model": "gemini-3.7-flash",
+      "vertexai_model": "gemini-3.7-flash",
+      "ai21_model": "jamba-large",
+      "mistralai_model": "mistral-large-latest",
+      "cohere_model": "command-r-plus",
+      "perplexity_model": "sonar-pro",
+      "groq_model": "llama-3.3-70b-versatile",
+      "chutes_model": "deepseek-ai/DeepSeek-V3-0324",
+      "siliconflow_model": "deepseek-ai/DeepSeek-V3",
+      "siliconflow_endpoint": "global",
+      "minimax_model": "MiniMax-M2.7",
+      "minimax_endpoint": "global",
+      "electronhub_model": "gpt-4o-mini",
+      "nanogpt_model": "gpt-4o-mini",
+      "nanogpt_provider": "",
+      "nanogpt_payg_override": false,
+      "deepseek_model": "deepseek-v4-flash",
+      "aimlapi_model": "chatgpt-4o-latest",
+      "xai_model": "grok-3-beta",
+      "pollinations_model": "openai",
+      "pollinations_endpoint": "authenticated",
+      "cometapi_model": "gpt-4o",
+      "moonshot_model": "kimi-latest",
+      "fireworks_model": "accounts/fireworks/models/kimi-k2-instruct",
+      "zai_model": "glm-4.6",
+      "zai_endpoint": "common",
+      "workers_ai_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "workers_ai_account_id": "",
+      "azure_base_url": "",
+      "azure_deployment_name": "",
+      "azure_api_version": "2024-02-15-preview",
+      "azure_openai_model": "",
+      "custom_model": "",
+      "custom_url": "",
+      "custom_include_body": "",
+      "custom_exclude_body": "",
+      "custom_include_headers": "",
+      "openrouter_model": "OR_Website",
+      "openrouter_use_fallback": false,
+      "openrouter_providers": [],
+      "openrouter_quantizations": [],
+      "openrouter_allow_fallbacks": true,
+      "openrouter_middleout": "on",
+      "tool_reasoning_mode": "disabled",
+      "reverse_proxy": "",
+      "chat_completion_source": "openai",
+      "max_context_unlocked": false,
+      "show_external_models": false,
+      "proxy_password": "",
+      "assistant_prefill": "",
+      "assistant_impersonation": "",
+      "use_sysprompt": false,
+      "vertexai_auth_mode": "express",
+      "vertexai_region": "us-central1",
+      "vertexai_express_project_id": "",
+      "squash_system_messages": false,
+      "media_inlining": true,
+      "inline_image_quality": "auto",
+      "bypass_status_check": false,
+      "continue_prefill": false,
+      "function_calling": false,
+      "tool_call_recurse_limit": 5,
+      "names_behavior": 1,
+      "continue_postfix": " ",
+      "custom_prompt_post_processing": "",
+      "show_thoughts": true,
+      "reasoning_effort": "auto",
+      "verbosity": "auto",
+      "enable_web_search": false,
+      "request_images": false,
+      "request_image_aspect_ratio": "",
+      "request_image_resolution": "",
+      "seed": 424242,
+      "n": 1,
+      "bind_preset_to_connection": true,
+      "extensions": {},
+      "pres_openai": 0.35,
+      "freq_openai": 0.17
+    },
+    "powerUser": {
+      "custom_stopping_strings": "[\"STOP_A_7F\",\"STOP_B_7F\"]",
+      "instruct": {
+        "enabled": false,
+        "preset": "Alpaca",
+        "input_sequence": "### Instruction:",
+        "output_sequence": "### Response:",
+        "last_output_sequence": "",
+        "system_sequence": "### Input:",
+        "stop_sequence": "",
+        "wrap": true,
+        "macro": true,
+        "names_behavior": "force",
+        "activation_regex": "",
+        "first_output_sequence": "",
+        "skip_examples": false,
+        "output_suffix": "\n\n",
+        "input_suffix": "\n\n",
+        "system_suffix": "\n\n",
+        "user_alignment_message": "",
+        "system_same_as_user": false,
+        "last_system_sequence": "",
+        "first_input_sequence": "",
+        "last_input_sequence": "",
+        "sequences_as_stop_strings": true,
+        "story_string_prefix": "",
+        "story_string_suffix": "",
+        "name": "ChatML"
+      },
+      "context": {
+        "preset": "Default",
+        "story_string": "{{#if anchorBefore}}{{anchorBefore}}\n{{/if}}{{#if system}}{{system}}\n{{/if}}{{#if wiBefore}}{{wiBefore}}\n{{/if}}{{#if description}}{{description}}\n{{/if}}{{#if personality}}{{char}}'s personality: {{personality}}\n{{/if}}{{#if scenario}}Scenario: {{scenario}}\n{{/if}}{{#if wiAfter}}{{wiAfter}}\n{{/if}}{{#if persona}}{{persona}}\n{{/if}}{{#if anchorAfter}}{{anchorAfter}}\n{{/if}}",
+        "chat_start": "***",
+        "example_separator": "***",
+        "use_stop_strings": true,
+        "names_as_stop_strings": true,
+        "story_string_position": 0,
+        "story_string_depth": 1,
+        "story_string_role": 0,
+        "name": "ChatML"
+      }
+    },
+    "prompts": {
+      "main": "PRESET_MAIN_7F Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+      "nsfw": "PRESET_AUX_7F auxiliary instruction that must appear once.",
+      "jailbreak": "PRESET_JAIL_7F post-history instruction that must stay last in the prompt block."
+    },
+    "chatTurns": 13,
+    "chatTurnsAtBoundary": 14,
+    "drivePreconditions": {
+      "mainApi": "openai",
+      "mainApiControlPresent": true,
+      "source": "custom",
+      "customModel": "probe-model"
+    },
+    "tokenizerAnchor": {
+      "model": "llama",
+      "body": [
+        {
+          "role": "user",
+          "content": "Hello, world!"
+        }
+      ],
+      "pinnedCount": 7,
+      "observed": {
+        "status": 200,
+        "count": 7,
+        "csrfHeaderPresent": true
+      }
+    },
+    "boundary": {
+      "oldestMarker": "PRESET_HIST_7F TURN_00 oldest older olde",
+      "assemblyMode": "real-send",
+      "keepContext": 4253,
+      "dropContext": 4252,
+      "keepMessages": 24,
+      "dropMessages": 26,
+      "keepHistoryMessages": 12,
+      "dropHistoryMessages": 11,
+      "keepOldestIndex": 8,
+      "dropOldestIndex": -1,
+      "contract": {
+        "asserted": [
+          "the oldest history turn is present at keepContext and absent at dropContext",
+          "the number of HISTORY turns differs by exactly one across the pair",
+          "the comparator recomputes both from the provider BODY on each leg, never from a probe claim",
+          "the pinned tokenizer anchor (count 7) is answered by both servers and the tokenizer tree resolved"
+        ],
+        "historyTurns": {
+          "keep": 12,
+          "drop": 11
+        },
+        "totalMessages": {
+          "keep": 24,
+          "drop": 26
+        },
+        "measuredOn": "the provider request produced by a REAL SEND (#send_but) at each context, not a dry assembly",
+        "totalMessagesNotAsserted": "the TOTAL message count is recorded per probe and is NOT part of the contract. The frontend emits its own example and world-info messages as the budget allows, independently of the trimmer, so the total is not monotone in openai_max_context: the run that produced this fixture measured 26 total messages holding 11 history turns at max_context 4252, and 24 total messages holding 12 history turns at 4253. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted"
+      },
+      "dryPreScanFlip": 4254,
+      "preSend": {
+        "chatTurns": 13,
+        "dropChatTurns": 13,
+        "outgoingText": "probe user marker PRESET_SEND_7F"
+      },
+      "bracket": {
+        "bottom": 3230,
+        "top": 4766,
+        "dryFlipHint": 4254
+      },
+      "dryPreScan": [
+        {
+          "maxContext": 8192,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4156,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestPresent": false,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 6174,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 5165,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4661,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4409,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4283,
+          "messageCount": 25,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4220,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestPresent": false,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4252,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestPresent": false,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4268,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4260,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4256,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4254,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestPresent": true,
+          "promptManagerError": null,
+          "failure": null
+        },
+        {
+          "maxContext": 4253,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestPresent": false,
+          "promptManagerError": null,
+          "failure": null
+        }
+      ],
+      "sendLog": [
+        {
+          "maxContext": 4766,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestIndex": 12,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 3230,
+          "messageCount": 24,
+          "historyMessages": 9,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 3998,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 4382,
+          "messageCount": 28,
+          "historyMessages": 12,
+          "oldestIndex": 12,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 4190,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 4286,
+          "messageCount": 25,
+          "historyMessages": 12,
+          "oldestIndex": 9,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 4238,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 4262,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestIndex": 8,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 4250,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 4256,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestIndex": 8,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 4253,
+          "messageCount": 24,
+          "historyMessages": 12,
+          "oldestIndex": 8,
+          "oldestPresent": true,
+          "failure": null
+        },
+        {
+          "maxContext": 4251,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        },
+        {
+          "maxContext": 4252,
+          "messageCount": 26,
+          "historyMessages": 11,
+          "oldestIndex": -1,
+          "oldestPresent": false,
+          "failure": null
+        }
+      ]
+    }
+  }
+}
