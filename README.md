@@ -55,7 +55,7 @@ five observation surfaces, and the numbers below are products of those runs:
 
 | Area | State |
 |---|---|
-| Chat-completion providers | **All implemented pinned sources except COMETAPI have recorded provider-wire captures** (pinned itself refuses COMETAPI before any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `205` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
+| Chat-completion providers | **All implemented pinned sources except COMETAPI have recorded provider-wire captures** (pinned itself refuses COMETAPI before any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `219` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
 | Provider wire (`B`/`P`) | Every claimed source is compared against captures: request target, method, header set, body bytes (SHA-256), chunked framing, client-disconnect. A control test fails if a source is claimed without a capture. |
 | Browser legs (`E`/`C`) | **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> sources** carry both a generation and a streaming comparison artifact, printed and enforced by `tools/verify-browser-comparisons.mjs`. Streaming covers frames, cancellation and final text. |
 | Extensions (`F`) | Tavern Helper / JS-Slash-Runner and the standard-SillyTavern-API part of LittleWhiteBox are driven as real probes. |
