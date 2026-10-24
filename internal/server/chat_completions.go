@@ -215,12 +215,6 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
-	// chat-completions.js:2246-2253, before ANY source branch is reached.
-	body, postProcessingFailure := pinnedChatCompletionApplyCustomPromptPostProcessing(body)
-	if postProcessingFailure != nil {
-		respondOrderedNodeJSON(w, postProcessingFailure.status, *postProcessingFailure.payload)
-		return
-	}
 	account := runtime.requestAccount(accountFromContext(request))
 	if account == nil {
 		serveStatusText(w, http.StatusForbidden)
@@ -499,42 +493,6 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-	// chat-completions.js:2599-2613. The reasoning-effort and verbosity tables apply to CUSTOM and OPENAI
-	// ONLY -- the pinned guard is `[CUSTOM, OPENAI].includes(source)` -- and they run BEFORE the stop copy,
-	// so their bodyParams insertion order is reasoning_effort then verbosity. Neither name is in the fixed
-	// literal, so both are APPENDED to the body; the recorded bodies show them after `stream`.
-	if sourceName == chatCompletionSourceOpenAI || sourceName == chatCompletionSourceCustom {
-		model := ""
-		if member, exists := body.member("model"); exists {
-			if text, isString := member.stringValue(); isString {
-				model = text
-			}
-		}
-		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
-			if pinnedOpenAIReasoningEffortModels[model] {
-				// `FIXED[model] ?? MAP[effort] ?? effort` -- nullish, so a model with a fixed effort
-				// ignores the map entirely, and an effort the map does not know is forwarded raw.
-				mapped := effort
-				if fixed, hasFixed := pinnedOpenAIFixedReasoningEffort[model]; hasFixed {
-					mapped = nodeString(fixed)
-				} else if text, isString := effort.stringValue(); isString {
-					if known, hasKnown := pinnedOpenAIReasoningEffortMap[text]; hasKnown {
-						mapped = nodeString(known)
-					}
-				}
-				bodyParams.setMember("reasoning_effort", mapped)
-			}
-			if sourceName == chatCompletionSourceCustom && pinnedOpenAIKoboldCPPModel.MatchString(model) {
-				// Assigned AFTER the table arm and unconditionally, so it overwrites a mapped value.
-				bodyParams.setMember("reasoning_effort", effort)
-			}
-		}
-		if verbosity, exists := body.member("verbosity"); exists && pinnedJSTruthy(verbosity) {
-			if pinnedOpenAIVerbosityModel.MatchString(model) {
-				bodyParams.setMember("verbosity", verbosity)
-			}
-		}
-	}
 
 	// chat-completions.js:2620-2623. A non-empty stop array is copied into the
 	// parameter object, so it also overwrites a stop supplied by
@@ -563,15 +521,6 @@ func pinnedChatCompletionAssemble(sourceName string, request chatCompletionReque
 	// member is included exactly when it is present, and `temperature: 0` or
 	// `stream: false` survive while an absent member does not appear at all.
 	//
-	// Reserve EVERY fixed position first, including the ones this request leaves undefined, because the
-	// pinned literal declares all of them and `...bodyParams` keeps an existing key's position. Without the
-	// reservation an included `top_k` is appended after `n` instead of sitting between top_p and n.
-	// marshalOrderedNodeJSON emits every entry it is GIVEN -- it does not drop undefined the way
-	// JSON.stringify does -- so the placeholders that remain undefined are removed before marshalling.
-	requestBody := nodeObject()
-	for _, key := range pinnedChatCompletionRequestBodyMemberOrder {
-		requestBody.setMember(key, nodeUndefined())
-	}
 	if request.isTextCompletion {
 		prompt, ok := pinnedChatCompletionTextPrompt(body)
 		if !ok {
