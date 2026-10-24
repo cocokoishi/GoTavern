@@ -182,84 +182,174 @@ function metricsOfBody(bodyText, markerOldest, markerHistory) {
 
 // sendAt sends ONE real message at `maxContext` through the composer and the send button -- the entry
 // point a user uses and the entry point the drive legs use -- and reports what the provider received.
+//
+// A FRESH PAGE PER PROBE, via bootScenario: the chat, the author's note, the world info, the samplers
+// and custom_url are re-established on every probe, so probe N cannot inherit probe N-1's composer,
+// chat length or generation state, and custom_url cannot be lost to a settings reload.
 async function sendAt(maxContext, peer) {
-    const keepTurns = spec.history.length + 1;
-    const postsBefore = peer.state.posts.length;
-    const prepared = await page.evaluate(async ({ maxContext, peerOrigin, send, keepTurns }) => {
+    const boot = await bootScenario({ includeTypedTurn: false });
+    const bootProblems = boot.applied?.problems ?? [];
+    if (bootProblems.length > 0) {
+        return { maxContext, failure: `the scenario did not apply on a fresh page: ${bootProblems.join('; ')}`, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
+    }
+    const mark = {
+        console: pageLog.console.length,
+        errors: pageLog.errors.length,
+        requests: pageLog.requests.length,
+        responses: pageLog.responses.length,
+        posts: peer.state.posts.length,
+    };
+    const before = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        return {
+            generating: Boolean(script.isGenerating),
+            generatingAttr: document.body.dataset.generating ?? null,
+            sendDisabled: Boolean(document.querySelector('#send_but')?.disabled),
+            chatLength: script.chat.length,
+            onlineStatus: String(script.online_status ?? ''),
+        };
+    });
+    const clicked = await page.evaluate(async ({ send, maxContext }) => {
         const script = await import('./script.js');
         const openai = await import('./scripts/openai.js');
-        openai.oai_settings.bypass_status_check = true;
         openai.oai_settings.openai_max_context = maxContext;
-        openai.oai_settings.stream_openai = false;
-        openai.oai_settings.chat_completion_source = 'custom';
-        openai.oai_settings.custom_url = peerOrigin;
-        // EVERY PROBE'S SEND APPENDS the typed turn and the reply. Restoring the scenario chat is what
-        // makes the next probe the same measurement rather than a shorter one.
-        if (script.chat.length > keepTurns) {
-            script.chat.length = keepTurns;
-        }
         const composer = document.querySelector('#send_textarea');
         if (!composer) return { error: 'no #send_textarea in the served frontend' };
         composer.value = send;
         composer.dispatchEvent(new Event('input', { bubbles: true }));
         const button = document.querySelector('#send_but');
         if (!button) return { error: 'no #send_but in the served frontend' };
-        if (button.disabled) return { error: 'the send button was disabled before the probe' };
+        const disabledBefore = Boolean(button.disabled);
         button.click();
-        return { clicked: true, contextApplied: openai.oai_settings.openai_max_context, chatLength: script.chat.length };
-    }, { maxContext, peerOrigin: peer.origin, send: spec.send, keepTurns });
-    if (prepared.error) {
-        return { maxContext, failure: prepared.error, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return {
+            disabledBefore,
+            chatLengthAfter: script.chat.length,
+            generatingAfter: Boolean(script.isGenerating),
+            generatingAttrAfter: document.body.dataset.generating ?? null,
+            contextApplied: Number(openai.oai_settings.openai_max_context),
+            composerValueAfter: String(document.querySelector('#send_textarea')?.value ?? ''),
+            promptManagerError: String(openai.promptManager?.error ?? '') || null,
+            toast: (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
+        };
+    }, { send: spec.send, maxContext });
+    if (clicked.error) {
+        return { maxContext, failure: clicked.error, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
     }
     const deadline = Date.now() + 30000;
-    while (Date.now() < deadline && peer.state.posts.length <= postsBefore) {
+    while (Date.now() < deadline && peer.state.posts.length <= mark.posts) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-    if (peer.state.posts.length <= postsBefore) {
-        return { maxContext, failure: `no provider request reached the peer within 30s at max_context=${maxContext}`, messageCount: 0, historyMessages: 0, oldestIndex: -1 };
-    }
-    const bodyText = peer.state.posts[peer.state.posts.length - 1];
-    // LET THE PAGE SETTLE before the next probe: a send issued while the frontend is still generating
-    // interleaves two assemblies, which is the defect the generation lane documents for its own drives.
-    const settledDeadline = Date.now() + 30000;
-    let settled = false;
-    while (Date.now() < settledDeadline) {
-        const state = await page.evaluate(async () => {
-            const script = await import('./script.js');
-            return { generating: Boolean(script.isGenerating), disabled: Boolean(document.querySelector('#send_but')?.disabled) };
-        });
-        if (!state.generating && !state.disabled) {
-            settled = true;
-            break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 200));
+    const during = {
+        requests: pageLog.requests.slice(mark.requests),
+        responses: pageLog.responses.slice(mark.responses),
+        console: pageLog.console.slice(mark.console),
+        errors: pageLog.errors.slice(mark.errors),
+        peerPosts: peer.state.posts.length - mark.posts,
+    };
+    const diagnosis = {
+        chatBefore: before.chatLength,
+        chatAfterClick: clicked.chatLengthAfter,
+        chatGrew: clicked.chatLengthAfter > before.chatLength,
+        composerValueAfter: clicked.composerValueAfter,
+        sendButtonDisabledBefore: clicked.disabledBefore,
+        generatingBefore: before.generating,
+        generatingAttrBefore: before.generatingAttr,
+        generatingAfter: clicked.generatingAfter,
+        generatingAttrAfter: clicked.generatingAttrAfter,
+        onlineStatus: before.onlineStatus,
+        contextApplied: clicked.contextApplied,
+        promptManagerError: clicked.promptManagerError,
+        toast: clicked.toast,
+        generateResponses: during.responses,
+        generateRequestCount: during.requests.filter(entry => entry.path.includes('/chat-completions/generate')).length,
+        pageRequests: during.requests,
+        pageConsole: during.console,
+        pageErrors: during.errors,
+        peerPosts: during.peerPosts,
+    };
+    if (during.peerPosts === 0) {
+        // NAME THE CAUSE, not just the absence. The three cases need different fixes and the log must say
+        // which one happened.
+        const reason = diagnosis.generateRequestCount === 0
+            ? (diagnosis.chatGrew
+                ? 'a send STARTED (the chat grew) but the page issued NO /chat-completions/generate request'
+                : 'the click did NOT start a send (the chat did not grow)')
+            : `the page issued ${diagnosis.generateRequestCount} generate request(s) but the server produced no provider request (see generateResponses for the status/body)`;
+        return {
+            maxContext,
+            failure: `no provider request reached the peer within 30s at max_context=${maxContext}: ${reason}. diagnosis=${JSON.stringify(diagnosis)}`,
+            diagnosis,
+            messageCount: 0,
+            historyMessages: 0,
+            oldestIndex: -1,
+        };
     }
     return {
         maxContext,
-        failure: settled ? null : 'the page never settled after the probe send',
-        settled,
-        ...metricsOfBody(bodyText, spec.history[0].text.slice(0, 40), spec.markers.history),
+        failure: null,
+        settled: true,
+        diagnosis,
+        ...metricsOfBody(peer.state.posts[peer.state.posts.length - 1], spec.history[0].text.slice(0, 40), spec.markers.history),
     };
 }
 
-let exitCode = 1;
-try {
+// ---------------------------------------------------------------------------------------------
+// PAGE INSTRUMENTATION. A probe that reports "no request arrived" cannot say WHICH of three things
+// happened: the click never started a generation (a frontend guard), a generation started but the page
+// never issued its generate request (or the server answered it non-2xx), or a page error killed the
+// handler. Run 40077240xxx's first probe reported exactly that and nothing more, so every probe now
+// records the page's own console, its page errors, the requests IT issued (method + path only, never an
+// origin: a committed artefact must not carry a host) and the frontend's own state before and after the
+// click.
+// ---------------------------------------------------------------------------------------------
+const pageLog = { console: [], errors: [], requests: [], responses: [] };
+function installInstrumentation(target) {
+    target.on('console', message => {
+        pageLog.console.push({ type: message.type(), text: String(message.text()).slice(0, 240) });
+    });
+    target.on('pageerror', error => {
+        const text = String(error?.message ?? error).slice(0, 240);
+        pageLog.errors.push(text);
+        consoleErrors.push(text);
+    });
+    const note = (request, extra = {}) => {
+        try {
+            const url = new URL(request.url());
+            pageLog.requests.push({ method: request.method(), path: url.pathname + url.search, ...extra });
+        } catch {
+            pageLog.requests.push({ method: request.method(), path: 'non-url', ...extra });
+        }
+    };
+    target.on('request', request => note(request));
+    target.on('requestfailed', request => note(request, { failed: String(request.failure()?.errorText ?? 'failed').slice(0, 120) }));
+    target.on('response', response => {
+        try {
+            const url = new URL(response.url());
+            if (!url.pathname.endsWith('/chat-completions/generate')) return;
+            const entry = { status: response.status(), path: url.pathname };
+            pageLog.responses.push(entry);
+            // A non-2xx body names which branch refused; read it after recording the status so a body
+            // that is slow to arrive cannot hide the status.
+            if (!response.ok()) {
+                response.text().then(body => { entry.bodyHead = String(body).slice(0, 200); }, () => {});
+            }
+        } catch {
+            // a non-URL response cannot be attributed; nothing to record
+        }
+    });
+}
+installInstrumentation(page);
+
+// bootScenario gives every probe a FRESH PAGE with the scenario applied, which removes the whole class
+// of "dirty state after N sends" failures: the chat, the author's note, the world info, the samplers and
+// custom_url are re-established by the same code on every probe. `includeTypedTurn` is true only for the
+// dry pre-scan, which must assemble the same list a send produces (a send appends the typed turn itself).
+async function bootScenario({ includeTypedTurn }) {
     await page.goto(`${baseURL}/`);
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 120000 });
-
-    // 1. Apply the scenario, twice-read: `applyPresetKit` reports every step and names every failure.
     const applied = await page.evaluate(applyPresetKit, spec);
-    const problems = [...(applied.problems ?? [])];
-
-    // 1b. THE DRIVE'S OWN PRE-CONDITIONS, and the message the drive will TYPE. A send appends one user
-    //     turn before assembly, so the capture must assemble a chat of the same shape or the boundary it
-    //     measures is not the boundary the drive reaches.
-    //
-    //     `main_api` is driven through the control a user drives (`#main_api`, assigned by its change
-    //     handler), because it is an exported `let` in script.js that cannot be assigned from outside and
-    //     a stale value sends the dry assembly down another API's path entirely. The source and model are
-    //     set to what the drive will use, so the assembled request is the one the differential compares.
-    const preconditions = await page.evaluate(async ({ send, customModel }) => {
+    const state = await page.evaluate(async ({ send, customModel, peerOrigin, includeTypedTurn }) => {
         const script = await import('./script.js');
         const openai = await import('./scripts/openai.js');
         const mainApiControl = document.querySelector('#main_api');
@@ -269,24 +359,76 @@ try {
         }
         openai.oai_settings.chat_completion_source = 'custom';
         openai.oai_settings.custom_model = customModel;
+        // custom_url IS RE-APPLIED ON EVERY BOOT, because a fresh page reloads the persisted settings.
+        openai.oai_settings.custom_url = peerOrigin;
         openai.oai_settings.stream_openai = false;
-        await new Promise(resolve => setTimeout(resolve, 500));
-        script.chat.push({
-            name: 'Probe User',
-            is_user: true,
-            is_system: false,
-            send_date: '2026-01-01T00:00:00.000Z',
-            mes: send,
-            extra: {},
-        });
+        if ('bypass_status_check' in openai.oai_settings) {
+            openai.oai_settings.bypass_status_check = true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 600));
+        if (includeTypedTurn) {
+            script.chat.push({
+                name: 'Probe User',
+                is_user: true,
+                is_system: false,
+                send_date: '2026-01-01T00:00:00.000Z',
+                mes: send,
+                extra: {},
+            });
+        }
         return {
             chatTurns: script.chat.length,
             mainApi: String(script.main_api ?? ''),
             hasMainApiControl: Boolean(mainApiControl),
             source: String(openai.oai_settings.chat_completion_source ?? ''),
+            customUrl: String(openai.oai_settings.custom_url ?? ''),
             customModel: String(openai.oai_settings.custom_model ?? ''),
+            onlineStatus: String(script.online_status ?? ''),
         };
-    }, { send: spec.send, customModel: 'probe-model' });
+    }, { send: spec.send, customModel: 'probe-model', peerOrigin: peer.origin, includeTypedTurn });
+    // CONNECT, THE WAY THE DRIVE DOES. A chat-completion send is silently ignored while
+    // `online_status` is 'no_connection', and that status is only set by the frontend's own connection
+    // check. `bypass_status_check` is set as well, but run 40077240xxx's first probe reported neither a
+    // started send nor a request, and "missing status" is one of the three causes this capture must be
+    // able to tell apart -- so it performs the handshake and records the outcome either way.
+    const connection = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const keyField = document.querySelector('#api_key_custom');
+        if (keyField && !keyField.value) {
+            keyField.value = 'probe-synthetic-key';
+            keyField.dispatchEvent(new Event('input', { bubbles: true }));
+            keyField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const button = document.querySelector('#api_button_openai');
+        const connectButtonPresent = Boolean(button);
+        if (button) {
+            button.click();
+        }
+        const deadline = performance.now() + 8000;
+        let onlineStatus = String(script.online_status ?? '');
+        while (performance.now() < deadline && onlineStatus === 'no_connection') {
+            await new Promise(resolve => setTimeout(resolve, 250));
+            onlineStatus = String(script.online_status ?? '');
+        }
+        return { connectButtonPresent, keyFieldPresent: Boolean(keyField), onlineStatus };
+    });
+    state.connection = connection;
+    return { applied, state };
+}
+
+let exitCode = 1;
+try {
+    // 1. THE SCENARIO'S FIRST BOOT. Its `applied` report is the one the fixture records; later boots are
+    //    per-probe resets and only their failures matter.
+    const firstBoot = await bootScenario({ includeTypedTurn: true });
+    const applied = firstBoot.applied;
+    const preconditions = firstBoot.state;
+    const problems = [...(applied.problems ?? [])];
+
+    // 1b. THE DRIVE'S OWN PRE-CONDITIONS. A send appends one user turn before assembly, so the capture
+    //     assembles a chat of the same shape or the boundary it measures is not the boundary the drive
+    //     reaches. `main_api` is driven through the control a user drives (`#main_api`, assigned by its
+    //     change handler), because it is an exported `let` that cannot be assigned from outside.
     const chatTurnsAtBoundary = preconditions.chatTurns;
     if (preconditions.mainApi !== 'openai') {
         problems.push(`main_api is ${JSON.stringify(preconditions.mainApi)} after driving #main_api (control present: ${preconditions.hasMainApiControl}); the dry assembly would not take the chat-completion path`);
@@ -506,6 +648,7 @@ try {
                     '11. REAL SENDS through #send_textarea + #send_but against a recording peer, one per candidate openai_max_context, bisecting inside the pre-scan bracket for the smallest context whose SENT request still carries the oldest history turn; the pair is accepted only if that turn is absent one token lower and exactly ONE history message differs',
                     '12. POST /api/tokenizers/openai/count?model=llama with the oracle anchor body through the frontend\'s own getRequestHeaders() (the CSRF header a plain fetch lacks, run 40073802369), expected 7',
                 ],
+                instrumentation: 'every probe runs on a FRESH PAGE (bootScenario re-applies the kit, custom_url, samplers and the connect handshake), and records the page console, page errors, the requests the page issued (method + path only) and the frontend state before/after the click, so a "no request arrived" failure names WHICH cause it was: no send started, a send with no generate request, or a generate request the server answered non-2xx',
                 steps: applied.steps,
                 boundaryMethod: 'bisect over openai_max_context by DRIVING THE REAL SEND against a recording peer and reading the provider request it produced; verified: oldest turn present at keep, absent at keep-1, history-message delta exactly 1. The dry assembly is a pre-scan only, because run 40082539457 showed a dry-measured pair (4236/4235, one token apart) does not bind: the send assembles slightly more, so both variants produced the drop shape. The TOTAL message count is recorded and never asserted, because the frontend also emits/drops its own example and world-info messages with the budget',
                 assemblyMode: 'real-send',
