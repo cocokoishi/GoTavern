@@ -12,12 +12,18 @@ package server
 //	bodyParams    = { thinking: { type: body.include_reasoning ? 'enabled' : 'disabled' } }
 //	if (body.json_schema) setJsonObjectFormat(..)
 //
-// THE ENDPOINT SWITCH MOVES THE PATH, NOT THE HOST. Both literals are `api.z.ai` and only the path
-// differs ('/api/paas/v4' vs '/api/coding/paas/v4'), unlike SILICONFLOW whose switch moves the host
-// between .com and .cn. That is why this source needs ONE seam rather than two: a single override on
-// the origin still lets the recorded differential prove WHICH literal was used, because the provider
-// target carries the path. The literals themselves are still asserted separately
-// (TestChatCompletionZaiEndpointLiteralPerMode) so neither mode can silently stand in for the other.
+// THE ENDPOINT SWITCH MOVES THE PATH, NOT THE HOST, AND THAT IS EXACTLY WHY IT NEEDS A SEAM PER MODE.
+// Both literals are `api.z.ai` and only the path differs ('/api/paas/v4' vs '/api/coding/paas/v4'),
+// unlike SILICONFLOW whose switch moves the host between .com and .cn. This file used to argue that ONE
+// seam was therefore enough, "because the provider target carries the path", and that argument was wrong
+// in the way only a recorded scenario can show: a seam REPLACES THE WHOLE BASE URL, so with one seam
+// both modes leave for the peer with identical bytes, the recorded `zai_endpoint` rule cannot fail, and
+// a build that ignored the ternary would pass. `tests/provider-wire/scenarios/zai-coding-endpoint.json`
+// therefore names a variable that only the coding literal reads: a build that ignored the switch leaves
+// that variable unread, falls back to the production common literal, and reaches no peer at all -- a
+// failure rather than a silent pass. The shape is minimax's for its CN endpoint (minimax_chat.go:49-52)
+// and makersuite's for its two Google bases. The literals are also still asserted separately
+// (TestChatCompletionZaiEndpointLiteralPerMode), so neither mode can silently stand in for the other.
 //
 // ZAI HONOURS `reverse_proxy`, so unlike groq/siliconflow/nanogpt it can be aimed at a peer through the
 // frontend's own setting, and `proxy_password` is the credential in that case -- pinned reads
@@ -38,33 +44,50 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
+// One seam per pinned literal (pinnedZAISeamEnv for the common endpoint, pinnedZAICodingSeamEnv for the
+// coding one): a seam replaces the whole base URL, so a single seam would make the two modes
+// indistinguishable at the peer. See the header comment.
 const (
 	pinnedZAICommonAPIURL   = "https://api.z.ai/api/paas/v4"
 	pinnedZAICodingAPIURL   = "https://api.z.ai/api/coding/paas/v4"
 	pinnedZAISeamEnv        = "GOTAVERN_ZAI_CHAT_URL"
+	pinnedZAICodingSeamEnv  = "GOTAVERN_ZAI_CODING_CHAT_URL"
 	pinnedZAISecretKey      = "api_key_zai"
 	pinnedZAICodingEndpoint = "coding"
 	pinnedZAIHeaderLanguage = "en-US,en"
 	chatCompletionSourceZai = "zai"
 )
 
+// pinnedZAIEndpointIsCoding is pinned's ternary condition isolated in one place, so the literal choice,
+// the seam choice and the unit tests cannot disagree about what selects the coding endpoint:
+// `request.body.zai_endpoint === ZAI_ENDPOINT.CODING`.
+func pinnedZAIEndpointIsCoding(body orderedNodeJSON) bool {
+	endpoint, exists := body.member("zai_endpoint")
+	if !exists {
+		return false
+	}
+	text, ok := endpoint.scalar.(string)
+	return ok && text == pinnedZAICodingEndpoint
+}
+
 // pinnedZAILiteralBaseURL is the pinned literal for the mode the REQUEST selects, with no seam applied.
 // It exists so each mode's literal can be asserted on its own; the seam must never be the only thing a
 // test can see, or a wrong literal would pass whenever the peer accepted both.
 func pinnedZAILiteralBaseURL(body orderedNodeJSON) string {
-	if endpoint, exists := body.member("zai_endpoint"); exists {
-		if text, ok := endpoint.scalar.(string); ok && text == pinnedZAICodingEndpoint {
-			return pinnedZAICodingAPIURL
-		}
+	if pinnedZAIEndpointIsCoding(body) {
+		return pinnedZAICodingAPIURL
 	}
 	// Anything else -- 'common', an absent field, or a value this build does not know -- takes the
 	// common literal, which is what pinned's single ternary does.
 	return pinnedZAICommonAPIURL
 }
 
-// pinnedZAIBaseURL applies the seam to the mode-chosen literal.
+// pinnedZAIBaseURL applies the seam FOR THE SELECTED MODE to that mode's literal.
 func pinnedZAIBaseURL(body orderedNodeJSON) string {
-	return sdSeamURL(pinnedZAISeamEnv, pinnedZAILiteralBaseURL(body))
+	if pinnedZAIEndpointIsCoding(body) {
+		return sdSeamURL(pinnedZAICodingSeamEnv, pinnedZAICodingAPIURL)
+	}
+	return sdSeamURL(pinnedZAISeamEnv, pinnedZAICommonAPIURL)
 }
 
 // pinnedZAIThinking is `bodyParams.thinking` (:2558-2562): the member is ALWAYS present, and only its

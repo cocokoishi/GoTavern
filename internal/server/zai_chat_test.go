@@ -2,17 +2,21 @@ package server
 
 // What the ZAI pinning says, asserted where a recording cannot reach.
 //
-// LABELLED PER AGENTS.md RULE 4: every test here except the fixture-level one is a SOURCE-DERIVED
-// derivation from the pinned lines named beside it, not a replay. The ZAI provider-wire scenarios
-// (tests/provider-wire/scenarios/zai-*.json) exist as the INPUTS for the Linux oracle job; until that
-// job records them into tests/oracle/sillytavern-1.19.0-provider-wire.json, nothing in this repository
-// has replayed a ZAI request against pinned Node, and no claim below is a replay claim.
+// LABELLED PER AGENTS.md RULE 4: the tests here that do not read the fixture are SOURCE-DERIVED
+// derivations from the pinned lines named beside them, not replays. Four ZAI scenarios
+// (zai-nonstream, zai-stream, zai-error-status, zai-json-schema) ARE recorded in
+// tests/oracle/sillytavern-1.19.0-provider-wire.json and replayed by
+// TestChatCompletionGenerateMatchesProviderWireCapture, and zai-coding-endpoint is the recorded
+// discriminator for the endpoint switch -- it names a seam that only the coding literal reads, so a
+// build that ignored `zai_endpoint` reaches no peer instead of passing. The derivations remain for what
+// a recording cannot reach: the per-mode literals and seam defaults, the JS truthiness cases, and the
+// branch decisions whose two answers are byte-identical on the wire.
 //
 // What the derivations cover, and why each needs to exist rather than being left to the recording:
 //
-//  1. THE TWO ENDPOINT MODES. Both literals are api.z.ai and differ only in PATH, so a recording that
-//     compared only the authority would pass for either mode. Each literal is asserted directly here,
-//     and the body-driven choice is exercised in both directions.
+//  1. THE TWO ENDPOINT MODES. Both literals are api.z.ai and differ only in PATH, and a seam replaces
+//     the whole base, so a single-seam recording passes for either mode. Each literal is asserted
+//     directly here, and each seam is asserted to move only its own mode.
 //  2. THE THINKING MEMBER. It is always present and only its type varies; a branch that dropped it would
 //     produce a body that still parses. Both values are asserted, with the JS truthiness cases (0, '',
 //     false) that a Go zero-value test would not exercise.
@@ -79,29 +83,80 @@ func TestChatCompletionZaiEndpointLiteralPerMode(t *testing.T) {
 	}
 }
 
-// TestChatCompletionZaiSeamAppliesToBothModes records the ONE-seam decision where a reader will look for
-// it: the seam replaces the origin for both modes, so the mode must remain visible in the PATH.
-func TestChatCompletionZaiSeamAppliesToBothModes(t *testing.T) {
-	t.Setenv(pinnedZAISeamEnv, "http://127.0.0.1:9999")
-	for _, raw := range []string{
-		`{"chat_completion_source":"zai"}`,
-		`{"chat_completion_source":"zai","zai_endpoint":"coding"}`,
-	} {
-		body, err := decodeOrderedNodeJSON([]byte(raw))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := pinnedZAIBaseURL(body); got != "http://127.0.0.1:9999" {
-			t.Fatalf("seamed base URL = %q, want the override for both modes", got)
-		}
-	}
-	t.Setenv(pinnedZAISeamEnv, "")
-	body, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"zai","zai_endpoint":"coding"}`))
+// TestChatCompletionZaiSeamsArePerMode is the derivation behind the two-seam decision, and it is the
+// half a recording cannot state: each seam must move its OWN mode and leave the other mode on its
+// pinned literal. With one seam both assertions below would be the same assertion, which is why the
+// recorded scenario could not have caught a build that ignored `zai_endpoint`.
+func TestChatCompletionZaiSeamsArePerMode(t *testing.T) {
+	commonBody, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"zai"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := pinnedZAIBaseURL(body); got != pinnedZAICodingAPIURL {
-		t.Fatalf("unseamed coding base URL = %q, want %q", got, pinnedZAICodingAPIURL)
+	codingBody, err := decodeOrderedNodeJSON([]byte(`{"chat_completion_source":"zai","zai_endpoint":"coding"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(pinnedZAISeamEnv, "")
+	t.Setenv(pinnedZAICodingSeamEnv, "")
+	if got := pinnedZAIBaseURL(commonBody); got != pinnedZAICommonAPIURL {
+		t.Fatalf("unseamed common base = %q, want %q", got, pinnedZAICommonAPIURL)
+	}
+	if got := pinnedZAIBaseURL(codingBody); got != pinnedZAICodingAPIURL {
+		t.Fatalf("unseamed coding base = %q, want %q", got, pinnedZAICodingAPIURL)
+	}
+
+	// The coding seam must NOT reach the common mode, or the recorded coding scenario would be the only
+	// thing standing between a wrong literal and a green differential.
+	t.Setenv(pinnedZAICodingSeamEnv, "http://127.0.0.1:9999")
+	if got := pinnedZAIBaseURL(codingBody); got != "http://127.0.0.1:9999" {
+		t.Fatalf("coding base with the coding seam set = %q, want the override", got)
+	}
+	if got := pinnedZAIBaseURL(commonBody); got != pinnedZAICommonAPIURL {
+		t.Fatalf("common base = %q when only the CODING seam is set; the coding seam must not move the common mode", got)
+	}
+
+	t.Setenv(pinnedZAICodingSeamEnv, "")
+	t.Setenv(pinnedZAISeamEnv, "http://127.0.0.1:9998")
+	if got := pinnedZAIBaseURL(commonBody); got != "http://127.0.0.1:9998" {
+		t.Fatalf("common base with the common seam set = %q, want the override", got)
+	}
+	if got := pinnedZAIBaseURL(codingBody); got != pinnedZAICodingAPIURL {
+		t.Fatalf("coding base = %q when only the COMMON seam is set; the common seam must not move the coding mode", got)
+	}
+}
+
+// TestChatCompletionZaiSeamDefaultsMatchTheFixture pins each seam's default to the literal the fixture
+// recorded for THAT variable, the way claude/mistral/openrouter/deepseek/electronhub do. The fixture
+// entry comes from tests/provider-wire/scenarios/zai-coding-endpoint.json (the coding seam) and the
+// zai-* scenarios (the common one); a seam that reverts to a single variable loses its key here.
+func TestChatCompletionZaiSeamDefaultsMatchTheFixture(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-provider-wire.json"))
+	if err != nil {
+		t.Fatalf("read provider-wire fixture: %v", err)
+	}
+	var fixture struct {
+		Seams map[string]struct {
+			PinnedLiteral string `json:"pinnedLiteral"`
+		} `json:"seams"`
+	}
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatalf("decode provider-wire fixture: %v", err)
+	}
+	for _, testCase := range []struct {
+		env     string
+		literal string
+	}{
+		{pinnedZAISeamEnv, pinnedZAICommonAPIURL},
+		{pinnedZAICodingSeamEnv, pinnedZAICodingAPIURL},
+	} {
+		recorded, present := fixture.Seams[testCase.env]
+		if !present {
+			t.Fatalf("the fixture records no seam %q, so the variable this code reads is unasserted; it is recorded by tests/provider-wire/scenarios/zai-coding-endpoint.json", testCase.env)
+		}
+		if recorded.PinnedLiteral != testCase.literal {
+			t.Fatalf("seam %q recorded the pinned literal %q, the Go constant is %q", testCase.env, recorded.PinnedLiteral, testCase.literal)
+		}
 	}
 }
 
