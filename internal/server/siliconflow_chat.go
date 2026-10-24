@@ -25,6 +25,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -134,4 +135,31 @@ func (runtime *accountRuntime) serveSiliconFlowChatCompletionStatus(w http.Respo
 		return
 	}
 	searchJSON(w, data)
+}
+
+// pinnedSiliconFlowChatPlan is chat-completions.js:2566-2574's SILICONFLOW arm plus the shared tail. Both
+// the endpoint and the fold are the source's own: the endpoint is chosen from a REQUEST BODY FIELD, and the
+// fold is setJsonObjectFormat, which appends a synthesized schema message rather than setting a json_schema
+// response_format.
+func pinnedSiliconFlowChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	apiKey, secretErr := pinnedReadSecret(request.directories, pinnedSiliconFlowSecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(secretErr)
+	}
+	bodyParams := nodeObject()
+	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+		// The fold returns an error only when the schema cannot be pretty-printed, which pinned cannot
+		// reach because JSON.stringify of a parsed body always succeeds.
+		if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
+			return nil, pinnedChatCompletionTransportFailure(foldErr)
+		}
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceSiliconF, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedSiliconFlowBaseURL(body),
+		apiKey:        apiKey,
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }

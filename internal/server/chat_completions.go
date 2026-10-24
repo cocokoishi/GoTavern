@@ -18,17 +18,29 @@ package server
 //     `new URL(reverse_proxy).toString()` already ends in `/` and the pinned
 //     code then appends `/chat/completions` to it;
 //   - a streamed reply is forwarded with NO content-type at all, which is also
-//     why its Vary header carries only the CORS Origin entry: Express's
+//     why its Vary header carries only the CORS origin entry: Express's
 //     compression middleware never reaches its vary step without a Content-Type;
 //   - a provider error status is answered at status 200 with the pinned
 //     {error:{message}, quota_error} shape, not forwarded as a status.
 //
-// Implemented sources: openai (including reverse_proxy + proxy_password) and
-// custom (custom_url, the CUSTOM secret, and the YAML include/exclude options).
-// Every other source the pinned backend supports has a transport this route
-// does not implement yet and is answered 501 rather than faked. A source the
-// pinned backend itself does not support is answered 400 {"error":true}, which
-// is what the pinned handler's final else branch sends.
+// WHICH SOURCES EXIST IS NOT DECIDED HERE. Every routed source is one row of
+// pinnedChatCompletionSourceRegistry (chat_completions_registry.go), which binds
+// its name to its three behaviours -- plan, response and transportFailure -- so a
+// source is routed in exactly one place. A source the pinned backend knows but
+// this route has not ported has NO row and is answered 501 rather than faked; a
+// source the pinned backend itself does not route is answered 400
+// {"error":true}, which is what the pinned handler's final else branch sends.
+//
+// WHAT STAYS IN THIS FILE: the route registration, the handler, the account and
+// data-root prerequisites, the source resolution and dispatch, the generic
+// lifecycle (stream forwarding and the shared response tail), and the machinery
+// every shared-path source builds its request with -- the ordered-body assembler,
+// the header framing and the credential header set.
+//
+// THIS FILE IS LARGE ON PURPOSE AND MUST STAY SHARED. The ordered-JSON helpers it
+// uses (orderedNodeJSON + marshalOrderedNodeJSON) are the reason member order is
+// part of the byte contract: replacing them with map[string]any and
+// encoding/json would reorder members and change every provider body digest.
 
 import (
 	"errors"
@@ -36,8 +48,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -50,32 +61,7 @@ const (
 	pinnedOpenAIAPIURL         = "https://api.openai.com/v1"
 	chatCompletionSourceOpenAI = "openai"
 	chatCompletionSourceCustom = "custom"
-	// chat-completions.js:2302 is a LITERAL, and the source has no reverse_proxy member: an OpenRouter
-	// request cannot be aimed anywhere except at that URL. This seam therefore exists so the recorded
-	// differential can point the Go leg at the same recording peer the pinned leg is redirected to at the
-	// transport layer, and its DEFAULT is asserted against the fixture's recorded literal
-	// (TestChatCompletionOpenRouterSeamDefault), so the default cannot drift into whatever makes the replay
-	// pass.
-	pinnedOpenRouterAPIURL      = "https://openrouter.ai/api/v1"
-	pinnedOpenRouterSeamEnv     = "GOTAVERN_OPENROUTER_CHAT_URL"
-	pinnedOpenRouterSecretKey   = "api_key_openrouter"
-	chatCompletionSourceOpenRtr = "openrouter"
 )
-
-// pinnedOpenRouterBaseURL is the pinned literal, replaceable only by the test seam.
-func pinnedOpenRouterBaseURL() string {
-	return sdSeamURL(pinnedOpenRouterSeamEnv, pinnedOpenRouterAPIURL)
-}
-
-// pinnedOpenRouterHeaders is OPENROUTER_HEADERS (src/constants.js:362). The pinned comment names the reason:
-// "OpenRouter needs to pass the Referer and X-Title". Member order is preserved because the outbound header
-// set is sent in name order regardless, but the fixture records these two as compared values.
-func pinnedOpenRouterHeaders() orderedNodeJSON {
-	headers := nodeObject()
-	headers.setMember("HTTP-Referer", nodeString("https://sillytavern.app"))
-	headers.setMember("X-Title", nodeString("SillyTavern"))
-	return headers
-}
 
 // pinnedChatCompletionSources lists every value of the pinned
 // CHAT_COMPLETION_SOURCES constant (src/constants.js). A source in this set is
@@ -146,6 +132,26 @@ func pinnedChatCompletionTransportFailure(err error) *pinnedChatCompletionFailur
 	return pinnedChatCompletionJSONFailure(http.StatusBadGateway, payload)
 }
 
+// pinnedChatCompletionTransportBadGateway is the SHARED catch, and the answer for every source whose pinned
+// branch reaches it: 502 with {error:{message}}.
+func pinnedChatCompletionTransportBadGateway(err error) *pinnedChatCompletionFailure {
+	return pinnedChatCompletionTransportFailure(err)
+}
+
+// pinnedChatCompletionTransportErrorFlagOK is the catch of the EIGHT sources whose pinned branch calls
+// `response.send({error:true})` with NO status argument, so a fetch that throws answers 200 {"error":true}
+// rather than the shared 502. The error is deliberately discarded: the body never mentions it (the pinned
+// code drops it before building the body), and inventing a message here would be a different contract.
+func pinnedChatCompletionTransportErrorFlagOK(_ error) *pinnedChatCompletionFailure {
+	return pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlag())
+}
+
+// pinnedChatCompletionTransportErrorFlagServerError is the catch of GOOGLE and CLAUDE: 500 {"error":true}
+// while the headers are unsent (:787-791 and :441-446), not the shared 502.
+func pinnedChatCompletionTransportErrorFlagServerError(_ error) *pinnedChatCompletionFailure {
+	return pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+}
+
 func pinnedChatCompletionTransportMessage(err error) string {
 	if err == nil {
 		return "Unknown error occurred"
@@ -193,12 +199,13 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	// max_tokens clamp and its own non-2xx shape), so it is dispatched BEFORE the shared plan. It has
 	// to be before: pinnedChatCompletionPlan answers 501 for a source it does not plan, so reaching
 	// that call first is what made this lane report 501 for a source it had just implemented.
+	// It has NO registry row for exactly this reason; see chat_completions_registry.go.
 	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
 		runtime.serveMinimaxChatCompletion(w, request, body, directories)
 		return
 	}
 
-	plan, failure := pinnedChatCompletionPlan(body, directories, runtime.options.CookieSecret)
+	row, plan, failure := pinnedChatCompletionResolve(body, directories, runtime.options.CookieSecret)
 	if failure != nil {
 		if failure.payload == nil {
 			serveStatusText(w, failure.status)
@@ -214,205 +221,14 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	// outbound client watches this request's context.
 	response, err := outbound.SendStreaming(request.Context(), *plan, 0)
 	if err != nil {
-		if _, isGoogle := pinnedGoogleSourceName(body); isGoogle {
-			// :787-791: the shared Google catch answers 500 {"error":true} while the headers are unsent,
-			// not the generic 502, and it does so for BOTH sources.
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
-			// :441-446: the CLAUDE route's own catch answers 500 {"error":true} while the headers have
-			// not been sent, NOT the generic 502 {"error":{message}}.
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
-			// :870-877: the catch calls `response.send({error:true})` with NO status, so a thrown fetch answers
-			// 200 {"error":true} rather than the shared 502.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
-			// :956-962: the MISTRAL route's catch uses `response.send` with NO status, so a thrown
-			// fetch answers 200 {"error":true}. Answering 500 here would be a different contract.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceDeepSeek {
-			// :1168-1174: the same shape as MISTRAL and for the same reason: that catch calls
-			// status, so a thrown fetch answers 200 {"error":true} rather than CLAUDE's 500.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
-			// :1592-1599: `response.send({error:true})` with no status, so a thrown fetch answers
-			// 200 {"error":true}. See chutes_chat.go.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
-			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
-			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
-			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
-			// The branch's own catch calls response.send with NO status, so a thrown fetch answers 200 {error:true}.
-			respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-			return
-		}
-		if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
-			// :1768-1773: the azure route's OWN catch answers 500 {"error":{message}}, not the generic
-			// 502. See the documented limit in azure_openai_chat.go about the `...error` spread.
-			failure := pinnedAzureOpenAICatch(err)
-			respondOrderedNodeJSON(w, failure.status, *failure.payload)
-			return
-		}
-		failure := pinnedChatCompletionTransportFailure(err)
+		// The catch shape is PER SOURCE and is not guessable from the shared code: eight sources answer
+		// 200 {"error":true}, google and claude answer 500 {"error":true}, azure answers 500
+		// {"error":{message}} with its own wording, and the rest answer the shared 502.
+		failure := row.transportFailure(err)
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)
 		return
 	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceClaude {
-		// :424-439: the shared forwarder for a stream, the pinned rewrap for a buffered answer.
-		serveClaudeChatCompletionResponse(w, request, response, body)
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
-		// :1579-1599: the shared forwarder for a stream, the provider body passed through otherwise,
-		// and the PARSED provider body at 500 for a non-2xx answer. See chutes_chat.go.
-		serveChutesChatCompletionResponse(w, request, response, body)
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMistral {
-		// :943-954: the shared forwarder for a stream, the provider body passed through otherwise.
-		serveMistralChatCompletionResponse(w, request, response, body)
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceDeepSeek {
-		// :1155-1167: the shared forwarder for a stream, the provider body passed through otherwise,
-		// and the PARSED provider body at 500 for a non-2xx answer.
-		serveDeepSeekChatCompletionResponse(w, request, response, body)
-		return
-	}
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
-		// :1041-1062: the shared forwarder for a stream, the provider body passed through otherwise, the
-		// PARSED provider body at 500 for a non-2xx answer. See cohere_chat.go.
-		serveCohereChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceChutes {
-		// :1579-1599: the shared forwarder for a stream, the provider body passed through otherwise,
-		// and the PARSED provider body at 500 for a non-2xx answer. See chutes_chat.go.
-		serveChutesChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAI21 {
-		// :853-867: the shared forwarder for a stream, the provider body passed through on 2xx, and the PARSED
-		// provider body at 500 for a non-2xx answer.
-		serveAI21ChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceCohere {
-		// :1041-1062: the shared forwarder for a stream, the provider body passed through otherwise, the
-		// PARSED provider body at 500 for a non-2xx answer. See cohere_chat.go.
-		serveCohereChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceElectronHub {
-		// :1478-1490: the shared forwarder for a stream, the provider body passed through otherwise.
-		serveElectronHubChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAimlapi {
-		// :1359-1382: the shared forwarder for a stream WITHOUT an ok-check, the PARSED provider body at
-		// 500 for a non-stream non-2xx, the provider body passed through otherwise.
-		serveAimlapiChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceXAI {
-		// :1261-1272: the shared forwarder for a stream, the provider body passed through otherwise,
-		// and the PARSED provider body at 500 for a non-2xx answer.
-		serveXAIChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceAzure {
-		// :1751-1773: the shared forwarder for a stream, the parsed provider body for a 2xx answer, and
-		// 500 with the parsed body (or {error:{message:statusText}}) for a non-2xx answer.
-		serveAzureOpenAIChatCompletionResponse(w, request, response, body)
-		return
-	}
-
-	// MINIMAX is its own transport (a CN/global endpoint pair, a server-side messages fold, a
-	// max_tokens clamp and its own non-2xx shape), so it is dispatched BEFORE the shared plan. It has
-	// to be before: pinnedChatCompletionPlan answers 501 for a source it does not plan, so reaching
-	// that call first is what made this lane report 501 for a source it had just implemented.
-	if pinnedChatCompletionSourceName(body) == chatCompletionSourceMinimax {
-		runtime.serveMinimaxChatCompletion(w, request, body, directories)
-		return
-	}
-
-	if useVertexAI, isGoogle := pinnedGoogleSourceName(body); isGoogle {
-		// :740-786: the shared forwarder for a stream; otherwise the candidate checks, the two 200-shaped
-		// {error:{message}} answers and the {choices, responseContent} rewrap.
-		serveGoogleChatCompletionResponse(w, request, response, body, useVertexAI)
-		return
-	}
-
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		failure := pinnedChatCompletionTransportFailure(readErr)
-		respondOrderedNodeJSON(w, failure.status, *failure.payload)
-		return
-	}
-
-	if response.Status >= 200 && response.Status < 300 {
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			// fetchResponse.json() rejects on a body that is not JSON, so the
-			// pinned catch answers 502 instead of forwarding the bytes.
-			failure := pinnedChatCompletionTransportFailure(parseErr)
-			respondOrderedNodeJSON(w, failure.status, *failure.payload)
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusOK, parsed)
-		return
-	}
-
-	// chat-completions.js:2701-2710: the provider's error status is replaced by
-	// the pinned error shape at status 200. The provider's own text is not
-	// forwarded, only its reason phrase.
-	message := response.Reason
-	if message == "" {
-		message = "Unknown error occurred"
-	}
-	payload := nodeObject()
-	errorMember := nodeObject()
-	errorMember.setMember("message", nodeString(message))
-	payload.setMember("error", errorMember)
-	payload.setMember("quota_error", nodeBool(response.Status == http.StatusTooManyRequests && pinnedChatCompletionQuotaError(providerBody)))
-	respondOrderedNodeJSON(w, http.StatusOK, payload)
+	row.response(w, request, response, body)
 }
 
 // forwardPinnedChatCompletionStream reproduces forwardFetchResponse
@@ -491,413 +307,98 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 	return isString && text == "insufficient_quota"
 }
 
-// pinnedChatCompletionPlan resolves the pinned target selection and request
-// body for the sources this route implements.
-func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (*outbound.Request, *pinnedChatCompletionFailure) {
+// pinnedChatCompletionResolve turns a request body into the row that serves it and the outbound request that
+// row plans. It reports three things because the caller needs all three: the ROW supplies the response side
+// and the catch shape once the fetch has run, so a caller that had only the request would have to resolve
+// the source again and could disagree with itself.
+//
+// The three outcomes are the ones the pinned dispatcher has, and they must stay distinguishable:
+//
+//   - a routed source: the row and its request;
+//   - a name the pinned matrix knows but this route has no row for (cometapi): 501, NO request. This is
+//     the "not written yet" gap, and answering it as a 400 would make it indistinguishable from a refusal;
+//   - a name the pinned matrix does not know: 400 {"error":true}, which is the pinned closing else.
+func pinnedChatCompletionResolve(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (chatCompletionSource, *outbound.Request, *pinnedChatCompletionFailure) {
 	sourceName := pinnedChatCompletionSourceName(body)
-	if sourceName == chatCompletionSourceAI21 {
-		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
-		// error mapping. See ai21_chat.go.
-		return pinnedAI21Plan(body, directories)
-	}
-	if sourceName == chatCompletionSourceChutes {
-		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
-		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
-		return pinnedChutesPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceAI21 {
-		// chat-completions.js:800-881 is an OWN transform: its own converter, member order, header set and
-		// error mapping. See ai21_chat.go.
-		return pinnedAI21Plan(body, directories)
-	}
-	if sourceName == chatCompletionSourceCohere {
-		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
-		// converter and its own three error observables. See cohere_chat.go.
-		return pinnedCoherePlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceElectronHub {
-		// chat-completions.js:1394 forwards the messages VERBATIM and rebuilds the rest of the body, with
-		// top_k/logit_bias of its own and no reverse_proxy support at all. See electronhub_chat.go.
-		return pinnedElectronHubPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceAimlapi {
-		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
-		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
-		// aimlapi_chat.go.
-		return pinnedAimlapiPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceXAI {
-		// chat-completions.js:1183 is its own transform: its own member order, its own message
-		// converter (convertXAIMessages, which renames rather than merges), its own effort mapping and
-		// its own json_schema fold. See xai_chat.go.
-		return pinnedXAIPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceAzure {
-		// chat-completions.js:1687 is its own transform: a CALLER-SUPPLIED base URL composed through
-		// `new URL`, an AZURE_OPENAI_KEYS body that never carries `model`, an `api-key` header instead of a
-		// Bearer token, and three response observables of its own. See azure_openai_chat.go.
-		return pinnedAzureOpenAIPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceMistral {
-		// chat-completions.js:881 is its own transform, a sibling of the CLAUDE branch: its own body
-		// order, its own seed/stop coercions, its own message converter and three error observables of
-		// its own. See mistral_chat.go.
-		return pinnedMistralPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceCohere {
-		// chat-completions.js:971 is its own transform: its own body, its own two-value header set, its own
-		// converter and its own three error observables. See cohere_chat.go.
-		return pinnedCoherePlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceDeepSeek {
-		// chat-completions.js:1071 is its own transform, with the message side riding the SHARED
-		// SEMI_TOOLS merge, addAssistantPrefix and addReasoningContentToToolCalls helpers. See
-		// deepseek_chat.go.
-		return pinnedDeepSeekPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceChutes {
-		// chat-completions.js:1506 is its own transform with NO prompt post-processing at all: messages
-		// are forwarded verbatim and only the folded members are built. See chutes_chat.go.
-		return pinnedChutesPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceClaude {
-		// chat-completions.js:230 is NOT on the generic path: it builds its own body, URL and header
-		// set, and has its own response mapping, so it delegates here and the response side branches
-		// on the same source name. See claude_chat.go.
-		return pinnedClaudePlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceAimlapi {
-		// chat-completions.js:1289 is its own transform: its own body literal and fold order, its own
-		// header set (AIMLAPI_HEADERS), its own response mapping and NO reverse_proxy branch. See
-		// aimlapi_chat.go.
-		return pinnedAimlapiPlan(body, directories)
-	}
-	if sourceName == chatCompletionSourceMakerSuite {
-		// chat-completions.js:454-792 is the GOOGLE transport. The key travels as a QUERY parameter and NO
-		// Authorization header is attached, because the pinned `authHeader` is assigned at :484 and never used
-		// on this path. See google_chat.go.
-		return pinnedGooglePlan(body, directories, false)
-	}
-	if sourceName == chatCompletionSourceVertexAI {
-		// The SAME pinned function with useVertexAi true: the credential moves into the Authorization header
-		// for the proxy and full modes, express mode keeps it in the query, and the failure shape carries a
-		// message (:471-474 vs :479-482). See google_chat.go.
-		return pinnedGooglePlan(body, directories, true)
-	}
-	isTextCompletion := pinnedChatCompletionIsTextCompletion(body)
-
-	var apiURL string
-	var apiKey orderedNodeJSON = nodeUndefined()
-	reverseProxyUsed := false
-	customHeaders := nodeObject()
-	bodyParams := nodeObject()
-
-	switch sourceName {
-	case chatCompletionSourceOpenAI:
-		reverseProxy, hasReverseProxy := body.member("reverse_proxy")
-		if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
-			reverseProxyUsed = true
-			normalized, ok := pinnedJSURLString(reverseProxy)
-			if !ok {
-				// `new URL(value)` throws for anything that is not a valid
-				// absolute URL, and the pinned catch answers 502.
-				return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
-			}
-			apiURL = normalized
-			if password, exists := body.member("proxy_password"); exists {
-				apiKey = password
-			}
-		} else {
-			apiURL = pinnedOpenAIBaseURL()
-			secret, err := pinnedReadSecret(directories, "api_key_openai", pinnedSecretID(body))
-			if err != nil {
-				return nil, pinnedChatCompletionTransportFailure(err)
-			}
-			apiKey = secret
-		}
-		pinnedChatCompletionApplyLogprobs(&bodyParams, body, isTextCompletion)
-	case chatCompletionSourceCustom:
-		customURL, exists := body.member("custom_url")
-		if !exists {
-			// `${undefined}/chat/completions` is not an absolute URL, so the
-			// pinned fetch throws and the catch answers 502.
-			return nil, pinnedChatCompletionTransportFailure(errors.New("Only absolute URLs are supported"))
-		}
-		text, stringErr := pinnedJSStringValue(customURL)
-		if stringErr != nil {
-			return nil, pinnedChatCompletionTransportFailure(stringErr)
-		}
-		apiURL = text
-		secret, secretErr := pinnedReadSecret(directories, "api_key_custom", pinnedSecretID(body))
-		if secretErr != nil {
-			return nil, pinnedChatCompletionTransportFailure(secretErr)
-		}
-		apiKey = secret
-		pinnedChatCompletionApplyLogprobs(&bodyParams, body, isTextCompletion)
-		if includeBody, includeExists := body.member("custom_include_body"); includeExists {
-			pinnedMergeObjectWithYAML(&bodyParams, includeBody)
-		}
-		if includeHeaders, headersExist := body.member("custom_include_headers"); headersExist {
-			pinnedMergeObjectWithYAML(&customHeaders, includeHeaders)
-		}
-		if schema, schemaExists := body.member("json_schema"); schemaExists && pinnedJSTruthy(schema) {
-			bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
-		}
-	case chatCompletionSourceZai:
-		// chat-completions.js:2551. The ENDPOINT is a request body field with two literals that differ
-		// only in PATH, the key comes from proxy_password when a reverse proxy is set and from
-		// api_key_zai otherwise, the branch owns one header, and it always sends `thinking`.
-		reverseProxy, hasReverseProxy := body.member("reverse_proxy")
-		if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
-			reverseProxyUsed = true
-			normalized, ok := pinnedJSURLString(reverseProxy)
-			if !ok {
-				// `new URL(value)` throws for anything that is not an absolute URL, and the pinned
-				// catch answers 502 -- the same shape the OPENAI case reproduces.
-				return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
-			}
-			apiURL = normalized
-			if password, exists := body.member("proxy_password"); exists {
-				apiKey = password
-			}
-		} else {
-			apiURL = pinnedZAIBaseURL(body)
-			secret, err := pinnedReadSecret(directories, pinnedZAISecretKey, pinnedSecretID(body))
-			if err != nil {
-				return nil, pinnedChatCompletionTransportFailure(err)
-			}
-			apiKey = secret
-		}
-		customHeaders.setMember("Accept-Language", nodeString(pinnedZAIHeaderLanguage))
-		bodyParams.setMember("thinking", pinnedZAIThinking(body))
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
-				return nil, pinnedChatCompletionTransportFailure(foldErr)
-			}
-		}
-	case chatCompletionSourceSiliconF:
-		// chat-completions.js:2566. The endpoint comes from the REQUEST BODY, and its one fold is
-		// setJsonObjectFormat, which is not a response_format shape but a response_format PLUS an appended
-		// message. The fold returns an error only when the schema cannot be pretty-printed, which pinned
-		// cannot reach because JSON.stringify of a parsed body always succeeds.
-		apiURL = pinnedSiliconFlowBaseURL(body)
-		secret, err := pinnedReadSecret(directories, pinnedSiliconFlowSecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
-				return nil, pinnedChatCompletionTransportFailure(foldErr)
-			}
-		}
-	case chatCompletionSourceNG:
-		// chat-completions.js:2476. Four foldings, and the model mutation is the one a reader would assume
-		// works: `:online` is appended only when enable_web_search is truthy AND the model does not already
-		// end in it, so the already-suffixed scenario is the control that fails an unconditional append.
-		apiURL = pinnedNanoGPTBaseURL()
-		secret, err := pinnedReadSecret(directories, pinnedNanoGPTSecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		if provider, exists := body.member("nanogpt_provider"); exists && pinnedJSTruthy(provider) {
-			customHeaders.setMember("X-Provider", provider)
-		}
-		if payg, exists := body.member("nanogpt_payg_override"); exists && pinnedJSTruthy(payg) {
-			customHeaders.setMember("X-Billing-Mode", nodeString("paygo"))
-			bodyParams.setMember("billing_mode", nodeString("paygo"))
-		}
-		if model, changed := pinnedNanoGPTModel(body); changed {
-			body.setMember("model", nodeString(model))
-		}
-		for _, key := range []string{"min_p", "top_a", "repetition_penalty"} {
-			if value, exists := body.member(key); exists && !value.isUndefined() {
-				bodyParams.setMember(key, value)
-			}
-		}
-		// chat-completions.js: `/auto/` is not in NANOGPT_REASONING_EFFORT_MAP, so the pinned lookup
-		// yields `undefined` -- and `bodyParams['reasoning'] = { effort: undefined }` still assigns the
-		// MEMBER. JSON.stringify then drops the undefined value and keeps the object, so a truthy but
-		// UNMAPPED effort emits `"reasoning": {}`: an empty object, not an absent member. Measured end
-		// to end: with reasoning_effort "auto" the pinned provider body was exactly 15 bytes longer
-		// than GoTavern's, and `,"reasoning":{}` is exactly 15 bytes. Omitting the member when the map
-		// misses is therefore a wire divergence, so the object is assigned whenever the effort is
-		// truthy and only its `effort` member depends on the map.
-		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
-			reasoning := nodeObject()
-			if text, ok := effort.scalar.(string); ok {
-				if mapped, known := pinnedNanoGPTReasoningEffortMap[text]; known {
-					reasoning.setMember("effort", nodeString(mapped))
-				}
-			}
-			bodyParams.setMember("reasoning", reasoning)
-		}
-	case chatCompletionSourceWAI:
-		// chat-completions.js:2576. The base URL is derived from the request body, and the missing account id
-		// refuses with 400 {error:true} BEFORE the fetch -- that refusal is a labelled derivation in the test
-		// file because the harness has no provider traffic to record for it.
-		accountID, hasAccountID := pinnedWorkersAIAccountID(body)
-		if !hasAccountID {
-			return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
-		}
-		apiURL = pinnedWorkersAIBaseURL(accountID)
-		secret, err := pinnedReadSecret(directories, pinnedWorkersAISecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		if penalty, exists := body.member("repetition_penalty"); exists && !penalty.isUndefined() {
-			bodyParams.setMember("repetition_penalty", penalty)
-		}
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			format := nodeObject()
-			format.setMember("type", nodeString("json_schema"))
-			if value, hasValue := schema.member("value"); hasValue {
-				format.setMember("json_schema", value)
-			} else {
-				format.setMember("json_schema", nodeUndefined())
-			}
-			bodyParams.setMember("response_format", format)
-		}
-	case chatCompletionSourcePollinations:
-		// chat-completions.js:2511. The endpoint mode moves BOTH the host and the credential: anonymous sends
-		// the literal key `anonymous` and never reads the secret; authenticated reads api_key_pollinations.
-		anonymous := pinnedPollinationsAnonymous(body)
-		apiURL = pinnedPollinationsBaseURL(anonymous)
-		if anonymous {
-			apiKey = nodeString(pinnedPollinationsAnonymousKey)
-		} else {
-			secret, err := pinnedReadSecret(directories, pinnedPollinationsSecretKey, pinnedSecretID(body))
-			if err != nil {
-				return nil, pinnedChatCompletionTransportFailure(err)
-			}
-			apiKey = secret
-		}
-		// The seed is ALWAYS in the body: `seed: request.body.seed ?? Math.floor(Math.random()*99999999)`.
-		seed, _ := pinnedPollinationsSeed(body)
-		bodyParams.setMember("seed", seed)
-		if !anonymous {
-			if effort, exists := body.member("reasoning_effort"); exists {
-				bodyParams.setMember("reasoning_effort", effort)
-			}
-			if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-				format := nodeObject()
-				format.setMember("type", nodeString("json_schema"))
-				inner := nodeObject()
-				if value, hasValue := schema.member("value"); hasValue {
-					inner.setMember("schema", value)
-				}
-				format.setMember("json_schema", inner)
-				bodyParams.setMember("response_format", format)
-			}
-		}
-	case chatCompletionSourceFW:
-		// chat-completions.js:2454. The affinity header is NOT built here: its key is the install's cookie
-		// secret, so the plan takes it from the runtime's cookie secret at send time (see the note in
-		// fireworks_chat.go) rather than from a constant this function could invent.
-		apiURL = pinnedFireworksBaseURL()
-		secret, err := pinnedReadSecret(directories, pinnedFireworksSecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
-			bodyParams.setMember("reasoning_effort", effort)
-		}
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			format := nodeObject()
-			format.setMember("type", nodeString("json_schema"))
-			inner := nodeObject()
-			if name, hasName := schema.member("name"); hasName {
-				inner.setMember("name", name)
-			}
-			if description, hasDescription := schema.member("description"); hasDescription {
-				inner.setMember("description", description)
-			}
-			if value, hasValue := schema.member("value"); hasValue {
-				inner.setMember("schema", value)
-			}
-			strict := nodeBool(true)
-			if value, hasStrict := schema.member("strict"); hasStrict && !value.isUndefined() && !value.isNull() {
-				strict = value
-			}
-			inner.setMember("strict", strict)
-			format.setMember("json_schema", inner)
-			bodyParams.setMember("response_format", format)
-		}
-		if chatID, exists := body.member("chat_id"); exists && pinnedJSTruthy(chatID) {
-			if text, err := pinnedJSStringValue(chatID); err == nil && text != "" {
-				customHeaders.setMember("x-session-affinity", nodeString(pinnedFireworksAffinity(affinityKey, text)))
-			}
-		}
-	case chatCompletionSourceGroq:
-		// chat-completions.js:2454 is the SHARED path: a literal base, api_key_groq, no headers and no
-		// body params of its own. Its one fold is a json_schema shape the shared response_format helper
-		// cannot express (member order plus `description`), so pinnedGroqResponseFormat owns it.
-		apiURL = pinnedGroqBaseURL()
-		secret, err := pinnedReadSecret(directories, pinnedGroqSecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-			bodyParams.setMember("response_format", pinnedGroqResponseFormat(schema))
-		}
-	case chatCompletionSourceOpenRtr:
-		// chat-completions.js:2301-2393. The source has NO reverse_proxy and NO custom_url: the URL is the
-		// literal above, the key is the OPENROUTER secret, and the request is shaped by members that no other
-		// source sends (transforms / plugins / reasoning / provider routing / verbosity).
-		apiURL = pinnedOpenRouterBaseURL()
-		secret, err := pinnedReadSecret(directories, pinnedOpenRouterSecretKey, pinnedSecretID(body))
-		if err != nil {
-			return nil, pinnedChatCompletionTransportFailure(err)
-		}
-		apiKey = secret
-		customHeaders = pinnedOpenRouterHeaders()
-		pinnedChatCompletionOpenRouterBodyParams(&bodyParams, body)
-	case chatCompletionSourcePerplexity:
-		// chat-completions.js:2422-2437 is the SHARED path, so this source supplies its contribution
-		// rather than taking the plan over: the literal base, the PERPLEXITY secret, and two members
-		// (reasoning_effort copied when present, and a json_schema shape with no name/strict) plus a
-		// STRICT postProcessPrompt that mutates the body's messages. See perplexity_chat.go.
-		perplexityURL, perplexityKey, perplexityFailure := pinnedPerplexitySourceConfig(&body, &bodyParams, directories, affinityKey)
-		if perplexityFailure != nil {
-			return nil, perplexityFailure
-		}
-		apiURL = perplexityURL
-		apiKey = perplexityKey
-	case chatCompletionSourceMoonshot:
-		// chat-completions.js:2531-2542 is an arm INSIDE the shared openai-compatible path, so it runs
-		// BEFORE the shared assembly: it mutates the body's messages (the appended schema message, or a
-		// `partial` mark) and the assembly copies those messages afterwards. See moonshot_chat.go.
-		apiURL = pinnedChatCompletionMoonshotURLFor(body)
-		apiKey = pinnedChatCompletionMoonshotKeyFor(body, directories)
-		customHeaders = nodeObject()
-		if moonshotErr := pinnedChatCompletionMoonshotBodyParams(&bodyParams, &body); moonshotErr != nil {
-			return nil, pinnedChatCompletionTransportFailure(moonshotErr)
-		}
-
-	default:
+	row, routed := pinnedChatCompletionSourceByName(sourceName)
+	if !routed {
 		if pinnedChatCompletionSources[sourceName] {
 			// A pinned source whose transport this route does not implement.
 			// Answering "not implemented" is deliberate: a fabricated success
 			// would be worse than a visible gap.
-			return nil, &pinnedChatCompletionFailure{status: http.StatusNotImplemented}
+			return chatCompletionSource{}, nil, &pinnedChatCompletionFailure{status: http.StatusNotImplemented}
 		}
-		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+		return chatCompletionSource{}, nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
+	// The text-completion decision is made from the REQUEST body, once, before the row's planner runs, for
+	// the same reason the pinned handler reads it once at :2279 before its per-source branches: a planner
+	// may MUTATE the body (nanogpt appends `:online` to the model, moonshot and perplexity rewrite
+	// messages), and a decision taken after that mutation would be a different decision.
+	request := chatCompletionRequest{
+		body:             body,
+		directories:      directories,
+		affinityKey:      affinityKey,
+		isTextCompletion: pinnedChatCompletionIsTextCompletion(body),
+	}
+	plan, failure := row.plan(request)
+	if failure != nil {
+		return row, nil, failure
+	}
+	return row, plan, nil
+}
+
+// pinnedChatCompletionPlan resolves the pinned target selection and request body for the sources this route
+// implements. It is the plan half of pinnedChatCompletionResolve, kept as its own entry point because the
+// per-source tests drive the plan directly and need the failure rather than the row.
+func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (*outbound.Request, *pinnedChatCompletionFailure) {
+	_, plan, failure := pinnedChatCompletionResolve(body, directories, affinityKey)
+	return plan, failure
+}
+
+// chatCompletionRequest is everything a planner needs that is not specific to its source, resolved once by
+// pinnedChatCompletionResolve and handed to every planner identically.
+type chatCompletionRequest struct {
+	body        orderedNodeJSON
+	directories startup.UserDirectories
+	affinityKey string
+	// isTextCompletion is `TEXT_COMPLETION_MODELS.includes(body.model) || typeof body.messages === 'string'`
+	// (:2279), evaluated ONCE against the request body before the planner can mutate it.
+	isTextCompletion bool
+}
+
+// chatCompletionPlanInputs is what a shared-path source's planner hands the assembler: the request body it
+// has finished shaping, plus the four things its own pinned branch assigns (apiUrl, apiKey, headers and
+// bodyParams). Sources with their own transport (ai21, claude, cohere, azure, google, minimax, ...) never
+// use this -- they build their outbound.Request themselves.
+type chatCompletionPlanInputs struct {
+	// body is the request body AS THE ASSEMBLY MUST READ IT, i.e. after the planner's own mutations.
+	body          orderedNodeJSON
+	apiURL        string
+	apiKey        orderedNodeJSON
+	customHeaders orderedNodeJSON
+	bodyParams    orderedNodeJSON
+}
+
+// pinnedChatCompletionAssemble is the shared openai-compatible tail (chat-completions.js:2615-2710): the
+// missing-key guard, the stop/tools/response_format copies, the ordered member list, the
+// `/chat/completions` vs `/completions` choice, the absolute-URL check and the header framing.
+//
+// THE MEMBER ORDER IS THE CONTRACT. requestBody is built by SETTING members in the pinned source order --
+// prompt-or-messages first, then the fixed model/temperature/... list, then whatever bodyParams holds -- and
+// the ordered-JSON marshaller emits exactly that order. A map here would reorder every body and change
+// every recorded digest.
+func pinnedChatCompletionAssemble(sourceName string, request chatCompletionRequest, inputs chatCompletionPlanInputs) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := inputs.body
+	bodyParams := inputs.bodyParams
 
 	// chat-completions.js:2615 -- `!apiKey && !request.body.reverse_proxy && source !== CUSTOM`. The guard
 	// reads the REQUEST MEMBER for every source, which matters for openrouter: that branch ignores
 	// reverse_proxy when it builds the URL but still lets a request that carries one skip this refusal.
-	reverseProxyTruthy := reverseProxyUsed
-	if !reverseProxyTruthy {
-		if reverseProxy, exists := body.member("reverse_proxy"); exists && pinnedJSTruthy(reverseProxy) {
-			reverseProxyTruthy = true
-		}
+	reverseProxyTruthy := false
+	if reverseProxy, exists := body.member("reverse_proxy"); exists && pinnedJSTruthy(reverseProxy) {
+		reverseProxyTruthy = true
 	}
-	if !pinnedJSTruthy(apiKey) && !reverseProxyTruthy && sourceName != chatCompletionSourceCustom {
+	if !pinnedJSTruthy(inputs.apiKey) && !reverseProxyTruthy && sourceName != chatCompletionSourceCustom {
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
@@ -908,7 +409,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		bodyParams.setMember("stop", stop)
 	}
 	// chat-completions.js:2636-2639.
-	if !isTextCompletion {
+	if !request.isTextCompletion {
 		if tools, exists := body.member("tools"); exists && tools.kind == 'a' && len(tools.array) > 0 {
 			bodyParams.setMember("tools", tools)
 			if toolChoice, choiceExists := body.member("tool_choice"); choiceExists {
@@ -928,7 +429,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 	// member is included exactly when it is present, and `temperature: 0` or
 	// `stream: false` survive while an absent member does not appear at all.
 	requestBody := nodeObject()
-	if isTextCompletion {
+	if request.isTextCompletion {
 		prompt, ok := pinnedChatCompletionTextPrompt(body)
 		if !ok {
 			return nil, pinnedChatCompletionTransportFailure(errors.New("Cannot read properties of undefined (reading 'forEach')"))
@@ -942,7 +443,7 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		"presence_penalty", "frequency_penalty", "top_p", "top_k", "stop",
 		"logit_bias", "seed", "n",
 	} {
-		if key == "stop" && isTextCompletion {
+		if key == "stop" && request.isTextCompletion {
 			continue
 		}
 		if value, exists := body.member(key); exists {
@@ -962,9 +463,9 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		return nil, pinnedChatCompletionTransportFailure(encodeErr)
 	}
 
-	endpointURL := apiURL + "/chat/completions"
-	if isTextCompletion && sourceName != "openrouter" {
-		endpointURL = apiURL + "/completions"
+	endpointURL := inputs.apiURL + "/chat/completions"
+	if request.isTextCompletion && sourceName != chatCompletionSourceOpenRtr {
+		endpointURL = inputs.apiURL + "/completions"
 	}
 	parsedEndpoint, parseErr := url.Parse(endpointURL)
 	if parseErr != nil || parsedEndpoint.Host == "" || (parsedEndpoint.Scheme != "http" && parsedEndpoint.Scheme != "https") {
@@ -972,27 +473,39 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 		return nil, pinnedChatCompletionTransportFailure(errors.New("Only absolute URLs are supported"))
 	}
 
-	headers := pinnedChatCompletionHeaders(apiKey, customHeaders, encoded)
-	requestHeaders := make([]outbound.Header, 0, len(headers)+2)
+	return &outbound.Request{
+		URL:     endpointURL,
+		Method:  http.MethodPost,
+		Headers: pinnedChatCompletionRequestFraming(pinnedChatCompletionHeaders(inputs.apiKey, inputs.customHeaders, encoded), parsedEndpoint),
+		Body:    encoded,
+	}, nil
+}
+
+// pinnedChatCompletionRequestFraming turns the header set node-fetch would have sent into the outbound header
+// list. Two ordered steps, and the fixture records the result:
+//
+//  1. the headers node-fetch supplied, in NAME ORDER, because node-fetch's Headers is backed by a sorted
+//     URLSearchParams;
+//  2. Host and Connection, which Node's http client appends AFTER those, in that order.
+//
+// This is the ONE framing implementation: it replaced thirteen hand-rolled copies (this file plus ai21,
+// aimlapi, azure, chutes, claude, cohere, deepseek, electronhub, google, minimax, mistral and xai), each of
+// which collected the map keys, called sort.Strings and then appended the same two headers. The replacement
+// is byte-identical by construction -- same keys, same order, same two trailing headers -- which is why the
+// recorded header list for every scenario is unchanged.
+func pinnedChatCompletionRequestFraming(headers map[string]string, endpoint *url.URL) []outbound.Header {
 	names := make([]string, 0, len(headers))
 	for name := range headers {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
+	framed := make([]outbound.Header, 0, len(names)+2)
 	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
+		framed = append(framed, outbound.Header{Name: name, Value: headers[name]})
 	}
-	// Node's http client appends Host and Connection after the headers
-	// node-fetch supplied, in that order; the capture records exactly that.
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
-
-	return &outbound.Request{
-		URL:     endpointURL,
-		Method:  http.MethodPost,
-		Headers: requestHeaders,
-		Body:    encoded,
-	}, nil
+	framed = append(framed, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(endpoint)})
+	framed = append(framed, outbound.Header{Name: "Connection", Value: "close"})
+	return framed
 }
 
 // pinnedChatCompletionHeaders reproduces the header set node-fetch actually
@@ -1042,141 +555,89 @@ func pinnedRequestHostHeader(endpoint *url.URL) string {
 	return net.JoinHostPort(endpoint.Hostname(), port)
 }
 
-// pinnedChatCompletionOpenRouterBodyParams reproduces chat-completions.js:2306-2354, in SOURCE ORDER,
-// because the outbound body's member order is part of the byte contract.
-//
-// THE SHAPING MEMBERS THIS SOURCE ALONE SENDS, each with the pinned semantics that a tidy rewrite would get
-// wrong:
-//
-//   - `transforms` comes from a SWITCH on `request.body.middleout`: 'on' -> ['middle-out'], 'off' -> [],
-//     'auto' -> undefined and EVERYTHING ELSE -> undefined. `undefined` is dropped by JSON.stringify, so the
-//     member is ABSENT for 'auto' and absent when the caller sent nothing, while 'off' sends an EMPTY ARRAY.
-//     Those three outcomes are different requests and the fixture records each.
-//   - `plugins` is ALWAYS present (an empty array unless web search is enabled), so an OpenRouter body that
-//     omits it is not the pinned body.
-//   - `reasoning: { exclude: !Boolean(include_reasoning) }` is ALWAYS present, and `reasoning.effort` is
-//     added to that SAME object when `reasoning_effort` is truthy -- so the member order is exclude then
-//     effort inside a member that was created earlier in the body.
-//   - `provider` is built only for a NON-EMPTY `provider` array, as { allow_fallbacks, order }, where
-//     `allow_fallbacks ?? true` defaults to true for an absent OR null member but keeps a `false` one.
-//     `quantizations` reuses that object with `??=`, so it either EXTENDS it (order: allow_fallbacks, order,
-//     quantizations) or CREATES it as { quantizations } alone.
-//   - `min_p`, `top_a` and `repetition_penalty` are tested with `!== undefined`, which in JSON means "the
-//     member is PRESENT" -- a JSON null is present and is forwarded, and the fixture records that.
-//   - `logprobs` is handled HERE rather than by the shared helper the openai source uses: only a value
-//     GREATER THAN ZERO adds top_logprobs and flips logprobs to true; `logprobs: 0` adds NOTHING, which is
-//     not what the shared helper would do.
-func pinnedChatCompletionOpenRouterBodyParams(bodyParams *orderedNodeJSON, body orderedNodeJSON) {
-	middleout := ""
-	if member, exists := body.member("middleout"); exists {
-		if text, isString := member.stringValue(); isString {
-			middleout = text
-		}
+// servePinnedChatCompletionDefaultResponse is the SHARED response tail
+// (chat-completions.js:2689-2710) that every source without its own mapping uses: a streamed reply is
+// forwarded as it arrives, a 2xx answer is parsed and re-sent at 200, and a provider error status is
+// replaced by the pinned error shape at status 200 -- the provider's own text is not forwarded, only its
+// reason phrase.
+func servePinnedChatCompletionDefaultResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
+	if pinnedChatCompletionStreams(body) {
+		forwardPinnedChatCompletionStream(w, request, response)
+		return
 	}
-	switch middleout {
-	case "on":
-		transforms := nodeArray()
-		transforms.array = append(transforms.array, nodeString("middle-out"))
-		bodyParams.setMember("transforms", transforms)
-	case "off":
-		bodyParams.setMember("transforms", nodeArray())
+	defer response.Stream.Close()
+	providerBody, readErr := io.ReadAll(response.Stream)
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		failure := pinnedChatCompletionTransportFailure(readErr)
+		respondOrderedNodeJSON(w, failure.status, *failure.payload)
+		return
 	}
-	plugins := nodeArray()
-	if enableWebSearch, exists := body.member("enable_web_search"); exists && pinnedJSTruthy(enableWebSearch) {
-		plugin := nodeObject()
-		plugin.setMember("id", nodeString("web"))
-		plugins.array = append(plugins.array, plugin)
-	}
-	bodyParams.setMember("plugins", plugins)
-	reasoning := nodeObject()
-	includeReasoning := false
-	if member, exists := body.member("include_reasoning"); exists && pinnedJSTruthy(member) {
-		includeReasoning = true
-	}
-	reasoning.setMember("exclude", nodeBool(!includeReasoning))
-	bodyParams.setMember("reasoning", reasoning)
 
-	if logprobs, exists := body.member("logprobs"); exists && pinnedJSGreaterThanZero(logprobs) {
-		bodyParams.setMember("top_logprobs", logprobs)
-		bodyParams.setMember("logprobs", nodeBool(true))
-	}
-	for _, key := range []string{"min_p", "top_a", "repetition_penalty"} {
-		if value, exists := body.member(key); exists {
-			bodyParams.setMember(key, value)
+	if response.Status >= 200 && response.Status < 300 {
+		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
+		if parseErr != nil {
+			// fetchResponse.json() rejects on a body that is not JSON, so the
+			// pinned catch answers 502 instead of forwarding the bytes.
+			failure := pinnedChatCompletionTransportFailure(parseErr)
+			respondOrderedNodeJSON(w, failure.status, *failure.payload)
+			return
 		}
+		respondOrderedNodeJSON(w, http.StatusOK, parsed)
+		return
 	}
-	providerSet := false
-	if provider, exists := body.member("provider"); exists && provider.kind == 'a' && len(provider.array) > 0 {
-		allowFallbacks := orderedNodeJSON{kind: 'b', scalar: true}
-		if value, allowExists := body.member("allow_fallbacks"); allowExists && value.kind != 'n' && !value.isUndefined() {
-			allowFallbacks = value
-		}
-		order := nodeObject()
-		order.setMember("allow_fallbacks", allowFallbacks)
-		order.setMember("order", provider)
-		bodyParams.setMember("provider", order)
-		providerSet = true
+
+	message := response.Reason
+	if message == "" {
+		message = "Unknown error occurred"
 	}
-	if quantizations, exists := body.member("quantizations"); exists && quantizations.kind == 'a' && len(quantizations.array) > 0 {
-		if !providerSet {
-			bodyParams.setMember("provider", nodeObject())
-		}
-		// `bodyParams['provider']['quantizations'] = ...` mutates the object in place. This type is a VALUE, so
-		// the member must be written back after mutating the copy: the differential caught exactly that here
-		// (pinned sent provider.quantizations, GoTavern sent none).
-		if existing, hasProvider := bodyParams.member("provider"); hasProvider {
-			existing.setMember("quantizations", quantizations)
-			bodyParams.setMember("provider", existing)
-		}
-	}
-	if useFallback, exists := body.member("use_fallback"); exists && pinnedJSTruthy(useFallback) {
-		bodyParams.setMember("route", nodeString("fallback"))
-	}
-	if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
-		// `bodyParams['reasoning']['effort'] = ...` mutates the member created above. Value semantics again:
-		// write the mutated copy back, and setMember keeps its original POSITION because the key already
-		// exists (JS assignment semantics), which is what keeps exclude before effort.
-		reasoning.setMember("effort", effort)
-		bodyParams.setMember("reasoning", reasoning)
-	}
-	if verbosity, exists := body.member("verbosity"); exists && pinnedJSTruthy(verbosity) {
-		bodyParams.setMember("verbosity", verbosity)
-	}
-	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
-		bodyParams.setMember("response_format", pinnedChatCompletionResponseFormat(schema))
-	}
-	model := ""
-	if member, exists := body.member("model"); exists {
-		if text, isString := member.stringValue(); isString {
-			model = text
-		}
-	}
-	if pinnedOpenRouterGeminiModel.MatchString(model) {
-		// GEMINI_SAFETY (src/constants.js:141), a static five-entry array. NOTE: the pinned branch ALSO
-		// awaits `isOpenRouterModelCacheable(model)` for these models, which issues an extra `GET /models`.
-		// That probe is deliberately NOT implemented in this increment (see the route comment), so a gemini
-		// model through OpenRouter sends this body but ONE FEWER outbound request than pinned.
-		bodyParams.setMember("safety_settings", pinnedGeminiSafety())
-	}
+	payload := nodeObject()
+	errorMember := nodeObject()
+	errorMember.setMember("message", nodeString(message))
+	payload.setMember("error", errorMember)
+	payload.setMember("quota_error", nodeBool(response.Status == http.StatusTooManyRequests && pinnedChatCompletionQuotaError(providerBody)))
+	respondOrderedNodeJSON(w, http.StatusOK, payload)
 }
 
-// pinnedOpenRouterGeminiModel is `/google\/gemini/.test(model)` (chat-completions.js:2368), NOT anchored: a
-// model id such as `foo/google/gemini-x` matches the pinned test just as much as `google/gemini-x`.
-var pinnedOpenRouterGeminiModel = regexp.MustCompile(`google/gemini`)
-
-func pinnedGeminiSafety() orderedNodeJSON {
-	categories := []string{
-		"HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-		"HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_CIVIC_INTEGRITY",
+// servePinnedChatCompletionPassThroughResponse is the response side that EIGHT sources share: ai21, aimlapi,
+// chutes, cohere, deepseek, electronhub, mistralai and xai. Their pinned branches were byte-identical apart
+// from one comment, which is why they are one function here rather than eight copies that a future edit
+// could silently desynchronise.
+//
+// The shape, and the three places it differs from the shared tail above:
+//
+//   - a streamed reply is forwarded as it arrives;
+//   - a non-2xx answer re-sends the PARSED provider body at status 500, not the shared 200 envelope, and a
+//     body that does not parse becomes the bare {error:true} flag at 500 (`tryParse(errorText) ?? {error:true}`);
+//   - a read or parse failure answers 200 {error:true}, because these branches' own catch is
+//     `response.send({error:true})` with NO status rather than the shared 502.
+func servePinnedChatCompletionPassThroughResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
+	if pinnedChatCompletionStreams(body) {
+		forwardPinnedChatCompletionStream(w, request, response)
+		return
 	}
-	array := nodeArray()
-	for _, category := range categories {
-		entry := nodeObject()
-		entry.setMember("category", nodeString(category))
-		entry.setMember("threshold", nodeString("OFF"))
-		array.array = append(array.array, entry)
+	defer response.Stream.Close()
+	providerBody, readErr := io.ReadAll(response.Stream)
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		// `generateResponse.json()` throws into the catch, which answers 200 {"error":true}.
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
 	}
-	return array
+	if response.Status < 200 || response.Status > 299 {
+		// `tryParse(errorText) ?? { error: true }` -- a non-JSON error body becomes the bare flag, at 500.
+		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
+		if parseErr != nil {
+			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+			return
+		}
+		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
+		return
+	}
+	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
+	if parseErr != nil {
+		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
+		return
+	}
+	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }
 
 func pinnedSecretID(body orderedNodeJSON) orderedNodeJSON {

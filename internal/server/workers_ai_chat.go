@@ -32,6 +32,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -157,4 +158,43 @@ func isJSWhitespace(character byte) bool {
 		return true
 	}
 	return false
+}
+
+// pinnedWorkersAIChatPlan is chat-completions.js:2576-2592's WORKERS_AI arm plus the shared tail. The base
+// URL is derived from a REQUEST BODY VALUE, and a missing account id refuses with 400 {"error":true} BEFORE
+// the fetch -- a refusal the provider-wire harness cannot record, which is why it is asserted as a labelled
+// derivation in this file's test.
+func pinnedWorkersAIChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	accountID, hasAccountID := pinnedWorkersAIAccountID(body)
+	if !hasAccountID {
+		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
+	}
+	apiKey, secretErr := pinnedReadSecret(request.directories, pinnedWorkersAISecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(secretErr)
+	}
+	bodyParams := nodeObject()
+	if penalty, exists := body.member("repetition_penalty"); exists && !penalty.isUndefined() {
+		bodyParams.setMember("repetition_penalty", penalty)
+	}
+	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+		// `{type:'json_schema', json_schema:<the schema value itself>}`, NOT the {name, strict, schema}
+		// envelope the other sources use.
+		format := nodeObject()
+		format.setMember("type", nodeString("json_schema"))
+		if value, hasValue := schema.member("value"); hasValue {
+			format.setMember("json_schema", value)
+		} else {
+			format.setMember("json_schema", nodeUndefined())
+		}
+		bodyParams.setMember("response_format", format)
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceWAI, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedWorkersAIBaseURL(accountID),
+		apiKey:        apiKey,
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }

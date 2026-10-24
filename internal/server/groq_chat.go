@@ -22,6 +22,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -113,4 +114,27 @@ func (runtime *accountRuntime) serveGroqChatCompletionStatus(w http.ResponseWrit
 		return
 	}
 	searchJSON(w, data)
+}
+
+// pinnedGroqChatPlan is chat-completions.js:2454-2471's GROQ arm plus the shared tail: a literal base,
+// api_key_groq, NO header of its own and NO body param of its own. Its one fold is a json_schema shape the
+// shared response_format helper cannot express (member order plus `description`), so pinnedGroqResponseFormat
+// owns it.
+func pinnedGroqChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	apiKey, secretErr := pinnedReadSecret(request.directories, pinnedGroqSecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(secretErr)
+	}
+	bodyParams := nodeObject()
+	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+		bodyParams.setMember("response_format", pinnedGroqResponseFormat(schema))
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceGroq, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedGroqBaseURL(),
+		apiKey:        apiKey,
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }

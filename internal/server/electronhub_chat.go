@@ -37,11 +37,8 @@ package server
 //     lane's caching helpers.
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
@@ -155,49 +152,8 @@ func pinnedElectronHubPlan(body orderedNodeJSON, directories startup.UserDirecto
 	if parseErr != nil || parsedEndpoint.Host == "" {
 		return nil, pinnedElectronHubCatchFailure()
 	}
-	names := make([]string, 0, len(headers)+2)
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 	return &outbound.Request{URL: endpointURL, Method: http.MethodPost, Headers: requestHeaders, Body: encoded}, nil
-}
-
-// serveElectronHubChatCompletionResponse is the ELECTRONHUB side of the response: the shared forwarder
-// for a stream, the provider body passed through for a 2xx answer, the PARSED provider body at 500 for
-// a non-2xx answer, and 200 {"error":true} for anything that throws.
-func serveElectronHubChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if response.Status < 200 || response.Status > 299 {
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
-		return
-	}
-	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-	if parseErr != nil {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }
 
 // serveElectronHubChatCompletionStatus is the ELECTRONHUB branch of the pinned status matrix

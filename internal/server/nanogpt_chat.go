@@ -32,6 +32,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -131,4 +132,58 @@ func (runtime *accountRuntime) serveNanoGPTChatCompletionStatus(w http.ResponseW
 // `detailed=true` appended (:1817, :2073-2074).
 func pinnedNanoGPTStatusURL() string {
 	return sdURLJoin(pinnedNanoGPTBaseURL(), "/models") + "?detailed=true"
+}
+
+// pinnedNanoGPTChatPlan is chat-completions.js:2476-2509's NANOGPT arm plus the shared tail: FOUR foldings,
+// three of which are the reason this source needs its own tests rather than a header list. See this file's
+// header for why the `:online` suffix is a negative test and why an unmapped reasoning effort still emits
+// an empty `reasoning` object.
+func pinnedNanoGPTChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	customHeaders := nodeObject()
+	bodyParams := nodeObject()
+
+	apiKey, secretErr := pinnedReadSecret(request.directories, pinnedNanoGPTSecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(secretErr)
+	}
+	if provider, exists := body.member("nanogpt_provider"); exists && pinnedJSTruthy(provider) {
+		customHeaders.setMember("X-Provider", provider)
+	}
+	if payg, exists := body.member("nanogpt_payg_override"); exists && pinnedJSTruthy(payg) {
+		customHeaders.setMember("X-Billing-Mode", nodeString("paygo"))
+		bodyParams.setMember("billing_mode", nodeString("paygo"))
+	}
+	if model, changed := pinnedNanoGPTModel(body); changed {
+		body.setMember("model", nodeString(model))
+	}
+	for _, key := range []string{"min_p", "top_a", "repetition_penalty"} {
+		if value, exists := body.member(key); exists && !value.isUndefined() {
+			bodyParams.setMember(key, value)
+		}
+	}
+	// chat-completions.js: `/auto/` is not in NANOGPT_REASONING_EFFORT_MAP, so the pinned lookup
+	// yields `undefined` -- and `bodyParams['reasoning'] = { effort: undefined }` still assigns the
+	// MEMBER. JSON.stringify then drops the undefined value and keeps the object, so a truthy but
+	// UNMAPPED effort emits `"reasoning": {}`: an empty object, not an absent member. Measured end
+	// to end: with reasoning_effort "auto" the pinned provider body was exactly 15 bytes longer
+	// than GoTavern's, and `,"reasoning":{}` is exactly 15 bytes. Omitting the member when the map
+	// misses is therefore a wire divergence, so the object is assigned whenever the effort is
+	// truthy and only its `effort` member depends on the map.
+	if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+		reasoning := nodeObject()
+		if text, ok := effort.scalar.(string); ok {
+			if mapped, known := pinnedNanoGPTReasoningEffortMap[text]; known {
+				reasoning.setMember("effort", nodeString(mapped))
+			}
+		}
+		bodyParams.setMember("reasoning", reasoning)
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceNG, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedNanoGPTBaseURL(),
+		apiKey:        apiKey,
+		customHeaders: customHeaders,
+		bodyParams:    bodyParams,
+	})
 }

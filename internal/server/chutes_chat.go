@@ -42,11 +42,8 @@ package server
 // order, so the two new keys land last).
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
@@ -170,48 +167,8 @@ func pinnedChutesPlan(body orderedNodeJSON, directories startup.UserDirectories)
 	if parseErr != nil || parsedEndpoint.Host == "" {
 		return nil, pinnedChutesCatchFailure()
 	}
-	names := make([]string, 0, len(headers)+2)
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 	return &outbound.Request{URL: endpointURL, Method: http.MethodPost, Headers: requestHeaders, Body: encoded}, nil
-}
-
-// serveChutesChatCompletionResponse is the pinned response mapping of this transform (:1579-1599).
-func serveChutesChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if response.Status < 200 || response.Status > 299 {
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
-		return
-	}
-	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-	if parseErr != nil {
-		// `generateResponse.json()` throws into the catch, which answers 200 {"error":true}.
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }
 
 // pinnedChutesProjectModels is the status projection at :2092-2108: keep only models with a truthy `id`,
