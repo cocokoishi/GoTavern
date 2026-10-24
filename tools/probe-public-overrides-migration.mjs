@@ -10,6 +10,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { checkDedicatedBuildRoot } from './lib/dedicated-build-root.mjs';
+
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
 // @gotavern-oracle: this declaration is read by tools/build-generated-lib.mjs,
@@ -23,18 +25,49 @@ const SOURCE_PATHS = [
     'public/css/user.css',
 ];
 
-function assertTemporarySourceRoot(sourceRoot) {
-    const temporaryBuildRoot = path.dirname(sourceRoot);
-    if (path.dirname(temporaryBuildRoot).toLowerCase() !== path.resolve(os.tmpdir()).toLowerCase()
-        || !path.basename(temporaryBuildRoot).startsWith('gotavern-upstream-webpack-')
-        || path.basename(sourceRoot) !== 'source') {
-        throw new Error('refusing to modify public overrides outside the isolated temporary upstream clone');
+// THE GUARD IS ABOUT WHO ELSE USES THIS DIRECTORY, NOT WHO CREATED IT.
+//
+// This probe MUTATES the pinned checkout -- it writes public/error/* and public/css/user.css so the pinned
+// migratePublicOverrides() can move them away -- so it must refuse any directory that is not a disposable
+// build root. It used to require the exact mkdtemp shape (our own temporary prefix, and the basename
+// `source`), which is a statement about the CREATOR: when the oracle gained a persistent, reuse-validated
+// build root (GOTAVERN_ORACLE_BUILD_ROOT), a directory that is isolated in every sense that matters was
+// rejected and the full sweep failed loudly for the wrong reason.
+//
+// The property asserted now is the one that protects the pinned tree: the directory IS the pinned checkout
+// and is NOT the repository, NOT the read-only reference checkout, and neither an ancestor nor a descendant
+// of either. The predicate is shared with the harness's wipe guard (tools/lib/dedicated-build-root.mjs),
+// so "dedicated" cannot mean two different things in the two places that act on it.
+//
+// What proves the directory holds a SillyTavern checkout rather than a user-data tree or an empty folder.
+// The pinned COMMIT is the harness's business (it validates the clone and the build-root lock); this probe
+// proves the tree it is about to modify is the checkout it imports from.
+const CHECKOUT_MARKERS = ['package.json', 'src/users.js', 'src/util.js'];
+
+function assertDedicatedSourceRoot(sourceRoot, guardRepositoryRoot) {
+    if (!guardRepositoryRoot) {
+        throw new Error('refusing to modify public overrides: the guard needs the repository root to prove this directory is not inside it');
+    }
+    const decision = checkDedicatedBuildRoot({
+        dir: sourceRoot,
+        // The reference checkout cannot be discovered from this probe's argv, so the two locations the
+        // project uses are named: `.reference/SillyTavern` in CI (ci.yml) and `../SillyTavern` on a
+        // development host (HANDOFF section 0). A third location would have to be added here.
+        forbiddenPaths: [
+            guardRepositoryRoot,
+            path.join(guardRepositoryRoot, '.reference', 'SillyTavern'),
+            path.resolve(path.dirname(guardRepositoryRoot), 'SillyTavern'),
+        ],
+        missingMarkers: CHECKOUT_MARKERS.filter(relative => !existsSync(path.join(sourceRoot, relative))),
+    });
+    if (!decision.ok) {
+        throw new Error(`refusing to modify public overrides outside a dedicated build root (${decision.reason}: ${decision.detail})`);
     }
 }
 
 if (process.argv[2] === '--child') {
     const sourceRoot = path.resolve(process.argv[3]);
-    assertTemporarySourceRoot(sourceRoot);
+    assertDedicatedSourceRoot(sourceRoot, process.argv[5] ? path.resolve(process.argv[5]) : '');
     const runtimeRoot = path.resolve(process.argv[4]);
     const configPath = path.join(runtimeRoot, 'config.yaml');
     globalThis.DATA_ROOT = path.join(runtimeRoot, 'data');
@@ -104,7 +137,7 @@ if (!process.argv[2] || !process.argv[3]) {
     process.exit(2);
 }
 
-assertTemporarySourceRoot(sourceRoot);
+assertDedicatedSourceRoot(sourceRoot, repositoryRoot);
 
 // THE SOURCE OVERRIDES ARE RESET, NOT ASSUMED.
 //
@@ -195,7 +228,7 @@ function runScenario(name, sources, destinations, readOnlySources = [], readOnly
         }
         for (const relative of readOnlySources) chmodSync(path.join(sourceRoot, relative), 0o444);
         const output = execFileSync(process.execPath, [
-            fileURLToPath(import.meta.url), '--child', sourceRoot, runtimeRoot,
+            fileURLToPath(import.meta.url), '--child', sourceRoot, runtimeRoot, repositoryRoot,
         ], { cwd: sourceRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
         const observation = JSON.parse(output.trim().split(/\r?\n/u).at(-1));
         assert.deepEqual(observation.errors, [], `${name}: pinned migration reported errors`);
