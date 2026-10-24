@@ -1,0 +1,92 @@
+{
+    "schemaVersion": 1,
+    "name": "custom-include-body",
+    "purpose": "CUSTOM custom_include_body. mergeObjectWithYaml(bodyParams, ...) at :2409 merges the parsed YAML into bodyParams, and bodyParams is spread AFTER the fixed member list, so an included member lands at the END of the provider body rather than in its fixed-list position. The request deliberately sends `n` but NOT `top_k`: the pinned body therefore ends with service_tier then top_k, which a body that placed top_k in its fixed slot (before stop/logit_bias/seed/n) would fail on even though both produce the same set of members.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "custom-source",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {
+        "api_key_custom": [
+            {
+                "id": "probe",
+                "value": "synthetic-custom-key",
+                "label": "probe",
+                "active": true
+            }
+        ]
+    },
+    "expectedAuthorizationKey": "synthetic-custom-key",
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "custom",
+            "custom_url": "<mock>/v1",
+            "custom_include_body": "service_tier: scale\ntop_k: 7",
+            "model": "probe-model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "probe system marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe user marker"
+                }
+            ],
+            "max_tokens": 64,
+            "temperature": 0.5,
+            "top_p": 0.9,
+            "n": 1,
+            "stream": false
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"mock-custom\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock custom reply\"},\"finish_reason\":\"stop\"}]}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers[Host]",
+                "rule": "value replaced with <mock-authority>",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+                "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+            },
+            {
+                "path": "provider.requests[].headers[authorization]",
+                "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+                "reason": "The scenario supplies a synthetic key; presence and scheme are the contract, the value is not.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2396 apiKey = readSecret(request.user.directories, SECRET_KEYS.CUSTOM, request.body.secret_id)"
+            },
+            {
+                "path": "http.requests[].body.custom_url and its bodySha256",
+                "rule": "the mock authority is replaced with <mock> before hashing",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}

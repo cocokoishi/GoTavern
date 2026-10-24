@@ -1,0 +1,97 @@
+{
+    "schemaVersion": 1,
+    "name": "openai-custom-prompt-post-processing",
+    "purpose": "ROUTE-WIDE custom_prompt_post_processing, observed on OPENAI because OPENAI performs no message transform of its own: anything that changes the messages array here can only have come from the route-wide step at chat-completions.js:2246-2253. Type 'merge' with two consecutive user turns, which mergeMessages collapses into ONE turn joined by a blank line. The Go side sends the array verbatim, so the recorded pinned body has two messages where Go has three.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "openai",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {
+        "api_key_openai": [
+            {
+                "id": "probe-id-api_key_openai",
+                "value": "synthetic-openai-key",
+                "label": "api_key_openai",
+                "active": true
+            }
+        ]
+    },
+    "expectedAuthorizationKey": "synthetic-openai-key",
+    "transportRedirect": [
+        {
+            "from": "https://api.openai.com/v1",
+            "to": "<mock>"
+        }
+    ],
+    "goSeam": {
+        "environmentVariable": "GOTAVERN_OPENAI_CHAT_URL",
+        "value": "<mock>",
+        "pinnedLiteral": "https://api.openai.com/v1"
+    },
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "openai",
+            "custom_prompt_post_processing": "merge",
+            "model": "probe-model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "probe system marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe first user marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe second user marker"
+                }
+            ],
+            "max_tokens": 64,
+            "stream": false
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"mock-openai\",\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock reply\"},\"finish_reason\":\"stop\"}]}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers.authorization",
+                "rule": "the value is compared as a redacted Bearer token; the scenario declares the key separately through expectedAuthorizationKey",
+                "reason": "the scenario plants a synthetic key, so a wrong secret NAME would send a different or no token and the declared key catches it",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2280 apiKey = readSecret(request.user.directories, SECRET_KEYS.OPENAI, request.body.secret_id)"
+            },
+            {
+                "path": "provider.requests[].url",
+                "rule": "the recorder origin is replaced with <mock>",
+                "reason": "OPENAI with no reverse_proxy uses the hardcoded literal https://api.openai.com/v1, so the pinned leg can only reach the recorder through the probe transport redirect and the Go leg through its seam. The PATH stays compared, which is the part the literal decides.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2279 defaultApiUrl = API_OPENAI"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}
