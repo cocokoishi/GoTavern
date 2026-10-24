@@ -253,8 +253,18 @@ try {
                 lo = mid + 1;
             }
         }
-        // A handful of candidates from the bisect's answer upward, because a pair that lands in the
-        // example/world-info churn region is rejected and the next context may sit in the clean region.
+        // A handful of candidates from the bisect's answer upward, because a pair that lands in a churn
+        // band for the HISTORY count is rejected and the next context may sit in a clean one.
+        //
+        // THE CONTRACT IS THE HISTORY SET, NOT THE TOTAL MESSAGE COUNT. The total is recorded for every
+        // probe and is deliberately NOT required to grow, because the frontend's own example and
+        // world-info messages come and go with the budget independently of the trimmer. The second
+        // capture run of this lane measured it directly at this pair: max_context 4235 -> 26 total
+        // messages holding 11 history turns (oldest absent), max_context 4236 -> 24 total messages
+        // holding 12 history turns (oldest present). A clause "the total must grow" therefore rejects the
+        // one boundary where the history contract holds perfectly, which is exactly what the previous
+        // version did. The artefact carries both totals and this reason, so a reader who later sees the
+        // totals differ finds the explanation beside the numbers instead of re-deriving it.
         for (let candidate = lo; candidate <= lo + 6; candidate++) {
             if (candidate <= low) continue;
             const keepProbe = await probeAt(candidate);
@@ -263,10 +273,6 @@ try {
             const historyDelta = keepProbe.historyMessages - dropProbe.historyMessages;
             if (historyDelta !== 1) {
                 problems.push(`candidate keep=${candidate}: the oldest turn flips, but the history-message delta against ${candidate - 1} is ${historyDelta} (keep ${keepProbe.historyMessages}, drop ${dropProbe.historyMessages}); that is not a history trim`);
-                continue;
-            }
-            if (keepProbe.messageCount <= dropProbe.messageCount) {
-                problems.push(`candidate keep=${candidate}: the oldest turn flips, but the total message count does not grow (keep ${keepProbe.messageCount}, drop ${dropProbe.messageCount})`);
                 continue;
             }
             keepContext = candidate;
@@ -342,6 +348,22 @@ try {
                     dropHistoryMessages: drop?.historyMessages ?? null,
                     keepOldestIndex: keep?.oldestIndex ?? null,
                     dropOldestIndex: drop?.oldestIndex ?? null,
+                    // THE BOUNDARY'S CONTRACT, written into the artefact so a reader who later sees the
+                    // two TOTALS differ (e.g. 24 at keep and 26 at drop) finds the reason beside the
+                    // numbers rather than concluding the pair is broken.
+                    contract: {
+                        asserted: [
+                            'the oldest history turn is present at keepContext and absent at dropContext',
+                            'the number of HISTORY turns differs by exactly one across the pair',
+                            'the comparator recomputes both from the provider BODY on each leg, never from a probe claim',
+                            'the pinned tokenizer anchor (count 7) is answered by both servers and the tokenizer tree resolved',
+                        ],
+                        historyTurns: { keep: keep?.historyMessages ?? null, drop: drop?.historyMessages ?? null },
+                        totalMessages: { keep: keep?.messageCount ?? null, drop: drop?.messageCount ?? null },
+                        totalMessagesNotAsserted: 'the TOTAL message count is recorded per probe and is NOT part of the contract. The frontend emits its own example and world-info messages as the budget allows, independently of the trimmer, so the total is not monotone in openai_max_context: the run that produced this fixture measured '
+                            + `${drop?.messageCount ?? '?'} total messages holding ${drop?.historyMessages ?? '?'} history turns at max_context ${keepContext === null ? '?' : keepContext - 1}, and `
+                            + `${keep?.messageCount ?? '?'} total messages holding ${keep?.historyMessages ?? '?'} history turns at ${keepContext ?? '?'}. Requiring the total to grow rejects exactly the boundaries whose history contract holds (it rejected this pair in the previous capture), which is why it is recorded and not asserted`,
+                    },
                     searchLog: searchLog.map(entry => ({
                         maxContext: entry.maxContext,
                         messageCount: entry.messageCount,

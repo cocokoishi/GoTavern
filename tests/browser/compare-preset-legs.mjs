@@ -282,13 +282,19 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
             guards.boundaryBindsOnThePinnedLeg = keepDrop.keep.pinnedPresent === true && keepDrop.drop.pinnedPresent === false;
-            guards.boundaryPairDiscriminates = keepDrop.keep.pinnedMessages !== keepDrop.drop.pinnedMessages;
             // THE COUNT THAT IS THE BOUNDARY: exactly one MORE HISTORY TURN is retained at keep than at
-            // drop, on both legs. This replaces "the total message count grows", which the first run
-            // showed to be false even for a genuine flip (keep=15, drop=17) because the frontend also
-            // drops example/world-info messages at a tight budget.
+            // drop, on both legs. This replaces any assertion on the TOTAL message count, which is not
+            // monotone in openai_max_context: the frontend emits its own example and world-info messages
+            // as the budget allows, independently of the trimmer. Measured at the boundary this lane
+            // recorded: 26 total messages holding 11 history turns one token below keep, and 24 total
+            // messages holding 12 history turns at keep. A total-count assertion therefore rejects real
+            // boundaries -- it did, twice. The totals stay recorded (see `keepDrop`) so a reader who sees
+            // them differ finds the reason here instead of re-deriving it.
             guards.boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg = keepDrop.keep.pinnedHistoryMessages === keepDrop.drop.pinnedHistoryMessages + 1;
             guards.boundaryRetainsExactlyOneMoreTurnOnTheGotavernLeg = keepDrop.keep.gotavernHistoryMessages === keepDrop.drop.gotavernHistoryMessages + 1;
+            // CONSISTENCY WITH THE CAPTURE, not monotonicity: the drive must have assembled the same two
+            // lists the boundary was measured on. Both totals and both history counts have to match the
+            // fixture, whatever their values are.
             guards.boundaryMatchesTheCapture = keepDrop.keep.pinnedMessages === variants.keep.expectedMessages
                 && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages
                 && keepDrop.keep.pinnedHistoryMessages === (boundary.keepHistoryMessages ?? keepDrop.keep.pinnedHistoryMessages)
@@ -357,6 +363,10 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             dropMessages: boundary.dropMessages ?? null,
             keepHistoryMessages: boundary.keepHistoryMessages ?? null,
             dropHistoryMessages: boundary.dropHistoryMessages ?? null,
+            // THE CONTRACT TRAVELS WITH THE NUMBERS. Carried verbatim from the capture, which wrote the
+            // reason the two TOTALS differ beside their values (the frontend's own example/world-info
+            // messages are emitted as the budget allows, so the total is not monotone and is not asserted).
+            contract: boundary.contract ?? null,
             method: 'capture-preset.mjs bisects openai_max_context with the pinned frontend dry assembly; the predicate is "the oldest history marker is in the assembled messages"',
         },
         inputs,
