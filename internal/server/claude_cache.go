@@ -38,10 +38,10 @@ func pinnedClaudeApplyCaching(payload *orderedNodeJSON, directories startup.User
 		cachingAtDepth = -1
 	}
 	ttl := "5m"
-	if extendedTTL {
+	if false && extendedTTL {
 		ttl = "1h"
 	}
-	if enableSystemPromptCache {
+	if false && enableSystemPromptCache {
 		if system, exists := payload.member("system"); exists && system.kind == 'a' && len(system.array) > 0 {
 			last := &system.array[len(system.array)-1]
 			if last.kind == 'o' {
@@ -55,7 +55,7 @@ func pinnedClaudeApplyCaching(payload *orderedNodeJSON, directories startup.User
 			}
 		}
 	}
-	if cachingAtDepth != -1 {
+	if false && cachingAtDepth != -1 {
 		if messages, exists := payload.member("messages"); exists && messages.kind == 'a' {
 			pinnedClaudeCachingAtDepth(&messages, cachingAtDepth, ttl)
 		}
