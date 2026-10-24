@@ -4,7 +4,7 @@ GoTavern is a **release-grade drop-in replacement for the SillyTavern server/bac
 
 ## Hard rules
 
-1. **Baseline:** SillyTavern `1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127` until an explicit baseline-bump PR changes it.
+1. **Baseline:** SillyTavern `1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127` until an explicit baseline-bump change (its own commit, carrying the pinned-source evidence for every observable it moves) replaces it.
 2. **Upstream is the oracle.** Read pinned source and/or probe pinned Node behavior. Never invent routes, defaults, errors, startup effects or provider transforms from memory.
 3. **Do not rewrite the frontend.** Pinned `public/**` stays byte-identical; upstream-generated browser assets are built by the pinned upstream build process.
 4. **Embed the full fresh-install contract.** `default/**` content/scaffold/config inputs are compatibility assets too, not optional examples.
@@ -41,7 +41,9 @@ For each endpoint/startup/config/provider behavior:
    - browser event/final state.
 7. Add Node->Go->Node round trips for persistent data.
 8. Update `docs/compat-matrix.md`.
-9. Run formatting/tests/build.
+9. Let CI run formatting/tests/build. Do not run the Go toolchain, npm, Playwright or any probe on
+   this host (see "Working mode: CI-first" below); a local green is not the gate and a local red on this
+   host can be a CRLF or host-path artefact rather than a defect.
 
 If uncertain, write a probe. Do not guess.
 
@@ -51,9 +53,11 @@ These are rules for how to verify, not what to verify. They come from real failu
 project, several of which produced a green result that proved nothing. They apply to every
 domain.
 
-1. **A mutation run must use `go test -count=1`.** Go's test cache answers `ok ... (cached)` for
-   a test whose inputs have not changed, so a mutation that alters a constant can appear to be
-   caught, or appear to be missed, without the test ever executing.
+1. **A mutation run must use `go test -count=1`, and it runs in GitHub Actions.** Go's test cache answers
+   `ok ... (cached)` for a test whose inputs have not changed, so a mutation that alters a constant can
+   appear to be caught, or appear to be missed, without the test ever executing. Mutation evidence is a
+   row in the commit message naming what was changed, the assertion that went red, and the restored
+   green — produced by a run, never by reasoning about a run.
 2. **Revert an untracked file with a file copy, never with git.** `git checkout -- <path>` on an
    untracked path exits successfully and does nothing. A mutation that was never reverted stays
    in the tree, poisons every later result for an invisible reason, and can be copied into the
@@ -289,6 +293,68 @@ domain.
    Do not add an exact-path match option to `tools/lib` on
    initiative; it is a lib change and carries the `pipe()` discipline: every outbound probe must
    re-record byte-identically before it is committed.
+
+## Differential-testing doctrine (what the oracle is allowed to claim)
+
+These are the constraints that make a green mean something. They are not style preferences: each one
+exists because its inverse has already produced a passing test that proved nothing on this project.
+
+1. **Upstream is the oracle, and a difference is answered in a fixed order.** `pinned capture` →
+   verify the probe is faithful → verify the fixture is DISCRIMINATING → verify the comparator/gate has
+   teeth → only then ask whether the Go implementation is wrong. Never start at the last step. If the
+   fixture cannot distinguish two behaviours, it is not evidence for either.
+2. **Provider-wire stays byte-oriented.** The contract is `bodySha256`, `bodyLength`, the raw request
+   target, the method and the recorded headers. FORBIDDEN, because each makes two different requests
+   compare equal: canonicalising JSON, parsing then re-marshalling, ignoring member order, dropping
+   unknown headers, dropping members that "look irrelevant", replacing the raw body with a semantic
+   struct comparison. A genuinely nondeterministic field may be narrow-normalised only with its
+   field/path, the reason, and the upstream source or probe evidence written down beside it. Global
+   rules ("ignore timestamps/headers") are forbidden.
+3. **Subject and oracle must never share an expectation.** Allowed to share: process lifecycle, port
+   allocation, scratch directories, HTTP/SSE utilities, browser-driving mechanics, a source's driver
+   metadata ("how to get the request to the recording peer"), fixture parsing, reporting, and
+   impact-selection machinery. Forbidden to share: the expected provider body, the expected response
+   mapping, the expected message transform, the expected source-specific output, the expected
+   status/error shape. If implementation and test read the same definition, both can be wrong and the
+   run is still green.
+4. **Every gate has teeth, and the teeth are demonstrated.** After adding or changing a gate, mutate the
+   thing it guards, show the exact assertion name that went red, restore, show green. "The command
+   exited 0" is not evidence. Go mutations run in CI with `-count=1`.
+5. **A verdict is a taxonomy, not a boolean.** Internally every differential observation is one of:
+   `match`, `mismatch`, `not-observed`, `pinned-unreachable`, `decided-exclusion`, `harness-error`,
+   `candidate-error`, `nondeterministic-oracle`. In particular a browser leg that produced no provider
+   request, no page error and no failed HTTP request is a HARNESS-FAITHFULNESS ALARM first; it is not
+   permission to declare the product broken.
+6. **No live network, from any egress path.** Not just the module the pinned server imports: the global
+   `fetch`, an SDK's internal transport, native `http`/`https`, redirects, a dynamically constructed
+   host. Each provider probe must be able to show that the peer received exactly the requests the
+   fixture claims; a request that escapes must appear as a MISSING request or a forbidden-egress
+   failure, never as plausible recorded data.
+7. **Coverage is computed, never prose.** The P/E/streaming/cancellation/preset matrix comes from
+   committed fixtures and artefacts, explicit decided exclusions, or explicit pinned-unreachable
+   explanations. `N/A` is not a pass, and a source is never "supported because the registry lists it" —
+   the product registry and the pinned-derived coverage are cross-checked, and neither proves the other.
+8. **Narrowing reduces cost, never strength.** A probe that did not run is unverified, not
+   verified-equal; the scheduled full sweep is the only run whose green covers the whole oracle.
+9. **Never turn red into green by re-recording.** Re-record only when the OBSERVATION legitimately
+   changed, and say which upstream behaviour changed and why. "The fixture moved, so I moved the fixture"
+   is the failure this rule exists to forbid.
+10. **Refactor only where a real drift or false green has already happened.** Two vertical slices are in
+    scope: the Oracle infrastructure and the chat-completion/provider differential. Extract a helper only
+    when at least two real callers share semantics that a differential has proven identical. Do not
+    replace `orderedNodeJSON` with maps, do not rewrite stable probes wholesale, do not build a universal
+    provider framework, and do not touch storage, the frontend or endpoint packages that are already at
+    parity.
+11. **A giant file may not grow a new source branch.** The source list lives in the driver catalogue
+    only; the generation driver, the streaming driver, the comparators and the verifier entrypoint must
+    not each keep one; artefact coverage reconciles against the catalogue automatically; a
+    source-specific assertion registers at an explicit extension point. A new provider is a descriptor
+    plus an artefact plus, if genuinely special, a named hook.
+12. **A stage report carries numbers, computed from the tree, never copied from a document.**
+    HEAD sha, changed files, probe declaration count, fixture count, provider-wire source and scenario
+    counts, E/streaming/cancellation counts, preset-E2E coverage, how many probes this run actually
+    executed, single-vs-double policy, pinned-boot count, the slowest probes, mutation verdict, the CI run
+    id, and the remaining OPEN gaps. An older HANDOFF number is not a measurement.
 
 ## Architecture boundaries that are decided, not pending
 
