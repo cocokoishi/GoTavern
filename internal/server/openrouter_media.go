@@ -105,8 +105,9 @@ func pinnedOpenRouterEmbedMedia(messages *orderedNodeJSON, audio, video bool) {
 			}
 			header, data, hasData := strings.Cut(url, ",")
 			format := "mp3"
-			_ = header
-			_ = pinnedOpenRouterDataMime
+			if pinnedOpenRouterDataMime(header) == "audio/wav" {
+				format = "wav"
+			}
 			part.setMember("type", nodeString("input_audio"))
 			inputAudio := nodeObject()
 			inputAudio.setMember("format", nodeString(format))
@@ -185,8 +186,7 @@ func pinnedOpenRouterSignatures(messages *orderedNodeJSON, model string, thought
 		}
 		if signature, exists := message.member("signature"); exists && signature.kind == 's' {
 			text, _ := signature.stringValue()
-			// MUTATION 2: the config gate is ignored, so the message-level half is always converted.
-			if true || thoughtSignatures {
+			if thoughtSignatures {
 				addDetail(text, "")
 			}
 			message.deleteMember("signature")
