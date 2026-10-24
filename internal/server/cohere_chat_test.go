@@ -394,7 +394,7 @@ func TestChatCompletionCohereEmptyMessagesUsesThePlaceholder(t *testing.T) {
 	directories := cohereTestDirectories(t, "probe-cohere-key")
 	request := coherePlanRequest(t, `{"chat_completion_source":"cohere","model":"probe-model","messages":[]}`, directories)
 	body := coherePlanBody(t, request)
-	want := `[{"role":"user","content":"Let's get started."}]`
+	want := `[{"role":"user","content":"[Start a new chat]"}]`
 	if got := cohereMemberText(t, body, "messages"); got != want {
 		t.Fatalf("messages = %s, want %s", got, want)
 	}

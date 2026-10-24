@@ -48,8 +48,6 @@ const (
 	pinnedClaudeSecretKey      = "api_key_claude"
 	pinnedClaudeAPIVersion     = "2023-06-01"
 	chatCompletionSourceClaude = "claude"
-	// PROMPT_PLACEHOLDER's pinned default (src/prompt-converters.js:4).
-	pinnedClaudePromptPlaceholder = "Let's get started."
 )
 
 // pinnedClaudeBaseURL is the pinned literal `API_CLAUDE` (chat-completions.js:74), replaceable only by
@@ -339,7 +337,7 @@ func pinnedClaudeToolUseBlock(toolCall orderedNodeJSON) (orderedNodeJSON, error)
 }
 
 // pinnedClaudeConvertMessages ports convertClaudeMessages (prompt-converters.js:197).
-func pinnedClaudeConvertMessages(body orderedNodeJSON, useSystemPrompt, useTools bool) (orderedNodeJSON, orderedNodeJSON, error) {
+func pinnedClaudeConvertMessages(body orderedNodeJSON, useSystemPrompt, useTools bool, promptPlaceholder string) (orderedNodeJSON, orderedNodeJSON, error) {
 	rawMessages := sdBodyMember(body, "messages")
 	if rawMessages.kind != 'a' {
 		// `messages.length` / `messages.forEach` throws for anything else, and the pinned catch
@@ -366,7 +364,7 @@ func pinnedClaudeConvertMessages(body orderedNodeJSON, useSystemPrompt, useTools
 		if len(messages.array) == 0 {
 			placeholder := nodeObject()
 			placeholder.setMember("role", nodeString("user"))
-			placeholder.setMember("content", nodeString(pinnedClaudePromptPlaceholder))
+			placeholder.setMember("content", nodeString(promptPlaceholder))
 			messages.array = append([]orderedNodeJSON{placeholder}, messages.array...)
 		}
 	}
@@ -560,7 +558,7 @@ func pinnedClaudeIsJSSpace(character rune) bool {
 
 // pinnedClaudePayload builds the pinned requestBody (:269-406) for the DEFAULT configuration and the
 // anthropic-beta list that goes with it. Member order is the byte contract.
-func pinnedClaudePayload(body orderedNodeJSON) (orderedNodeJSON, []string, *pinnedChatCompletionFailure) {
+func pinnedClaudePayload(body orderedNodeJSON, promptPlaceholder string) (orderedNodeJSON, []string, *pinnedChatCompletionFailure) {
 	flags := pinnedClaudeModelFlagsFor(body)
 	useTools := false
 	if tools := sdBodyMember(body, "tools"); tools.kind == 'a' && len(tools.array) > 0 {
@@ -568,7 +566,7 @@ func pinnedClaudePayload(body orderedNodeJSON) (orderedNodeJSON, []string, *pinn
 	}
 	useSystemPrompt := pinnedJSTruthy(sdBodyMember(body, "use_sysprompt"))
 
-	converted, systemPrompt, err := pinnedClaudeConvertMessages(body, useSystemPrompt, useTools)
+	converted, systemPrompt, err := pinnedClaudeConvertMessages(body, useSystemPrompt, useTools, promptPlaceholder)
 	if err != nil {
 		return orderedNodeJSON{}, nil, pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 	}
@@ -817,7 +815,11 @@ func pinnedClaudePlan(body orderedNodeJSON, directories startup.UserDirectories)
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-	payload, betaHeaders, failure := pinnedClaudePayload(body)
+	payload, betaHeaders, failure := pinnedClaudePayload(body, pinnedChatPromptPlaceholder(directories))
+	// :281-283, :297-299, :330-332, then :334-337 -- the caching mutations happen on the built payload and the
+	// beta list grows by two tokens when either branch is active. Config read per request for the reason
+	// pinned_chat_config.go states.
+	betaHeaders = pinnedClaudeApplyCaching(&payload, directories, betaHeaders)
 	if failure != nil {
 		return nil, failure
 	}

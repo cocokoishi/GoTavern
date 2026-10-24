@@ -88,7 +88,7 @@ func pinnedMistralMessageText(message orderedNodeJSON) (string, error) {
 }
 
 // pinnedMistralMessages ports convertMistralMessages (prompt-converters.js:703).
-func pinnedMistralMessages(body orderedNodeJSON) (orderedNodeJSON, error) {
+func pinnedMistralMessages(body orderedNodeJSON, prefixEnabled bool) (orderedNodeJSON, error) {
 	raw := sdBodyMember(body, "messages")
 	if raw.kind != 'a' {
 		// `if (!Array.isArray(messages)) return [];` -- a NON-ARRAY messages member becomes an empty
@@ -97,6 +97,20 @@ func pinnedMistralMessages(body orderedNodeJSON) (orderedNodeJSON, error) {
 	}
 	messages := pinnedStructuredClone(raw)
 	names := pinnedClaudeNamesFor(body)
+
+	// prompt-converters.js:709-713: the config flag marks a TRAILING ASSISTANT turn as a prefill by setting
+	// prefix: true on the request's own last message BEFORE the conversion loop; the mistral arm forwards
+	// messages unchanged, so the member reaches the wire appended after content.
+	if prefixEnabled && len(messages.array) > 0 {
+		last := &messages.array[len(messages.array)-1]
+		if last.kind == 'o' {
+			if role, exists := last.member("role"); exists {
+				if roleText, isString := role.stringValue(); isString && roleText == "assistant" {
+					last.setMember("prefix", nodeBool(true))
+				}
+			}
+		}
+	}
 
 	for position := range messages.array {
 		message := messages.array[position]
@@ -197,8 +211,8 @@ func pinnedMistralMessages(body orderedNodeJSON) (orderedNodeJSON, error) {
 }
 
 // pinnedMistralPayload builds the pinned requestBody (:898-927) in its fixed member order.
-func pinnedMistralPayload(body orderedNodeJSON) (orderedNodeJSON, *pinnedChatCompletionFailure) {
-	messages, err := pinnedMistralMessages(body)
+func pinnedMistralPayload(body orderedNodeJSON, prefixEnabled bool) (orderedNodeJSON, *pinnedChatCompletionFailure) {
+	messages, err := pinnedMistralMessages(body, prefixEnabled)
 	if err != nil {
 		// The converter throws INSIDE the pinned try, so the catch answers 200 {"error":true}.
 		return orderedNodeJSON{}, pinnedMistralCatchFailure()
@@ -292,7 +306,7 @@ func pinnedMistralPlan(body orderedNodeJSON, directories startup.UserDirectories
 		// :885-888, BEFORE the try.
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
-	payload, failure := pinnedMistralPayload(body)
+	payload, failure := pinnedMistralPayload(body, pinnedChatConfigBool(directories, []string{"mistral", "enablePrefix"}, false))
 	if failure != nil {
 		return nil, failure
 	}
