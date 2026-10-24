@@ -33,6 +33,7 @@ import (
 	"encoding/hex"
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -177,4 +178,57 @@ func pinnedFireworksStatusFailure() orderedNodeJSON {
 	nested.setMember("data", nodeArray())
 	failure.setMember("data", nested)
 	return failure
+}
+
+// pinnedFireworksChatPlan is chat-completions.js:2454-2474's FIREWORKS arm plus the shared tail. This is the
+// ONE planner that reads the affinity key, because `x-session-affinity` is HMAC-SHA256(getAffinityKey(),
+// chat_id) and getAffinityKey() is the install's cookie secret -- see this file's header for why the header
+// is asserted at plan level rather than recorded in a fixture.
+func pinnedFireworksChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	customHeaders := nodeObject()
+	bodyParams := nodeObject()
+
+	apiKey, secretErr := pinnedReadSecret(request.directories, pinnedFireworksSecretKey, pinnedSecretID(body))
+	if secretErr != nil {
+		return nil, pinnedChatCompletionTransportFailure(secretErr)
+	}
+	if effort, exists := body.member("reasoning_effort"); exists && pinnedJSTruthy(effort) {
+		bodyParams.setMember("reasoning_effort", effort)
+	}
+	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+		// This source's own member order and `description`: {type, json_schema:{name, description, schema,
+		// strict ?? true}}, which the shared helper cannot express.
+		format := nodeObject()
+		format.setMember("type", nodeString("json_schema"))
+		inner := nodeObject()
+		if name, hasName := schema.member("name"); hasName {
+			inner.setMember("name", name)
+		}
+		if description, hasDescription := schema.member("description"); hasDescription {
+			inner.setMember("description", description)
+		}
+		if value, hasValue := schema.member("value"); hasValue {
+			inner.setMember("schema", value)
+		}
+		strict := nodeBool(true)
+		if value, hasStrict := schema.member("strict"); hasStrict && !value.isUndefined() && !value.isNull() {
+			strict = value
+		}
+		inner.setMember("strict", strict)
+		format.setMember("json_schema", inner)
+		bodyParams.setMember("response_format", format)
+	}
+	if chatID, exists := body.member("chat_id"); exists && pinnedJSTruthy(chatID) {
+		if text, err := pinnedJSStringValue(chatID); err == nil && text != "" {
+			customHeaders.setMember("x-session-affinity", nodeString(pinnedFireworksAffinity(request.affinityKey, text)))
+		}
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceFW, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedFireworksBaseURL(),
+		apiKey:        apiKey,
+		customHeaders: customHeaders,
+		bodyParams:    bodyParams,
+	})
 }

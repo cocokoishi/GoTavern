@@ -42,6 +42,7 @@ package server
 // wrong-but-plausible type would otherwise be invisible in the body.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -110,4 +111,24 @@ func pinnedPerplexitySourceConfig(body *orderedNodeJSON, bodyParams *orderedNode
 	}
 
 	return pinnedPerplexityBaseURL(), apiKey, nil
+}
+
+// pinnedPerplexityChatPlan is PERPLEXITY as the shared path sees it: the branch sets apiUrl, apiKey, headers
+// and bodyParams and mutates request.body.messages, and the shared assembly does the rest. This wrapper is
+// the ONE call the dispatch needs; the contribution itself stays in pinnedPerplexitySourceConfig so its
+// tests keep driving it directly.
+func pinnedPerplexityChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	bodyParams := nodeObject()
+	perplexityURL, perplexityKey, perplexityFailure := pinnedPerplexitySourceConfig(&body, &bodyParams, request.directories, request.affinityKey)
+	if perplexityFailure != nil {
+		return nil, perplexityFailure
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourcePerplexity, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        perplexityURL,
+		apiKey:        perplexityKey,
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }

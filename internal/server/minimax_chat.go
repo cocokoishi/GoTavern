@@ -35,7 +35,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"sort"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -167,17 +166,7 @@ func pinnedMinimaxChatPlan(body orderedNodeJSON, directories startup.UserDirecto
 	}
 
 	headers := pinnedChatCompletionHeaders(keyNode, nodeObject(), encoded)
-	names := make([]string, 0, len(headers))
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 
 	return &outbound.Request{
 		URL:     endpointURL,

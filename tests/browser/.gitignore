@@ -3,37 +3,46 @@ node_modules/
 .pinned-run/
 test-results/
 generation-probe-report.json
-# Per-run legs of the two-leg generation comparison, 100-250 KB each. They are evidence for
-# one run, not an expectation: the committed artifact is generation-comparison.json, which
-# records the DIFFERENCE. Committing a leg would invite someone to treat a known divergence
-# as the expected value.
-# A PATTERN, not the two names a single run happened to use: the legs are named by leg and run
-# (gen-a.json, gen-a4.json, gen-p4.json ...), and listing one run's names left every later run's
-# legs sitting untracked next to the gated artifact, where a reader can mistake one for a gate
-# input. generation-comparison.json does not match this pattern and stays tracked.
+
+# PER-RUN LEGS ARE NOT COMMITTED. A leg is the evidence for ONE run, not an expectation: the committed
+# artifact is the *-comparison.json, which records the DIFFERENCES and the checks. A committed leg would
+# invite someone to treat a known divergence as the expected value.
+#
+# PATTERNS, NOT ONE RUN'S NAMES. The first version of this file listed the exact names a single run
+# happened to use (`stream-gotavern.json`, `cancel-pinned.json`, ...). Later runs name their legs after
+# the SOURCE (`stream-or-gotavern.json` for openrouter, `gen-or-pinned.json`), write their data-domain
+# captures as `dd2-g1.json`, and their extension legs as `ext-th-A6-leg.json` -- none of which matched,
+# so every re-record would leave 100-250 KB of untracked debris beside the gated artifact, where a
+# reader can mistake one for a gate input. tests/browser/catalog.test.mjs asserts that the patterns
+# below cover every leg name the committed artifacts actually record AND that none of them matches a
+# committed `*-comparison.json`, so a new naming scheme fails the test instead of escaping the list.
+#
+# No pattern below can match a `*-comparison.json`: each is anchored on the `-` that separates a prefix
+# from a leg suffix (gen-, stream-, cancel-, nonstream-, startup-<leg>-<n>, dd<n>-<leg>).
+
+# Generation legs: gen-a.json, gen-p1.json, gen-or-gotavern.json, gen-groq-pinned.json ...
 gen-*.json
-# Per-run legs and captures of the two-leg comparisons (startup, streaming, cancel,
-# non-stream). They are 100-250 KB each and are evidence for ONE run, not an expectation: the
-# committed artifacts are *-comparison.json, which record the DIFFERENCES and the checks. A
-# committed leg invites someone to treat a known divergence as the expected value.
+# Streaming, cancellation and non-stream controls: stream-gotavern.json, stream-or-pinned.json,
+# cancel-mistral-gotavern.json, nonstream-openai-pinned.json ...
+stream-*.json
+cancel-*.json
+nonstream-*.json
+# THE SAME SURFACES WITH A SOURCE PREFIX IN FRONT. The committed artifacts record legs named
+# `mis-stream-a.json` / `mis-cancel-p.json` (mistral) and `stream-cl-gotavern.json` (claude), so the
+# surface is not always the first token. Without these three, a mistral re-record leaves six files beside
+# the gated artifact -- which is exactly what the old exact-name list did.
+*-stream-*.json
+*-cancel-*.json
+*-nonstream-*.json
+# Startup captures: startup-gotavern-1.json, startup-pinned-2.json ...
 startup-gotavern-*.json
 startup-pinned-*.json
-stream-gotavern.json
-stream-pinned.json
-cancel-gotavern.json
-cancel-pinned.json
-nonstream-gotavern.json
-nonstream-pinned.json
-# Per-run legs of the extension E2E (Tavern Helper / JS-Slash-Runner). Same reasoning as the legs above:
-# the committed artifact is extension-tavern-helper-comparison.json, which records the DIFFERENCES and
-# the guards. A committed leg here would be 60-210 KB of one run's evidence and invite treating a known
-# divergence as the expected value.
-extension-tavern-helper-gotavern.json
-extension-tavern-helper-pinned.json
-extension-littlewhitebox-gotavern.json
-extension-littlewhitebox-pinned.json
-# Per-run legs of the data-domain drive (characters, chats, settings, backgrounds, quick replies).
-# Same reasoning: the committed artifact is data-domain-comparison.json, which records the interactions,
-# the write evidence and the guards. A committed leg is one run's evidence, not an expectation.
+# Data-domain captures: the original `data-domain-*` names and the `dd2-*` names a later run used.
 data-domain-gotavern-*.json
 data-domain-pinned-*.json
+dd*-*.json
+# Extension E2E legs: extension-tavern-helper-gotavern.json, and the `ext-th-A6-leg.json` shape a later
+# run used. `*-leg.json` is the general form, so a new prefix (a second extension) is covered too.
+extension-*-gotavern.json
+extension-*-pinned.json
+*-leg.json

@@ -9,14 +9,11 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ## 1. Where the project stands
 
-**Route accounting is CLOSED.** `docs/api-inventory.md` has ZERO routes in the bare `not implemented`
-state. All 339 inventoried routes are either implemented with a recorded differential or are one of the
-ELEVEN decided exclusions, so the reachable ceiling of 339 - 11 = 328 is fully implemented. That is a
-statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
+**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `11` reasoned exclusions; `328` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
 E (browser events/final state) and C (cancel/streaming) surfaces are measured for few of them, and
 because the release path itself has only just begun to be EXECUTED.
 
-The eleven exclusions, unchanged in kind: five local in-process ML (`/api/extra/{caption,classify,
+The reasoned exclusions, unchanged in kind: five local in-process ML (`/api/extra/{caption,classify,
 classify/labels}`, `/api/speech/{recognize,synthesize}`), two Jimp re-encoding (`/api/avatars/upload`,
 `/thumbnail/<computed>`), three package-owned protocols (`/api/translate/{google,bing}`,
 `/api/google/generate-voice`), and `/api/search/visit` (needs the shared private-address transport
@@ -28,19 +25,19 @@ paragraph is silently overwritten and fails the zero-diff gate.
 
 ## 2. What the observer surfaces actually have
 
-- **`compatible`**: THREE areas now -- chat-completions generation for the custom/OpenAI-compatible
-  source (all five surfaces; its artifact was re-recorded after the `dryAfterData` red was traced to a
-  RECORDING WINDOW rather than to the product -- see section 5). NINE FURTHER chat-completions sources are
-  measured on P, E and C without being promoted here, because promotion is a per-row decision and the
-  provider-wire fixture is the row they live in: OPENROUTER, CLAUDE, MISTRALAI, GROQ, SILICONFLOW, NANOGPT,
-  WORKERS_AI, DEEPSEEK (`POST /beta/chat/completions` asserted on both legs) and OPENAI (whose artifact
-  records `proxySettingDeliberatelyUnset` so its `proxyPasswordPresent: false` cannot be misread) --
-  `tests/browser/{generation,streaming}-{openrouter,claude,mistral,groq,siliconflow,nanogpt,workersai,deepseek,openai}-comparison.json`,
-  all gated by `tools/verify-browser-comparisons.mjs`. **Backgrounds** and **Quick replies**,
-  both promoted once each browser drive ASSERTED its own gate (the Backgrounds panel that binds the
-  upload handler, and `globalThis.quickReplyApi`). A drive that cannot reach its gate reports which
-  precondition is missing instead of looking like a product gap.
-  EMBEDDED tree), `/lib.js` byte-identical, one non-row path difference with a reason (`/thumbnail`).
+- **Promotions**: chat-completions generation for the custom/OpenAI-compatible source is `compatible`
+  (all five surfaces; its artifact was re-recorded after the `dryAfterData` red was traced to a
+  RECORDING WINDOW rather than to the product -- see section 5). **Backgrounds** and **Quick replies**
+  are promoted once each browser drive ASSERTED its own gate (the Backgrounds panel that binds the
+  upload handler, and `globalThis.quickReplyApi`). Chutes and Electron Hub are `compatible` for the
+  flows their own rows measure. A drive that cannot reach its gate reports which precondition is
+  missing instead of looking like a product gap.
+- **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> chat-completions sources have P, E and C**: the custom pair plus
+  OPENROUTER, CLAUDE, MISTRALAI, GROQ, SILICONFLOW, NANOGPT, WORKERS_AI, DEEPSEEK (`POST
+  /beta/chat/completions` asserted on both legs), OPENAI, CHUTES, ELECTRONHUB, AIMLAPI, AI21 and XAI --
+  `tests/browser/{generation,streaming}-<source>-comparison.json`, all gated by
+  `tools/verify-browser-comparisons.mjs`. Cancellation is proved at the provider by
+  `clientDisconnected` on both legs in every streaming artifact.
 - **E, both canaries**: `tests/browser/extension-littlewhitebox-comparison.json` is committed and gated
   too -- 452 rows all equal, same single non-row difference (`/thumbnail`). It was WITHHELD for one
   round on purpose: its one real difference was `/user/files/LittleWhiteBox_User.json` answering 404
@@ -94,11 +91,12 @@ separators, registry, cmd.exe)", which is the four behaviours no other runner ca
 `install.sh` is held to. Both jobs are green in run 39907640873, and the gate has teeth: the mutation run
 39908014487 fails it.
 
-**NOT COVERED (unexecuted as of 2026-10-23, each with its reason rather than a to-do)**: cross-baseline
-upgrade (an existing SillyTavern install migrated in place), replacing a binary under a RUNNING server,
-and proxy/TLS against the real github.com download path -- every installer run uses a loopback mirror,
-so no run has ever resolved a `releases/latest/download/...` URL over TLS. And `gotavern migrate` DOES
-NOT EXIST (docs/INSTALLATION.md section 6 says so; its required capabilities are a tracked increment).
+**NOT COVERED (unexecuted as of 2026-10-23, each with its reason rather than a to-do)**: an existing
+SillyTavern install migrated IN PLACE (the cross-baseline job below updates an older GoTavern release,
+not a SillyTavern tree), replacing a binary under a RUNNING server on Linux, and proxy/TLS against the
+real github.com download path -- every installer run uses a loopback mirror, so no run has ever resolved
+a `releases/latest/download/...` URL over TLS. `gotavern migrate` EXISTS (`cmd/gotavern/main.go:103`,
+`internal/migrate/migrate_test.go:174-611`); it copies to `--dest`, which is not an in-place migration.
 
 ## 4. The working model (this is what makes the CI budget survivable)
 
@@ -114,8 +112,12 @@ The development host cannot carry the build load and its Go cache once filled a 
   COMMON directory so it works across worktrees. Without it, concurrent boots run concurrent pruned
   webpack compiles and every other lane dies on a 180 s readiness deadline.
 - **The oracle is narrowed**: `GOTAVERN_ORACLE_PROBES` re-records only the probes a push can affect
-  (full set on schedule/dispatch and for `tools/lib/**`, the generator, or `upstream/**`). The zero-diff
-  check still covers every fixture -- narrower, not weaker.
+  (full set on schedule/dispatch and for `tools/lib/**`, `tools/oracle/**`, the generator,
+  `upstream/**`, `tests/provider-wire/scenarios/**`). Narrower IS weaker, and the earlier text here
+  said the opposite ("the zero-diff check still covers every fixture"): that gate diffs the working
+  tree against the commit, so a probe that never ran leaves its fixture byte-identical by
+  construction and its movement invisible. A skipped probe is unverified. Do not read a narrowed
+  green as covering the oracle; the scheduled or dispatched full sweep is the only one that does.
 - Docker runs on its own workflow (Dockerfile/installer paths, weekly, or dispatch), not per push.
 
 ## 5. Rules learned the expensive way this session
@@ -158,13 +160,13 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 
 ## 6. Next actions, in the order the evidence supports
 
-1. **C for OPENROUTER** (streamed + abort): the last surface that source is missing. The paced SSE peer
-   exists for the custom source and the seam pair exists from the OpenRouter work; the drive must assert
-   on BOTH legs that the client disconnect reached the provider, because "the page stopped rendering" is
-   not cancellation.
+1. **C for OPENROUTER is measured, not pending.** `tests/browser/streaming-openrouter-comparison.json`
+   records `compatibleReady: true` and `clientDisconnected: true` on BOTH legs, with a matching non-stream
+   control; `tools/verify-browser-comparisons.mjs` reads it. The remaining browser-breadth work is
+   per-source depth (for example Mistral's E evidence is in its streaming artifact), not OpenRouter C.
 
-2. **The next source transports.** FOUR of 25 chat-completion sources are real (openai, custom, openrouter,
-   claude); every other answers 501 so an unimplemented branch stays distinguishable from a refused one.
+2. **The next source transports.** All 25 implemented chat-completion sources are real; COMETAPI is the
+   one pinned source that is not, because pinned throws before sending a request.
    Each source needs its own provider-wire scenarios, and the first question for each is which KIND it is:
    a base-URL variant, a shared-helper variant, or a branch with its own body AND response transform. Both
    source lanes so far had that answer wrong in the brief (OpenRouter was assumed to be "OpenAI with a
@@ -194,32 +196,35 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 - When a lane cannot be finished, contribute the READ you did (what you verified, what you corrected,
   what is still unread) rather than a stub. Several of the best findings arrived that way.
 
-## 8. The honest remaining gaps (2026-10-23, main 614d303)
+## 8. The honest remaining gaps (2026-10-23, re-measured on main `2dde1fa`)
 
-Six things are NOT covered. Each is a claim about THIS baseline with the reason it cannot be closed here,
-not a to-do list, and none of them is softened into "in progress".
+Six items, restated from the tree rather than from the previous checkpoint. Each says what is closed, with
+the evidence, and what is still open; none is softened into "in progress".
 
-1. **The gemini body layer** (makersuite/vertexai). Both names exist only in the `pinnedChatCompletionSources`
-   map (`internal/server/chat_completions.go:86`), so the generate route answers 501 with zero outbound; the
-   request-body transform is UNMEASURED. A 501 here is the rule-17 marker, not a refusal.
-2. **Moonshot wiring.** A default URL constant exists (`backendsMoonshotDefaultURL`, `internal/server/backends.go:56`)
-   and the source is in the same map, but no generate arm is wired to it, so the same 501 applies. UNMEASURED.
-3. **Preset-level equivalence** (AGENTS rule 8: complex presets must produce equivalent final provider requests).
-   Measured today: per-source transforms on the scenarios `tests/oracle/sillytavern-1.19.0-provider-wire.json`
-   records (86 of them), and the browser drives, which submit ONE captured configuration
-   (`tests/browser/capture-settings.mjs`). No artifact drives a COMPLEX preset -- world info at depth, author's
-   note, stops, token budget interacting with the tokenizer -- through both legs and compares the final request
-   bytes. NOT COVERED, and the tokenizer-boundary gap is why: the request body that would be compared is partly a
-   function of exact token counting.
-4. **Cross-baseline upgrade.** No run has migrated an existing SillyTavern install in place; every qualification
-   run installs into a fresh prefix. NOT COVERED (HANDOFF section 3 names it, `docs/INSTALLATION.md` section 6
-   records that `gotavern migrate` does not exist yet).
-5. **The real github.com download path.** Every installer run resolves releases from a loopback mirror
-   (`GOTAVERN_RELEASES_BASE_URL` pointing at 127.0.0.1), which is what makes the run network-free and what leaves
+1. **The gemini body layer (makersuite/vertexai) is CLOSED.** `internal/server/chat_completions.go:575-586`
+   routes both names to `pinnedGooglePlan` (`internal/server/google_chat.go:123`); the provider-wire fixture
+   holds the `makersuite-*` and `vertexai-*` captures with non-empty `provider.requests`, and
+   `internal/server/chat_completions_oracle_test.go:142-159` fails when a scenario has no capture. The
+   named boundary that remains is VertexAI's service-account FULL mode (JWT + OAuth), which carries the
+   pinned `400 {error:true,message}` shape rather than a fabricated credential.
+2. **Moonshot wiring is CLOSED.** `internal/server/chat_completions.go:870-879` wires the plan arm,
+   `internal/server/moonshot_chat.go:187` implements the status shape, and the `moonshot-*` captures are in
+   the same fixture under the same missing-capture test.
+3. **Preset-level equivalence is OPEN.** The <!-- BEGIN GENERATED: provider-wire.scenarios -->`187`<!-- END GENERATED: provider-wire.scenarios --> provider-wire scenarios are per-source request transforms;
+   the browser drives submit ONE captured configuration (`tests/browser/capture-settings.mjs`). There is no
+   complex-preset differential, no observation of world info at depth, author's note or stops through both
+   legs, and no token-boundary anchor for the request body that would be compared. `tests/provider-wire/DESIGN.md:14-19`
+   states that a provider-wire capture is not preset-level evidence.
+4. **Cross-baseline is SPLIT.** GoTavern release-to-release update and rollback IS executed:
+   `.github/workflows/release-qualification.yml:383` runs `scripts/qualify-upgrade-rollback.sh` over two
+   archives built from two commits (runs 39997932741 and 39998226861, cited in `docs/INSTALLATION.md:469`).
+   An existing **SillyTavern** install migrated in place is still OPEN: that job installs an older GoTavern
+   archive, and `gotavern migrate` copies to a new `--dest` (`cmd/gotavern/main.go:103`).
+5. **The real github.com download path is OPEN.** Every installer run resolves releases from a loopback
+   mirror (`GOTAVERN_RELEASES_BASE_URL` pointing at 127.0.0.1; `scripts/qualify-install.sh:275-285`), leaving
    proxy handling, TLS and GitHub's redirect behaviour UNMEASURED. Run 39907640873 proves the installer logic,
    not the path.
-6. **Package-tag cleanup.** The registry carries dispatch-only tags (`dispatch-test`, `dispatch-mutation-verify`)
-   that no release owns, and no `v*` tag exists at all (`git tag -l 'v*'` is empty), so `:latest` has never been
-   published and no user can pull a release image. The gate that makes a publish claim honest is run
-   39907882256 (pull-back plus `assets verify` inside the pulled copy) with its mutation pair 39908260013 and
-   39908470507; what is missing is a real release tag, not the mechanism.
+6. **Package tags: the tag exists; registry state is unverified here.** `git tag -l 'v*'` returns
+   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
+   not moved by a prerelease (`scripts/classify-version-tag.sh`), and this host has no network, so whether the
+   registry still carries stale dispatch-only tags cannot be checked offline.

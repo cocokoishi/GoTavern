@@ -27,10 +27,8 @@ package server
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -295,17 +293,7 @@ func pinnedAI21Plan(body orderedNodeJSON, directories startup.UserDirectories) (
 		"user-agent":      "node-fetch",
 		"content-length":  strconv.Itoa(len(encoded)),
 	}
-	names := make([]string, 0, len(headerValues))
-	for name := range headerValues {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headerValues[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headerValues, parsedEndpoint)
 
 	return &outbound.Request{
 		URL:     endpointURL,
@@ -313,35 +301,4 @@ func pinnedAI21Plan(body orderedNodeJSON, directories startup.UserDirectories) (
 		Headers: requestHeaders,
 		Body:    encoded,
 	}, nil
-}
-
-// serveAI21ChatCompletionResponse is the AI21 response side: the shared forwarder for a stream, the provider
-// body passed through on 2xx, and the PARSED provider error at 500 for a non-2xx (not the shared 200 envelope).
-func serveAI21ChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
-	if pinnedChatCompletionStreams(body) {
-		forwardPinnedChatCompletionStream(w, request, response)
-		return
-	}
-	defer response.Stream.Close()
-	providerBody, readErr := io.ReadAll(response.Stream)
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	if response.Status < 200 || response.Status > 299 {
-		// `tryParse(errorText) ?? {error:true}` answered with status 500.
-		parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-		if parseErr != nil {
-			respondOrderedNodeJSON(w, http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
-			return
-		}
-		respondOrderedNodeJSON(w, http.StatusInternalServerError, parsed)
-		return
-	}
-	parsed, parseErr := decodeOrderedNodeJSON(providerBody)
-	if parseErr != nil {
-		respondOrderedNodeJSON(w, http.StatusOK, pinnedChatCompletionErrorFlag())
-		return
-	}
-	respondOrderedNodeJSON(w, http.StatusOK, parsed)
 }

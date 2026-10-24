@@ -31,8 +31,10 @@ package server
 // different claims: 501 means "we have not written it", 400 means "this is what pinned does".
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -86,4 +88,52 @@ func (runtime *accountRuntime) serveZaiChatCompletionStatus(w http.ResponseWrite
 	errorOnly := nodeObject()
 	errorOnly.setMember("error", nodeBool(true))
 	respondOrderedNodeJSON(w, http.StatusBadRequest, errorOnly)
+}
+
+// pinnedZaiChatPlan is chat-completions.js:2551-2564's ZAI arm plus the shared tail. ZAI HONOURS
+// `reverse_proxy`, so unlike groq/siliconflow/nanogpt it can be aimed at a peer through the frontend's own
+// setting, and `proxy_password` is the credential in that case. The shared :2615 guard consults the same
+// request member, so a drive with a proxy set but no password sends no credential at all and still reaches
+// the provider -- reproduced, not corrected.
+func pinnedZaiChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	customHeaders := nodeObject()
+	bodyParams := nodeObject()
+
+	var apiURL string
+	var apiKey orderedNodeJSON = nodeUndefined()
+	reverseProxy, hasReverseProxy := body.member("reverse_proxy")
+	if hasReverseProxy && pinnedJSTruthy(reverseProxy) {
+		normalized, ok := pinnedJSURLString(reverseProxy)
+		if !ok {
+			// `new URL(value)` throws for anything that is not an absolute URL, and the pinned
+			// catch answers 502 -- the same shape the OPENAI case reproduces.
+			return nil, pinnedChatCompletionTransportFailure(errors.New("Invalid URL"))
+		}
+		apiURL = normalized
+		if password, exists := body.member("proxy_password"); exists {
+			apiKey = password
+		}
+	} else {
+		apiURL = pinnedZAIBaseURL(body)
+		secret, err := pinnedReadSecret(request.directories, pinnedZAISecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+	}
+	customHeaders.setMember("Accept-Language", nodeString(pinnedZAIHeaderLanguage))
+	bodyParams.setMember("thinking", pinnedZAIThinking(body))
+	if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+		if foldErr := pinnedSetJsonObjectFormat(&bodyParams, &body, schema); foldErr != nil {
+			return nil, pinnedChatCompletionTransportFailure(foldErr)
+		}
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourceZai, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        apiURL,
+		apiKey:        apiKey,
+		customHeaders: customHeaders,
+		bodyParams:    bodyParams,
+	})
 }

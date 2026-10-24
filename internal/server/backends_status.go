@@ -126,24 +126,6 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
 		return
 	}
-	if source == chatCompletionSourceZai {
-		// Pinned has no ZAI arm and its chain's closing else answers 400 { error: true } without a
-		// provider call (chat-completions.js:2062-2065), so this is the pinned behaviour rather than
-		// the 501 "not written yet" the default below would give.
-		runtime.serveZaiChatCompletionStatus(w, request, body, directories)
-		return
-	}
-	if source == chatCompletionSourceChutes {
-		// :1809-1811 sets the shared literal and secret with no header of its own, and the shared tail
-		// at :2092-2108 projects the models list. See chutes_chat.go.
-		runtime.serveChutesChatCompletionStatus(w, request, body, directories)
-		return
-	}
-	if source == chatCompletionSourceCohere {
-		// chat-completions.js:1805-1808 -- cohere DOES have a pinned status arm, unlike CLAUDE.
-		runtime.serveCohereChatCompletionStatus(w, request, body, directories)
-		return
-	}
 	if source == chatCompletionSourceElectronHub {
 		runtime.serveElectronHubChatCompletionStatus(w, request, body, directories)
 		return
