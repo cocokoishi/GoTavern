@@ -295,6 +295,12 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 legs.drop.gotavern.maxContextApplied === variants.drop.context
                 && legs.drop.pinned.maxContextApplied === variants.drop.context;
             guards.variantsUsedDifferentContexts = variants.keep.context !== variants.drop.context;
+            // THE PAIR MUST HAVE BEEN MEASURED ON THE SEND, NOT ON A DRY ASSEMBLY. Run 40082539457 drove a
+            // dry-measured pair (4236 kept / 4235 dropped, one token apart) and BOTH variants produced the
+            // drop shape on BOTH legs, because a dry assembly costs a few tokens less than the send it is
+            // used to predict. The capture now bisects by sending; this guard is what keeps a future edit
+            // from quietly going back to the cheaper measurement.
+            guards.boundaryMeasuredOnARealSend = (boundary.assemblyMode ?? null) === 'real-send';
             // THE BOUNDARY BINDS: this is the property that makes the pair a measurement. If the pinned
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
@@ -380,6 +386,8 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             dropMessages: boundary.dropMessages ?? null,
             keepHistoryMessages: boundary.keepHistoryMessages ?? null,
             dropHistoryMessages: boundary.dropHistoryMessages ?? null,
+            assemblyMode: boundary.assemblyMode ?? null,
+            dryPreScanFlip: boundary.dryPreScanFlip ?? null,
             // THE CONTRACT TRAVELS WITH THE NUMBERS. Carried verbatim from the capture, which wrote the
             // reason the two TOTALS differ beside their values (the frontend's own example/world-info
             // messages are emitted as the budget allows, so the total is not monotone and is not asserted).

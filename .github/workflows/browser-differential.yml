@@ -380,6 +380,11 @@ jobs:
       # -------------------------------------------------------------------------------------------------
       - name: Capture the complex preset from the pinned frontend
         if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        # THE CAPTURE NOW BISECTS BY SENDING. A dry assembly does not bind (run 40082539457: a pair one
+        # token apart produced the drop shape on both legs), so the boundary is measured by driving the
+        # real send against a recording peer -- ~30 sends instead of ~15 dry assemblies. 20 minutes is
+        # several times the measured cost and still bounds a wedged page inside the job's own 90.
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
