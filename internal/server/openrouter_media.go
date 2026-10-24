@@ -30,14 +30,8 @@ package server
 //     matches google-gemini-v1 exactly as `google/gemini-x` does; anything else is the literal 'unknown'.
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-
-	"gopkg.in/yaml.v3"
-
-	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
 // pinnedChatCompletionOpenRouterMessageTransforms reproduces chat-completions.js:2372-2374. It runs BEFORE
@@ -231,53 +225,5 @@ func pinnedOpenRouterSignatureFormat(model string) string {
 		return "xai-responses-v1"
 	default:
 		return "unknown"
-	}
-}
-
-// pinnedThoughtSignatures is `!!getConfigValue('gemini.thoughtSignatures', true, 'boolean')`
-// (prompt-converters.js:34), resolved the way the pinned getConfigValue resolves it (src/util.js:88-109):
-// the SILLYTAVERN_* environment override first, then the runtime config file, then the pinned default,
-// which is TRUE (default/config.yaml:382). The pinned value is a MODULE-LOAD read; reading the file per
-// request yields the same answer for a running server, because the pinned server parses config.yaml once at
-// startup and never re-reads it.
-func pinnedThoughtSignatures(directories startup.UserDirectories) bool {
-	if raw, exists := os.LookupEnv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES"); exists {
-		return pinnedToBoolean(raw)
-	}
-	for _, candidate := range pinnedOpenRouterConfigCandidates(directories) {
-		body, err := os.ReadFile(candidate)
-		if err != nil {
-			continue
-		}
-		var parsed map[string]any
-		if yaml.Unmarshal(body, &parsed) != nil {
-			continue
-		}
-		section, ok := parsed["gemini"].(map[string]any)
-		if !ok {
-			return true
-		}
-		value, exists := section["thoughtSignatures"]
-		if !exists {
-			return true
-		}
-		return pinnedToBoolean(value)
-	}
-	return true
-}
-
-// pinnedOpenRouterConfigCandidates finds the runtime config.yaml from what a chat-completion planner has:
-// the per-user directories, whose "root" is `<dataRoot>/<handle>`, so the data root's parent is the install
-// root. These are the same two candidates `charactersConfigCandidates` derives from HTTPHandlerOptions,
-// reached without threading the options struct through the shared planner signature.
-func pinnedOpenRouterConfigCandidates(directories startup.UserDirectories) []string {
-	root := directories["root"]
-	if root == "" {
-		return nil
-	}
-	dataRoot := filepath.Dir(root)
-	return []string{
-		filepath.Join(filepath.Dir(dataRoot), "config.yaml"),
-		filepath.Join(dataRoot, "config.yaml"),
 	}
 }

@@ -95,8 +95,16 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: ai21-empty-placeholder",
-        "status": "stale"
+        "scenarioNames": [
+          "ai21-empty-placeholder",
+          "ai21-error-status",
+          "ai21-json-schema",
+          "ai21-message-conversion",
+          "ai21-nonstream",
+          "ai21-stream"
+        ],
+        "scenarios": 6,
+        "status": "yes"
       },
       "cancellation": {
         "evidence": "cancellation.clientDisconnected true on both legs",
@@ -242,8 +250,30 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: claude-cache-extended-ttl, claude-cache-off, claude-caching-at-depth, claude-empty-placeholder, claude-placeholder-config, claude-system-prompt-cache",
-        "status": "stale"
+        "scenarioNames": [
+          "claude-abort",
+          "claude-cache-extended-ttl",
+          "claude-cache-off",
+          "claude-caching-at-depth",
+          "claude-empty-placeholder",
+          "claude-error-status",
+          "claude-limited-sampling",
+          "claude-merge-roles",
+          "claude-no-sysprompt",
+          "claude-nonstream",
+          "claude-nonthinking-model",
+          "claude-placeholder-config",
+          "claude-prefill",
+          "claude-reverse-proxy",
+          "claude-stream",
+          "claude-stream-control-nonstream",
+          "claude-system-multiple",
+          "claude-system-prompt-cache",
+          "claude-thinking",
+          "claude-tools"
+        ],
+        "scenarios": 20,
+        "status": "yes"
       },
       "cancellation": {
         "evidence": "cancellation.clientDisconnected true on both legs",
@@ -269,8 +299,20 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: cohere-empty-placeholder",
-        "status": "stale"
+        "scenarioNames": [
+          "cohere-empty-placeholder",
+          "cohere-error-status",
+          "cohere-folds",
+          "cohere-message-names",
+          "cohere-nonstream",
+          "cohere-status",
+          "cohere-status-nonok",
+          "cohere-stream",
+          "cohere-stream-control-nonstream",
+          "cohere-tool-calls"
+        ],
+        "scenarios": 10,
+        "status": "yes"
       },
       "cancellation": {
         "reason": "drivable but never recorded: cohere has no generation- or streaming-comparison.json, so no browser claim may cite it",
@@ -354,8 +396,25 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: deepseek-empty-placeholder",
-        "status": "stale"
+        "scenarioNames": [
+          "deepseek-empty-placeholder",
+          "deepseek-error-status",
+          "deepseek-error-status-nonjson",
+          "deepseek-json-schema",
+          "deepseek-logprobs",
+          "deepseek-nonstream",
+          "deepseek-prefix-flag",
+          "deepseek-reasoning",
+          "deepseek-reasoning-effort-without-include",
+          "deepseek-reverse-proxy-no-password",
+          "deepseek-stream",
+          "deepseek-stream-control-nonstream",
+          "deepseek-tools-required-empty",
+          "deepseek-tools-suppress-prefix",
+          "deepseek-tools-without-choice"
+        ],
+        "scenarios": 15,
+        "status": "yes"
       },
       "cancellation": {
         "evidence": "cancellation.clientDisconnected true on both legs",
@@ -488,8 +547,19 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: makersuite-inline-audio, makersuite-inline-image, makersuite-inline-video-resolution",
-        "status": "stale"
+        "scenarioNames": [
+          "makersuite-error-status",
+          "makersuite-inline-audio",
+          "makersuite-inline-image",
+          "makersuite-inline-video-resolution",
+          "makersuite-json-schema",
+          "makersuite-nonstream",
+          "makersuite-stream",
+          "makersuite-stream-control-nonstream",
+          "makersuite-thinking"
+        ],
+        "scenarios": 9,
+        "status": "yes"
       },
       "cancellation": {
         "reason": "source is not in tests/browser/sources.mjs, so no browser drive exists",
@@ -547,8 +617,24 @@
       },
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
-        "reason": "scenario input(s) without a captured provider request: mistral-prefix-disabled, mistral-prefix-enabled",
-        "status": "stale"
+        "scenarioNames": [
+          "mistral-error-status",
+          "mistral-error-status-nonjson",
+          "mistral-json-schema",
+          "mistral-json-schema-nonstrict",
+          "mistral-message-shaping",
+          "mistral-nonstream",
+          "mistral-prefix-disabled",
+          "mistral-prefix-enabled",
+          "mistral-reverse-proxy",
+          "mistral-seed-and-stop",
+          "mistral-stream",
+          "mistral-stream-control-nonstream",
+          "mistral-tool-messages",
+          "mistral-tools-raw"
+        ],
+        "scenarios": 14,
+        "status": "yes"
       },
       "cancellation": {
         "evidence": "cancellation.clientDisconnected true on both legs",
@@ -977,7 +1063,7 @@
     "notReRecordable": 2,
     "presetYes": 0,
     "providerWireExcluded": 1,
-    "providerWireYes": 19,
+    "providerWireYes": 25,
     "reRecordQueue": 0,
     "rows": 26,
     "staleArtefacts": 2,

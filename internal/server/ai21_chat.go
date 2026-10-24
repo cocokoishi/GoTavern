@@ -42,7 +42,12 @@ const (
 	pinnedAI21SecretKey      = "api_key_ai21"
 	chatCompletionSourceAI21 = "ai21"
 	// PROMPT_PLACEHOLDER defaults to this; the config key `promptPlaceholder` can change it and is NOT read here.
-	pinnedAI21PromptPlaceholder = "Let's get started."
+	// The EFFECTIVE default, not the JS literal: pinned config-init merges default/config.yaml into the
+	// runtime config at startup and that file sets promptPlaceholder to "[Start a new chat]"
+	// (default/config.yaml:324); prompt-converters.js:4 keeps "Let's get started." only as its last-resort
+	// fallback. The recording proves it -- ai21-empty-placeholder captured "[Start a new chat]" -- and the
+	// promptPlaceholder config key is still NOT read here (the same named gap as the process routes).
+	pinnedAI21PromptPlaceholder = "[Start a new chat]"
 )
 
 // pinnedAI21Names is getPromptNames (src/prompt-converters.js:49).
