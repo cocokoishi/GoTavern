@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -145,4 +146,48 @@ func (runtime *accountRuntime) servePollinationsChatCompletionStatus(w http.Resp
 		return
 	}
 	searchJSON(w, data)
+}
+
+// pinnedPollinationsChatPlan is chat-completions.js:2511-2529's POLLINATIONS arm plus the shared tail. The
+// endpoint mode moves BOTH the host and the credential, and the seed is ALWAYS in the body because the pinned
+// expression is `seed: request.body.seed ?? Math.floor(Math.random()*99999999)`.
+func pinnedPollinationsChatPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	body := request.body
+	anonymous := pinnedPollinationsAnonymous(body)
+	var apiKey orderedNodeJSON
+	if anonymous {
+		// The pinned branch sends the LITERAL string `anonymous` and never reads the secret.
+		apiKey = nodeString(pinnedPollinationsAnonymousKey)
+	} else {
+		secret, err := pinnedReadSecret(request.directories, pinnedPollinationsSecretKey, pinnedSecretID(body))
+		if err != nil {
+			return nil, pinnedChatCompletionTransportFailure(err)
+		}
+		apiKey = secret
+	}
+	bodyParams := nodeObject()
+	seed, _ := pinnedPollinationsSeed(body)
+	bodyParams.setMember("seed", seed)
+	if !anonymous {
+		if effort, exists := body.member("reasoning_effort"); exists {
+			bodyParams.setMember("reasoning_effort", effort)
+		}
+		if schema, exists := body.member("json_schema"); exists && pinnedJSTruthy(schema) {
+			format := nodeObject()
+			format.setMember("type", nodeString("json_schema"))
+			inner := nodeObject()
+			if value, hasValue := schema.member("value"); hasValue {
+				inner.setMember("schema", value)
+			}
+			format.setMember("json_schema", inner)
+			bodyParams.setMember("response_format", format)
+		}
+	}
+	return pinnedChatCompletionAssemble(chatCompletionSourcePollinations, request, chatCompletionPlanInputs{
+		body:          body,
+		apiURL:        pinnedPollinationsBaseURL(anonymous),
+		apiKey:        apiKey,
+		customHeaders: nodeObject(),
+		bodyParams:    bodyParams,
+	})
 }

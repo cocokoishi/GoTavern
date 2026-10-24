@@ -33,9 +33,12 @@ var pinnedClaimedChatCompletionSources = []string{
 	"makersuite", "vertexai",
 }
 
-// pinnedUnportedChatCompletionSources are the pinned sources with NO transport here. perplexity and moonshot
-// are implemented on branches that have not landed yet; when they land, MOVE them out of this list and the
-// invariant will hold for them too. cometapi is refused by pinned itself and stays.
+// pinnedUnportedChatCompletionSources are the pinned sources with NO transport here. cometapi is the only
+// member, and it is not a gap: pinned assembles its URL and key and then unconditionally throws "This
+// provider is temporarily disabled", so it can never be implemented. PERPLEXITY and MOONSHOT are NOT here --
+// both are implemented and dispatched (perplexity_chat.go, moonshot_chat.go), so listing them would assert
+// that an implemented source is unimplemented.
+//
 // pinnedRouteLevelChatCompletionSources are sources dispatched at ROUTE level, before the shared plan, because
 // their ordering matters: MINIMAX must be reached BEFORE pinnedChatCompletionPlan, which answers 501 for a source
 // it does not plan -- dispatching it after the plan made its own lane report 501 for a source it had just

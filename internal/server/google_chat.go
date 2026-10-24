@@ -43,7 +43,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -218,17 +217,7 @@ func pinnedGooglePlan(body orderedNodeJSON, directories startup.UserDirectories,
 	if parseErr != nil || parsedEndpoint.Host == "" {
 		return nil, pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
 	}
-	names := make([]string, 0, len(headers)+2)
-	for name := range headers {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	requestHeaders := make([]outbound.Header, 0, len(names)+2)
-	for _, name := range names {
-		requestHeaders = append(requestHeaders, outbound.Header{Name: name, Value: headers[name]})
-	}
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Host", Value: pinnedRequestHostHeader(parsedEndpoint)})
-	requestHeaders = append(requestHeaders, outbound.Header{Name: "Connection", Value: "close"})
+	requestHeaders := pinnedChatCompletionRequestFraming(headers, parsedEndpoint)
 	return &outbound.Request{URL: endpointURL, Method: http.MethodPost, Headers: requestHeaders, Body: encoded}, nil
 }
 
@@ -481,4 +470,27 @@ func searchGoogleStatusFailure(w http.ResponseWriter) {
 	data.setMember("data", nodeArray())
 	envelope.setMember("data", data)
 	searchJSON(w, envelope)
+}
+
+// pinnedMakerSuitePlan and pinnedVertexAIPlan are the TWO registry rows the Google transport needs, one per
+// credential mode. They are separate named functions rather than one function with a captured bool because
+// the registry row must name a real function: a nil or half-bound callback would let a source lose its plan
+// without a compile error. Both call the one pinned function.
+func pinnedMakerSuitePlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	return pinnedGooglePlan(request.body, request.directories, false)
+}
+
+func pinnedVertexAIPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+	return pinnedGooglePlan(request.body, request.directories, true)
+}
+
+// serveMakerSuiteChatCompletionResponse and serveVertexAIChatCompletionResponse are the two response rows,
+// for the same reason: the shared Google mapping branches on the credential mode, and the mode belongs to the
+// ROW, not to a runtime test of the request body.
+func serveMakerSuiteChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
+	serveGoogleChatCompletionResponse(w, request, response, body, false)
+}
+
+func serveVertexAIChatCompletionResponse(w http.ResponseWriter, request *http.Request, response *outbound.Response, body orderedNodeJSON) {
+	serveGoogleChatCompletionResponse(w, request, response, body, true)
 }
