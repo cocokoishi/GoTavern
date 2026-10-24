@@ -259,6 +259,10 @@ function deriveFacts(fallback = null) {
     return sortValue(facts);
 }
 
+// Blocks owned by another generator. This one leaves their contents untouched; the owning tool and
+// its own --check verify them, so a single document can carry both kinds of generated content.
+const EXTERNAL_BLOCKS = new Set(['coverage.matrix']);
+
 const BLOCKS = {
     'routes.accounting': (facts) => `\`${facts.routes.total}\` inventoried routes; \`${facts.routes.bareNotImplemented}\` bare \`not implemented\`; \`${facts.routes.reasonedExclusions}\` reasoned exclusions; \`${facts.routes.reachableCeiling}\` reachable.`,
     'provider-wire.sources': (facts) => `\`${facts.providerWire.sources}\``,
@@ -284,6 +288,10 @@ function renderDocument(relativePath, facts) {
     const original = readFileSync(absolutePath, 'utf8');
     const used = new Set();
     const rendered = original.replace(MARKER, (match, name, current) => {
+        if (EXTERNAL_BLOCKS.has(name)) {
+            used.add(name);
+            return match;
+        }
         if (!Object.hasOwn(BLOCKS, name)) {
             throw new Error(`${relativePath}: unknown generated block "${name}"`);
         }

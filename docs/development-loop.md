@@ -96,6 +96,11 @@ marked blocks, and `--check` (run in CI's `verify` job) fails naming any stale f
 hand-edit between the markers; change the derivation or the prose outside them. A fact that cannot be
 derived (for example a historical mutation count) stays human-written and must carry its date.
 
+`node tools/generate-coverage-matrix.mjs --check` does the same for the per-source P/E/streaming/
+cancellation/preset matrix: a `yes` cell must name a committed fixture or artefact, a stale/absent
+artefact is its own status, and the pinned-derived source list and the Go registry are cross-checked
+in both directions. It never lets the registry prove a cell.
+
 ## What no local run can decide, and must not be pretended otherwise
 
 A **provider-wire capture** needs the pinned Node server talking to a controlled peer. Replaying a
