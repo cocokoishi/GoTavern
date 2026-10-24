@@ -367,6 +367,15 @@ jobs:
           cache: true
       - name: Verify compatibility documents cite committed oracle fixtures
         run: node tools/verify-oracle-citations.mjs
+      - name: Verify every commit identity is a project identity
+        # GitHub renders a foreign author email as an outside account on the public contributors list, and that
+        # happened twice through subagent commits (
+oreply@anthropic.com). The history was rewritten each time;
+        # this step is what makes a recurrence red on the push that introduces it, while the commit is still
+        # local and cheap to amend, instead of after another rewrite.
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: bash scripts/check-commit-identity.sh
       - name: Verify generated documentation facts are current
         # The counts in README/HANDOFF/compat-matrix/surface-coverage are DERIVED (routes, provider-wire
         # sources and scenarios, browser E/stream/cancel breadth, tokenizer cases, secret keys). They were
