@@ -1,4 +1,4 @@
-﻿# Runs the browser differential against the CURRENT commit and REPORTS whether the committed comparison
+# Runs the browser differential against the CURRENT commit and REPORTS whether the committed comparison
 # artefacts still describe it.
 #
 # WHY THIS EXISTS. Every other browser job only READS the committed *-comparison.json artefacts: the legs
