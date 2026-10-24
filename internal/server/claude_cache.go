@@ -38,7 +38,7 @@ func pinnedClaudeApplyCaching(payload *orderedNodeJSON, directories startup.User
 		cachingAtDepth = -1
 	}
 	ttl := "5m"
-	if false && extendedTTL {
+	if extendedTTL {
 		ttl = "1h"
 	}
 	if enableSystemPromptCache {
