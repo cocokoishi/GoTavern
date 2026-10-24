@@ -72,6 +72,15 @@ CAN move a fixture. The `changes` job in `.github/workflows/ci.yml` is the singl
 and it resolves the mapping by grepping the probes' own `@gotavern-oracle: fixture=` declarations, so the
 mapping cannot drift away from the probes.
 
+## Generated document facts
+
+Counts cited in `README.md`, `HANDOFF.md`, `docs/compat-matrix.md` and `docs/surface-coverage.md` live in
+marked blocks: `<!-- BEGIN GENERATED: <name> --> ... <!-- END GENERATED: <name> -->`. `node
+tools/generate-doc-facts.mjs` derives them from the tree, rewrites `docs/generated/facts.json` and the
+marked blocks, and `--check` (run in CI's `verify` job) fails naming any stale fact or block. Never
+hand-edit between the markers; change the derivation or the prose outside them. A fact that cannot be
+derived (for example a historical mutation count) stays human-written and must carry its date.
+
 ## What is not locally verifiable, and must not be pretended otherwise
 
 A **provider-wire capture** needs the pinned Node server talking to a controlled peer. Replaying a committed

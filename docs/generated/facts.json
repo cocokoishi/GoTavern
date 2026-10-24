@@ -1,0 +1,57 @@
+{
+  "browser": {
+    "bothSurfaces": 15,
+    "cancellationSources": 15,
+    "generationSources": 15,
+    "streamingSources": 15
+  },
+  "generatedBy": "tools/generate-doc-facts.mjs",
+  "providerStatus": {
+    "customFallThrough": 1,
+    "explicitBranches": 21,
+    "sources": 22,
+    "vertexAIExplicitBranch": false
+  },
+  "providerWire": {
+    "capturedScenarios": 187,
+    "scenarioInputs": 187,
+    "sources": 25
+  },
+  "routes": {
+    "bareNotImplemented": 0,
+    "compatible": 0,
+    "partial": 328,
+    "reachableCeiling": 328,
+    "reasonedExclusions": 11,
+    "total": 339,
+    "unsupported": 0
+  },
+  "schemaVersion": 1,
+  "scm": {
+    "commitsSinceCrossBaseline": 230,
+    "crossBaselineCommit": "d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef",
+    "versionTags": [
+      "v0.1.0-alpha.1"
+    ]
+  },
+  "sdGenerate": {
+    "routes": 19
+  },
+  "secrets": {
+    "keys": 63
+  },
+  "startup": {
+    "differentStatus": 4,
+    "equal": 349,
+    "requests": 353,
+    "unexpected": 0
+  },
+  "tokenizers": {
+    "cases": 1022,
+    "decodeRoute": 105,
+    "downloadsDisabled": 51,
+    "encodeRoute": 406,
+    "openai": 443,
+    "remote": 17
+  }
+}

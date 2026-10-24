@@ -55,11 +55,11 @@ five observation surfaces, and the numbers below are products of those runs:
 
 | Area | State |
 |---|---|
-| Chat-completion providers | **25 of the 26** pinned sources implemented, each with recorded provider-wire captures. The exception is COMETAPI, which pinned itself refuses before any request is made. The differential fixture holds **187 recorded scenarios**. |
+| Chat-completion providers | **All implemented pinned sources except COMETAPI have recorded provider-wire captures** (pinned itself refuses COMETAPI before any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `187` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
 | Provider wire (`B`/`P`) | Every claimed source is compared against captures: request target, method, header set, body bytes (SHA-256), chunked framing, client-disconnect. A control test fails if a source is claimed without a capture. |
-| Browser legs (`E`/`C`) | **15 sources** carry both a generation and a streaming comparison artifact, printed and enforced by `tools/verify-browser-comparisons.mjs`. Streaming covers frames, cancellation and final text. |
+| Browser legs (`E`/`C`) | **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> sources** carry both a generation and a streaming comparison artifact, printed and enforced by `tools/verify-browser-comparisons.mjs`. Streaming covers frames, cancellation and final text. |
 | Extensions (`F`) | Tavern Helper / JS-Slash-Runner and the standard-SillyTavern-API part of LittleWhiteBox are driven as real probes. |
-| Startup (`F`/`E`) | Startup differential over 353 requests; characters, chats, groups, world info, settings and secrets have replay fixtures. |
+| Startup (`F`/`E`) | Startup differential over <!-- BEGIN GENERATED: startup.requests -->`353`<!-- END GENERATED: startup.requests --> requests; characters, chats, groups, world info, settings and secrets have replay fixtures. |
 | Release path | Fresh install, idempotent re-install, tampered-archive refusal, update **and cross-baseline rollback** run in CI against the real `install.sh` / `install.ps1` over a loopback mirror, alongside the Windows-only installer behaviours. |
 
 **Not measured, stated rather than implied** — the honest gaps:
