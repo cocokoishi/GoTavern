@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "name": "vertexai-stream",
+  "purpose": "VERTEXAI streams: the route must produce a complete parsed event sequence through the shared Google path, which the source shares with makersuite but reaches through a different literal and a different URL shape (`:streamGenerateContent` plus `&alt=sse`). Until this scenario vertexai had three captures and every one of them was non-streaming, so nothing recorded whether its stream arm sets alt=sse, forwards the parsed events and terminates.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "vertexai",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_vertexai": [
+      {
+        "id": "probe-id-api_key_vertexai",
+        "value": "synthetic-vertex-key",
+        "label": "api_key_vertexai",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://aiplatform.googleapis.com",
+      "to": "<mock>"
+    },
+    {
+      "from": "https://us-central1-aiplatform.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_VERTEXAI_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://aiplatform.googleapis.com"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "vertexai",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "model": "gemini-2.5-pro",
+      "max_tokens": 128,
+      "stream": true,
+      "vertexai_auth_mode": "express",
+      "vertexai_express_project_id": "probe-project"
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/event-stream"
+          }
+        ],
+        "stream": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}]}\n\n"
+        ]
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "The host is a pinned literal and this drive sets no reverse_proxy, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH, the `:streamGenerateContent` method and the `alt=sse` query are untouched and ARE compared; only the ephemeral authority is rewritten.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:697-698 express mode with a project: `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:${responseType}?key=${keyParam}${stream ? '&alt=sse' : ''}`"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  }
+}

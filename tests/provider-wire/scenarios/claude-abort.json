@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "name": "claude-abort",
+  "purpose": "The caller cancels mid-stream against CLAUDE: the backend must tear the upstream connection down, which the recorder observes as a client disconnect. This source cancels through its own AbortController bound to the client socket (chat-completions.js:241-245), a different mechanism from the shared path's, so it needs its own recorded case.",
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "claude",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false"
+  ],
+  "secrets": {
+    "api_key_claude": [
+      {
+        "id": "probe-id-api_key_claude",
+        "value": "synthetic-claude-key",
+        "label": "api_key_claude",
+        "active": true
+      }
+    ]
+  },
+  "expectedApiKey": {
+    "header": "x-api-key",
+    "value": "synthetic-claude-key"
+  },
+  "transportRedirect": [
+    {
+      "from": "https://api.anthropic.com/v1",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_CLAUDE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://api.anthropic.com/v1"
+  },
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "claude",
+      "model": "claude-sonnet-4-5-20250929",
+      "messages": [
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "max_tokens": 64,
+      "reasoning_effort": "auto",
+      "use_sysprompt": true,
+      "stream": true
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/event-stream"
+          }
+        ],
+        "neverEnds": true
+      }
+    ]
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+      },
+      {
+        "path": "provider.requests[].headers[x-api-key]",
+        "rule": "value replaced with <redacted>, presence preserved",
+        "reason": "The scenario supplies a synthetic key; the header's presence is the contract, the value is not. CLAUDE authenticates with x-api-key rather than an Authorization bearer.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:417 'x-api-key': apiKey"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_CLAUDE is a hardcoded literal and this drive sets no reverse_proxy, so the pinned leg reaches the recorder through the probe transport redirect and the Go leg through its seam. The PATH (/v1/messages) is untouched and IS compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:74 API_CLAUDE = 'https://api.anthropic.com/v1', :231 new URL(reverse_proxy || API_CLAUDE).toString(), :410 apiUrl + '/messages'"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "abortAfterFirstEvent": true
+}

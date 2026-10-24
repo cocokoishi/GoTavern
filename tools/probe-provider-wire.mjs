@@ -542,6 +542,25 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         const recorded = { body: recordingText };
+        // A CANCELLATION SCENARIO MUST SHOW THE CANCELLATION. The poll above waits for it, but waiting
+        // is not asserting: if the backend leaves the upstream connection open, the loop simply gives up
+        // after its bound and the capture would record `clientDisconnected: false` as though that were
+        // the contract. Every abort scenario therefore states two things it observed at the peer --
+        // exactly one provider request (a retry or a second attempt is a different behaviour) and a
+        // disconnect on every recorded request -- and fails by naming the scenario when either is
+        // absent. The pinned-vs-Go request count is compared separately in
+        // assertGoTavernMatchesPinned, and the Go replay asserts the recorded flag itself
+        // (internal/server/chat_completions_oracle_test.go).
+        if (definition.abortAfterFirstEvent) {
+            const abortRequests = recorded.body.requests ?? [];
+            if (abortRequests.length !== 1) {
+                throw new Error(`scenario ${definition.name}: an abort scenario must record exactly one provider request against ${backendLabel}, and the peer recorded ${abortRequests.length}`);
+            }
+            const undisconnected = abortRequests.filter(entry => entry.clientDisconnected !== true);
+            if (undisconnected.length > 0) {
+                throw new Error(`scenario ${definition.name}: ${backendLabel} never tore the upstream connection down, so the peer recorded no client disconnect for request ${undisconnected.map(entry => entry.index).join(', ')}; a cancellation scenario that observes no cancellation proves nothing`);
+            }
+        }
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
         const normalizedProvider = normalizeProvider(recorded.body, mock.address);
