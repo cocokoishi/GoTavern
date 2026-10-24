@@ -341,7 +341,12 @@ test('selection: an empty selection is a hard failure, not a silent no-op', asyn
 
 test('selection: an unknown probe name in GOTAVERN_ORACLE_PROBES is a hard failure', async () => {
     const { selectProbes, parseProbeFilter } = await core();
-    const discovered = [{ script: 'probe-a.mjs', fixture: 'a.json' }];
+    // TWO declarations, one of them selected: with a single declaration, selecting it IS the full pass, so a
+    // one-probe fixture could not tell "narrowed" from "full" and would pass for the wrong reason.
+    const discovered = [
+        { script: 'probe-a.mjs', fixture: 'a.json' },
+        { script: 'probe-b.mjs', fixture: 'b.json' },
+    ];
     assert.deepEqual(parseProbeFilter(' probe-a.mjs ,  ,'), ['probe-a.mjs']);
     assert.deepEqual(parseProbeFilter(''), []);
 
@@ -444,12 +449,25 @@ test('wiring: both scheduling shapes hand the decision to the one execution prim
 });
 
 test('wiring: the decision is printed exactly once', () => {
+    // The formatter owns the `double run: ...` prefix (proved by the announcement test above), so what is
+    // left to prove here is that the runner ANNOUNCES it: computed and thrown away is the state this test
+    // exists to prevent, and a line based on the prefix alone would match a comment.
     const source = readFileSync(RUNNER, 'utf8');
-    const printed = source
+    const announcements = source
         .split('\n')
         .map((text, index) => ({ text: text.trim(), line: index + 1 }))
-        .filter(({ text }) => /double run: /.test(text));
-    assert.equal(printed.length, 1, `the policy decision must be printed once; found ${printed.length}: ${JSON.stringify(printed)}`);
+        .filter(({ text }) => /formatDoubleRunDecision\s*\(/.test(text))
+        .filter(({ text }) => !/^\s*import\b/.test(text));
+    assert.equal(
+        announcements.length,
+        1,
+        `the policy decision must be printed once; found ${announcements.length}: ${JSON.stringify(announcements)}`,
+    );
+    assert.match(
+        announcements[0].text,
+        /console\.(log|error)\(/,
+        `the decision must be PRINTED, not merely computed: ${announcements[0].text}`,
+    );
 });
 
 // Returns the full text of every call to `name` in `source`, matched by balanced parentheses, so a call

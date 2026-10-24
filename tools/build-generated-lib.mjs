@@ -14,13 +14,29 @@
 // the step, so discovery cannot silently skip one. The probes that must run
 // alone are listed explicitly below with the reason each is serial.
 
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+
+// The execution core. Everything about HOW MANY TIMES a probe runs lives there, because that is the one
+// question no fixture can answer: a fixture records what a probe observed, never how often the harness
+// executed it. This file owns the SCHEDULING (which probes run, in what order, with which build root) and
+// nothing about the execution itself.
+import {
+    doubleRunFor,
+    executeProbe,
+    formatDoubleRunDecision,
+    formatTimingReport,
+    parseProbeFilter,
+    runProbeBuffered,
+    runProbeInherited,
+    selectProbes,
+    sharedWritePaths,
+} from './oracle/execution.mjs';
 
 const PINNED_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 const PINNED_VERSION = '1.19.0';
@@ -43,28 +59,6 @@ function runNpm(args, cwd, options = {}) {
         return execFileSync(process.execPath, [npmCli, ...args], { cwd, encoding: 'utf8', stdio: 'inherit', ...options });
     }
     return execFileSync('npm', args, { cwd, encoding: 'utf8', stdio: 'inherit', ...options });
-}
-
-function changedJSONPaths(left, right, location = '$', output = []) {
-    if (Object.is(left, right) || output.length >= 40) return output;
-    if (Array.isArray(left) && Array.isArray(right)) {
-        if (left.length !== right.length) output.push(`${location}.length`);
-        for (let index = 0; index < Math.min(left.length, right.length); index++) {
-            changedJSONPaths(left[index], right[index], `${location}[${index}]`, output);
-        }
-        return output;
-    }
-    if (left && right && typeof left === 'object' && typeof right === 'object' && !Array.isArray(left) && !Array.isArray(right)) {
-        const keys = [...new Set([...Object.keys(left), ...Object.keys(right)])].sort();
-        for (const key of keys) {
-            if (!(key in left) || !(key in right)) output.push(`${location}.${key}`);
-            else changedJSONPaths(left[key], right[key], `${location}.${key}`, output);
-            if (output.length >= 40) break;
-        }
-        return output;
-    }
-    output.push(location);
-    return output;
 }
 
 function generatedManifest(directory) {
@@ -93,42 +87,6 @@ const probeFailures = [];
 function recordProbeFailure(label, error) {
     probeFailures.push({ label, message: (error && error.message) ? error.message : String(error) });
 }
-
-function runAsync(command, args, cwd) {
-    return new Promise((resolve, reject) => {
-        const child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-        const output = [];
-        child.stdout.setEncoding('utf8');
-        child.stderr.setEncoding('utf8');
-        child.stdout.on('data', chunk => output.push(chunk));
-        child.stderr.on('data', chunk => output.push(chunk));
-        child.on('error', reject);
-        child.on('close', code => {
-            const text = output.join('');
-            if (code === 0) resolve(text);
-            else reject(new Error(`${command} ${args.join(' ')} exited ${code}\n${text}`));
-        });
-    });
-}
-
-// Paths under the build root that more than one probe could write.
-//
-// Pinned src/constants.js PUBLIC_DIRECTORIES are relative to the server
-// directory, and pinned server.js:11 does `process.chdir(serverDirectory)`, so a
-// probe that touches one of these writes into the shared build root no matter
-// what cwd it was spawned with. Spawning with an isolated cwd cannot help.
-//
-// These are exactly the four PUBLIC_DIRECTORIES subtrees; `extensions` contains
-// `third-party`, and both are listed because both are named upstream and either
-// could be touched directly. Add a fifth explicitly, with a comment, rather than
-// widening this to the whole build root: a blanket lock could break something
-// legitimate for a reason nobody would connect to this change.
-const sharedWritePaths = [
-    'public/img',
-    'public/sounds',
-    'public/scripts/extensions',
-    'public/scripts/extensions/third-party',
-];
 
 // Records the mode of every entry under the shared paths so the lock can be
 // undone exactly, and detects a write that happened anyway (which is how the
@@ -175,27 +133,11 @@ function unlockSharedPaths(before) {
     console.log('shared-write lock released');
 }
 
-// Reports a write into a shared path with the probe that attempted it, so the
-// failure reads as an instruction rather than as a mystery permission error.
-function describeSharedWrite(label, output) {
-    if (!/EACCES|EPERM|permission denied|read-only/i.test(output)) return null;
-    const mentioned = sharedWritePaths.filter(relative => output.includes(relative));
-    const where = mentioned.length > 0 ? mentioned.join(', ') : sharedWritePaths.join(', ');
-    return `probe ${label} attempted to write under ${where}, which is shared with other probes. `
-        + 'Declare sharedWrite=true on its @gotavern-oracle line to give it a private build root, or stop writing there.';
-}
-
-// Runs one probe twice and compares the two fixtures byte for byte. The
-// double-run determinism check and the fixture comparison are the load-bearing
-// parts of the oracle; parallelism changes only when probes run, and failure
-// aggregation changes only whether a failure stops the other probes, never
-// what is compared or how strictly.
-function compareProbeRuns(label, first, second) {
-    if (first.equals(second)) return;
-    const paths = changedJSONPaths(JSON.parse(first), JSON.parse(second));
-    recordProbeFailure(label, new Error(`oracle changed across identical pinned Node runs at: ${paths.join(', ')}`));
-}
-
+// The failure diagnostic and the fixture comparison moved to tools/oracle/execution.mjs with the primitive
+// that uses them: a scheduling site that owns a private copy of either is a second execution path, and a
+// second execution path is how the policy came to apply to nobody. What stays here is PROVISIONING, which is
+// genuinely per-root rather than per-execution.
+//
 // A probe may import a shared helper from `tools/lib/`. Probes are copied into the build root as
 // `.gotavern-<name>.mjs`, so a relative `./lib/...` import resolves against the build root and the
 // directory has to be copied there too. Without this, three probes ran on the developer's machine
@@ -208,127 +150,41 @@ function materializeProbeLib(root) {
     cpSync(source, path.join(root, 'lib'), { recursive: true, force: true });
 }
 
-async function verifyProbe({ script, fixture, label, args = [], root = buildRoot }) {
+// Copies the probe (and the shared helpers it may import) into the root it will run against, and returns the
+// path the execution primitive will spawn. Identical for both scheduling shapes: a probe's argv must not
+// depend on whether it happens to be serial.
+function prepareProbeScript(script, root) {
     const scriptPath = path.join(root, `.gotavern-${script}`);
     materializeProbeLib(root);
     copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
-    const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
-    // Both runs always execute, even if the first one fails: the determinism
-    // check must never be skipped for a probe, and a probe that fails once and
-    // succeeds once is a finding, not something to hide. Output is buffered so
-    // concurrent probes do not interleave, then echoed so the job log still
-    // shows what each probe observed, exactly as the serial harness did.
-    const outputs = [];
-    let first;
-    let second;
-    let failure;
-    try {
-        outputs.push(await runAsync(process.execPath, [scriptPath, root, repositoryRoot, ...args], root));
-        first = readFileSync(fixturePath);
-    } catch (error) {
-        failure = error;
-    }
-    try {
-        outputs.push(await runAsync(process.execPath, [scriptPath, root, repositoryRoot, ...args], root));
-        second = readFileSync(fixturePath);
-    } catch (error) {
-        failure = failure ?? error;
-    }
-    const observed = outputs.join('').trim();
-    if (observed) console.log(observed);
-    if (failure) {
-        const sharedWrite = describeSharedWrite(label, `${observed}\n${failure.message}`);
-        recordProbeFailure(label, sharedWrite ? new Error(`${failure.message}\n${sharedWrite}`) : failure);
-        return null;
-    }
-    compareProbeRuns(label, first, second);
-    return first;
+    return scriptPath;
 }
 
-// WHERE THE ORACLE'S TIME ACTUALLY GOES. Every probe is recorded twice for stability (the double run is
-// what caught the sd-routes arrival-order race), so the sweep costs two probe executions per declaration.
-// Without per-probe numbers the only available statement is "it takes about an hour", which is not a
-// measurement anyone can act on, and the next optimisation is a guess. This collects run-1 and run-2
-// milliseconds per probe and prints the slowest once the pool finishes; it changes no fixture byte.
+// WHERE THE ORACLE'S TIME ACTUALLY GOES. A declaration costs one execution per run, so the count is what
+// makes the number actionable. Two corrections over the version this replaces: the report is emitted AFTER
+// every phase (it used to be printed before the late serial runs, so their time was missing altogether), and
+// it is rendered from the executions that happened rather than from a hardcoded "x2 runs" label.
 const probeTimings = [];
 
 function reportProbeTimings() {
-    if (probeTimings.length === 0) return;
-    const rows = [...probeTimings].sort((a, b) => ((b.firstMs ?? 0) + (b.secondMs ?? 0)) - ((a.firstMs ?? 0) + (a.secondMs ?? 0)));
-    const total = rows.reduce((sum, row) => sum + (row.firstMs ?? 0) + (row.secondMs ?? 0), 0);
-    console.log(`\nprobe wall clock: ${(total / 1000).toFixed(1)}s across ${rows.length} probe declaration(s) x2 runs`);
-    console.log('  slowest first (first run / second run):');
-    for (const row of rows.slice(0, 15)) {
-        const first = row.firstMs === null ? 'failed' : `${(row.firstMs / 1000).toFixed(1)}s`;
-        const second = row.secondMs === null ? 'failed' : `${(row.secondMs / 1000).toFixed(1)}s`;
-        console.log(`    ${String(first).padStart(8)} / ${String(second).padStart(8)}  ${row.label}`);
-    }
-}
-// THE SECOND RUN IS FOR STABILITY, AND IT COSTS HALF OF EVERY SWEEP. Measured: a two-probe dispatch
-// (provider-wire's 149 scenarios plus backends' 107) had not finished after 46 minutes, and the full sweep
-// exceeded ninety minutes and was still running when it was cancelled. Each probe executes twice, so the wall
-// clock is very nearly double what one pass needs.
-//
-// What the second run actually buys, stated precisely: the zero-diff gate ALREADY proves run 1 equals the
-// COMMITTED fixture, so a second run cannot detect drift from the recorded bytes -- it detects a probe that is
-// INTERMITTENTLY unstable, one whose two runs disagree while at least one still matches the commit. That is a
-// real failure class (the sd-routes arrival-order race was found exactly this way), so deleting it outright
-// would trade evidence for speed.
-//
-// The policy is therefore scope-based rather than a per-probe guess:
-//   GOTAVERN_ORACLE_DOUBLE_RUN=all    every probe twice (the nightly full sweep)
-//   GOTAVERN_ORACLE_DOUBLE_RUN=none   never (a deliberate single-run experiment)
-//   unset / auto                      twice when EVERY probe runs, once when the run is narrowed
-// A narrowed run exists to record what a commit can move; the nightly run exists to prove stability. Tying the
-// two together by scope keeps the stability check where it is affordable and halves the commit-to-verdict
-// path. The decision is printed per run so nobody has to infer which mode they got.
-function doubleRunFor(selectionIsFull) {
-    const setting = (process.env.GOTAVERN_ORACLE_DOUBLE_RUN ?? 'auto').trim().toLowerCase();
-    if (setting === 'all') return { double: true, why: 'GOTAVERN_ORACLE_DOUBLE_RUN=all' };
-    if (setting === 'none') return { double: false, why: 'GOTAVERN_ORACLE_DOUBLE_RUN=none' };
-    if (selectionIsFull) return { double: true, why: 'every probe is recording, so this run is the stability pass' };
-    return { double: false, why: 'a narrowed run records what this change can move; the nightly full sweep proves stability' };
+    const report = formatTimingReport(probeTimings);
+    if (report) console.log(`\n${report}`);
 }
 
-function verifyProbeSerial({ script, fixture, label, args = [], root = buildRoot, doubleRun = true }) {
-    const scriptPath = path.join(root, `.gotavern-${script}`);
-    materializeProbeLib(root);
-    copyFileSync(path.join(repositoryRoot, 'tools', script), scriptPath);
-    const fixturePath = path.join(repositoryRoot, 'tests', 'oracle', fixture);
-    let first;
-    let second;
-    let failure;
-    // Declared at function scope on purpose: the earlier version declared these inside the try blocks and then
-    // read them below, which is a ReferenceError the moment a probe actually runs.
-    let firstMs = null;
-    let secondMs = null;
-    try {
-        const started = Date.now();
-        run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
-        firstMs = Date.now() - started;
-        first = readFileSync(fixturePath);
-    } catch (error) {
-        failure = error;
-    }
-    if (doubleRun && !failure) {
-        try {
-            const started = Date.now();
-            run(process.execPath, [scriptPath, root, repositoryRoot, ...args], root);
-            secondMs = Date.now() - started;
-            second = readFileSync(fixturePath);
-        } catch (error) {
-            failure = error;
-        }
-    }
-    if (failure) {
-        const sharedWrite = describeSharedWrite(label, failure.message);
-        recordProbeFailure(label, sharedWrite ? new Error(`${failure.message}\n${sharedWrite}`) : failure);
-        probeTimings.push({ label, firstMs, secondMs: null, failed: true });
-        return null;
-    }
-    if (doubleRun) compareProbeRuns(label, first, second);
-    probeTimings.push({ label, firstMs, secondMs, failed: false });
-    return first;
+// ONE OPTION SET PER DECLARED PROBE, so the two scheduling shapes cannot drift in what they hand the
+// primitive. What deliberately does NOT live here is the double-run decision: every call site passes
+// `doubleRun` explicitly, so the policy is visible at each point where a probe is actually executed.
+function probeExecutionOptions(probe, root) {
+    return {
+        label: probe.label,
+        scriptPath: prepareProbeScript(probe.script, root),
+        root,
+        repositoryRoot,
+        args: probe.args,
+        readFixture: () => readFileSync(path.join(repositoryRoot, 'tests', 'oracle', probe.fixture)),
+        timings: probeTimings,
+        recordFailure: failure => recordProbeFailure(failure.label, new Error(failure.message)),
+    };
 }
 
 // Probes declare their own runs so registering one needs no edit here:
@@ -385,14 +241,24 @@ function createPrivateBuildRoot(script) {
 // Runs every probe even when some fail, so a single breakage cannot hide the
 // ones behind it. At 25 minutes per CI cycle the discovery cost of aborting
 // early is what let six broken probes stay invisible until an unrelated fix.
-async function runProbePool(probes, limit) {
+//
+// This is the POOLED scheduling shape. It differs from the serial one only in the runner it hands the
+// primitive (buffered output here, inherited stdio there); the execution accounting, the double-run
+// comparison and the failure aggregation are the primitive's, so the two shapes cannot diverge.
+async function runProbePool(probes, limit, doubleRunPolicy) {
     const queue = [...probes];
     const workers = Array.from({ length: Math.max(1, Math.min(limit, queue.length)) }, async () => {
         while (queue.length > 0) {
             const probe = queue.shift();
-            await verifyProbe(probe.sharedWrite
-                ? { ...probe, root: createPrivateBuildRoot(probe.script) }
-                : probe);
+            const root = probe.sharedWrite ? createPrivateBuildRoot(probe.script) : buildRoot;
+            const result = await executeProbe({
+                ...probeExecutionOptions(probe, root),
+                doubleRun: doubleRunPolicy.double,
+                run: runProbeBuffered,
+            });
+            // Buffered so concurrent probes cannot interleave, then echoed so the job log still shows what
+            // each probe observed, exactly as the serial harness did.
+            if (result.output) console.log(result.output);
         }
     });
     await Promise.all(workers);
@@ -474,31 +340,34 @@ try {
     //
     // The undeclared-probe check below deliberately uses the FULL discovery list, so narrowing cannot
     // hide a probe that declares nothing.
-    const oracleProbeFilter = (process.env.GOTAVERN_ORACLE_PROBES ?? '')
-        .split(',')
-        .map(name => name.trim())
-        .filter(name => name !== '');
-    const selectedProbes = oracleProbeFilter.length === 0
-        ? discoveredProbes
-        : discoveredProbes.filter(probe => oracleProbeFilter.includes(probe.script));
-    if (oracleProbeFilter.length > 0) {
-        const unknown = oracleProbeFilter.filter(name => !discoveredProbes.some(probe => probe.script === name));
-        if (unknown.length > 0) {
-            probeFailures.push({
-                label: 'oracle probe filter',
-                message: `GOTAVERN_ORACLE_PROBES names probes that do not exist: ${unknown.join(', ')}`,
-            });
-        }
-        if (selectedProbes.length === 0) {
-            probeFailures.push({
-                label: 'oracle probe filter',
-                message: 'GOTAVERN_ORACLE_PROBES selected no probe; an empty selection records nothing, so it is an error rather than a success',
-            });
-        } else {
-            console.log(`oracle probe filter: recording ${selectedProbes.length} of ${discoveredProbes.length} probes`);
-            for (const probe of selectedProbes) console.log(`  ${probe.script} -> ${probe.fixture}`);
-        }
+    //
+    // Selection is resolved in the execution core, because "this run selected nothing" is an execution
+    // outcome and not a formatting decision: zero discovered probes (a broken declaration regex, a moved
+    // directory) used to record nothing and exit 0, which the zero-diff gate then read as a pass.
+    const oracleProbeFilter = parseProbeFilter(process.env.GOTAVERN_ORACLE_PROBES ?? '');
+    const { selected: selectedProbes, failures: selectionFailures, selectionIsFull } = selectProbes({
+        discovered: discoveredProbes,
+        filter: oracleProbeFilter,
+    });
+    probeFailures.push(...selectionFailures);
+    if (oracleProbeFilter.length > 0 && selectedProbes.length > 0) {
+        console.log(`oracle probe filter: recording ${selectedProbes.length} of ${discoveredProbes.length} probes`);
+        for (const probe of selectedProbes) console.log(`  ${probe.script} -> ${probe.fixture}`);
     }
+
+    // THE DOUBLE-RUN DECISION, TAKEN ONCE AND PRINTED ONCE.
+    //
+    // Every probe costs one execution per run, and the second run is what catches a probe that is
+    // INTERMITTENTLY unstable -- one whose two runs disagree while at least one still matches the commit.
+    // The zero-diff gate already proves run 1 equals the COMMITTED bytes, so the second run buys exactly
+    // that one failure class (it is how the sd-routes arrival-order race was found) and costs half of a
+    // sweep. The policy is therefore scope-based rather than a per-probe guess: twice when EVERY probe is
+    // recording (the stability pass), once when the run is narrowed, and GOTAVERN_ORACLE_DOUBLE_RUN can
+    // force either. The decision is printed below so nobody has to infer which mode they got, and it is
+    // handed to every execution site, which is the part that was missing before.
+    const doubleRunPolicy = doubleRunFor(selectionIsFull);
+    console.log(formatDoubleRunDecision(doubleRunPolicy));
+
     const declaredScripts = new Set(discoveredProbes.map(probe => probe.script));
     const undeclaredProbes = readdirSync(path.join(repositoryRoot, 'tools'))
         .filter(name => name.startsWith('probe-') && name.endsWith('.mjs'))
@@ -542,9 +411,14 @@ try {
     const serialResults = new Map();
     try {
         for (const probe of earlyRuns) {
-            serialResults.set(probe.fixture, verifyProbeSerial(probe.sharedWrite
-                ? { ...probe, root: createPrivateBuildRoot(probe.script) }
-                : probe));
+            const root = probe.sharedWrite ? createPrivateBuildRoot(probe.script) : buildRoot;
+            // The SERIAL scheduling shape: same primitive, same accounting, its own single-execution runner.
+            const { fixture } = await executeProbe({
+                ...probeExecutionOptions(probe, root),
+                doubleRun: doubleRunPolicy.double,
+                run: runProbeInherited,
+            });
+            serialResults.set(probe.fixture, fixture);
         }
         // probe-config-init's fixture also supplies the vendored default config.
         const configFixtureBytes = serialResults.get('sillytavern-1.19.0-config-init.json');
@@ -555,11 +429,11 @@ try {
         // Independent probes. Each is hermetic: it picks its own free port and
         // its own mkdtemp runtime root and writes only its own fixture, so they
         // can run concurrently without changing any observation. Every probe is
-        // still run twice and the two fixtures are still compared byte for byte.
+        // still run the number of times the policy decided, and the two fixtures
+        // of a double run are still compared byte for byte.
         // A failing probe is recorded, not thrown, so one breakage cannot hide
         // the rest; the step fails once at the end with the complete list.
-        await runProbePool(pooledRuns, probeConcurrency);
-reportProbeTimings();
+        await runProbePool(pooledRuns, probeConcurrency, doubleRunPolicy);
     } finally {
         unlockSharedPaths(sharedLock);
     }
@@ -596,10 +470,18 @@ copyFileSync(path.join(config.output.path, config.output.filename), process.argv
     // probe-node-reference must run after the webpack build because it fetches
     // the generated /lib.js and asserts it matches the vendored artifact.
     for (const probe of lateRuns) {
-        serialResults.set(probe.fixture, verifyProbeSerial(probe.sharedWrite
-            ? { ...probe, root: createPrivateBuildRoot(probe.script) }
-            : probe));
+        const root = probe.sharedWrite ? createPrivateBuildRoot(probe.script) : buildRoot;
+        const { fixture } = await executeProbe({
+            ...probeExecutionOptions(probe, root),
+            doubleRun: doubleRunPolicy.double,
+            run: runProbeInherited,
+        });
+        serialResults.set(probe.fixture, fixture);
     }
+
+    // The timing report comes AFTER every phase, including these late serial runs, which the version it
+    // replaces printed before and therefore never measured.
+    reportProbeTimings();
 
     // Report every probe failure together instead of stopping at the first one.
     // Aborting early is only defensible when failures are cheap to rediscover;
