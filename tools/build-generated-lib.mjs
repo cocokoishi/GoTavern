@@ -328,15 +328,20 @@ try {
     const discoveredProbes = discoverProbes();
     // OPTIONAL NARROWING of the RECORDING step, for the per-push gate.
     //
-    // A full run re-records every declared probe TWICE and boots the pinned server for each, which is
-    // now measured in hours; on a push that changed one route that is most of this repository's CI
-    // cost for no extra information. GOTAVERN_ORACLE_PROBES=<comma-separated probe file names> records
-    // only those. An EMPTY value keeps the historical behaviour and records everything, which is what
-    // the scheduled/dispatched run and any shared-input change (`tools/lib/**`, this file,
-    // `upstream/**`) uses.
+    // A full run re-records every declared probe twice and boots the pinned server for each, which is
+    // measured in hours; on a push that changed one route that is most of this repository's CI cost for
+    // no extra information. GOTAVERN_ORACLE_PROBES=<comma-separated probe file names> records only those.
+    // An EMPTY value keeps the historical behaviour and records everything, which is what the
+    // scheduled/dispatched run and any shared-input change (`tools/lib/**`, `tools/oracle/**`, this file,
+    // the inventories generator, `upstream/**`, `tests/provider-wire/scenarios/**`) uses.
     //
-    // This narrows what is RECORDED, never what is VERIFIED: the caller's zero-diff check still covers
-    // every fixture in tests/oracle, so a skipped probe whose output would have moved still fails.
+    // WHAT NARROWING COSTS. A probe that is NOT recorded is NOT VERIFIED, and this comment used to claim
+    // the opposite ("this narrows what is RECORDED, never what is VERIFIED"). That was false. The
+    // zero-diff gate diffs the WORKING TREE against the commit, so a probe that never ran leaves its
+    // fixture byte-identical BY CONSTRUCTION and the gate cannot see that its output would have moved.
+    // Narrowing therefore reduces recording work AND reduces detection to exactly the probes that ran;
+    // the scheduled or dispatched full sweep is what covers the rest, and it is the only thing that does.
+    // A narrowed green is a statement about the selected probes, never about the oracle as a whole.
     //
     // The undeclared-probe check below deliberately uses the FULL discovery list, so narrowing cannot
     // hide a probe that declares nothing.

@@ -71,15 +71,19 @@ jobs:
         #
         #   oracle=false              nothing a fixture depends on changed.
         #   oracle=true, probes=""    run EVERY probe -- when the change can move any fixture
-        #                             (tools/lib/**, the generator, the inventories input, upstream/**),
-        #                             and on a schedule or by dispatch, which is now the only place a
-        #                             full re-record happens.
+        #                             (tools/lib/**, tools/oracle/**, the generator, the inventories input,
+        #                             upstream/**), and on a schedule or by dispatch, which is the only
+        #                             place a full re-record happens.
         #   oracle=true, probes=<csv> re-record ONLY those probes: whose SCRIPT changed, plus every
         #                             probe whose DECLARED fixture changed (resolved by grepping the
         #                             declarations, so the mapping cannot drift from the probes).
         #
-        # The zero-diff check still covers EVERY fixture, so narrowing removes recording work, not
-        # verification: a skipped probe whose output would have moved still fails this job.
+        # WHAT A NARROWED RUN DOES NOT PROVE, because the previous sentence here ("the zero-diff check
+        # still covers EVERY fixture, so a skipped probe whose output would have moved still fails") was
+        # FALSE: the gate diffs the working tree against the commit, and a probe that never ran left its
+        # fixture byte-identical by construction. A skipped probe is UNVERIFIED, not verified-equal. This
+        # job must therefore select probes generously when in doubt, and the scheduled/dispatched full
+        # sweep is the only run whose green covers the whole oracle.
         run: |
           set -eu
           event="${{ github.event_name }}"
@@ -110,12 +114,16 @@ jobs:
           fi
           changed="$(git diff --name-only "${base}" HEAD)"
           echo "${changed}"
-          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|tests/provider-wire/scenarios/|upstream/)'; then
+          if ! printf '%s\n' "${changed}" | grep -qE '^(tools/probe-|tools/lib/|tools/oracle/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|tests/oracle/|tests/provider-wire/scenarios/|upstream/)'; then
             echo "oracle=false" >> "$GITHUB_OUTPUT"
             echo "probes=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if printf '%s\n' "${changed}" | grep -qE '^(tools/lib/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|upstream/)'; then
+          # tools/oracle/** is the EXECUTION CORE: it decides how many times every probe runs, which
+          # failures are reported and which fixture is compared, so it can move any fixture without
+          # touching a probe. It belongs in the shared-input list for the same reason tools/lib/** does;
+          # without it a change to the module alone selected NO probe and skipped the oracle entirely.
+          if printf '%s\n' "${changed}" | grep -qE '^(tools/lib/|tools/oracle/|tools/build-generated-lib[.]mjs|tools/generate-upstream-inventories[.]mjs|upstream/)'; then
             echo "a shared input changed; re-recording every probe"
             echo "oracle=true" >> "$GITHUB_OUTPUT"
             echo "probes=" >> "$GITHUB_OUTPUT"
@@ -193,8 +201,9 @@ jobs:
           echo "GOTAVERN_BINARY=${PWD}/.oracle-bin/gotavern" >> "$GITHUB_ENV"
       - name: Rebuild pinned assets, inventories, and Node oracle
         # GOTAVERN_ORACLE_PROBES narrows WHICH probes re-record; empty means every probe, which is
-        # what a schedule/dispatch run and any shared-input change does. The zero-diff step below still
-        # covers every fixture, so a narrowed run is cheaper, not weaker.
+        # what a schedule/dispatch run and any shared-input change does. A narrowed run is cheaper AND
+        # WEAKER: the probes it skipped keep their committed bytes and are not verified (see the
+        # `changes` job), so this step must not be read as covering the fixtures it did not record.
         env:
           GOTAVERN_ORACLE_PROBES: ${{ needs.changes.outputs.probes }}
           GOTAVERN_ORACLE_CONCURRENCY: ${{ inputs.oracle_concurrency }}
