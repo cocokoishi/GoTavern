@@ -287,17 +287,47 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
     }
 
     // ---- guards: is this differential FAITHFUL? ---------------------------------------------------
-    const markerList = Object.entries(scenario?.markers ?? MARKERS).filter(([name]) => name !== 'userMarker');
+    //
+    // THE MARKER CLAIM IS SPLIT ALONG WHAT THE FRONTEND ACTUALLY DOES, because one list could not be true.
+    // The trimmer sheds the preset's OWN example (and world-info) entries as the budget tightens, before it
+    // touches the oldest history turn: the measured search table shows 28 messages at 4382, 24 at
+    // 4262/4260 and 26 at 4259, and the example block is gone by 4260 while the oldest turn survives until
+    // 4259. So no context can hold BOTH the example and the boundary, and "every marker arrived" asked for
+    // a state the frontend never produces.
+    //
+    //   boundaryMarkers      must be present at the measured boundary, on BOTH legs;
+    //   budgetTrimmedMarkers must be present in the SCENARIO (the kit applied it) and ABSENT at the
+    //                        boundary on BOTH legs -- absence observed, not assumed, and recorded with the
+    //                        budget evidence beside it so "missing example" cannot be read as a harness
+    //                        failure.
+    const allMarkers = Object.entries(scenario?.markers ?? MARKERS).filter(([name]) => name !== 'userMarker');
+    const TRIMMED = ['example'];
+    const boundaryMarkers = allMarkers.filter(([name]) => !TRIMMED.includes(name));
+    const budgetTrimmedMarkers = allMarkers.filter(([name]) => TRIMMED.includes(name));
+    const hasMarker = (body, marker) => Boolean(body) && findMessage(body, marker) >= 0;
     for (const [variant, set] of Object.entries(variants)) {
         const pinnedBody = parseProviderBody(set.pinned)?.body ?? null;
         const governBody = parseProviderBody(set.gotavern)?.body ?? null;
-        const missingPinned = markerList.filter(([, marker]) => !pinnedBody || findMessage(pinnedBody, marker) < 0).map(([name]) => name);
-        const missingGotavern = markerList.filter(([, marker]) => !governBody || findMessage(governBody, marker) < 0).map(([name]) => name);
+        const missingPinned = boundaryMarkers.filter(([, marker]) => !hasMarker(pinnedBody, marker)).map(([name]) => name);
+        const missingGotavern = boundaryMarkers.filter(([, marker]) => !hasMarker(governBody, marker)).map(([name]) => name);
+        const trimmedStillPinned = budgetTrimmedMarkers.filter(([, marker]) => hasMarker(pinnedBody, marker)).map(([name]) => name);
+        const trimmedStillGotavern = budgetTrimmedMarkers.filter(([, marker]) => hasMarker(governBody, marker)).map(([name]) => name);
         if (variant === 'keep') {            guards.bothLegsProducedAProviderRequest = Boolean(set.gotavern?.requestArrived && set.pinned?.requestArrived);
-            guards.scenarioAppliedOnThePinnedLeg = missingPinned.length === 0;
-            guards.scenarioAppliedOnTheGotavernLeg = missingGotavern.length === 0;
-            guards.everyMarkerArrived = missingPinned.length === 0 && missingGotavern.length === 0;
-            guards.missingMarkers = missingPinned.length === 0 ? null : missingPinned;
+            guards.boundaryMarkersArrivedOnBothLegs = missingPinned.length === 0 && missingGotavern.length === 0;
+            guards.missingBoundaryMarkers = missingPinned.length === 0 ? null : missingPinned;
+            guards.budgetTrimmedMarkersAbsentOnBothLegs = trimmedStillPinned.length === 0 && trimmedStillGotavern.length === 0;
+            guards.budgetTrimmedMarkersPresentInTheScenario = budgetTrimmedMarkers.every(([, marker]) => JSON.stringify(scenario ?? {}).includes(marker));
+            guards.trimmedAtBoundary = {
+                markers: budgetTrimmedMarkers.map(([name]) => name),
+                stillPresentPinned: trimmedStillPinned,
+                stillPresentGotavern: trimmedStillGotavern,
+                measuredTotals: (boundary.searchTable ?? []).map(entry => ({ context: entry.context, total: entry.total, history: entry.history, oldestPresent: entry.oldestPresent })),
+                why: 'the frontend sheds its own example and world-info prompt entries as the budget tightens, before the oldest history turn: the search table records 28 messages at the largest probed context, 24 at the boundary and 26 one token below, and the example is absent from every request at the boundary. Its absence is therefore an observed property of the pinned trimmer, not a missing kit step',
+            };
+            // The two per-leg guards now mean the split claim, per leg.
+            guards.scenarioAppliedOnThePinnedLeg = guards.boundaryMarkersArrivedOnBothLegs && trimmedStillPinned.length === 0;
+            guards.scenarioAppliedOnTheGotavernLeg = guards.boundaryMarkersArrivedOnBothLegs && trimmedStillGotavern.length === 0;
+            guards.everyMarkerArrived = guards.boundaryMarkersArrivedOnBothLegs && guards.budgetTrimmedMarkersAbsentOnBothLegs;
             guards.stopStringsArrived = JSON.stringify(providerRequests.keep.pinned.stop) === JSON.stringify(scenario?.stops ?? null);
             guards.samplersArrived = providerRequests.keep.pinned.maxTokens === scenario?.maxTokens
                 && providerRequests.keep.pinned.stream === false;
@@ -404,8 +434,8 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
         const dropPinnedBody = variant === 'drop' ? parseProviderBody(variants.drop.pinned)?.body ?? null : null;
         const dropGotavernBody = variant === 'drop' ? parseProviderBody(variants.drop.gotavern)?.body ?? null : null;
         if (variant === 'drop') {
-            guards.dropVariantCarriesEveryOtherMarker = markerList.every(([, marker]) => dropPinnedBody && findMessage(dropPinnedBody, marker) >= 0)
-                && markerList.every(([, marker]) => dropGotavernBody && findMessage(dropGotavernBody, marker) >= 0);
+            guards.dropVariantCarriesEveryOtherMarker = boundaryMarkers.every(([, marker]) => dropPinnedBody && findMessage(dropPinnedBody, marker) >= 0)
+                && boundaryMarkers.every(([, marker]) => dropGotavernBody && findMessage(dropGotavernBody, marker) >= 0);
         }
     }
 
