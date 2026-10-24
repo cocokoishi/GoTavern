@@ -228,14 +228,26 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
         const oldest = boundary.oldestMarker ?? MARKERS.history;
         const governOldest = governBody ? findMessage(governBody.body, String(oldest).slice(0, 40)) : -1;
         const pinnedOldest = pinnedBody ? findMessage(pinnedBody.body, String(oldest).slice(0, 40)) : -1;
+        // HOW MANY HISTORY TURNS SURVIVED, computed from the BODY rather than from the probe's claim:
+        // this is the count the boundary is about. The TOTAL message count also moves when the frontend
+        // drops its own example/world-info messages at a tight budget (run 40073802369: keep=15, drop=17),
+        // so a total-count comparison is not a boundary assertion.
+        const historyMarker = scenario?.markers?.history ?? MARKERS.history;
+        const countHistory = body => (Array.isArray(body?.messages) ? body.messages.filter(message => messageText(message).includes(historyMarker)).length : null);
         keepDrop[variant] = {
             oldestMarker: String(oldest).slice(0, 40),
             gotavernPresent: governOldest >= 0,
             pinnedPresent: pinnedOldest >= 0,
+            // RECORDED, NOT ASSERTED: the index of the oldest turn depends on the frontend's own layout
+            // around the history block (its index moved from 6 to 10 between two contexts in the first
+            // run, because example messages were added ahead of it). Presence and the history COUNT are
+            // the assertions.
             gotavernOldestIndex: governOldest,
             pinnedOldestIndex: pinnedOldest,
             gotavernMessages: governSummary.messageCount,
             pinnedMessages: pinnedSummary.messageCount,
+            gotavernHistoryMessages: countHistory(governBody?.body ?? null),
+            pinnedHistoryMessages: countHistory(pinnedBody?.body ?? null),
         };
 
         const governCounts = tokenizerCounts(set.gotavern);
@@ -271,8 +283,16 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
             guards.boundaryBindsOnThePinnedLeg = keepDrop.keep.pinnedPresent === true && keepDrop.drop.pinnedPresent === false;
             guards.boundaryPairDiscriminates = keepDrop.keep.pinnedMessages !== keepDrop.drop.pinnedMessages;
+            // THE COUNT THAT IS THE BOUNDARY: exactly one MORE HISTORY TURN is retained at keep than at
+            // drop, on both legs. This replaces "the total message count grows", which the first run
+            // showed to be false even for a genuine flip (keep=15, drop=17) because the frontend also
+            // drops example/world-info messages at a tight budget.
+            guards.boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg = keepDrop.keep.pinnedHistoryMessages === keepDrop.drop.pinnedHistoryMessages + 1;
+            guards.boundaryRetainsExactlyOneMoreTurnOnTheGotavernLeg = keepDrop.keep.gotavernHistoryMessages === keepDrop.drop.gotavernHistoryMessages + 1;
             guards.boundaryMatchesTheCapture = keepDrop.keep.pinnedMessages === variants.keep.expectedMessages
-                && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages;
+                && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages
+                && keepDrop.keep.pinnedHistoryMessages === (boundary.keepHistoryMessages ?? keepDrop.keep.pinnedHistoryMessages)
+                && keepDrop.drop.pinnedHistoryMessages === (boundary.dropHistoryMessages ?? keepDrop.drop.pinnedHistoryMessages);
             // THE TOKENIZER MUST BE REAL. `resolved` is a filesystem observation made by the probe; the
             // anchor is the pinned count of a fixed body (tests/oracle/sillytavern-1.19.0-tokenizers.json,
             // openai/count#llama#simple = 7). A server on the Guesstimate path answers something else and
@@ -335,6 +355,8 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             dropContext: boundary.dropContext ?? null,
             keepMessages: boundary.keepMessages ?? null,
             dropMessages: boundary.dropMessages ?? null,
+            keepHistoryMessages: boundary.keepHistoryMessages ?? null,
+            dropHistoryMessages: boundary.dropHistoryMessages ?? null,
             method: 'capture-preset.mjs bisects openai_max_context with the pinned frontend dry assembly; the predicate is "the oldest history marker is in the assembled messages"',
         },
         inputs,

@@ -73,16 +73,24 @@ export function padding(seed, characters) {
 
 // THE SPEC. One object, serialised into the page and into the fixture, so the capture and both legs
 // cannot drift apart: there is exactly one description of the scenario in the repository.
+//
+// WHY THE HISTORY IS THIS LONG. The first version used 900 + 6*260 characters and its measured flip
+// point sat at max_context 1099/1100, right where the FRONTEND is also dropping its own example and
+// world-info messages as the budget shrinks: the run recorded keep=15 messages and drop=17, so the
+// variant that keeps fewer history turns had MORE messages in total. Total message count is therefore
+// not a discriminator at a tight budget; the number of HISTORY messages is. A history of ~2 k tokens
+// puts the flip point far above that churn, where exactly one history turn changes per token step.
 export function presetSpec() {
     const history = [];
-    // The OLDEST turn is the discriminator: it is the message the budget drops when the count grows
-    // by a token, so its marker is what the boundary assertion looks for.
-    history.push({ isUser: true, text: `${MARKERS.history} TURN_00 oldest ${padding('older', 900)}` });
-    for (let turn = 1; turn <= 6; turn++) {
+    // The OLDEST turn is the discriminator: it is the message the trimmer drops first, so its marker is
+    // what the boundary assertion looks for. It is deliberately the LONGEST turn, so dropping it frees
+    // far more than one token and the flip cannot be produced by any other message.
+    history.push({ isUser: true, text: `${MARKERS.history} TURN_00 oldest ${padding('older', 1600)}` });
+    for (let turn = 1; turn <= 11; turn++) {
         const index = String(turn).padStart(2, '0');
         history.push({
             isUser: turn % 2 === 0,
-            text: `${MARKERS.history} TURN_${index} ${padding(`turn-${index}`, 260)}`,
+            text: `${MARKERS.history} TURN_${index} ${padding(`turn-${index}`, 600)}`,
         });
     }
     return {
@@ -241,46 +249,45 @@ export async function applyPresetKit(spec) {
     }
     step('chat history', { turns: script.chat.length, via: 'script.chat mutation' });
 
-    // 4. World info. Created through world-info.js's own save path so the entry shape, uid handling and
-    //    position constants are the frontend's, not ours. `createWorldInfoEntry(name, data)` assigns the
-    //    uid from the world's existing entries and returns the LIVE entry object inside `data.entries`,
-    //    which is why the fields are set on the returned object and the world is saved afterwards.
+    // 4. World info. `createNewWorldInfo` does NOT populate `world_info[name]` (measured in run
+    //    40073802369: the map held only `globalSelect` afterwards), so the book is built in a local data
+    //    object, written through world-info.js's own `saveWorldInfo` and then READ BACK from the server
+    //    with `loadWorldInfo` -- which is also the round trip that proves the two servers stored it.
+    //    Entries are created by the frontend's `createWorldInfoEntry`, so the uid and the entry template
+    //    are the frontend's rather than ours.
     const positions = worldInfo.world_info_position;
     const worldName = spec.world.name;
-    if (typeof worldInfo.createNewWorldInfo === 'function') {
-        await worldInfo.createNewWorldInfo(worldName, { interactive: false });
-    }
-    const worldData = worldInfo.world_info?.[worldName];
-    if (!worldData || typeof worldData.entries !== 'object') {
-        problems.push(`createNewWorldInfo("${worldName}") left no world to add entries to (worlds: ${JSON.stringify(Object.keys(worldInfo.world_info ?? {}))})`);
-    } else {
-        for (const entry of spec.world.entries) {
-            const target = worldInfo.createWorldInfoEntry(worldName, worldData);
-            if (!target) {
-                problems.push(`world-info entry ${entry.uid} could not be created (createWorldInfoEntry returned nothing)`);
-                continue;
-            }
-            target.comment = entry.comment;
-            target.key = entry.key;
-            target.keysecondary = [];
-            target.content = entry.content;
-            target.constant = entry.constant;
-            target.selective = false;
-            target.disable = false;
-            target.position = entry.position === 'after' ? positions.after : positions.atDepth;
-            target.depth = entry.depth;
-            target.order = entry.order;
-            target.probability = 100;
-            target.useProbability = false;
-            target.role = entry.position === 'after' ? null : 0;
+    const worldData = { entries: {} };
+    for (const entry of spec.world.entries) {
+        const live = worldInfo.createWorldInfoEntry(worldName, worldData);
+        if (!live) {
+            problems.push(`world-info entry ${entry.uid} could not be created (createWorldInfoEntry returned nothing)`);
+            continue;
         }
-        // IMMEDIATE save: the default is a debounced write, and a capture that reads the world back
-        // before the debounce fires would record an empty book.
-        await worldInfo.saveWorldInfo(worldName, worldData, true);
+        live.comment = entry.comment;
+        live.key = entry.key;
+        live.keysecondary = [];
+        live.content = entry.content;
+        live.constant = entry.constant;
+        live.selective = false;
+        live.disable = false;
+        live.position = entry.position === 'after' ? positions.after : positions.atDepth;
+        live.depth = entry.depth;
+        live.order = entry.order;
+        live.probability = entry.probability ?? 100;
+        live.useProbability = Boolean(entry.useProbability);
+        live.role = entry.position === 'after' ? null : 0;
     }
-    const savedEntries = Object.keys(worldInfo.world_info?.[worldName]?.entries ?? {});
-    if (savedEntries.length < spec.world.entries.length) {
-        problems.push(`world "${worldName}" has ${savedEntries.length} entries after save, expected ${spec.world.entries.length}`);
+    // IMMEDIATE save: the default is a debounced write, and a capture that read the world back before
+    // the debounce fired would record an empty book.
+    await worldInfo.saveWorldInfo(worldName, worldData, true);
+    if (typeof worldInfo.updateWorldInfoList === 'function') {
+        await worldInfo.updateWorldInfoList();
+    }
+    const loadedWorld = await worldInfo.loadWorldInfo(worldName);
+    const savedEntries = Object.keys(loadedWorld?.entries ?? {});
+    if (savedEntries.length !== spec.world.entries.length) {
+        problems.push(`world "${worldName}" has ${savedEntries.length} entries after the server round trip, expected ${spec.world.entries.length}`);
     }
     if (!Array.isArray(worldInfo.selected_world_info)) {
         problems.push('selected_world_info is not an array');
@@ -292,16 +299,32 @@ export async function applyPresetKit(spec) {
         entries: savedEntries.length,
         positions: { after: positions.after, atDepth: positions.atDepth },
         activated: worldInfo.selected_world_info.includes(worldName),
+        via: 'createWorldInfoEntry -> saveWorldInfo(immediate) -> loadWorldInfo round trip',
     });
 
-    // 5. Author's note. Written into chat metadata and pushed through the extension's own
-    //    `setFloatingPrompt()`, which is the function the depth/position controls call.
+    // 5. Author's note. THE INTERVAL MATTERS AND THE VALUE COMES FROM THE DOM. `setFloatingPrompt`
+    //    (authors-note.js:324-395) disables the note when `note_interval` is 0 or unset, and it reads the
+    //    TEXT from `$('#extension_floating_prompt').val()`, not from chat_metadata -- measured in run
+    //    40073802369, where an unset interval left `extension_prompts['2_floating_prompt'].value` empty.
+    //    So: interval 1 (every user message), the field typed the way a user types it, the metadata
+    //    written, then the extension's own function called.
     const keys = authorsNote.metadata_keys;
     script.chat_metadata[keys.prompt] = spec.authorsNote.text;
     script.chat_metadata[keys.depth] = spec.authorsNote.depth;
     script.chat_metadata[keys.position] = script.extension_prompt_types[spec.authorsNote.position];
+    script.chat_metadata[keys.interval] = 1;
     if (keys.role) {
         script.chat_metadata[keys.role] = 0;
+    }
+    const promptField = document.querySelector('#extension_floating_prompt');
+    if (promptField) {
+        promptField.value = spec.authorsNote.text;
+        promptField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const intervalField = document.querySelector('#extension_floating_interval');
+    if (intervalField) {
+        intervalField.value = '1';
+        intervalField.dispatchEvent(new Event('input', { bubbles: true }));
     }
     if (typeof authorsNote.setFloatingPrompt === 'function') {
         authorsNote.setFloatingPrompt();
@@ -310,12 +333,14 @@ export async function applyPresetKit(spec) {
     }
     const floating = script.extension_prompts?.[`2_floating_prompt`];
     if (!floating || !String(floating.value ?? '').includes(spec.markers.authorsNote)) {
-        problems.push(`the author's note did not reach extension_prompts["2_floating_prompt"] (got ${JSON.stringify(floating?.value ?? null)})`);
+        problems.push(`the author's note did not reach extension_prompts["2_floating_prompt"] (got ${JSON.stringify(floating?.value ?? null)}; interval field present: ${Boolean(intervalField)}, prompt field present: ${Boolean(promptField)})`);
     }
     step('authors note', {
         depth: script.chat_metadata[keys.depth],
         position: script.chat_metadata[keys.position],
-        keys: { prompt: keys.prompt, depth: keys.depth, position: keys.position, role: keys.role ?? null },
+        interval: script.chat_metadata[keys.interval],
+        keys: { prompt: keys.prompt, depth: keys.depth, position: keys.position, interval: keys.interval, role: keys.role ?? null },
+        fieldsPresent: { prompt: Boolean(promptField), interval: Boolean(intervalField) },
         present: Boolean(floating?.value),
     });
 

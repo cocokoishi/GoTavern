@@ -1012,10 +1012,13 @@ try {
             if (presetAnchor) {
                 let count = null;
                 let status = null;
+                // THE POST NEEDS THE CSRF TOKEN (run 40073802369 answered 403 to a plain fetch). The
+                // frontend's own header helper is how every panel request authenticates, on BOTH legs.
+                const anchorHeaders = script.getRequestHeaders();
                 try {
                     const response = await fetch(`/api/tokenizers/openai/count?model=${encodeURIComponent(presetAnchor.model)}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: anchorHeaders,
                         body: JSON.stringify(presetAnchor.body),
                     });
                     status = response.status;
@@ -1023,7 +1026,13 @@ try {
                 } catch (error) {
                     tokenizerAnchor = { model: presetAnchor.model, status, count: null, pinnedCount: presetAnchor.pinnedCount, error: String(error?.message ?? error).slice(0, 160) };
                 }
-                tokenizerAnchor = tokenizerAnchor ?? { model: presetAnchor.model, status, count, pinnedCount: presetAnchor.pinnedCount };
+                tokenizerAnchor = tokenizerAnchor ?? {
+                    model: presetAnchor.model,
+                    status,
+                    count,
+                    pinnedCount: presetAnchor.pinnedCount,
+                    csrfHeaderPresent: Object.keys(anchorHeaders).some(name => name.toLowerCase() === 'x-csrf-token'),
+                };
             }
             presetApplied = {
                 variant: presetVariant,
