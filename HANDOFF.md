@@ -58,6 +58,19 @@ paragraph is silently overwritten and fails the zero-diff gate.
 
 ## 3. Release path: what is now executed, and what still is not
 
+**CUTTING THE FIRST TAG, and what a prerelease does.** `scripts/classify-version-tag.sh` decides a tag's channel
+and both release workflows obey it: only a tag that is exactly `v<major>.<minor>.<patch>` is STABLE; anything else
+version-shaped (`-alpha.1`, `-beta.2`, `-rc.1`, `+build`) is a PRERELEASE; a name that is not a version tag is
+refused rather than guessed. For `v0.1.0-alpha.1` that means `docker.yml` publishes
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.1` and leaves `:latest` untouched, and `release.yml` creates the GitHub
+Release with `--prerelease --latest=false`, so `releases/latest/download/...` -- the URL both installers fetch --
+keeps pointing at a stable release instead of an alpha. The rule is covered by
+`scripts/test-classify-version-tag.sh` in the `verify` job (commit `84648b2`, run 40056851570 step 6), and the
+docker decision was exercised in a real runner: dispatch run 40057381696 printed `channel: dispatch` and
+`it will NOT move ...:latest`. NOT yet measured: the prerelease branch itself, which only a real tag push reaches
+-- so the first tag IS the confirmation, and it should be cut from `84648b2` or later, because the tag must
+contain the classifier script.
+
 `.github/workflows/release-qualification.yml` (tag or dispatch) builds TWO archives from the same source
 with different version strings, asserts their contents and modes, runs `assets verify` FROM THE EXTRACTED
 ARCHIVE, boots it, proves idempotence, extracts archive B over the install directory, then archive A back
