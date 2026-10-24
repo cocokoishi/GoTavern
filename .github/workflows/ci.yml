@@ -369,8 +369,7 @@ jobs:
         run: node tools/verify-oracle-citations.mjs
       - name: Verify every commit identity is a project identity
         # GitHub renders a foreign author email as an outside account on the public contributors list, and that
-        # happened twice through subagent commits (
-oreply@anthropic.com). The history was rewritten each time;
+        # happened twice through subagent commits using the Anthropic noreply address. The history was rewritten each time;
         # this step is what makes a recurrence red on the push that introduces it, while the commit is still
         # local and cheap to amend, instead of after another rewrite.
         env:
