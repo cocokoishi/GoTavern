@@ -76,7 +76,10 @@ dependency graph from the probes' own `@gotavern-oracle: fixture=` declarations 
 table test over every rule and runs in the `verify` job. The `changes` job now only produces the
 changed-file list and reads that plan.
 
-Skipping the oracle is possible only when every changed path is on the planner's explicit irrelevant list.
+Skipping the oracle is possible only when every changed path is on the planner's explicit irrelevant list,
+and that list excludes the control plane: a change to `ci.yml`/`lane.yml` or to the probe execution
+primitive forces a FULL sweep, because a change to the gate that selects work is not evidence that the
+selection is right -- it is the thing under test.
 Anything else -- a Go change, an unknown directory, a path nothing declares -- forces a FULL sweep with the
 reason printed beside the decision. **The residual risk, stated rather than papered over:** a Go change that
 moves a fixture through a dependency the derivation cannot see is caught only by the nightly full sweep,

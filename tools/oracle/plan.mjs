@@ -42,36 +42,51 @@ import { fileURLToPath } from 'node:url';
 
 import { buildManifest, repositoryRootDefault, validate } from './manifest.mjs';
 
-// ---------------------------------------------------------------------------------------------
 // THE IRRELEVANT-PATH ALLOWLIST, QUOTED ONCE.
 //
 // A path here is "provably irrelevant to fixture bytes". This list is the ONLY place a change may
-// reach the oracle's `oracle=false` outcome, and each entry states the reason, because a silent skip
-// is exactly the failure this whole change exists to remove. Anything not listed here and not
-// attributable through the manifest is treated as an unresolved dependency and forces a FULL sweep.
+// reach the oracle's `oracle=false` outcome, and each entry states the reason AND how the claim was
+// checked, because a silent skip is exactly the failure this whole change exists to remove. Anything
+// not listed here and not attributable through the manifest is treated as an unresolved dependency and
+// forces a FULL sweep. FULL_TRIGGERS is consulted BEFORE this list, so a control-plane file named there
+// can never be excused by a broader entry below.
 //
-// `scripts/` is listed because no probe invokes a repository script (`tools/probe-*.mjs` reference
-// `public/scripts/extensions` as a URL path, not a repository path); if a probe ever does, the
-// manifest's own input derivation matches FIRST and selects that probe, so a future edge cannot be
-// hidden by this entry.
+// `scripts/` IS THE ONE ENTRY THAT RESTS ON A NEGATIVE. It was checked, not assumed: at HEAD
+// `grep -c 'scripts/' tools/probe-*.mjs` finds 28 lines, and every distinct token is the PINNED
+// server's URL path under `public/scripts/extensions` (`/scripts/extensions/third-party/`, ...), never
+// a repository path; `grep -E "scripts/[A-Za-z0-9._-]+\.(mjs|sh|ps1)" tools/probe-*.mjs` and
+// `grep -E "spawn\('node'|execFileSync\('node'|'\./scripts/"` both return ZERO. The claim is also
+// enforced rather than trusted: `deriveInputs` turns any future `scripts/<name>.mjs|.sh|.ps1` reference
+// in a probe into that probe's input, and an input is matched before this list is consulted, so a probe
+// that starts invoking a repository script selects itself without anyone editing this file.
 // ---------------------------------------------------------------------------------------------
 export const IRRELEVANT_PATHS = [
     { pattern: /^docs\//, why: 'documentation; no probe reads it' },
-    { pattern: /^\.github\//, why: 'workflow definitions; they select work, they are never recorded into a fixture' },
+    { pattern: /^\.github\//, why: 'workflow definitions other than the ones named in FULL_TRIGGERS; they schedule work, they are never recorded into a fixture' },
     { pattern: /^tests\/browser\//, why: 'browser evidence artifacts; the oracle records no fixture from them' },
     { pattern: /^tests\/oracle\/[^/]+\.md$/, why: 'fixture documentation' },
     { pattern: /^tests\/oracle\/[^/]+\.test\.mjs$/, why: 'the oracle tests themselves; gated by node --test, not by re-recording' },
-    { pattern: /^tools\/oracle\//, why: 'the planner is not an input to any probe; tests/oracle/plan.test.mjs is its gate' },
-    { pattern: /^scripts\//, why: 'developer scripts; no probe invokes one (a probe-invoked script would match the manifest first)' },
+    { pattern: /^tools\/oracle\//, why: 'the planner (manifest.mjs/plan.mjs) runs no probe and is not an input to one; tests/oracle/plan.test.mjs is its gate. execution.mjs is NOT covered by this: it executes every probe and is a FULL trigger above' },
+    { pattern: /^scripts\//, why: 'developer scripts; no probe invokes one (checked, see above), and a probe that starts to would gain the path as a derived input that outranks this entry' },
     { pattern: /^[^/]+\.md$/, why: 'top-level markdown' },
     { pattern: /^LICENSE$/, why: 'licence text' },
 ];
 
 // A change to any of these can move ANY fixture, because every probe imports the harness, or because
 // the whole pinned baseline moves. The plan cannot narrow them without lying.
+//
+// THE CONTROL PLANE IS IN HERE ON PURPOSE. `ci.yml`/`lane.yml` decide WHICH work runs; a change to them
+// is not evidence that the new selection is correct, it is the thing under test. The first draft of this
+// file classified `.github/**` as irrelevant, and this PR's own run came back `oracle: skipped` -- the
+// precise false green this change exists to remove, produced by the change itself. A control-plane edit
+// now forces one full sweep against the real corpus, which is the only thing that can show the new
+// planner agrees with the old behaviour.
 export const FULL_TRIGGERS = [
+    { pattern: /^\.github\/workflows\/ci\.yml$/, why: 'the gate that selects the oracle\'s work: a change to it must be proven against a full sweep, not excused' },
+    { pattern: /^\.github\/workflows\/lane\.yml$/, why: 'the lane verification workflow: same control-plane class as ci.yml' },
     { pattern: /^tools\/lib\//, why: 'tools/lib is the harness every probe imports' },
     { pattern: /^tools\/build-generated-lib\.mjs$/, why: 'the generator that records every fixture' },
+    { pattern: /^tools\/oracle\/execution\.mjs$/, why: 'the execution primitive the generator runs every probe through, so a change here can move every fixture' },
     { pattern: /^tools\/generate-upstream-inventories\.mjs$/, why: 'the inventories generator the oracle job also runs' },
     { pattern: /^upstream\//, why: 'vendored baseline assets; the whole pinned baseline can move' },
     { pattern: /^go\.mod$/, why: 'the Go dependency graph' },

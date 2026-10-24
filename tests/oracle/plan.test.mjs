@@ -277,13 +277,38 @@ const pushCases = [
         expected: { recordPinned: true, full: true, failClosed: true, reasonIncludes: 'unresolved dependency: mystery/config.yaml' },
     },
     {
+        name: 'a change to the oracle workflow itself is a full sweep',
+        changed: ['.github/workflows/ci.yml'],
+        expected: { recordPinned: true, full: true, failClosed: false, reasonIncludes: 'the gate that selects the oracle' },
+    },
+    {
+        name: 'a change to the lane workflow is a full sweep',
+        changed: ['.github/workflows/lane.yml'],
+        expected: { recordPinned: true, full: true, failClosed: false, reasonIncludes: 'control-plane class' },
+    },
+    {
+        name: 'the probe execution primitive is a full sweep',
+        changed: ['tools/oracle/execution.mjs'],
+        expected: { recordPinned: true, full: true, failClosed: false, reasonIncludes: 'execution primitive' },
+    },
+    {
+        name: 'the planner itself still needs no oracle run',
+        changed: ['tools/oracle/plan.mjs', 'tools/oracle/manifest.mjs'],
+        expected: { recordPinned: false, full: false, probes: [], failClosed: false },
+    },
+    {
+        name: 'workflow files that decide nothing about the oracle stay irrelevant',
+        changed: ['.github/workflows/docker.yml', '.github/workflows/release.yml'],
+        expected: { recordPinned: false, full: false, probes: [], failClosed: false },
+    },
+    {
         name: 'documentation alone needs no oracle at all',
         changed: ['docs/development-loop.md', 'README.md'],
         expected: { recordPinned: false, full: false, probes: [], failClosed: false },
     },
     {
-        name: 'workflow and planner files are not fixture inputs',
-        changed: ['.github/workflows/ci.yml', 'tools/oracle/plan.mjs', 'tests/oracle/plan.test.mjs', 'tests/oracle/README.md'],
+        name: 'planner and oracle-test files are not fixture inputs',
+        changed: ['tools/oracle/plan.mjs', 'tests/oracle/plan.test.mjs', 'tests/oracle/README.md'],
         expected: { recordPinned: false, full: false, probes: [], failClosed: false },
     },
     {
@@ -535,6 +560,33 @@ test('deriveInputs marks a probe that drives the GoTavern binary', () => {
     assert.equal(derived.goProduct, true);
 });
 
+test('deriveInputs sees a repository script a probe invokes', () => {
+    const derived = deriveInputs({
+        script: 'probe-a.mjs',
+        source: "execFileSync('node', ['scripts/classify-version-tag.mjs', '--check']);",
+    });
+    assert.ok(derived.inputs.includes('scripts/classify-version-tag.mjs'), JSON.stringify(derived.inputs));
+});
+
+test('deriveInputs does not mistake the pinned public/scripts URL path for a repository script', () => {
+    const derived = deriveInputs({
+        script: 'probe-a.mjs',
+        source: "await rawRequest(origin, { path: '/scripts/extensions/third-party/canary/index.js' });\n"
+            + "// public/scripts/extensions/third-party/.gitkeep\n",
+    });
+    assert.deepEqual(derived.inputs, ['tools/probe-a.mjs'], JSON.stringify(derived.inputs));
+});
+
+test('the repository: no probe invokes a repository script, which is what the scripts/ allowlist entry claims', () => {
+    // The allowlist is the only road to `oracle=false`, so its one negative claim is asserted here
+    // instead of being left as a comment: if a probe ever gains a `scripts/<name>.mjs|.sh|.ps1` input,
+    // this test names it and the planner must be looked at (selection follows the input either way).
+    const manifest = buildManifest({ repositoryRoot });
+    const scriptInputs = manifest.entries
+        .flatMap(entry => entry.inputs.filter(input => input.startsWith('scripts/')).map(input => `${entry.script} -> ${input}`));
+    assert.deepEqual(scriptInputs, [], `probes now reference repository scripts: ${scriptInputs.join(', ')}`);
+});
+
 test('deriveInputs: an explicit inputs= replaces the derivation and must name the script', () => {
     const derived = deriveInputs({
         script: 'probe-a.mjs',
@@ -604,19 +656,42 @@ test('the real repository: a repository Go helper change selects the probes that
     assert.ok(!decision.probes.includes('probe-heartbeat.mjs'), 'an unrelated probe must not be swept in');
 });
 
-test('the real repository: the oracle-relevant part of this PR is documentation and planner code', () => {
+test('the real repository: a change to the oracle gate forces a full sweep, not a skip', () => {
+    // This is this PR's own diff. An earlier draft classified `.github/**` as irrelevant and the run
+    // came back `oracle: skipped` -- the change that rewrites WHICH work the gate selects cannot be
+    // evidence that the gate still selects correctly. It now needs one full sweep against the real
+    // corpus, and the reason says so.
     const { plan: decision } = planRepository({
         repositoryRoot,
         runType: 'push',
         changed: [
             '.github/workflows/ci.yml',
+            'docs/development-loop.md',
+            'tests/oracle/README.md',
+            'tests/oracle/plan.test.mjs',
             'tools/oracle/manifest.mjs',
             'tools/oracle/plan.mjs',
-            'tests/oracle/plan.test.mjs',
-            'tests/oracle/README.md',
-            'docs/development-loop.md',
         ],
     });
-    assert.equal(decision.recordPinned, false);
+    assert.equal(decision.recordPinned, true);
+    assert.equal(decision.full, true);
+    assert.equal(decision.failClosed, false, 'a deliberate full sweep is not a forced one');
+    assert.equal(decision.stabilityMode, 'double');
+    assert.ok(decision.reason.some(line => line.includes('.github/workflows/ci.yml:')), JSON.stringify(decision.reason));
     assert.deepEqual(decision.errors, []);
+});
+
+test('the real repository: a probe-execution change forces a full sweep once execution.mjs exists', () => {
+    // tools/oracle/execution.mjs is added by the parallel execution-core change and imported by
+    // tools/build-generated-lib.mjs; it runs every probe, so it is a full trigger rather than part of
+    // the planner's irrelevant directory. The rule is asserted here independent of that file existing,
+    // because the planner must treat it as a control-plane input the moment it lands.
+    const { plan: decision } = planRepository({
+        repositoryRoot,
+        runType: 'push',
+        changed: ['tools/oracle/execution.mjs'],
+    });
+    assert.equal(decision.recordPinned, true);
+    assert.equal(decision.full, true);
+    assert.ok(decision.reason.some(line => line.includes('execution primitive')), JSON.stringify(decision.reason));
 });

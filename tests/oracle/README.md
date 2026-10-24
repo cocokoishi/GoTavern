@@ -34,11 +34,13 @@ node tools/oracle/plan.mjs --run-type push --changed changed-files.txt
 ```
 
 It fails closed. `recordPinned: false` (no oracle run at all) is possible only when every changed path is
-on its explicit irrelevant list (`docs/**`, `.github/**`, `tests/browser/**`, fixture documentation and
-tests, `tools/oracle/**`, `scripts/**`, top-level markdown, `LICENSE`). `internal/**` and `cmd/**` select
-the probes that record Go output rather than skipping the job; a path nothing declares forces a full sweep
-and the reason says `unresolved dependency: <path>`. `tests/oracle/plan.test.mjs` is the gate on both
-files: `node --test "tests/oracle/*.test.mjs"`.
+on its explicit irrelevant list (`docs/**`, workflow files other than `ci.yml`/`lane.yml`,
+`tests/browser/**`, fixture documentation and tests, the planner itself, `scripts/**`, top-level markdown,
+`LICENSE`). A change to `ci.yml`/`lane.yml` or to the probe execution primitive is a FULL sweep instead:
+a change to the gate that selects work is not evidence that the selection is right, so it is proven against
+the real corpus. `internal/**` and `cmd/**` select the probes that record Go output rather than skipping
+the job; a path nothing declares forces a full sweep and the reason says `unresolved dependency: <path>`.
+`tests/oracle/plan.test.mjs` is the gate on both files: `node --test "tests/oracle/*.test.mjs"`.
 
 **The residual risk, stated rather than papered over:** a Go change that moves a fixture through a
 dependency the derivation cannot see (a package a helper imports in a way the text does not show, a new

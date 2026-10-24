@@ -81,6 +81,12 @@ const TOOLS_LIB_IMPORT = /from '\.\/lib\/[^']+'/;
 const GO_HELPER_REFERENCE = /\.\/tools\/([a-z0-9][a-z0-9-]*)/g;
 const GO_HELPER_INVOCATION = /'go',\s*\[\s*'(?:run|build)'/;
 const GO_PRODUCT_BINARY = /GOTAVERN_BINARY|'\.\/cmd\/gotavern'|cmd\/gotavern/;
+// A repository script (`scripts/<name>.mjs|.sh|.ps1`) a probe names. Extensions are restricted to the
+// three repository script types on purpose: this must not turn the pinned server's URL path
+// `public/scripts/extensions/...` into an input. At HEAD no probe references one (28 lines match
+// `scripts/`, every one of them that URL path); the rule exists so the planner's `scripts/` entry can
+// never hide a future edge, because an input always outranks the irrelevant allowlist.
+const REPOSITORY_SCRIPT_REFERENCE = /scripts\/([A-Za-z0-9._-]+\.(?:mjs|sh|ps1))/g;
 
 /**
  * Derive the inputs of one probe from its source text.
@@ -117,6 +123,10 @@ export function deriveInputs({ script, source, declaredInputs = null }) {
     for (const match of source.matchAll(GO_HELPER_REFERENCE)) {
         inputs.add(`tools/${match[1]}/`);
         evidence.push(`references ./tools/${match[1]}`);
+    }
+    for (const match of source.matchAll(REPOSITORY_SCRIPT_REFERENCE)) {
+        inputs.add(`scripts/${match[1]}`);
+        evidence.push(`references scripts/${match[1]}`);
     }
     // A probe that runs a repository Go helper, or that drives the GoTavern binary, records output
     // produced by Go code in this repository. `internal/**` and `cmd/**` therefore move its fixture.
