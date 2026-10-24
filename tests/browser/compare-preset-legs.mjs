@@ -186,6 +186,11 @@ function legPreset(report) {
     return {
         variant: preset?.variant ?? null,
         maxContext: preset?.maxContext ?? null,
+        // WHAT THE LEG ACTUALLY RAN AT, recorded next to what it was asked for: a budget the frontend
+        // replaced is then visible in the artefact instead of being indistinguishable from a correct
+        // drive that happened to agree on both legs (run 40073821604 recorded two identical variants).
+        maxContextApplied: preset?.maxContextApplied ?? null,
+        maxContextUnlocked: preset?.maxContextUnlocked ?? null,
         chatTurns: preset?.chatTurns ?? null,
         typedMessage: preset?.typedMessage ?? null,
         problems: preset?.problems ?? [],
@@ -228,14 +233,26 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
         const oldest = boundary.oldestMarker ?? MARKERS.history;
         const governOldest = governBody ? findMessage(governBody.body, String(oldest).slice(0, 40)) : -1;
         const pinnedOldest = pinnedBody ? findMessage(pinnedBody.body, String(oldest).slice(0, 40)) : -1;
+        // HOW MANY HISTORY TURNS SURVIVED, computed from the BODY rather than from the probe's claim:
+        // this is the count the boundary is about. The TOTAL message count also moves when the frontend
+        // drops its own example/world-info messages at a tight budget (run 40073802369: keep=15, drop=17),
+        // so a total-count comparison is not a boundary assertion.
+        const historyMarker = scenario?.markers?.history ?? MARKERS.history;
+        const countHistory = body => (Array.isArray(body?.messages) ? body.messages.filter(message => messageText(message).includes(historyMarker)).length : null);
         keepDrop[variant] = {
             oldestMarker: String(oldest).slice(0, 40),
             gotavernPresent: governOldest >= 0,
             pinnedPresent: pinnedOldest >= 0,
+            // RECORDED, NOT ASSERTED: the index of the oldest turn depends on the frontend's own layout
+            // around the history block (its index moved from 6 to 10 between two contexts in the first
+            // run, because example messages were added ahead of it). Presence and the history COUNT are
+            // the assertions.
             gotavernOldestIndex: governOldest,
             pinnedOldestIndex: pinnedOldest,
             gotavernMessages: governSummary.messageCount,
             pinnedMessages: pinnedSummary.messageCount,
+            gotavernHistoryMessages: countHistory(governBody?.body ?? null),
+            pinnedHistoryMessages: countHistory(pinnedBody?.body ?? null),
         };
 
         const governCounts = tokenizerCounts(set.gotavern);
@@ -266,13 +283,39 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
                 && providerRequests.keep.pinned.stream === false;
             guards.nonStreamingOnBothLegs = providerRequests.keep.pinned.stream === false && providerRequests.keep.gotavern.stream === false;
             guards.presetAppliedOnBothLegs = (legs.keep.gotavern.problems ?? []).length === 0 && (legs.keep.pinned.problems ?? []).length === 0;
+            // EACH VARIANT MUST HAVE RUN AT THE CONTEXT THE CAPTURE MEASURED FOR IT. Without this the
+            // differential can compare two runs of the SAME budget and report agreement: run 40073821604
+            // recorded keep and drop as identical (26 messages, 11 history turns, oldest absent on both),
+            // which the boundary guards below caught but could not name. The value is read back from the
+            // leg after the drive set it, so a frontend clamp is a named failure here.
+            guards.keepVariantRanAtTheCapturedContext =
+                legs.keep.gotavern.maxContextApplied === variants.keep.context
+                && legs.keep.pinned.maxContextApplied === variants.keep.context;
+            guards.dropVariantRanAtTheCapturedContext =
+                legs.drop.gotavern.maxContextApplied === variants.drop.context
+                && legs.drop.pinned.maxContextApplied === variants.drop.context;
+            guards.variantsUsedDifferentContexts = variants.keep.context !== variants.drop.context;
             // THE BOUNDARY BINDS: this is the property that makes the pair a measurement. If the pinned
             // trimmer does not keep at `keepContext`, the capture's bisect and the drive disagree and the
             // scenario proves nothing, so the differential refuses instead of passing vacuously.
             guards.boundaryBindsOnThePinnedLeg = keepDrop.keep.pinnedPresent === true && keepDrop.drop.pinnedPresent === false;
-            guards.boundaryPairDiscriminates = keepDrop.keep.pinnedMessages !== keepDrop.drop.pinnedMessages;
+            // THE COUNT THAT IS THE BOUNDARY: exactly one MORE HISTORY TURN is retained at keep than at
+            // drop, on both legs. This replaces any assertion on the TOTAL message count, which is not
+            // monotone in openai_max_context: the frontend emits its own example and world-info messages
+            // as the budget allows, independently of the trimmer. Measured at the boundary this lane
+            // recorded: 26 total messages holding 11 history turns one token below keep, and 24 total
+            // messages holding 12 history turns at keep. A total-count assertion therefore rejects real
+            // boundaries -- it did, twice. The totals stay recorded (see `keepDrop`) so a reader who sees
+            // them differ finds the reason here instead of re-deriving it.
+            guards.boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg = keepDrop.keep.pinnedHistoryMessages === keepDrop.drop.pinnedHistoryMessages + 1;
+            guards.boundaryRetainsExactlyOneMoreTurnOnTheGotavernLeg = keepDrop.keep.gotavernHistoryMessages === keepDrop.drop.gotavernHistoryMessages + 1;
+            // CONSISTENCY WITH THE CAPTURE, not monotonicity: the drive must have assembled the same two
+            // lists the boundary was measured on. Both totals and both history counts have to match the
+            // fixture, whatever their values are.
             guards.boundaryMatchesTheCapture = keepDrop.keep.pinnedMessages === variants.keep.expectedMessages
-                && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages;
+                && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages
+                && keepDrop.keep.pinnedHistoryMessages === (boundary.keepHistoryMessages ?? keepDrop.keep.pinnedHistoryMessages)
+                && keepDrop.drop.pinnedHistoryMessages === (boundary.dropHistoryMessages ?? keepDrop.drop.pinnedHistoryMessages);
             // THE TOKENIZER MUST BE REAL. `resolved` is a filesystem observation made by the probe; the
             // anchor is the pinned count of a fixed body (tests/oracle/sillytavern-1.19.0-tokenizers.json,
             // openai/count#llama#simple = 7). A server on the Guesstimate path answers something else and
@@ -335,6 +378,12 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             dropContext: boundary.dropContext ?? null,
             keepMessages: boundary.keepMessages ?? null,
             dropMessages: boundary.dropMessages ?? null,
+            keepHistoryMessages: boundary.keepHistoryMessages ?? null,
+            dropHistoryMessages: boundary.dropHistoryMessages ?? null,
+            // THE CONTRACT TRAVELS WITH THE NUMBERS. Carried verbatim from the capture, which wrote the
+            // reason the two TOTALS differ beside their values (the frontend's own example/world-info
+            // messages are emitted as the budget allows, so the total is not monotone and is not asserted).
+            contract: boundary.contract ?? null,
             method: 'capture-preset.mjs bisects openai_max_context with the pinned frontend dry assembly; the predicate is "the oldest history marker is in the assembled messages"',
         },
         inputs,

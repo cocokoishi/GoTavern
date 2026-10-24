@@ -49,7 +49,7 @@
   "surrounding": {
     "gotavern": {
       "beforeClick": {
-        "events": 10
+        "events": 5
       },
       "sendWindow": {
         "events": 7,
@@ -62,38 +62,34 @@
         "dryAfterData": 2
       },
       "wholeDrive": {
-        "started": 5,
-        "dryStarted": 4,
+        "started": 4,
+        "dryStarted": 3,
         "realStarted": 1,
-        "dryAfterData": 4,
+        "dryAfterData": 3,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 13320
-          },
-          {
-            "dryRun": true,
-            "t": 15523
+            "t": 3160
           },
           {
             "dryRun": false,
-            "t": 16843
+            "t": 4106
           },
           {
             "dryRun": true,
-            "t": 17869
+            "t": 4547
           },
           {
             "dryRun": true,
-            "t": 18674
+            "t": 5828
           }
         ]
       }
     },
     "pinned": {
       "beforeClick": {
-        "events": 0
+        "events": 5
       },
       "sendWindow": {
         "events": 7,
@@ -101,9 +97,9 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
         "started": 3,
@@ -113,16 +109,16 @@
         "ended": 1,
         "invocations": [
           {
+            "dryRun": true,
+            "t": 3571
+          },
+          {
             "dryRun": false,
-            "t": 18445
+            "t": 4517
           },
           {
             "dryRun": true,
-            "t": 19609
-          },
-          {
-            "dryRun": true,
-            "t": 20426
+            "t": 5883
           }
         ]
       }
@@ -130,33 +126,33 @@
   },
   "eventWindow": {
     "gotavern": {
-      "eventsBeforeClick": 10,
+      "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 2311,
-        "inFlightMaxBeforeSend": 2,
+        "waitedMs": 516,
+        "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
-        "generateInvocationsBeforeSend": 2
+        "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1576,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
     },
     "pinned": {
-      "eventsBeforeClick": 0,
+      "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 526,
-        "inFlightMaxBeforeSend": 0,
+        "waitedMs": 501,
+        "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
-        "generateInvocationsBeforeSend": 0
+        "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1560,
+        "waitedMs": 1503,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -170,7 +166,8 @@
     "mode": "nonstream",
     "frameCount": "n/a (non-stream drive; the streaming artifacts carry PROBE_FRAME_COUNT)",
     "invocationPairing": "a non-dry AFTER_DATA belongs to the last non-dry STARTED; a dry one to the last dry STARTED; an unmatched assembly, or two assemblies in one invocation, fails",
-    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. GOTAVERN_GROQ_CHAT_URL aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "seamEnvVar": "GOTAVERN_GROQ_CHAT_URL",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
     "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls."
   },
   "guards": {
@@ -187,7 +184,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 16844,
+        "t": 4106,
         "afterData": [
           false
         ]
@@ -196,7 +193,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 18447,
+        "t": 4517,
         "afterData": [
           false
         ]
@@ -211,37 +208,33 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 13320
-      },
-      {
-        "dryRun": true,
-        "t": 15523
+        "t": 3160
       },
       {
         "dryRun": false,
-        "t": 16843
+        "t": 4106
       },
       {
         "dryRun": true,
-        "t": 17869
+        "t": 4547
       },
       {
         "dryRun": true,
-        "t": 18674
+        "t": 5828
       }
     ],
     "pinned": [
       {
+        "dryRun": true,
+        "t": 3571
+      },
+      {
         "dryRun": false,
-        "t": 18445
+        "t": 4517
       },
       {
         "dryRun": true,
-        "t": 19609
-      },
-      {
-        "dryRun": true,
-        "t": 20426
+        "t": 5883
       }
     ]
   },
@@ -274,11 +267,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 17121,
+          "t": 4226,
           "text": "probe user marker"
         },
         {
-          "t": 17585,
+          "t": 4356,
           "text": "probe reply"
         }
       ],
@@ -297,11 +290,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 18675,
+          "t": 4640,
           "text": "probe user marker"
         },
         {
-          "t": 19342,
+          "t": 4742,
           "text": "probe reply"
         }
       ],

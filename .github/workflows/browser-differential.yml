@@ -421,7 +421,13 @@ jobs:
           exit 0
 
       - name: Compare the preset legs
-        if: ${{ steps.preset.outputs.failures == '0' }}
+        # THE MODE GATE IS PART OF THIS CONDITION, not implied by the outputs of a step that may not have
+        # run. `steps.preset.outputs.failures == '0'` alone is TRUE when `steps.preset` was skipped:
+        # GitHub coerces a missing output to 0 and '0' to 0, so the two compare equal. Run 40073821604
+        # (mode=stream) therefore executed this step with no preset legs recorded, failed on the missing
+        # files, and took the streaming batch down with it. The condition now says exactly what it means:
+        # the preset path runs only in a preset/all dispatch, and only when its recording reported success.
+        if: ${{ ((inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all') && steps.preset.outputs.failures == '0' }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -443,7 +449,9 @@ jobs:
             > "tests/browser/$artifact"
 
       - name: Prove the preset gate has teeth
-        if: ${{ steps.preset.outputs.failures == '0' }}
+        # Same two-part condition as the comparator above: this step proves the gate has teeth by
+        # mutating the recorded legs, so it cannot run when there are no preset legs.
+        if: ${{ ((inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all') && steps.preset.outputs.failures == '0' }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "driveParameters": {
-    "streamFrameCount": "peer default (5 stream / 12 cancel)",
+    "streamFrameCount": "14",
     "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
     "seamEnvVar": "GOTAVERN_XAI_CHAT_URL",
-    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184), which is a path a user can take because xAI is proxy-capable",
-    "seamUsage": "safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but neither is the route this drive took; proxyPasswordPresent true on both legs is the evidence",
-    "converterNote": "xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content and deletes msg.name; a wrong port still yields a parseable body, so the provider bytes are the assertion"
+    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs (chat-completions.js:1184 `new URL(request.body.reverse_proxy || API_XAI)`), which is a path a user can take because xAI is proxy-capable",
+    "seamUsage": "safety net only: GOTAVERN_XAI_CHAT_URL and the api.x.ai transport redirect are both aimed at the peer so a leg preferring the pinned literal cannot reach the real api.x.ai, but NEITHER is the route this drive took, and proxyPasswordPresent true on both legs is the evidence",
+    "converterNote": "xAI runs convertXAIMessages (prompt-converters.js:785), a RENAMER that prefixes content with the character or user name and DELETES msg.name -- not the semi_tools merger. A wrong port would still produce a parseable body, so the compared provider bytes are the assertion"
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
@@ -14,8 +14,8 @@
     "streamPinned": "stream-xai-pinned.json",
     "cancelGotavern": "cancel-xai-gotavern.json",
     "cancelPinned": "cancel-xai-pinned.json",
-    "nonstreamGotavern": "gen-xai-gotavern.json",
-    "nonstreamPinned": "gen-xai-pinned.json"
+    "nonstreamGotavern": "nonstream-xai-gotavern.json",
+    "nonstreamPinned": "nonstream-xai-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -33,9 +33,15 @@
         "probe user marker",
         "…",
         "Hello from",
+        "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
+        "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
@@ -61,12 +67,17 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
@@ -92,7 +103,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -120,7 +131,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 15490,
+        "stopClickedAt": 4448,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -149,7 +160,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 18773,
+        "stopClickedAt": 4795,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,

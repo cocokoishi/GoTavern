@@ -69,32 +69,28 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 12652
+            "t": 3148
           },
           {
             "dryRun": false,
-            "t": 14664
+            "t": 4093
           },
           {
             "dryRun": true,
-            "t": 15638
-          },
-          {
-            "dryRun": true,
-            "t": 16612
+            "t": 5825
           }
         ]
       }
@@ -109,32 +105,28 @@
         "dryAfterData": 0
       },
       "afterSend": {
-        "events": 10,
-        "dryGenerationStarted": 2,
-        "dryAfterData": 2
+        "events": 5,
+        "dryGenerationStarted": 1,
+        "dryAfterData": 1
       },
       "wholeDrive": {
-        "started": 4,
-        "dryStarted": 3,
+        "started": 3,
+        "dryStarted": 2,
         "realStarted": 1,
-        "dryAfterData": 3,
+        "dryAfterData": 2,
         "ended": 1,
         "invocations": [
           {
             "dryRun": true,
-            "t": 16740
+            "t": 3513
           },
           {
             "dryRun": false,
-            "t": 18791
+            "t": 4447
           },
           {
             "dryRun": true,
-            "t": 19964
-          },
-          {
-            "dryRun": true,
-            "t": 20821
+            "t": 5815
           }
         ]
       }
@@ -145,14 +137,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 599,
+        "waitedMs": 517,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1560,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -161,14 +153,14 @@
       "eventsBeforeClick": 5,
       "quiescence": {
         "quiesced": true,
-        "waitedMs": 595,
+        "waitedMs": 501,
         "inFlightMaxBeforeSend": 1,
         "inFlightAtClick": 0,
         "generateInvocationsBeforeSend": 1
       },
       "settle": {
         "settledIdle": true,
-        "waitedMs": 1531,
+        "waitedMs": 1502,
         "completions": 1,
         "inFlightAtRead": 0
       }
@@ -201,7 +193,7 @@
     "gotavern": [
       {
         "dryRun": false,
-        "t": 14665,
+        "t": 4093,
         "afterData": [
           false
         ]
@@ -210,7 +202,7 @@
     "pinned": [
       {
         "dryRun": false,
-        "t": 18791,
+        "t": 4447,
         "afterData": [
           false
         ]
@@ -225,37 +217,29 @@
     "gotavern": [
       {
         "dryRun": true,
-        "t": 12652
+        "t": 3148
       },
       {
         "dryRun": false,
-        "t": 14664
+        "t": 4093
       },
       {
         "dryRun": true,
-        "t": 15638
-      },
-      {
-        "dryRun": true,
-        "t": 16612
+        "t": 5825
       }
     ],
     "pinned": [
       {
         "dryRun": true,
-        "t": 16740
+        "t": 3513
       },
       {
         "dryRun": false,
-        "t": 18791
+        "t": 4447
       },
       {
         "dryRun": true,
-        "t": 19964
-      },
-      {
-        "dryRun": true,
-        "t": 20821
+        "t": 5815
       }
     ]
   },
@@ -288,11 +272,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 14867,
+          "t": 4211,
           "text": "probe user marker"
         },
         {
-          "t": 15367,
+          "t": 4334,
           "text": "probe reply"
         }
       ],
@@ -311,11 +295,11 @@
       "emitPending": [],
       "renderSnapshots": [
         {
-          "t": 19058,
+          "t": 4568,
           "text": "probe user marker"
         },
         {
-          "t": 19734,
+          "t": 4660,
           "text": "probe reply"
         }
       ],

@@ -341,6 +341,14 @@ function startStreamingPeer(mode, protocol) {
             const entry = {
                 method: request.method,
                 path: request.url,
+                // THE HEADERS, so the report can record the FRAMING (names and the computed
+                // content-length). The reporter below copies NAMES and the content-length only -- no
+                // header value ever reaches a report, and the value that matters (authorization) is
+                // reduced to a presence boolean. Without this the ai21 framing block was recorded as an
+                // empty name list and a null length, which is why no committed artefact could have been
+                // produced from a leg: run 40068803201's leg holds headerNames [] and
+                // receivedContentLength null.
+                headers: request.headers ?? {},
                 bodyLength: body.length,
                 bodySha256: createHash('sha256').update(body).digest('hex'),
                 body: body.toString('utf8'),
@@ -1000,10 +1008,30 @@ try {
         if (presetSpec && presetBoundary) {
             const kit = await globalThis.__applyPresetKit(presetSpec);
             const maxContext = presetVariant === 'drop' ? presetBoundary.dropContext : presetBoundary.keepContext;
+            // UNLOCK THE SLIDER BEFORE SETTING IT. With `max_context_unlocked` false the frontend clamps
+            // `openai_max_context` to the model select's `max` attribute whenever a model change fires
+            // (openai.js:5701), and that clamp lands AFTER this assignment -- silently replacing the
+            // measured budget with the same value for BOTH variants. That is the defect behind run
+            // 40073821604: keep and drop both assembled the DROP shape (11 history turns, oldest turn
+            // absent) while the artefact recorded the keep boundary.
+            oai_settings.max_context_unlocked = true;
             oai_settings.openai_max_context = maxContext;
             // Non-streaming on every variant: the compared object is the provider's REQUEST, and a
             // streamed leg would make this artefact about framing rather than about prompt assembly.
             oai_settings.stream_openai = false;
+            // ASSERT THE VALUE STUCK, BY NAME. A budget the frontend quietly replaced is a differential
+            // that measures the wrong thing on both legs, which reads exactly like "the product agrees"
+            // (AGENTS verification rule 10). Read repeatedly, because the panel handlers settle
+            // asynchronously and a one-shot read can catch the value before a clamp lands.
+            let appliedContext = Number(oai_settings.openai_max_context);
+            for (let attempt = 0; attempt < 20 && appliedContext !== maxContext; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                appliedContext = Number(oai_settings.openai_max_context);
+            }
+            const contextProblems = [];
+            if (appliedContext !== maxContext) {
+                contextProblems.push(`openai_max_context settled at ${JSON.stringify(appliedContext)} after the drive set ${JSON.stringify(maxContext)} for the ${presetVariant} variant, so this leg did not run at the measured boundary and the variants would not be distinguishable`);
+            }
             // THE TOKENIZER ANCHOR, ASKED OF THE SERVER THIS LEG IS DRIVING. A fixed body whose pinned
             // count is 7 (tests/oracle/sillytavern-1.19.0-tokenizers.json, openai/count#llama#simple);
             // a server on the Guesstimate path answers a different number, which is how this lane
@@ -1012,10 +1040,13 @@ try {
             if (presetAnchor) {
                 let count = null;
                 let status = null;
+                // THE POST NEEDS THE CSRF TOKEN (run 40073802369 answered 403 to a plain fetch). The
+                // frontend's own header helper is how every panel request authenticates, on BOTH legs.
+                const anchorHeaders = script.getRequestHeaders();
                 try {
                     const response = await fetch(`/api/tokenizers/openai/count?model=${encodeURIComponent(presetAnchor.model)}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: anchorHeaders,
                         body: JSON.stringify(presetAnchor.body),
                     });
                     status = response.status;
@@ -1023,11 +1054,22 @@ try {
                 } catch (error) {
                     tokenizerAnchor = { model: presetAnchor.model, status, count: null, pinnedCount: presetAnchor.pinnedCount, error: String(error?.message ?? error).slice(0, 160) };
                 }
-                tokenizerAnchor = tokenizerAnchor ?? { model: presetAnchor.model, status, count, pinnedCount: presetAnchor.pinnedCount };
+                tokenizerAnchor = tokenizerAnchor ?? {
+                    model: presetAnchor.model,
+                    status,
+                    count,
+                    pinnedCount: presetAnchor.pinnedCount,
+                    csrfHeaderPresent: Object.keys(anchorHeaders).some(name => name.toLowerCase() === 'x-csrf-token'),
+                };
             }
             presetApplied = {
                 variant: presetVariant,
                 maxContext,
+                // WHAT THE LEG ACTUALLY RAN AT, recorded next to what it was asked for: the comparator
+                // asserts both against the fixture, so a clamped or replaced budget is named rather than
+                // silently folded into "both legs agree".
+                maxContextApplied: appliedContext,
+                maxContextUnlocked: Boolean(oai_settings.max_context_unlocked),
                 boundary: {
                     keepContext: presetBoundary.keepContext,
                     dropContext: presetBoundary.dropContext,
@@ -1037,7 +1079,7 @@ try {
                 typedMessage: presetSpec.send ?? null,
                 chatTurns: kit.chatTurns ?? null,
                 steps: kit.steps ?? [],
-                problems: kit.problems ?? [],
+                problems: [...(kit.problems ?? []), ...contextProblems],
                 tokenizerAnchor,
                 settings: {
                     openai_max_context: oai_settings.openai_max_context,

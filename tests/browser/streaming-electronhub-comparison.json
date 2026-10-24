@@ -3,16 +3,19 @@
   "driveParameters": {
     "streamFrameCount": "14",
     "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
+    "seamEnvVar": "GOTAVERN_ELECTRONHUB_CHAT_URL",
+    "pinnedRedirectRequired": "PROBE_PINNED_REDIRECT_FILE is NOT optional for a source the frontend marks proxy:false. Without it run-against-pinned.mjs installs no transport redirect hook, the pinned server fetches the REAL provider, and the peer log stays EMPTY -- which reads exactly like a product hang or a product defect, and did for two rounds in this lane. The seam named in seamEnvVar aims the GoTavern leg and the redirect aims the pinned leg; both are required, and proxyPasswordPresent false on BOTH legs is the evidence that neither leg could have reached a peer through a reverse proxy instead.",
+    "peerKeying": "the mock script is POSITIONAL and fails in BOTH directions, so the COUNT of model-list answers is not the axis: with ONE entry the pinned generate never arrives (the second status call consumes it and the send is refused with online_status no_connection); with THREE the generate arrives but receives a MODELS body and renders an empty string while the other leg renders text -- an equal-empty that finalTextNonEmpty exists to catch. The peer therefore answers by REQUEST (GET -> model list, completion POST -> completion, SSE when streaming and JSON when not), which is correct for any number of status calls.",
     "sourceShape": "ELECTRONHUB HAS NO reverse_proxy SUPPORT AT ALL: its route is a bare literal and always reads the ELECTRONHUB secret, so a request carrying a proxy is IGNORED rather than proxied. `proxyPasswordPresent: false` on both legs therefore means UNSUPPORTED, not unused, and the artifact says so because a reader would otherwise read the false as \"proxy available and untouched\"."
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "stream-a.json",
-    "streamPinned": "stream-p.json",
-    "cancelGotavern": "cancel-a.json",
-    "cancelPinned": "cancel-p.json",
-    "nonstreamGotavern": "nonstream-a.json",
-    "nonstreamPinned": "nonstream-p.json"
+    "streamGotavern": "stream-electronhub-gotavern.json",
+    "streamPinned": "stream-electronhub-pinned.json",
+    "cancelGotavern": "cancel-electronhub-gotavern.json",
+    "cancelPinned": "cancel-electronhub-pinned.json",
+    "nonstreamGotavern": "nonstream-electronhub-gotavern.json",
+    "nonstreamPinned": "nonstream-electronhub-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -30,11 +33,15 @@
         "probe user marker",
         "…",
         "Hello from",
+        "Hello from the",
         "Hello from the stream",
+        "Hello from the stream?",
         "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
+        "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
@@ -60,12 +67,18 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
+        "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
+        "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
         "Hello from the stream? incremental rendering is genuinely observed and paced",
+        "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
       "finalAssistantText": "Hello from the stream? incremental rendering is genuinely observed and paced by the",
@@ -90,7 +103,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -118,7 +131,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 14837,
+        "stopClickedAt": 4243,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,
@@ -147,7 +160,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 3,
         "stopPresent": true,
-        "stopClickedAt": 17789,
+        "stopClickedAt": 4545,
         "snapshotsAtStopPlus1200": 3,
         "textAfterStop": "Hello from",
         "snapshotsLater": 3,

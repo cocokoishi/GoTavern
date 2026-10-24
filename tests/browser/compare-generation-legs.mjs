@@ -29,12 +29,17 @@ import { BY_ID } from './sources.mjs';
 // PROBE_SOURCE names the source the two legs were captured with. An UNKNOWN name is an error, not an
 // empty object: a typo used to produce an artifact with no seam claim at all, which reads exactly like
 // a source that has no seam, and that silent shape is what this lane exists to remove.
-const sourceDriveParameters = report => {
+const currentSource = () => {
     const id = process.env.PROBE_SOURCE ?? 'custom';
     const source = BY_ID.get(id);
     if (!source) {
         throw new Error(`PROBE_SOURCE=${id} is not a source in tests/browser/sources.mjs, so this comparison cannot say how its legs were aimed`);
     }
+    return source;
+};
+
+const sourceDriveParameters = report => {
+    const source = currentSource();
     if (!source.driveParameters) {
         return {};
     }
@@ -394,6 +399,39 @@ const main = async () => {
     comparison.providerRequestEqual =
         JSON.stringify(comparison.providerRequests.gotavern) === JSON.stringify(comparison.providerRequests.pinned);
     comparison.windowIntegrity = { gotavern: windowIntegrity(gotavern), pinned: windowIntegrity(pinned) };
+    // THE REQUEST FRAMING, EMITTED BY THE RECORDER RATHER THAN WRITTEN INTO THE ARTEFACT BY HAND.
+    //
+    // A source may carry facts that the body digest cannot: which header NAMES arrived, and whether the
+    // transport's computed content-length equals the body it measured. ai21's artefact claimed both from
+    // commit cd5f66f onward, but that commit changed only artefact JSON -- no comparator ever produced
+    // the block, so every re-record silently deleted it. `source.emitsRequestFraming` moves the
+    // responsibility here: the values come from each leg's own recorded requests, which is the same
+    // standard as every other field in this object.
+    //
+    // NAMES AND BOOLEANS ONLY. A header VALUE would put a credential in a committed file, so the block
+    // records `authorizationPresent` and never the value; the hook in
+    // tools/browser-evidence/source-hooks.mjs refuses an artefact that leaks one.
+    if (currentSource().emitsRequestFraming) {
+        const framingOf = report => {
+            const post = (report.recording ?? []).find(entry => entry.method === 'POST');
+            if (!post || !Array.isArray(post.headerNames) || post.headerNames.length === 0) return null;
+            return {
+                method: post.method,
+                headerNames: post.headerNames,
+                receivedContentLength: post.receivedContentLength ?? null,
+                bodyLength: post.bodyLength,
+                contentLengthMatchesBody: String(post.receivedContentLength) === String(post.bodyLength),
+                authorizationPresent: post.headerNames.includes('authorization'),
+            };
+        };
+        comparison.requestFraming = { gotavern: framingOf(gotavern), pinned: framingOf(pinned) };
+        const left = comparison.requestFraming.gotavern;
+        const right = comparison.requestFraming.pinned;
+        comparison.requestFramingEqual = Boolean(left && right)
+            && JSON.stringify(left.headerNames) === JSON.stringify(right.headerNames)
+            && String(left.receivedContentLength) === String(right.receivedContentLength);
+        comparison.framingNote = 'header NAMES and the transport-computed content-length, per leg; the header VALUES are deliberately not recorded (one of them is the credential). framingEqual compares the name list and the received content-length, and the verifier recomputes that flag from these two records.';
+    }
     console.log(JSON.stringify(comparison, null, 2));
     // Printed to stderr so stdout stays the artifact. A false guard means the two records do not
     // describe a comparable state, and no reason recorded alongside them would make them do so.

@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "driveParameters": {
-    "streamFrameCount": "peer default (5 stream / 12 cancel)",
+    "streamFrameCount": "14",
     "customArtifactFrameCount": "different: streaming-comparison.json records 9 render snapshots per leg, so the two documents describe different drives and neither supersedes the other",
     "seamEnvVar": "GOTAVERN_CLAUDE_CHAT_URL",
-    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs, because claude is proxy-capable",
-    "seamUsage": "safety net only: the seam is aimed so a leg preferring the pinned literal cannot reach the real provider, but the route is the setting",
-    "noValidate": "claude must record ZERO /models calls on both legs; a status call is the harness bug, not a product finding"
+    "peerRoute": "the frontend reverse_proxy setting, followed by BOTH legs -- claude is proxy-capable, and a reverse-proxy drive is the route a user takes",
+    "seamUsage": "safety net only: GOTAVERN_CLAUDE_CHAT_URL exists in the Go arm and is aimed here so a leg preferring the pinned literal cannot reach the real provider, but the route this drive took is the setting, which is why proxyPasswordPresent is TRUE on both legs",
+    "noValidate": "claude is in the frontend noValidateSources list, so the CONNECT path never validates; this artifact must therefore record ZERO /models calls on BOTH legs"
   },
   "question": "do the same browser drives produce identical streaming, cancellation and non-streaming observations on GoTavern and pinned?",
   "captures": {
-    "streamGotavern": "stream-cl-gotavern.json",
-    "streamPinned": "stream-cl-pinned.json",
-    "cancelGotavern": "cancel-cl-gotavern.json",
-    "cancelPinned": "cancel-cl-pinned.json",
-    "nonstreamGotavern": "gen-cl-gotavern.json",
-    "nonstreamPinned": "gen-cl-pinned.json"
+    "streamGotavern": "stream-claude-gotavern.json",
+    "streamPinned": "stream-claude-pinned.json",
+    "cancelGotavern": "cancel-claude-gotavern.json",
+    "cancelPinned": "cancel-claude-pinned.json",
+    "nonstreamGotavern": "nonstream-claude-gotavern.json",
+    "nonstreamPinned": "nonstream-claude-pinned.json"
   },
   "streaming": {
     "gotavern": {
@@ -32,13 +32,18 @@
       "renderTexts": [
         "probe user marker",
         "…",
+        "Hello",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
         "Hello from the stream? incremental",
         "Hello from the stream? incremental rendering",
+        "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
@@ -46,7 +51,7 @@
       "streamState": {
         "sawIncremental": true,
         "contentSnapshotsBeforeEnd": 1,
-        "snapshotsBeforeEnd": 3
+        "snapshotsBeforeEnd": 4
       }
     },
     "pinned": {
@@ -64,13 +69,17 @@
         "probe user marker",
         "…",
         "Hello",
+        "Hello from",
         "Hello from the",
+        "Hello from the stream",
         "Hello from the stream?",
         "Hello from the stream? incremental",
+        "Hello from the stream? incremental rendering",
         "Hello from the stream? incremental rendering is",
         "Hello from the stream? incremental rendering is genuinely",
         "Hello from the stream? incremental rendering is genuinely observed",
         "Hello from the stream? incremental rendering is genuinely observed and",
+        "Hello from the stream? incremental rendering is genuinely observed and paced",
         "Hello from the stream? incremental rendering is genuinely observed and paced by",
         "Hello from the stream? incremental rendering is genuinely observed and paced by the"
       ],
@@ -96,7 +105,7 @@
       "framesWrittenEqual": true
     },
     "renderTickAlignment": {
-      "tickByTickEqual": false,
+      "tickByTickEqual": true,
       "note": "recorded, not asserted: the tick boundary races on a single leg across repeats"
     },
     "proven": true
@@ -125,7 +134,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 4,
         "stopPresent": true,
-        "stopClickedAt": 14725,
+        "stopClickedAt": 4582,
         "snapshotsAtStopPlus1200": 4,
         "textAfterStop": "Hello from",
         "snapshotsLater": 4,
@@ -155,7 +164,7 @@
         "contentSnapshotsBeforeEnd": 1,
         "snapshotsBeforeEnd": 4,
         "stopPresent": true,
-        "stopClickedAt": 19851,
+        "stopClickedAt": 4866,
         "snapshotsAtStopPlus1200": 4,
         "textAfterStop": "Hello from",
         "snapshotsLater": 4,

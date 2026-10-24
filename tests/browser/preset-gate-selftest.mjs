@@ -115,8 +115,14 @@ const mutatedDrop = replaceProviderBody(legs.pinnedDrop, body => {
 });
 const third = run({ pinnedDrop: mutatedDrop });
 record('a drop leg that keeps the oldest turn fails the boundary guard', third.guards?.boundaryBindsOnThePinnedLeg === false
-    || third.guards?.boundaryPairDiscriminates === false,
-    JSON.stringify({ keepDrop: third.keepDrop?.drop ?? null, guards: { binds: third.guards?.boundaryBindsOnThePinnedLeg, discriminates: third.guards?.boundaryPairDiscriminates } }));
+    || third.guards?.boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg === false,
+    JSON.stringify({
+        keepDrop: third.keepDrop?.drop ?? null,
+        guards: {
+            binds: third.guards?.boundaryBindsOnThePinnedLeg,
+            oneMoreTurn: third.guards?.boundaryRetainsExactlyOneMoreTurnOnThePinnedLeg,
+        },
+    }));
 
 // 4. A MISSING TOKENIZER ANCHOR MUST REFUSE: this is the Guesstimate path, and comparing counts that are
 //    not counts is the failure this lane exists to prevent.
