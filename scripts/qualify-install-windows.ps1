@@ -43,7 +43,9 @@ WHAT IS STILL NOT PROVEN, stated rather than implied, so this file does not over
 
 Usage: scripts/qualify-install-windows.ps1 -DistDir <dir>
   <dir>/stage-older and <dir>/stage-newer hold the two staged trees the workflow built
-  (gotavern.exe, tokenizers/, LICENSE, THIRD_PARTY_NOTICES.txt, BUILD-INFO.txt).
+  (gotavern.exe, src/tokenizers/, LICENSE, THIRD_PARTY_NOTICES.txt, BUILD-INFO.txt). The tokenizer tree
+  ships at src/tokenizers/ in the archive, mirroring upstream SillyTavern, and the installer puts it at
+  <InstallDir>/src/tokenizers/.
 #>
 [CmdletBinding()]
 param(
@@ -124,9 +126,9 @@ try {
     $stageNewer = Join-Path $DistDir 'stage-newer'
     foreach ($stage in @($stageOlder, $stageNewer)) {
         if (-not (Test-Path -LiteralPath (Join-Path $stage 'gotavern.exe') -PathType Leaf)) { Fail "$stage has no gotavern.exe" }
-        if (-not (Test-Path -LiteralPath (Join-Path $stage 'tokenizers') -PathType Container)) { Fail "$stage has no tokenizers/ (the installer refuses such an archive, so nothing could be asserted)" }
+        if (-not (Test-Path -LiteralPath (Join-Path $stage 'src/tokenizers') -PathType Container)) { Fail "$stage has no src/tokenizers/ (the installer refuses such an archive, so nothing could be asserted)" }
     }
-    Ok "both staged trees carry gotavern.exe at their root and tokenizers/ beside it"
+    Ok "both staged trees carry gotavern.exe at their root and src/tokenizers/ under src/"
 
     # ---- 2. the release tags come from the binaries, not from file names --------------------------
     $olderTag = Get-BinaryTag (Join-Path $stageOlder 'gotavern.exe')
@@ -145,9 +147,13 @@ try {
     foreach ($zip in @($olderZip, $newerZip)) {
         $names = [System.IO.Compression.ZipFile]::OpenRead($zip).Entries | ForEach-Object { $_.FullName }
         if ($names -notcontains 'gotavern.exe') { Fail "$zip does not carry gotavern.exe at its archive root" }
-        if (($names | Where-Object { $_ -like 'tokenizers/*' }).Count -eq 0) { Fail "$zip does not carry tokenizers/" }
+        if (($names | Where-Object { $_ -like 'src/tokenizers/*' }).Count -eq 0) { Fail "$zip does not carry src/tokenizers/ (entries: $($names -join ', '))" }
+        # The archive's ROOT must not carry the tree: the contract moves it under src/ and a second copy
+        # would double the payload. `-like 'tokenizers/*'` anchors at the start, so src/tokenizers/ does
+        # not match it.
+        if (($names | Where-Object { $_ -like 'tokenizers/*' }).Count -ne 0) { Fail "$zip carries a duplicate tokenizers/ tree at its root; the tree belongs at src/tokenizers/ only" }
     }
-    Ok "built both payload zips with gotavern.exe at the root and tokenizers/ beside it"
+    Ok "built both payload zips with gotavern.exe at the root and src/tokenizers/ under src/"
 
     foreach ($pair in @(@($olderTag, $olderZip), @($newerTag, $newerZip))) {
         $tag = $pair[0]
@@ -235,7 +241,7 @@ with socketserver.TCPServer(("127.0.0.1", 0), handler) as httpd:
         Pop-Location
     }
     if ($verifyStatus -ne 0) { Fail "assets verify failed from the installed prefix (exit $verifyStatus): $verifyOutput" }
-    Ok "assets verify passes from the installed prefix (tokenizers/ is installed beside the binary)"
+    Ok "assets verify passes from the installed prefix (src/tokenizers/ is installed under the prefix)"
 
     $launcher = Join-Path $installDir 'Start.cmd'
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { Fail "the installer wrote no Start.cmd at $launcher" }

@@ -140,8 +140,8 @@ tar -xzf "$OLDER_ARCHIVE" -C "$WORK_ROOT/stage-older" || fail "cannot extract $O
 tar -xzf "$NEWER_ARCHIVE" -C "$WORK_ROOT/stage-newer" || fail "cannot extract $NEWER_ARCHIVE"
 [ -x "$WORK_ROOT/stage-older/gotavern" ] || fail "$OLDER_ARCHIVE has no executable gotavern at its root"
 [ -x "$WORK_ROOT/stage-newer/gotavern" ] || fail "$NEWER_ARCHIVE has no executable gotavern at its root"
-[ -d "$WORK_ROOT/stage-older/tokenizers" ] || fail "$OLDER_ARCHIVE does not contain tokenizers/"
-[ -d "$WORK_ROOT/stage-newer/tokenizers" ] || fail "$NEWER_ARCHIVE does not contain tokenizers/"
+[ -d "$WORK_ROOT/stage-older/src/tokenizers" ] || fail "$OLDER_ARCHIVE does not contain src/tokenizers/"
+[ -d "$WORK_ROOT/stage-newer/src/tokenizers" ] || fail "$NEWER_ARCHIVE does not contain src/tokenizers/"
 
 OLDER_TAG=$(tag_of_binary "$WORK_ROOT/stage-older/gotavern") || fail "cannot read $OLDER_ARCHIVE's version"
 NEWER_TAG=$(tag_of_binary "$WORK_ROOT/stage-newer/gotavern") || fail "cannot read $NEWER_ARCHIVE's version"
@@ -165,8 +165,8 @@ tree_of() {
         printf '%s  %s\n' "$(sha256_of "$file")" "$file"
       done )
 }
-OLDER_TOKENS=$(tree_of "$WORK_ROOT/stage-older/tokenizers")
-NEWER_TOKENS=$(tree_of "$WORK_ROOT/stage-newer/tokenizers")
+OLDER_TOKENS=$(tree_of "$WORK_ROOT/stage-older/src/tokenizers")
+NEWER_TOKENS=$(tree_of "$WORK_ROOT/stage-newer/src/tokenizers")
 if [ "$OLDER_TOKENS" = "$NEWER_TOKENS" ]; then
     ok "MEASURED: the two releases carry IDENTICAL vendored tokenizer trees, so this pair differs in code and BUILD-INFO only. The rollback assertions still compare the installed tree against the OLDER ARCHIVE'S OWN manifest, so a rollback that restored the wrong tree would fail here; what this pair cannot show is a tokenizer file that exists in only one release."
 else
@@ -245,14 +245,14 @@ ok "assets verify passes from the prefix for $OLDER_TAG"
     || fail "the installed binary is not byte-identical to the older archive's binary"
 ok "the installed binary is byte-identical to $OLDER_ARCHIVE's binary"
 
-INSTALLED_TOKENS=$(tree_of "$PREFIX/tokenizers")
+INSTALLED_TOKENS=$(tree_of "$PREFIX/src/tokenizers")
 if [ "$INSTALLED_TOKENS" != "$OLDER_TOKENS" ]; then
     printf '%s\n' "$INSTALLED_TOKENS" >"$WORK_ROOT/installed-tokenizers.txt"
     printf '%s\n' "$OLDER_TOKENS" >"$WORK_ROOT/archive-tokenizers.txt"
     diff -u "$WORK_ROOT/archive-tokenizers.txt" "$WORK_ROOT/installed-tokenizers.txt" >&2 || true
-    fail "the installed tokenizers/ tree does not match the older archive's own tree"
+    fail "the installed src/tokenizers/ tree does not match the older archive's own tree"
 fi
-ok "the installed tokenizers/ tree matches $OLDER_ARCHIVE's manifest byte for byte"
+ok "the installed src/tokenizers/ tree matches $OLDER_ARCHIVE's manifest byte for byte"
 
 # ---- 5. seed the runtime state a user has ---------------------------------------------------
 
@@ -374,9 +374,9 @@ ok "the rolled-back binary is byte-identical to $OLDER_ARCHIVE's binary"
 ( cd "$PREFIX" && "$INSTALLED" assets verify ) >"$WORK_ROOT/assets-rollback.log" 2>&1 \
     || fail "assets verify failed from the prefix after the rollback"
 ok "assets verify passes from the prefix after the rollback"
-ROLLED_TOKENS=$(tree_of "$PREFIX/tokenizers")
-[ "$ROLLED_TOKENS" = "$OLDER_TOKENS" ] || fail "after the rollback the installed tokenizers/ tree does not match the older archive's manifest"
-ok "the rolled-back tokenizers/ tree matches $OLDER_ARCHIVE's manifest byte for byte"
+ROLLED_TOKENS=$(tree_of "$PREFIX/src/tokenizers")
+[ "$ROLLED_TOKENS" = "$OLDER_TOKENS" ] || fail "after the rollback the installed src/tokenizers/ tree does not match the older archive's manifest"
+ok "the rolled-back src/tokenizers/ tree matches $OLDER_ARCHIVE's manifest byte for byte"
 
 # ---- 10. the NEWER release's state must survive the rollback, and be READABLE by the older
 #          release -- the cross-baseline direction nobody had executed -------------------------

@@ -13,7 +13,7 @@ name: GoTavern release qualification
 #   1. build TWO canonical linux-amd64 archives from the same source with DIFFERENT version strings,
 #      so "update" and "rollback" move real immutable bytes rather than re-extracting an identical file;
 #   2. assert archive CONTENTS and MODES (binary and launcher executable, LICENSE/notices/BUILD-INFO
-#      present, tokenizers/ present -- without tokenizers the tokenizer routes silently take the pinned
+#      present, src/tokenizers/ present -- without the tree the tokenizer routes silently take the pinned
 #      fallback and count every prompt wrong while still answering);
 #   3. run `assets verify` from the EXTRACTED archive, not from a source build;
 #   4. fresh boot over an empty runtime root, require /version to answer, stop, snapshot the tree;
@@ -79,7 +79,12 @@ jobs:
             # ships. install.sh is deliberately NOT included: it is not in the release archive either,
             # and adding it here would make this a test of a different artefact.
             cp LICENSE THIRD_PARTY_NOTICES.txt start.sh "stage-${variant}/"
-            cp -R upstream/tokenizers "stage-${variant}/tokenizers"
+            # THE TREE SHIPS AT src/tokenizers/ IN THE ARCHIVE, mirroring upstream SillyTavern, which keeps
+            # these files at src/tokenizers and reads them server-side by that relative path
+            # (src/endpoints/tokenizers.js:251-254). Gateway files stay at the archive root; only the tree
+            # moves under src/.
+            mkdir -p "stage-${variant}/src"
+            cp -R upstream/tokenizers "stage-${variant}/src/tokenizers"
             {
               echo "GoTavern qualification ${variant}"
               echo "target linux"
@@ -105,7 +110,21 @@ jobs:
           test -s install-root/LICENSE
           test -s install-root/THIRD_PARTY_NOTICES.txt
           test -s install-root/BUILD-INFO.txt
-          test -d install-root/tokenizers
+          # NAMED, not a bare `test -d`: a wrong layout has to fail by naming the path it expected, or the
+          # failure reads as a mysterious missing directory. src/tokenizers/ is the release layout; the
+          # gateway files above stay at the root and the tree is the ONLY thing under src/.
+          if [ ! -d install-root/src/tokenizers ]; then
+            echo "the archive does not carry src/tokenizers/; it carries:" >&2
+            find install-root -maxdepth 2 -mindepth 1 | LC_ALL=C sort >&2
+            exit 1
+          fi
+          test -d install-root/src
+          # NAMED for the same reason: an archive that ships BOTH layouts doubles the payload and leaves
+          # the runtime free to read a stale tree, and `test ! -e` would say none of that.
+          if [ -e install-root/tokenizers ]; then
+            echo "the archive carries a duplicate tokenizers/ tree at its root; the contract moves it to src/tokenizers/ and one archive must not ship both" >&2
+            exit 1
+          fi
           test ! -e install-root/config.yaml
           test ! -e install-root/data
           echo "archive contents:"
@@ -322,7 +341,8 @@ jobs:
             go build -trimpath -ldflags="-s -w -X main.version=winqual-$variant" \
               -o "stage-$variant/gotavern.exe" ./cmd/gotavern
             cp LICENSE THIRD_PARTY_NOTICES.txt Start.cmd "stage-$variant/"
-            cp -R upstream/tokenizers "stage-$variant/tokenizers"
+            mkdir -p "stage-$variant/src"
+          cp -R upstream/tokenizers "stage-$variant/src/tokenizers"
             {
               echo "GoTavern windows qualification $variant"
               echo "target windows"
@@ -416,7 +436,8 @@ jobs:
           rm -rf "$stage"; mkdir -p "$stage"
           ( cd "$RUNNER_TEMP/baseline" && go build -trimpath -ldflags="-s -w -X main.version=${older_tag}" -o "$stage/gotavern" ./cmd/gotavern )
           cp "$RUNNER_TEMP/baseline/LICENSE" "$RUNNER_TEMP/baseline/THIRD_PARTY_NOTICES.txt" "$RUNNER_TEMP/baseline/start.sh" "$stage/"
-          cp -R "$RUNNER_TEMP/baseline/upstream/tokenizers" "$stage/tokenizers"
+          mkdir -p "$stage/src"
+          cp -R "$RUNNER_TEMP/baseline/upstream/tokenizers" "$stage/src/tokenizers"
           {
             echo "GoTavern release ${older_tag}"
             echo "baseline ${baseline_sha}"
@@ -442,7 +463,8 @@ jobs:
           # EXACTLY the file set release.yml stages, so the archives under test are the archives that
           # would ship.
           cp LICENSE THIRD_PARTY_NOTICES.txt start.sh "$stage/"
-          cp -R upstream/tokenizers "$stage/tokenizers"
+          mkdir -p "$stage/src"
+          cp -R upstream/tokenizers "$stage/src/tokenizers"
           {
             echo "GoTavern release ${newer_tag}"
             echo "candidate $(git rev-parse HEAD)"
