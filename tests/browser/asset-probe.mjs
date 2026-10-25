@@ -273,6 +273,10 @@ const report = {
     provenance: {
         subject: external ? 'pinned' : 'gotavern',
         configFile: legConfig,
+        // THE TREE THIS LEG SERVED. On the pinned leg the server's --data-root comes from
+        // run-against-pinned.mjs; a probe that staged somewhere else produced a leg with an empty catalogue
+        // in run 40202885055 (0 character rows, persona thumbnail 404 on pinned only).
+        dataRoot: dataRoot.split(path.sep).slice(-2).join('/'),
         fixture: { userHandle: USER_HANDLE, files: stagedFixture, stagedBy: 'asset-probe.mjs (the same builder on both legs); user data lives at <dataRoot>/<handle>/… (src/users.js getUserDirectories)' },
         // Recorded so a reader can tell a probe-faithfulness failure (nothing was requested) from a
         // product failure (things were requested and answered wrongly).
@@ -280,6 +284,7 @@ const report = {
         viewport: { width: 1280, height: 900 },
     },
     imageRequests: [],
+    listings: null,
     dom: null,
     console: [],
     consoleFailedToLoad: [],
@@ -338,6 +343,37 @@ try {
     await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 60000 }).catch(() => null);
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => null);
 
+    // WHAT THE SERVER SAID THE USER HAS. Recorded so "no row rendered" can be attributed: a leg whose
+    // catalogue answered zero characters has a fixture problem, a leg whose catalogue answered one but
+    // rendered zero has a DOM or frontend problem, and those are different reports.
+    report.listings = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const post = async (route, body) => {
+            try {
+                const response = await fetch(route, { method: 'POST', headers: script.getRequestHeaders(), body: JSON.stringify(body ?? {}) });
+                const text = await response.text();
+                let parsed = null;
+                try { parsed = JSON.parse(text); } catch { parsed = null; }
+                const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : null);
+                return {
+                    route,
+                    httpStatus: response.status,
+                    contentType: response.headers.get('content-type'),
+                    bodyLength: text.length,
+                    listLength: list ? list.length : null,
+                    firstEntry: list && list[0] ? { name: list[0].name ?? null, avatar: list[0].avatar ?? null } : null,
+                    errorBody: list ? null : text.slice(0, 200),
+                };
+            } catch (error) {
+                return { route, error: String(error?.message ?? error).slice(0, 200) };
+            }
+        };
+        return {
+            characters: await post('/api/characters/all', {}),
+            backgrounds: await post('/api/backgrounds/all', {}),
+        };
+    }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+
     report.dom = await page.evaluate(() => {
         const describeImage = image => ({
             src: image.getAttribute('src'),
@@ -389,7 +425,9 @@ try {
         });
         return {
             messageCount: document.querySelectorAll('.mes').length,
-            messages: [...document.querySelectorAll('.mes .mesAvatarWrapper .avatar img')].map(describeImage),
+            // Same placeholder rule as the first capture: an <img src=""> from #message_template is not an
+            // avatar, and counting it makes "no chat opened" indistinguishable from "avatars are broken".
+            messages: [...document.querySelectorAll('.mes .mesAvatarWrapper .avatar img')].map(describeImage).filter(image => String(image.src ?? '') !== ''),
         };
     });
     report.dom.messageCount = afterOpen.messageCount;

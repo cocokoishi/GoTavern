@@ -421,13 +421,22 @@ jobs:
           # BOTH LEGS STAGE THEIR OWN COPY OF THE SAME FIXTURE (a card PNG, a background PNG, a persona
           # PNG) from the same builder inside the probe, and the report records the digests. The comparator
           # refuses a pair whose fixtures differ, so "same fixture" is measured rather than asserted.
-          if node tests/browser/asset-probe.mjs --report "$work/legs/asset-gotavern-leg.json"; then
+          # ONE DATA ROOT PER LEG, AND THE LEG'S SERVER MUST SERVE THE ONE THE PROBE STAGES. The first
+          # version let run-against-pinned.mjs create its own root while the probe created a second one and
+          # staged there, so the pinned leg read an empty tree: 0 character rows and the persona thumbnail
+          # 404'd on pinned only (run 40202885055). `--data-root` is passed to the wrapper (which boots the
+          # server on it) AND through `--` to the probe (which stages the fixture into it).
+          tree_gotavern="$work/asset-tree-gotavern"
+          tree_pinned="$work/asset-tree-pinned"
+          rm -rf "$tree_gotavern" "$tree_pinned"
+          mkdir -p "$tree_gotavern" "$tree_pinned"
+          if node tests/browser/asset-probe.mjs --data-root "$tree_gotavern" --report "$work/legs/asset-gotavern-leg.json"; then
             echo "recorded the GoTavern asset leg"
           else
             echo "::error::the GoTavern asset leg failed to drive"
             failures=$((failures + 1))
           fi
-          if node tests/browser/run-against-pinned.mjs asset-probe.mjs -- --report "$work/legs/asset-pinned-leg.json"; then
+          if node tests/browser/run-against-pinned.mjs asset-probe.mjs -- --data-root "$tree_pinned" --report "$work/legs/asset-pinned-leg.json"; then
             echo "recorded the pinned asset leg"
           else
             echo "::error::the pinned asset leg failed to drive"
