@@ -421,10 +421,14 @@ fixture or runs a test suite happens in GitHub Actions.
   `tools/build-generated-lib.mjs`, the browser harness, any probe. The machine cannot afford them and
   a Windows result is not the Linux gate anyway (see the CRLF and host-path traps in the rules above).
 - **A relative path in a .NET or PowerShell file API does not follow `cd`.** `[System.IO.File]::WriteAllText('internal/x.go', …)` resolves against the PROCESS working directory, which is the session workspace, while `cd` only changes PowerShell's location. An edit aimed at another worktree therefore lands in this checkout, silently, and the read-back that would have caught it is the only thing that does. Two lanes have already written into the wrong tree this way. Use absolute paths for every write (`Resolve-Path` first, then write), and after any edit in a worktree that is not this one, read the file back and confirm which tree changed before reporting it.
-- **No pull requests.** Branch count and duplicated multi-hour sweeps got out of control: five PRs
-  meant five oracle jobs. A task gets ONE lane branch; when it is done and its cheap checks pass, it
-  is pushed once and the lead merges it into `main` locally, then deletes the lane. `main` is the only
-  long-lived branch. The only CI run that judges a change is the run on `main` after the merge.
+- **No pull requests, but NOT one-push-per-task.** Branch count and duplicated multi-hour sweeps got out
+  of control: five PRs meant five oracle jobs. So: no pull requests, and `main` is the only long-lived
+  branch. What is now SUPERSEDED is the older "push once, at the end" rule — a lane that sits on twenty
+  unpushed commits has never been looked at by a compiler, and on 2026-10-25 a lane's gate and its fix
+  travelled in the same push, so the red was argued from a set diff instead of observed. **Commit and push
+  at every coherent step**: gate first and let it go red, then the fix and let it go green, and quote both
+  run ids. A lane may push as often as it has something coherent to say; the lead merges it into `main`
+  locally when its cheap checks pass, and deletes it.
 - **Persist expensive CI work** rather than re-paying it: `setup-go` cache, `actions/cache` for the
   pinned SillyTavern `node_modules`, the oracle build root, the harness `node_modules` and the
   Playwright browser bundle. A cache key must PROVE the identity of what it restores (pinned commit
@@ -524,8 +528,10 @@ failure mode they replace is "the suite was green, therefore it works". The meas
     changed files, tests, CI run id, residual risk. "Implemented" alone is rejected.
 38. **Release qualification covers the real migration path**: stock tree, existing config, existing data, restart,
     persistence, and the ability to hand the data back to pinned Node.
-39. **Lanes own areas, not files-in-flight.** One lane per area, one push, integrator merges; shared architecture
-    changes land first and lanes rebase onto them.
+39. **Lanes own areas, not files-in-flight.** One lane per area and one owner per area; a lane pushes at every
+    coherent step (see "Working mode" — the older one-push rule is superseded, because a gate and its fix in the
+    same push means the red was never observed); the integrator merges each lane when its cheap checks pass;
+    shared architecture changes land first and lanes rebase onto them.
 40. **A hang, a crash or a silent mutation discovered in production is a defect in the process too.** Record what
     the process was missing — a gate, a fixture, a timeout, a document — in the same change that fixes the bug.
 
