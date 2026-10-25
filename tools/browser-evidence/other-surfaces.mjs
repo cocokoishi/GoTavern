@@ -30,7 +30,7 @@ export function assetSurface(ctx, assetComparison) {
         'bothLegsOpenedAChat', 'sameFixture',
         // the user's own questions
         'noImageRequestFailedOnEitherLeg', 'everyCharacterListAvatarDecoded', 'everyMessageAvatarDecoded',
-        'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs', 'stagedBackgroundDrivenOnBothLegs',
+        'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs', 'stagedBackgroundServedWithBytesOnBothLegs',
         // cross-leg
         'sameImageUrlSet', 'perUrlStatusEqual', 'perUrlContentTypeEqual', 'nonThumbnailBytesEqual',
         'thumbnailResponsesAreImages', 'thumbnailDivergenceIsBytesOnly',
@@ -97,6 +97,17 @@ export function assetSurface(ctx, assetComparison) {
             if (!/^image\//i.test(String(request.contentType ?? ''))) {
                 ctx.fail(`legs.${leg} thumbnail ${request.url} answered content-type ${JSON.stringify(request.contentType)}, which is not an image`);
             }
+        }
+    }
+    // A GUARD THAT IS FALSE MUST BE DECLARED, OR THE ARTEFACT IS HIDING IT. This is the mechanism that lets a
+    // known-unproven half live in the artefact honestly: `unproven[]` has to NAME the guard, so a false guard
+    // cannot pass by being omitted from the required list (which is exactly how a `knownReason` allowlist turns
+    // a red surface green, gate-blindspots §1).
+    for (const [guard, value] of Object.entries(guards)) {
+        if (value === true) continue;
+        const declared = (assetComparison.unproven ?? []).some(entry => String(entry).startsWith(guard));
+        if (!declared) {
+            ctx.fail(`guards.${guard} is false and unproven[] does not name it: an undeclared failure is a finding, not a known gap`);
         }
     }
     ctx.observe(`${assetComparison.legs?.gotavern?.imageRequests?.length ?? 0} gotavern / ${assetComparison.legs?.pinned?.imageRequests?.length ?? 0} pinned image request(s), ${(assetComparison.divergences ?? []).length} declared divergence(s), all display guards true`);

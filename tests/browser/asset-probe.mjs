@@ -597,6 +597,19 @@ try {
         report.dom.backgroundDriven &&
         String(report.dom.backgroundDriven.appliedBackgroundImage ?? '').includes(BACKGROUND_FILE),
     );
+    // THE STAGED BACKGROUND'S OWN URL, ASKED THE WAY THE PAGE ASKS FOR IT. The gallery drive above is not
+    // established (the panel opens and no .bg_example[bgfile=...] appears), so the DOM half of the background
+    // claim is recorded as unproven rather than dressed up. What IS measured here is the asset the user's
+    // background resolves to: `/backgrounds/<file>`, which is exactly the URL `#bg1` receives from
+    // backgrounds.js. A 200 with bytes on both legs is the route-level half of Q7; the paint is not claimed.
+    report.dom.stagedBackgroundRequest = await page.evaluate(async backgroundFile => {
+        const script = await import('./script.js');
+        const url = `/backgrounds/${encodeURIComponent(backgroundFile)}`;
+        const headers = typeof script.getRequestHeaders === 'function' ? script.getRequestHeaders() : {};
+        const response = await fetch(url, { headers });
+        const bytes = await response.arrayBuffer();
+        return { url, httpStatus: response.status, contentType: response.headers.get('content-type'), byteLength: bytes.byteLength };
+    }, BACKGROUND_FILE).catch(error => ({ url: `/backgrounds/${BACKGROUND_FILE}`, error: String(error?.message ?? error).slice(0, 160) }));
 
     // THE PERSONA SURFACE, ASKED OF THE SERVER THROUGH THE FRONTEND'S OWN HELPER. The persona PICKER is
     // not driven here (it needs a persona to exist and a panel interaction this probe does not own), so

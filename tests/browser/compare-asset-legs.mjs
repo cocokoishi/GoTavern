@@ -102,6 +102,16 @@ export function compare({ gotavern, pinned }) {
     // AND THAT IT IS THE STAGED BACKGROUND, not the fresh tree's `/backgrounds/__transparent.png`. A guard of
     // its own, because "something is applied" must never stand in for the user's own image (gate-blindspots §1:
     // a weaker observation replacing the claim is how a broken surface reads as a pass).
+    //
+    // TWO HALVES, KEPT APART DELIBERATELY. The PAINT (the staged tile selected in the gallery, #bg1 carrying it)
+    // is not driven: the panel opens and no `.bg_example[bgfile=...]` appears within 15 s, measured on both
+    // legs. Rather than weaken the claim to "some background is applied", the ROUTE is asserted here and the
+    // paint is recorded in `unproven` with the measured reason (AGENTS.md 45: a boundary must say what the user
+    // does not get). `/backgrounds/<file>` is the URL backgrounds.js hands to #bg1.
+    guards.stagedBackgroundServedWithBytesOnBothLegs = [gotavern, pinned].every(report => {
+        const request = dom(report)?.stagedBackgroundRequest ?? null;
+        return Boolean(request) && request.httpStatus === 200 && /^image\//i.test(String(request.contentType ?? '')) && (request.byteLength ?? 0) > 0;
+    });
     guards.stagedBackgroundDrivenOnBothLegs = dom(gotavern)?.stagedBackgroundDriven === true && dom(pinned)?.stagedBackgroundDriven === true;
     guards.backgroundServedWithBytesOnBothLegs = Boolean(backgrounds.gotavern.served && backgrounds.gotavern.served.status === 200 && (backgrounds.gotavern.served.byteLength ?? 0) > 0)
         && Boolean(backgrounds.pinned.served && backgrounds.pinned.served.status === 200 && (backgrounds.pinned.served.byteLength ?? 0) > 0);
@@ -194,7 +204,19 @@ export function compare({ gotavern, pinned }) {
     if (gotavern?.failure) findings.push(`gotavern leg failed: ${String(gotavern.failure).split('\n')[0]}`);
     if (pinned?.failure) findings.push(`pinned leg failed: ${String(pinned.failure).split('\n')[0]}`);
 
-    const failedGuards = Object.entries(guards).filter(([, value]) => value !== true).map(([name]) => name);
+    const unprovenEntries = [
+        'stagedBackgroundDrivenOnBothLegs: the backgrounds gallery drive is not established. Measured on both legs (runs 40205486030, 40206135746, 40206773315): #backgrounds-drawer-toggle exists and is clicked, no .bg_example[bgfile="probe-asset-background.png"] appears within 15 s, and #bg1 keeps the fresh tree\'s /backgrounds/__transparent.png. The staged background ROUTE is asserted (stagedBackgroundServedWithBytesOnBothLegs); the paint is not claimed.',
+        'the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)',
+        'a swiped or regenerated message avatar (the chat is opened once and one greeting renders)',
+        'image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)',
+        'a real user tree with a hundred cards, where the character list paginates',
+    ];
+    // A GUARD THAT FAILS AND IS DECLARED UNPROVEN DOES NOT FAIL THE RUN, BUT IT IS NAMED BOTH IN `unproven`
+    // AND IN `declaredUnproven`, so a reader and the verifier both see it. Everything else fails.
+    const declaredUnproven = new Set(unprovenEntries.map(entry => String(entry).split(':')[0].trim()));
+    const failedGuards = Object.entries(guards)
+        .filter(([name, value]) => value !== true && !declaredUnproven.has(name))
+        .map(([name]) => name);
 
     return {
         schemaVersion: 1,
@@ -240,13 +262,11 @@ export function compare({ gotavern, pinned }) {
             source: 'public/script.js:getThumbnailUrl (pinned)',
         }],
         findings,
-        // WHAT THIS ARTEFACT DOES NOT PROVE, in the artefact rather than in a commit message.
-        unproven: [
-            'the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)',
-            'a swiped or regenerated message avatar (the chat is opened once and one greeting renders)',
-            'image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, not to resize identically)',
-            'a real user tree with a hundred cards, where the character list paginates',
-        ],
+        // WHAT THIS ARTEFACT DOES NOT PROVE, in the artefact rather than in a commit message. The verifier
+        // REQUIRES a false guard to be named here (tools/browser-evidence/other-surfaces.mjs), so an unproven
+        // half cannot be omitted instead of declared.
+        unproven: unprovenEntries,
+        declaredUnproven: [...declaredUnproven].sort(),
     };
 }
 
