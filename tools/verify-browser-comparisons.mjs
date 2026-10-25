@@ -33,7 +33,7 @@ import {
     bothLegsReached, cancellationReachedProvider, completionRouteUsed, finalTextNonEmpty,
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
-import { dataDomainSurface, extensionSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { assetSurface, dataDomainSurface, extensionSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -186,6 +186,9 @@ const main = () => {
     for (const [file, run] of [
         ['startup-comparison.json', startup => startupSurface(startup.ctx, startup.artifact)],
         ['data-domain-comparison.json', data => dataDomainSurface(data.ctx, data.artifact)],
+        // THE PICTURE SURFACE (GOAL.md §8.4, AGENTS.md 42-46): avatars, persona thumbnail and the
+        // background, asserted from a real browser's DOM and network rather than from a route's status.
+        ['asset-comparison.json', asset => assetSurface(asset.ctx, asset.artifact)],
         ['extension-tavern-helper-comparison.json', extension => extensionSurface(extension.ctx, 'extension-tavern-helper-comparison.json', extension.artifact)],
         ['extension-littlewhitebox-comparison.json', extension => extensionSurface(extension.ctx, 'extension-littlewhitebox-comparison.json', extension.artifact)],
     ]) {

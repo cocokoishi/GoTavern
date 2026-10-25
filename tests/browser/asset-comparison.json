@@ -1,0 +1,2151 @@
+{
+  "schemaVersion": 1,
+  "question": "Does a browser loading the unmodified pinned frontend display the character-list avatars, the chat-message avatars, the persona thumbnail and the background, on BOTH legs, and does every image the page asks for answer with bytes?",
+  "answers": {
+    "Q3 character-list avatars": "guards.everyCharacterListAvatarDecoded + guards.noImageRequestFailedOnEitherLeg",
+    "Q5 chat avatar": "guards.everyMessageAvatarDecoded",
+    "Q6 personas": "partially: guards.thumbnailResponsesAreImages covers the persona thumbnail request; the persona PICKER is not driven (see unproven)",
+    "Q7 backgrounds": "guards.backgroundAppliedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs"
+  },
+  "legs": {
+    "gotavern": {
+      "subject": "gotavern",
+      "countLoaded": {
+        "imagesRequested": 119,
+        "imagesFailed": 0,
+        "characterListAvatars": 2,
+        "characterListDecoded": 2,
+        "messageAvatars": 1,
+        "messageAvatarsDecoded": 1,
+        "consoleFailedToLoad": 0
+      },
+      "imageRequests": [
+        {
+          "url": "/backgrounds/__transparent.png",
+          "kind": "background",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 68,
+          "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
+        },
+        {
+          "url": "/backgrounds/probe-asset-background.png",
+          "kind": "background",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 124,
+          "sha256": "0c52a5db52b0a2655bd4d122f6dd6c48d84ba09e79032897be337fa4b6f7b60c"
+        },
+        {
+          "url": "/img/ai4.png",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 53230,
+          "sha256": "019003a4430866daa5834f00efb9abbb996cac4f0111feff1ef50f5db3d7ebae"
+        },
+        {
+          "url": "/img/down-arrow.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 123,
+          "sha256": "ff9c12ea50cf405d045c1d1d73906fdce52a9d0399d6b66df8ef706d0e372f53"
+        },
+        {
+          "url": "/img/logo.png",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 23237,
+          "sha256": "936be847d83bbcc56e24654bb53e50e2a53451e079a0699b57c8905804b4dfd0"
+        },
+        {
+          "url": "/img/No-Image-Placeholder.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 15821,
+          "sha256": "8c170b600b444e366f6350432d1174d0b43bae2e719859b47466de99e88db77f"
+        },
+        {
+          "url": "/img/times-circle.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 455,
+          "sha256": "b17e09bf17bef820563b4ac915795b7d556cb8c34fbc7dbb1580d4fa075402cf"
+        },
+        {
+          "url": "/scripts/extensions/assets/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 24173,
+          "sha256": "8c1ff364658de07254ae010f68f3e92c8dc2705d67ca5fed8187e23a7e5b6191"
+        },
+        {
+          "url": "/scripts/extensions/assets/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 306,
+          "sha256": "4221e7a330614a907bd47d20ac969022493a1f2f261e734b2cc29768a9fe4967"
+        },
+        {
+          "url": "/scripts/extensions/assets/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 3995,
+          "sha256": "564c640723a05f0b32bf70b876c04c0ca817705c8d6127afbb2c24d21095326a"
+        },
+        {
+          "url": "/scripts/extensions/assets/window.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2543,
+          "sha256": "9272b596395bd4b56c5263d4e76e3aac274835b11094162e68f0ff9f3c19bf55"
+        },
+        {
+          "url": "/scripts/extensions/attachments/attach-button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 327,
+          "sha256": "38023c3c9156acfb98e8d3efc65d72bd161444928158cfe2bb0130e5c0f93db2"
+        },
+        {
+          "url": "/scripts/extensions/attachments/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 16908,
+          "sha256": "3d6ca95f22e50d1082b048d3d393431ff2967a613ac3dc94e020ddd3859deac5"
+        },
+        {
+          "url": "/scripts/extensions/attachments/manage-button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 339,
+          "sha256": "d410b76208ca8a7dfaca8313a46b01106ea97224d880df9b86c4ce332e6c48a3"
+        },
+        {
+          "url": "/scripts/extensions/attachments/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 327,
+          "sha256": "f2b32969fda10727fbaa2c6d1876987046717c52b2b58ff9062bad289783baf1"
+        },
+        {
+          "url": "/scripts/extensions/attachments/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1358,
+          "sha256": "dfa4ff5cca6f5a620f9e68c589f1c8c24a0c7519d39fc2defe4db62e81c4407e"
+        },
+        {
+          "url": "/scripts/extensions/caption/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 33659,
+          "sha256": "a876a122c2a3b33d074a4cc43f8247a801bc225e3f24904907aa015ee0c715db"
+        },
+        {
+          "url": "/scripts/extensions/caption/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 339,
+          "sha256": "db0171f4166e72e18b7f86439ca8d029c0f69c3e669f5a11049f317e69e085ed"
+        },
+        {
+          "url": "/scripts/extensions/caption/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 22271,
+          "sha256": "79185b8dcada8c854c495f1b6d6a64eedfd7e2e9d0481e1c60fc1593dd331dd5"
+        },
+        {
+          "url": "/scripts/extensions/caption/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 33,
+          "sha256": "7f7ab4c00d0a958526d6a6503d9092aba88e383f6db4c6517cbfc3d9ebdf2178"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 45348,
+          "sha256": "008c5be223cdd28208f082652d5b893e0e2e4255291d5d85fa305301d3fc2dc7"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 318,
+          "sha256": "32efb3cb41e0c7726bba883ec6060697686cbf7e6da723c1f7f807f4b24ecdad"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 1756,
+          "sha256": "7f014d160c295099547f4479043929a9b151ebc8fdb084921ca5e3617ca45012"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 173,
+          "sha256": "c4e89b46a76ed58c0d65fcc2264c710059792432a11c366f7c782b2ea4cd6e85"
+        },
+        {
+          "url": "/scripts/extensions/expressions/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 109613,
+          "sha256": "8a22921607cb9ce8a2c00391fd412a3927ee7991e33b3170104d4b0bb3356067"
+        },
+        {
+          "url": "/scripts/extensions/expressions/list-item.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 932,
+          "sha256": "d03d0322c8a3cde798234d068b6d75ac08cad49c34af5e711494ae783c730eda"
+        },
+        {
+          "url": "/scripts/extensions/expressions/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 345,
+          "sha256": "a1c8d924960d0f02d3a8ffc1d30cb5939c5b6018d2df91945d65c4b3d203ea4f"
+        },
+        {
+          "url": "/scripts/extensions/expressions/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 9633,
+          "sha256": "b8a6c8a1fb300135897060ca7e9502ae21c76367af65eeb0da1711462bb3d425"
+        },
+        {
+          "url": "/scripts/extensions/expressions/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 4680,
+          "sha256": "2c6928daae4172384b03a4a5d983aac11bc08b5e02bad0ea9a9080534ea12faa"
+        },
+        {
+          "url": "/scripts/extensions/gallery/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 32599,
+          "sha256": "7288a9ad3c45edf1af0283d3ac9a62c1a4c590d1e31339b63eb3ea82861644a2"
+        },
+        {
+          "url": "/scripts/extensions/gallery/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 311,
+          "sha256": "3d86e941cec495fa089ac407fae3fd663340d7fd6b97c7e865f3110caa5288a3"
+        },
+        {
+          "url": "/scripts/extensions/gallery/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1086,
+          "sha256": "59c3d8570dff8c24cfe66659ae873ec7c793bf3b2493335d800f82c106348bce"
+        },
+        {
+          "url": "/scripts/extensions/memory/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 41777,
+          "sha256": "00cc5ec3146899de0392226b1d1e496bb604cfe4e3b590e0e9d47e65249300d9"
+        },
+        {
+          "url": "/scripts/extensions/memory/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 334,
+          "sha256": "4027a4ece282d363d7c453b41cf9a61281a762ae603f6d63a111d1bf42fd5bb5"
+        },
+        {
+          "url": "/scripts/extensions/memory/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 14471,
+          "sha256": "87a4632bc3422dd6affbc4e77e8524d3930bad83742137da3a1154f18e6f0de1"
+        },
+        {
+          "url": "/scripts/extensions/memory/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 755,
+          "sha256": "a3b488850331aa9ec205bf525244567208577959ebfe13087974e68dac96c02a"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/api/QuickReplyApi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 20071,
+          "sha256": "689d64a0f85e240b988c1e9aa37271d2356fe5b4bcad3b5e9f8ed010daa591f6"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/html/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 5169,
+          "sha256": "6e03b447d577f27b5d20383560cf7889477f7223053c31df440c02068603c849"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 11538,
+          "sha256": "d486692119260c299545f8b1a0390dedc003888c5508e2b4b59abb131c0b4911"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 320,
+          "sha256": "4fdd31aa3f99cc3a3f5e7526bf7e0f437d5beb07a8c37f683c2109d7b6fd6579"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/AutoExecuteHandler.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3392,
+          "sha256": "435bbee8ae36c2ce393d2be7e6dab4e12f0e2ff1085b1c610b06d9ae686edff8"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReply.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 101409,
+          "sha256": "0209150d5a5366757eca23fbe911fee81c51c092aa4109e9ba1c7ce0f91fa46b"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplyConfig.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3430,
+          "sha256": "0129d8b74159fb3357b2d7c355e6b1a3fa56bf8ee16171b4f4848b217bfbbe9f"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplyContextLink.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 447,
+          "sha256": "dc913b36b9e5e50d10f50c6a487dd0bc6a87808ec1e0fb68ee8a7d91e7ff778e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySet.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 15050,
+          "sha256": "e0da437fde542002a7c0b4652a6cf4c4288923a35150d3d722f916eb7d32ab2e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySetLink.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4166,
+          "sha256": "7766d5b73f915350b981bcf17cd7aa18396a5bb0f12a23bf5d43b25ffd4c574f"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySettings.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3211,
+          "sha256": "6fd95d20b3cfc9e16e8831d3daad598edd770db3f8bcf9be0908f55bddd66e1c"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/SlashCommandHandler.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 44048,
+          "sha256": "254ed00d7b141704003d86ffbe97fd638ed95d6bd521b4a57b0ac410eaca1b0e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ButtonUi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6114,
+          "sha256": "ca3b18f1e2b3375c740914cec70e6b0ca39be0ae877c34f63da99de8181071a3"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/ContextMenu.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4813,
+          "sha256": "eede2492119fd88363d1bfb313645fbd3e3b53bbac26406afe071f9dfb084cd2"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/MenuHeader.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 530,
+          "sha256": "47295cb6ed04438a1b8636d147ede318416641cb40c96c184433ab25ec29c27a"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/MenuItem.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3411,
+          "sha256": "8bdf5b03a7fc60aa535625ed6a85927aa55481cae3c222378b310a4296818d35"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/SubMenu.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 1717,
+          "sha256": "c5372b7f48202773a652a3f13e508ed17736763d02fe3c7772a613cf72ee6492"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/SettingsUi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 22846,
+          "sha256": "4e112ec7cbd3bc80eb51f8b98d2246b407d82b94d1e9999a5c4bac7cff33067e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 44839,
+          "sha256": "fe43ea2230da7a347abe060d3f9125312d742d71eccfef5634ec1ff8b1778950"
+        },
+        {
+          "url": "/scripts/extensions/regex/debugger.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 5199,
+          "sha256": "391e5163df4c08b5c6dd9968890f80dca9f3b32ed25e31d5bd72dcee27c52712"
+        },
+        {
+          "url": "/scripts/extensions/regex/dropdown.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 8745,
+          "sha256": "55054f6df119aea2d66f934e0d19311b7e0c6810f9d41d11055346c6b7359465"
+        },
+        {
+          "url": "/scripts/extensions/regex/engine.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 16189,
+          "sha256": "091bb3402a12552cf1754d6e4d2b44df38d3553aa374539896c716e78905d350"
+        },
+        {
+          "url": "/scripts/extensions/regex/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 85485,
+          "sha256": "7a43b7d6e40a1b6f38a8a7c53a4d552e1aa56c4a13e893224fddf79b663ecb7f"
+        },
+        {
+          "url": "/scripts/extensions/regex/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 302,
+          "sha256": "8219d865b273177eb0efec7938d30466052efb789587114055075771319a3b4a"
+        },
+        {
+          "url": "/scripts/extensions/regex/scriptTemplate.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2217,
+          "sha256": "f8e49fd3e8c3152f9030fa0d0e5b7392324ee36050305771a0fde35c0355727e"
+        },
+        {
+          "url": "/scripts/extensions/regex/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 3455,
+          "sha256": "7408e49377f98594dccc58b4bc706e195565c951bfbb86ff02711dd251804b29"
+        },
+        {
+          "url": "/scripts/extensions/shared.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 32895,
+          "sha256": "217ba94eae0eac4205c270f5dfb5fa5a061c7bebfa3a90ab56597e76cd38f1ec"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 287,
+          "sha256": "49f5708d4bdb27aea5530434da047995ae474533be921020eddffeeeff5eb15e"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/dropdown.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 932,
+          "sha256": "011fee0ba13299d32534bf613fbabfefcc5348c25697327fb13c0ade7ea1265e"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 221238,
+          "sha256": "8787b1ec791b8ec6716250d2ae296143291776d97c3bffdc4283a5356413c2c9"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 385,
+          "sha256": "9780950644f01ae65f02575d3ca4bf43e69b5dcced3f48442bdc87b4c1c5cdfb"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 46710,
+          "sha256": "df27d778dfce3598696272dfaee7e4811660444065e88b7cd38769e4552b61b6"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1696,
+          "sha256": "0ba2212e3677318c4adc71cc344b3278209f7af9b2cc20e37e289d6f6ea086a3"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4555,
+          "sha256": "5bfa108bf5050b80a1baec82f2bbbb52267c36b3875a862a7dae4cc498398ca5"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 314,
+          "sha256": "d0691282674e8d0af64231914bf1bd49a2380da54bacd072f189fee662d9436b"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 199,
+          "sha256": "21ac048b1d2634f4fb38dd3395ec5abaee72e236321cc40ad9d40bff06e72dff"
+        },
+        {
+          "url": "/scripts/extensions/translate/buttons.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 457,
+          "sha256": "db6d00adfbee7e065504903a9095f8f97d81d98af3fa3041f00928aea9cf6728"
+        },
+        {
+          "url": "/scripts/extensions/translate/index.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2888,
+          "sha256": "4dc3211944d4bcd57259846738dfa215eb3a38e0e0be59a4783afe7c23ec065c"
+        },
+        {
+          "url": "/scripts/extensions/translate/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 26595,
+          "sha256": "90ef10dff55342287f49397a1f30b3248f50d0751b6e985ad9373abb29b93d82"
+        },
+        {
+          "url": "/scripts/extensions/translate/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 316,
+          "sha256": "87e458609b4a74525859c9fb798c64e130695d0a4c3fbeff7e09dfb684074fcd"
+        },
+        {
+          "url": "/scripts/extensions/translate/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 122,
+          "sha256": "acf31bfe5e382885b6dc69a2e4a774327b6843f7621436767d97cc3da9df4802"
+        },
+        {
+          "url": "/scripts/extensions/tts/alltalk.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 45999,
+          "sha256": "2c934b3179c87534d20e9b1fb4ee75761e8753e2df32ad3fa0359135dd474534"
+        },
+        {
+          "url": "/scripts/extensions/tts/azure.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6673,
+          "sha256": "5e302eaed29d9d8929269847c843170284a147909ec770f111843acd066824d8"
+        },
+        {
+          "url": "/scripts/extensions/tts/chatterbox.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 23678,
+          "sha256": "03f1b74783975d507d264bd2ccf5cf6cea8417b022ed95193df7174f47f31c64"
+        },
+        {
+          "url": "/scripts/extensions/tts/chutes.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 9674,
+          "sha256": "58f888619658b67df714ef904a0feeb5ae14cd1e837601dc4556bd0b5552f0ef"
+        },
+        {
+          "url": "/scripts/extensions/tts/coqui.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 29844,
+          "sha256": "73c9f75d4694102ab40374126b38e3496005d40934e4204c606d7d2ee3af3ad0"
+        },
+        {
+          "url": "/scripts/extensions/tts/cosyvoice.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 5422,
+          "sha256": "3f97d70de970c0232af2c0c9e80fa430bd707075ae6410c21ba190d4720f42aa"
+        },
+        {
+          "url": "/scripts/extensions/tts/css/minimax-tts.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 606,
+          "sha256": "a6cd7ae27ad35d52cda8cc02965877b5c0d31f275fc93eb5dcd8bf4c3facae40"
+        },
+        {
+          "url": "/scripts/extensions/tts/css/openai-tts.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 218,
+          "sha256": "a1447c5fa6294c073a580d40a9402cd601e9eff51bb3e01c97e94d14ab75e04e"
+        },
+        {
+          "url": "/scripts/extensions/tts/edge.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 8768,
+          "sha256": "b16c5fc17892472ea95f3ba726338e1185b880c7fee2b2e03038c8a4de3c0d86"
+        },
+        {
+          "url": "/scripts/extensions/tts/electronhub.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 21542,
+          "sha256": "59bd649b16e5cde0deca4f380c73b799803379c55542bba5fccd1e8d3813f131"
+        },
+        {
+          "url": "/scripts/extensions/tts/elevenlabs.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 19593,
+          "sha256": "db720eb1cc2ebe1ff284fd25845b7be6ce4f68c9e00f26fc0283a12b972d6355"
+        },
+        {
+          "url": "/scripts/extensions/tts/google-native.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6918,
+          "sha256": "af330c606c8cac8230edb3a0fae88f671cd0cb95d5448a7d5742c8e0c8a0c9d0"
+        },
+        {
+          "url": "/scripts/extensions/tts/google-translate.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4170,
+          "sha256": "0734ee5f95f553d9f15e6516a8990f1a40283282633102bf2fb8454aa5944457"
+        },
+        {
+          "url": "/scripts/extensions/tts/gpt-sovits-adapter.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 7718,
+          "sha256": "9549c7ca8d13c75a9069056d80604f7049ca891ac0f6f2b4f50200772e501bac"
+        },
+        {
+          "url": "/scripts/extensions/tts/gpt-sovits-v2.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6332,
+          "sha256": "4e17627a7563d939b46dfa64a5255601dc8d5d66c1682329b50bc816da14eb8b"
+        },
+        {
+          "url": "/scripts/extensions/tts/gsvi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 10245,
+          "sha256": "874b4899a5a03a40b0f95016320d508d88d77c351db99d85bf3f832750567fac"
+        },
+        {
+          "url": "/scripts/extensions/tts/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 59410,
+          "sha256": "fc75e205ca03f564b2c5a5111948230b1ba69048968926697849b377466f1381"
+        },
+        {
+          "url": "/scripts/extensions/tts/kokoro.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 13419,
+          "sha256": "e4ee992788993ab15bb021c3bf7af589caebcc904ed0deb1010d2e1239ec5c7f"
+        },
+        {
+          "url": "/scripts/extensions/tts/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 337,
+          "sha256": "57ac6762d9fb50cc7605d6981c9e3f913007d3163453e8c80b791d4d46f7c8d1"
+        },
+        {
+          "url": "/scripts/extensions/tts/minimax.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 40878,
+          "sha256": "aa2cbb0f37bce208b8e2e4671aa603fcda98b8028159723f0510d5e782455e38"
+        },
+        {
+          "url": "/scripts/extensions/tts/novel.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 7814,
+          "sha256": "a9a8da1d5bea23d76a16bb03646853df9779152b23824134260a156311aad8fa"
+        },
+        {
+          "url": "/scripts/extensions/tts/openai-compatible.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6971,
+          "sha256": "3d42773168f595d8c73cedec06324a6a7297b8ba34baad4aa173d049a650ff2c"
+        },
+        {
+          "url": "/scripts/extensions/tts/openai.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 9420,
+          "sha256": "4551f156195bb74523bfe8f841143a145d4a0d8cf7e889a89f8fb586f0ce64cd"
+        },
+        {
+          "url": "/scripts/extensions/tts/pollinations.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4698,
+          "sha256": "ea6f5b113dc727a70dff2b0ae3bf0c0b379558f7684c369abcea88bcad8e7268"
+        },
+        {
+          "url": "/scripts/extensions/tts/sbvits2.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 14517,
+          "sha256": "cd2af179f738a9b6290fb0764fdd099f663a27fa1b8d61dc2c34da0cf1d0e43a"
+        },
+        {
+          "url": "/scripts/extensions/tts/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 6570,
+          "sha256": "e94d4a1e64605cee63b3a2e8778dcbc8258bf736b9f397f1f5a68fd7500f91bb"
+        },
+        {
+          "url": "/scripts/extensions/tts/silerotts.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 5755,
+          "sha256": "e31091aee3eefc85afee91d661462ecab62e52736bafb87a44d13105020328d2"
+        },
+        {
+          "url": "/scripts/extensions/tts/speecht5.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6498,
+          "sha256": "974ea8560d390d802af6b33184d831a8d59191bc3576451a5efef86f312799c8"
+        },
+        {
+          "url": "/scripts/extensions/tts/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 2097,
+          "sha256": "434a9a8343f28bc24c7be3ea1ffe51a469de65bee1baaa7bd307ca50ea8bf0b5"
+        },
+        {
+          "url": "/scripts/extensions/tts/system.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 10740,
+          "sha256": "8830d15cfb19b59231c9115bf5be93b56d7e3da9b2eb066a7b3526f6bb288983"
+        },
+        {
+          "url": "/scripts/extensions/tts/tts-webui.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 24795,
+          "sha256": "05491e5e5787510aff2e5f60a6d62b9984fd3589fd7e1675613732d4d622f9d9"
+        },
+        {
+          "url": "/scripts/extensions/tts/vits.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 15984,
+          "sha256": "bb415917b91192519b97959f29f1d9c186b575b845e92237d4bc767a97e7d6f1"
+        },
+        {
+          "url": "/scripts/extensions/tts/volcengine.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 11755,
+          "sha256": "f9b879bb38212e95fbfc045ea0b0ce1943dde55d6d88ed90a9a65b07bfd34906"
+        },
+        {
+          "url": "/scripts/extensions/tts/xtts.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 13735,
+          "sha256": "c785ecd0c58a32527afc1ac8daa49f7ca9ab03c470b256336f13d8a0e828abb8"
+        },
+        {
+          "url": "/scripts/extensions/vectors/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 93152,
+          "sha256": "f107cef68090ac3981a5330cd10db8bb20ca4b9118e5ed5acb2b519e244dba4d"
+        },
+        {
+          "url": "/scripts/extensions/vectors/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 395,
+          "sha256": "fa6522eb6f7395f118680797bab08a0657ebad55f18c6a379358352fcf16b01a"
+        },
+        {
+          "url": "/scripts/extensions/vectors/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 35001,
+          "sha256": "cf13eaff5f76a53e43581e9495608cfe31fcf312b9a9290c031a635519225e31"
+        },
+        {
+          "url": "/scripts/extensions/vectors/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 81,
+          "sha256": "f6b31eb9e85bd684c1ca616e337b459e15d486f0dcd763f30b6cc11451d9c184"
+        },
+        {
+          "url": "/scripts/extensions/vectors/webllm.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 1900,
+          "sha256": "00fa47437cb21157777e7d122ac681024d504a7a156683761c975eb795e09cd0"
+        },
+        {
+          "url": "/thumbnail?type=avatar&file=default_Seraphina.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 9875,
+          "sha256": "4adc8f6195f77c0c25bc1df1a761f1dfe82de78607299f330193169b031127d5"
+        },
+        {
+          "url": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 911,
+          "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
+        },
+        {
+          "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 911,
+          "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
+        }
+      ],
+      "consoleFailedToLoad": [],
+      "pageErrors": [],
+      "background": {
+        "url": "<loopback>/backgrounds/__transparent.png",
+        "requestPath": "/backgrounds/__transparent.png",
+        "served": {
+          "kind": "background",
+          "pathAndQuery": "/backgrounds/__transparent.png",
+          "path": "/backgrounds/__transparent.png",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 68,
+          "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
+        },
+        "driven": {
+          "status": "not-driven",
+          "reason": "no .bg_example[bgfile=\"probe-asset-background.png\"] appeared within 15s of opening the panel"
+        }
+      },
+      "characterList": [
+        {
+          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "Probe Asset Card",
+          "dataType": null
+        },
+        {
+          "src": "/thumbnail?type=avatar&file=default_Seraphina.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=default_Seraphina.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "Seraphina",
+          "dataType": null
+        }
+      ],
+      "messages": [
+        {
+          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": null
+        }
+      ],
+      "personaRequest": {
+        "status": "observed",
+        "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
+        "httpStatus": 200,
+        "contentType": "image/png",
+        "byteLength": 911
+      }
+    },
+    "pinned": {
+      "subject": "pinned",
+      "countLoaded": {
+        "imagesRequested": 119,
+        "imagesFailed": 0,
+        "characterListAvatars": 2,
+        "characterListDecoded": 2,
+        "messageAvatars": 1,
+        "messageAvatarsDecoded": 1,
+        "consoleFailedToLoad": 0
+      },
+      "imageRequests": [
+        {
+          "url": "/backgrounds/__transparent.png",
+          "kind": "background",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 68,
+          "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
+        },
+        {
+          "url": "/backgrounds/probe-asset-background.png",
+          "kind": "background",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 124,
+          "sha256": "0c52a5db52b0a2655bd4d122f6dd6c48d84ba09e79032897be337fa4b6f7b60c"
+        },
+        {
+          "url": "/img/ai4.png",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 53230,
+          "sha256": "019003a4430866daa5834f00efb9abbb996cac4f0111feff1ef50f5db3d7ebae"
+        },
+        {
+          "url": "/img/down-arrow.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 123,
+          "sha256": "ff9c12ea50cf405d045c1d1d73906fdce52a9d0399d6b66df8ef706d0e372f53"
+        },
+        {
+          "url": "/img/logo.png",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 23237,
+          "sha256": "936be847d83bbcc56e24654bb53e50e2a53451e079a0699b57c8905804b4dfd0"
+        },
+        {
+          "url": "/img/No-Image-Placeholder.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 15821,
+          "sha256": "8c170b600b444e366f6350432d1174d0b43bae2e719859b47466de99e88db77f"
+        },
+        {
+          "url": "/img/times-circle.svg",
+          "kind": "static",
+          "status": 200,
+          "contentType": "image/svg+xml",
+          "byteLength": 455,
+          "sha256": "b17e09bf17bef820563b4ac915795b7d556cb8c34fbc7dbb1580d4fa075402cf"
+        },
+        {
+          "url": "/scripts/extensions/assets/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 24173,
+          "sha256": "8c1ff364658de07254ae010f68f3e92c8dc2705d67ca5fed8187e23a7e5b6191"
+        },
+        {
+          "url": "/scripts/extensions/assets/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 306,
+          "sha256": "4221e7a330614a907bd47d20ac969022493a1f2f261e734b2cc29768a9fe4967"
+        },
+        {
+          "url": "/scripts/extensions/assets/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 3995,
+          "sha256": "564c640723a05f0b32bf70b876c04c0ca817705c8d6127afbb2c24d21095326a"
+        },
+        {
+          "url": "/scripts/extensions/assets/window.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2543,
+          "sha256": "9272b596395bd4b56c5263d4e76e3aac274835b11094162e68f0ff9f3c19bf55"
+        },
+        {
+          "url": "/scripts/extensions/attachments/attach-button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 327,
+          "sha256": "38023c3c9156acfb98e8d3efc65d72bd161444928158cfe2bb0130e5c0f93db2"
+        },
+        {
+          "url": "/scripts/extensions/attachments/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 16908,
+          "sha256": "3d6ca95f22e50d1082b048d3d393431ff2967a613ac3dc94e020ddd3859deac5"
+        },
+        {
+          "url": "/scripts/extensions/attachments/manage-button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 339,
+          "sha256": "d410b76208ca8a7dfaca8313a46b01106ea97224d880df9b86c4ce332e6c48a3"
+        },
+        {
+          "url": "/scripts/extensions/attachments/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 327,
+          "sha256": "f2b32969fda10727fbaa2c6d1876987046717c52b2b58ff9062bad289783baf1"
+        },
+        {
+          "url": "/scripts/extensions/attachments/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1358,
+          "sha256": "dfa4ff5cca6f5a620f9e68c589f1c8c24a0c7519d39fc2defe4db62e81c4407e"
+        },
+        {
+          "url": "/scripts/extensions/caption/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 33659,
+          "sha256": "a876a122c2a3b33d074a4cc43f8247a801bc225e3f24904907aa015ee0c715db"
+        },
+        {
+          "url": "/scripts/extensions/caption/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 339,
+          "sha256": "db0171f4166e72e18b7f86439ca8d029c0f69c3e669f5a11049f317e69e085ed"
+        },
+        {
+          "url": "/scripts/extensions/caption/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 22271,
+          "sha256": "79185b8dcada8c854c495f1b6d6a64eedfd7e2e9d0481e1c60fc1593dd331dd5"
+        },
+        {
+          "url": "/scripts/extensions/caption/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 33,
+          "sha256": "7f7ab4c00d0a958526d6a6503d9092aba88e383f6db4c6517cbfc3d9ebdf2178"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 45348,
+          "sha256": "008c5be223cdd28208f082652d5b893e0e2e4255291d5d85fa305301d3fc2dc7"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 318,
+          "sha256": "32efb3cb41e0c7726bba883ec6060697686cbf7e6da723c1f7f807f4b24ecdad"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 1756,
+          "sha256": "7f014d160c295099547f4479043929a9b151ebc8fdb084921ca5e3617ca45012"
+        },
+        {
+          "url": "/scripts/extensions/connection-manager/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 173,
+          "sha256": "c4e89b46a76ed58c0d65fcc2264c710059792432a11c366f7c782b2ea4cd6e85"
+        },
+        {
+          "url": "/scripts/extensions/expressions/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 109613,
+          "sha256": "8a22921607cb9ce8a2c00391fd412a3927ee7991e33b3170104d4b0bb3356067"
+        },
+        {
+          "url": "/scripts/extensions/expressions/list-item.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 932,
+          "sha256": "d03d0322c8a3cde798234d068b6d75ac08cad49c34af5e711494ae783c730eda"
+        },
+        {
+          "url": "/scripts/extensions/expressions/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 345,
+          "sha256": "a1c8d924960d0f02d3a8ffc1d30cb5939c5b6018d2df91945d65c4b3d203ea4f"
+        },
+        {
+          "url": "/scripts/extensions/expressions/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 9633,
+          "sha256": "b8a6c8a1fb300135897060ca7e9502ae21c76367af65eeb0da1711462bb3d425"
+        },
+        {
+          "url": "/scripts/extensions/expressions/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 4680,
+          "sha256": "2c6928daae4172384b03a4a5d983aac11bc08b5e02bad0ea9a9080534ea12faa"
+        },
+        {
+          "url": "/scripts/extensions/gallery/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 32599,
+          "sha256": "7288a9ad3c45edf1af0283d3ac9a62c1a4c590d1e31339b63eb3ea82861644a2"
+        },
+        {
+          "url": "/scripts/extensions/gallery/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 311,
+          "sha256": "3d86e941cec495fa089ac407fae3fd663340d7fd6b97c7e865f3110caa5288a3"
+        },
+        {
+          "url": "/scripts/extensions/gallery/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1086,
+          "sha256": "59c3d8570dff8c24cfe66659ae873ec7c793bf3b2493335d800f82c106348bce"
+        },
+        {
+          "url": "/scripts/extensions/memory/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 41777,
+          "sha256": "00cc5ec3146899de0392226b1d1e496bb604cfe4e3b590e0e9d47e65249300d9"
+        },
+        {
+          "url": "/scripts/extensions/memory/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 334,
+          "sha256": "4027a4ece282d363d7c453b41cf9a61281a762ae603f6d63a111d1bf42fd5bb5"
+        },
+        {
+          "url": "/scripts/extensions/memory/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 14471,
+          "sha256": "87a4632bc3422dd6affbc4e77e8524d3930bad83742137da3a1154f18e6f0de1"
+        },
+        {
+          "url": "/scripts/extensions/memory/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 755,
+          "sha256": "a3b488850331aa9ec205bf525244567208577959ebfe13087974e68dac96c02a"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/api/QuickReplyApi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 20071,
+          "sha256": "689d64a0f85e240b988c1e9aa37271d2356fe5b4bcad3b5e9f8ed010daa591f6"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/html/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 5169,
+          "sha256": "6e03b447d577f27b5d20383560cf7889477f7223053c31df440c02068603c849"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 11538,
+          "sha256": "d486692119260c299545f8b1a0390dedc003888c5508e2b4b59abb131c0b4911"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 320,
+          "sha256": "4fdd31aa3f99cc3a3f5e7526bf7e0f437d5beb07a8c37f683c2109d7b6fd6579"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/AutoExecuteHandler.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3392,
+          "sha256": "435bbee8ae36c2ce393d2be7e6dab4e12f0e2ff1085b1c610b06d9ae686edff8"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReply.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 101409,
+          "sha256": "0209150d5a5366757eca23fbe911fee81c51c092aa4109e9ba1c7ce0f91fa46b"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplyConfig.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3430,
+          "sha256": "0129d8b74159fb3357b2d7c355e6b1a3fa56bf8ee16171b4f4848b217bfbbe9f"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplyContextLink.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 447,
+          "sha256": "dc913b36b9e5e50d10f50c6a487dd0bc6a87808ec1e0fb68ee8a7d91e7ff778e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySet.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 15050,
+          "sha256": "e0da437fde542002a7c0b4652a6cf4c4288923a35150d3d722f916eb7d32ab2e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySetLink.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4166,
+          "sha256": "7766d5b73f915350b981bcf17cd7aa18396a5bb0f12a23bf5d43b25ffd4c574f"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/QuickReplySettings.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3211,
+          "sha256": "6fd95d20b3cfc9e16e8831d3daad598edd770db3f8bcf9be0908f55bddd66e1c"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/SlashCommandHandler.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 44048,
+          "sha256": "254ed00d7b141704003d86ffbe97fd638ed95d6bd521b4a57b0ac410eaca1b0e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ButtonUi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6114,
+          "sha256": "ca3b18f1e2b3375c740914cec70e6b0ca39be0ae877c34f63da99de8181071a3"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/ContextMenu.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4813,
+          "sha256": "eede2492119fd88363d1bfb313645fbd3e3b53bbac26406afe071f9dfb084cd2"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/MenuHeader.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 530,
+          "sha256": "47295cb6ed04438a1b8636d147ede318416641cb40c96c184433ab25ec29c27a"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/MenuItem.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 3411,
+          "sha256": "8bdf5b03a7fc60aa535625ed6a85927aa55481cae3c222378b310a4296818d35"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/ctx/SubMenu.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 1717,
+          "sha256": "c5372b7f48202773a652a3f13e508ed17736763d02fe3c7772a613cf72ee6492"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/src/ui/SettingsUi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 22846,
+          "sha256": "4e112ec7cbd3bc80eb51f8b98d2246b407d82b94d1e9999a5c4bac7cff33067e"
+        },
+        {
+          "url": "/scripts/extensions/quick-reply/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 44839,
+          "sha256": "fe43ea2230da7a347abe060d3f9125312d742d71eccfef5634ec1ff8b1778950"
+        },
+        {
+          "url": "/scripts/extensions/regex/debugger.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 5199,
+          "sha256": "391e5163df4c08b5c6dd9968890f80dca9f3b32ed25e31d5bd72dcee27c52712"
+        },
+        {
+          "url": "/scripts/extensions/regex/dropdown.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 8745,
+          "sha256": "55054f6df119aea2d66f934e0d19311b7e0c6810f9d41d11055346c6b7359465"
+        },
+        {
+          "url": "/scripts/extensions/regex/engine.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 16189,
+          "sha256": "091bb3402a12552cf1754d6e4d2b44df38d3553aa374539896c716e78905d350"
+        },
+        {
+          "url": "/scripts/extensions/regex/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 85485,
+          "sha256": "7a43b7d6e40a1b6f38a8a7c53a4d552e1aa56c4a13e893224fddf79b663ecb7f"
+        },
+        {
+          "url": "/scripts/extensions/regex/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 302,
+          "sha256": "8219d865b273177eb0efec7938d30466052efb789587114055075771319a3b4a"
+        },
+        {
+          "url": "/scripts/extensions/regex/scriptTemplate.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2217,
+          "sha256": "f8e49fd3e8c3152f9030fa0d0e5b7392324ee36050305771a0fde35c0355727e"
+        },
+        {
+          "url": "/scripts/extensions/regex/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 3455,
+          "sha256": "7408e49377f98594dccc58b4bc706e195565c951bfbb86ff02711dd251804b29"
+        },
+        {
+          "url": "/scripts/extensions/shared.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 32895,
+          "sha256": "217ba94eae0eac4205c270f5dfb5fa5a061c7bebfa3a90ab56597e76cd38f1ec"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/button.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 287,
+          "sha256": "49f5708d4bdb27aea5530434da047995ae474533be921020eddffeeeff5eb15e"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/dropdown.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 932,
+          "sha256": "011fee0ba13299d32534bf613fbabfefcc5348c25697327fb13c0ade7ea1265e"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 221238,
+          "sha256": "8787b1ec791b8ec6716250d2ae296143291776d97c3bffdc4283a5356413c2c9"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 385,
+          "sha256": "9780950644f01ae65f02575d3ca4bf43e69b5dcced3f48442bdc87b4c1c5cdfb"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 46710,
+          "sha256": "df27d778dfce3598696272dfaee7e4811660444065e88b7cd38769e4552b61b6"
+        },
+        {
+          "url": "/scripts/extensions/stable-diffusion/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 1696,
+          "sha256": "0ba2212e3677318c4adc71cc344b3278209f7af9b2cc20e37e289d6f6ea086a3"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4555,
+          "sha256": "5bfa108bf5050b80a1baec82f2bbbb52267c36b3875a862a7dae4cc498398ca5"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 314,
+          "sha256": "d0691282674e8d0af64231914bf1bd49a2380da54bacd072f189fee662d9436b"
+        },
+        {
+          "url": "/scripts/extensions/token-counter/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 199,
+          "sha256": "21ac048b1d2634f4fb38dd3395ec5abaee72e236321cc40ad9d40bff06e72dff"
+        },
+        {
+          "url": "/scripts/extensions/translate/buttons.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 457,
+          "sha256": "db6d00adfbee7e065504903a9095f8f97d81d98af3fa3041f00928aea9cf6728"
+        },
+        {
+          "url": "/scripts/extensions/translate/index.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 2888,
+          "sha256": "4dc3211944d4bcd57259846738dfa215eb3a38e0e0be59a4783afe7c23ec065c"
+        },
+        {
+          "url": "/scripts/extensions/translate/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 26595,
+          "sha256": "90ef10dff55342287f49397a1f30b3248f50d0751b6e985ad9373abb29b93d82"
+        },
+        {
+          "url": "/scripts/extensions/translate/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 316,
+          "sha256": "87e458609b4a74525859c9fb798c64e130695d0a4c3fbeff7e09dfb684074fcd"
+        },
+        {
+          "url": "/scripts/extensions/translate/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 122,
+          "sha256": "acf31bfe5e382885b6dc69a2e4a774327b6843f7621436767d97cc3da9df4802"
+        },
+        {
+          "url": "/scripts/extensions/tts/alltalk.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 45999,
+          "sha256": "2c934b3179c87534d20e9b1fb4ee75761e8753e2df32ad3fa0359135dd474534"
+        },
+        {
+          "url": "/scripts/extensions/tts/azure.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6673,
+          "sha256": "5e302eaed29d9d8929269847c843170284a147909ec770f111843acd066824d8"
+        },
+        {
+          "url": "/scripts/extensions/tts/chatterbox.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 23678,
+          "sha256": "03f1b74783975d507d264bd2ccf5cf6cea8417b022ed95193df7174f47f31c64"
+        },
+        {
+          "url": "/scripts/extensions/tts/chutes.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 9674,
+          "sha256": "58f888619658b67df714ef904a0feeb5ae14cd1e837601dc4556bd0b5552f0ef"
+        },
+        {
+          "url": "/scripts/extensions/tts/coqui.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 29844,
+          "sha256": "73c9f75d4694102ab40374126b38e3496005d40934e4204c606d7d2ee3af3ad0"
+        },
+        {
+          "url": "/scripts/extensions/tts/cosyvoice.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 5422,
+          "sha256": "3f97d70de970c0232af2c0c9e80fa430bd707075ae6410c21ba190d4720f42aa"
+        },
+        {
+          "url": "/scripts/extensions/tts/css/minimax-tts.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 606,
+          "sha256": "a6cd7ae27ad35d52cda8cc02965877b5c0d31f275fc93eb5dcd8bf4c3facae40"
+        },
+        {
+          "url": "/scripts/extensions/tts/css/openai-tts.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 218,
+          "sha256": "a1447c5fa6294c073a580d40a9402cd601e9eff51bb3e01c97e94d14ab75e04e"
+        },
+        {
+          "url": "/scripts/extensions/tts/edge.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 8768,
+          "sha256": "b16c5fc17892472ea95f3ba726338e1185b880c7fee2b2e03038c8a4de3c0d86"
+        },
+        {
+          "url": "/scripts/extensions/tts/electronhub.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 21542,
+          "sha256": "59bd649b16e5cde0deca4f380c73b799803379c55542bba5fccd1e8d3813f131"
+        },
+        {
+          "url": "/scripts/extensions/tts/elevenlabs.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 19593,
+          "sha256": "db720eb1cc2ebe1ff284fd25845b7be6ce4f68c9e00f26fc0283a12b972d6355"
+        },
+        {
+          "url": "/scripts/extensions/tts/google-native.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6918,
+          "sha256": "af330c606c8cac8230edb3a0fae88f671cd0cb95d5448a7d5742c8e0c8a0c9d0"
+        },
+        {
+          "url": "/scripts/extensions/tts/google-translate.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4170,
+          "sha256": "0734ee5f95f553d9f15e6516a8990f1a40283282633102bf2fb8454aa5944457"
+        },
+        {
+          "url": "/scripts/extensions/tts/gpt-sovits-adapter.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 7718,
+          "sha256": "9549c7ca8d13c75a9069056d80604f7049ca891ac0f6f2b4f50200772e501bac"
+        },
+        {
+          "url": "/scripts/extensions/tts/gpt-sovits-v2.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6332,
+          "sha256": "4e17627a7563d939b46dfa64a5255601dc8d5d66c1682329b50bc816da14eb8b"
+        },
+        {
+          "url": "/scripts/extensions/tts/gsvi.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 10245,
+          "sha256": "874b4899a5a03a40b0f95016320d508d88d77c351db99d85bf3f832750567fac"
+        },
+        {
+          "url": "/scripts/extensions/tts/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 59410,
+          "sha256": "fc75e205ca03f564b2c5a5111948230b1ba69048968926697849b377466f1381"
+        },
+        {
+          "url": "/scripts/extensions/tts/kokoro.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 13419,
+          "sha256": "e4ee992788993ab15bb021c3bf7af589caebcc904ed0deb1010d2e1239ec5c7f"
+        },
+        {
+          "url": "/scripts/extensions/tts/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 337,
+          "sha256": "57ac6762d9fb50cc7605d6981c9e3f913007d3163453e8c80b791d4d46f7c8d1"
+        },
+        {
+          "url": "/scripts/extensions/tts/minimax.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 40878,
+          "sha256": "aa2cbb0f37bce208b8e2e4671aa603fcda98b8028159723f0510d5e782455e38"
+        },
+        {
+          "url": "/scripts/extensions/tts/novel.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 7814,
+          "sha256": "a9a8da1d5bea23d76a16bb03646853df9779152b23824134260a156311aad8fa"
+        },
+        {
+          "url": "/scripts/extensions/tts/openai-compatible.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6971,
+          "sha256": "3d42773168f595d8c73cedec06324a6a7297b8ba34baad4aa173d049a650ff2c"
+        },
+        {
+          "url": "/scripts/extensions/tts/openai.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 9420,
+          "sha256": "4551f156195bb74523bfe8f841143a145d4a0d8cf7e889a89f8fb586f0ce64cd"
+        },
+        {
+          "url": "/scripts/extensions/tts/pollinations.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 4698,
+          "sha256": "ea6f5b113dc727a70dff2b0ae3bf0c0b379558f7684c369abcea88bcad8e7268"
+        },
+        {
+          "url": "/scripts/extensions/tts/sbvits2.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 14517,
+          "sha256": "cd2af179f738a9b6290fb0764fdd099f663a27fa1b8d61dc2c34da0cf1d0e43a"
+        },
+        {
+          "url": "/scripts/extensions/tts/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 6570,
+          "sha256": "e94d4a1e64605cee63b3a2e8778dcbc8258bf736b9f397f1f5a68fd7500f91bb"
+        },
+        {
+          "url": "/scripts/extensions/tts/silerotts.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 5755,
+          "sha256": "e31091aee3eefc85afee91d661462ecab62e52736bafb87a44d13105020328d2"
+        },
+        {
+          "url": "/scripts/extensions/tts/speecht5.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 6498,
+          "sha256": "974ea8560d390d802af6b33184d831a8d59191bc3576451a5efef86f312799c8"
+        },
+        {
+          "url": "/scripts/extensions/tts/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 2097,
+          "sha256": "434a9a8343f28bc24c7be3ea1ffe51a469de65bee1baaa7bd307ca50ea8bf0b5"
+        },
+        {
+          "url": "/scripts/extensions/tts/system.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 10740,
+          "sha256": "8830d15cfb19b59231c9115bf5be93b56d7e3da9b2eb066a7b3526f6bb288983"
+        },
+        {
+          "url": "/scripts/extensions/tts/tts-webui.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 24795,
+          "sha256": "05491e5e5787510aff2e5f60a6d62b9984fd3589fd7e1675613732d4d622f9d9"
+        },
+        {
+          "url": "/scripts/extensions/tts/vits.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 15984,
+          "sha256": "bb415917b91192519b97959f29f1d9c186b575b845e92237d4bc767a97e7d6f1"
+        },
+        {
+          "url": "/scripts/extensions/tts/volcengine.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 11755,
+          "sha256": "f9b879bb38212e95fbfc045ea0b0ce1943dde55d6d88ed90a9a65b07bfd34906"
+        },
+        {
+          "url": "/scripts/extensions/tts/xtts.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 13735,
+          "sha256": "c785ecd0c58a32527afc1ac8daa49f7ca9ab03c470b256336f13d8a0e828abb8"
+        },
+        {
+          "url": "/scripts/extensions/vectors/index.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 93152,
+          "sha256": "f107cef68090ac3981a5330cd10db8bb20ca4b9118e5ed5acb2b519e244dba4d"
+        },
+        {
+          "url": "/scripts/extensions/vectors/manifest.json",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "byteLength": 395,
+          "sha256": "fa6522eb6f7395f118680797bab08a0657ebad55f18c6a379358352fcf16b01a"
+        },
+        {
+          "url": "/scripts/extensions/vectors/settings.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 35001,
+          "sha256": "cf13eaff5f76a53e43581e9495608cfe31fcf312b9a9290c031a635519225e31"
+        },
+        {
+          "url": "/scripts/extensions/vectors/style.css",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/css; charset=UTF-8",
+          "byteLength": 81,
+          "sha256": "f6b31eb9e85bd684c1ca616e337b459e15d486f0dcd763f30b6cc11451d9c184"
+        },
+        {
+          "url": "/scripts/extensions/vectors/webllm.js",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "application/javascript; charset=UTF-8",
+          "byteLength": 1900,
+          "sha256": "00fa47437cb21157777e7d122ac681024d504a7a156683761c975eb795e09cd0"
+        },
+        {
+          "url": "/thumbnail?type=avatar&file=default_Seraphina.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 12755,
+          "sha256": "c481870ab002ad5a417d69b42a9a1610c89ccda924ec8bffe8ff6254be10e965"
+        },
+        {
+          "url": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 564,
+          "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+        },
+        {
+          "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 564,
+          "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+        }
+      ],
+      "consoleFailedToLoad": [],
+      "pageErrors": [],
+      "background": {
+        "url": "<loopback>/backgrounds/__transparent.png",
+        "requestPath": "/backgrounds/__transparent.png",
+        "served": {
+          "kind": "background",
+          "pathAndQuery": "/backgrounds/__transparent.png",
+          "path": "/backgrounds/__transparent.png",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 68,
+          "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
+        },
+        "driven": {
+          "status": "not-driven",
+          "reason": "no .bg_example[bgfile=\"probe-asset-background.png\"] appeared within 15s of opening the panel"
+        }
+      },
+      "characterList": [
+        {
+          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "Probe Asset Card",
+          "dataType": null
+        },
+        {
+          "src": "/thumbnail?type=avatar&file=default_Seraphina.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=default_Seraphina.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "Seraphina",
+          "dataType": null
+        }
+      ],
+      "messages": [
+        {
+          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": null
+        }
+      ],
+      "personaRequest": {
+        "status": "observed",
+        "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
+        "httpStatus": 200,
+        "contentType": "image/png",
+        "byteLength": 564
+      }
+    }
+  },
+  "guards": {
+    "bothLegsRecordedImageRequests": true,
+    "bothLegsRequestedAThumbnail": true,
+    "bothLegsRenderedTheCharacterList": true,
+    "bothLegsOpenedAChat": true,
+    "sameFixture": true,
+    "noImageRequestFailedOnEitherLeg": true,
+    "everyCharacterListAvatarDecoded": true,
+    "everyMessageAvatarDecoded": true,
+    "backgroundAppliedOnBothLegs": true,
+    "stagedBackgroundServedWithBytesOnBothLegs": true,
+    "stagedBackgroundDrivenOnBothLegs": false,
+    "backgroundServedWithBytesOnBothLegs": true,
+    "sameImageUrlSet": true,
+    "perUrlStatusEqual": true,
+    "perUrlContentTypeEqual": true,
+    "nonThumbnailBytesEqual": true,
+    "thumbnailDivergenceIsBytesOnly": true,
+    "thumbnailResponsesAreImages": true,
+    "noExtraConsoleLoadFailuresOnGotavern": true,
+    "noPageErrors": true,
+    "noFailedImageRequestsRecordedAsFailures": true,
+    "bothLegsCompleted": true
+  },
+  "failedGuards": [],
+  "divergences": [
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=avatar&file=Probe+Asset+Card.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 911,
+        "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
+      },
+      "pinned": {
+        "byteLength": 564,
+        "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=avatar&file=default_Seraphina.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9875,
+        "sha256": "4adc8f6195f77c0c25bc1df1a761f1dfe82de78607299f330193169b031127d5"
+      },
+      "pinned": {
+        "byteLength": 12755,
+        "sha256": "c481870ab002ad5a417d69b42a9a1610c89ccda924ec8bffe8ff6254be10e965"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 911,
+        "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
+      },
+      "pinned": {
+        "byteLength": 564,
+        "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+      }
+    }
+  ],
+  "normalisations": [
+    {
+      "field": "legs.*.{resolvedSrc,background.url,appliedBackgroundImage,tileThumbnailBeforeLoad,tileThumbnailAfterLoad}",
+      "change": "a loopback origin (the IPv4 loopback block, `localhost`, or the IPv6 loopback) together with its port is replaced with <loopback>; the literal address is deliberately not written in this file, because the host-derived sweep reads it and would refuse it",
+      "reason": "each leg runs on its own port (measured 40653 vs 42429 in run 40207520868), so the origin is a property of the run and not of the product; the path and query ARE the observation and are untouched",
+      "source": "this artefact, plus the host-derived sweep in tools/verify-browser-comparisons.mjs which refused the committed port"
+    },
+    {
+      "field": "imageRequests[].url (comparison key only)",
+      "change": "the `t=<Date.now()>` cache-buster is dropped",
+      "reason": "public/script.js getThumbnailUrl(type, file, t) appends Date.now() so the same thumbnail has a different query on every call; the recorded url keeps it",
+      "source": "public/script.js:getThumbnailUrl (pinned)"
+    }
+  ],
+  "findings": [],
+  "unproven": [
+    "stagedBackgroundDrivenOnBothLegs: the backgrounds gallery drive is not established. Measured on both legs (runs 40205486030, 40206135746, 40206773315): #backgrounds-drawer-toggle exists and is clicked, no .bg_example[bgfile=\"probe-asset-background.png\"] appears within 15 s, and #bg1 keeps the fresh tree's /backgrounds/__transparent.png. The staged background ROUTE is asserted (stagedBackgroundServedWithBytesOnBothLegs); the paint is not claimed.",
+    "the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)",
+    "a swiped or regenerated message avatar (the chat is opened once and one greeting renders)",
+    "image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)",
+    "a real user tree with a hundred cards, where the character list paginates"
+  ],
+  "declaredUnproven": [
+    "a real user tree with a hundred cards, where the character list paginates",
+    "a swiped or regenerated message avatar (the chat is opened once and one greeting renders)",
+    "image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)",
+    "stagedBackgroundDrivenOnBothLegs",
+    "the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)"
+  ]
+}
