@@ -1259,9 +1259,23 @@ broken again. Measurements: `docs/network-egress.md`, `docs/startup-state-machin
 
 ### 34.3 No automatic updates, by default and by ambiguity
 
-- `extensions.autoUpdate`, `extensions.autoUpdatePlugins`, `enableExtensionsAutoUpdate` and
-  `enableServerPluginsAutoUpdate` all resolve to **false** unless an explicit, parseable, present value says
-  otherwise. Missing, `null`, unparsed, migrated-from-legacy and unreadable all mean false.
+**The inherited keys are not inputs.** `extensions.autoUpdate` and `enableServerPluginsAutoUpdate` are read for
+reporting only; they never enable an update. The reason is decisive and was measured: GoTavern's fresh install
+writes `upstream/generated/default-config.yaml` verbatim (that file IS pinned's `fresh` config, generated from
+`probe-config-init.mjs`), and lines 134 and 168 of it say `true`. So "absent ⇒ false" alone fixes nothing — every
+fresh install and every migrated stock tree carries an explicit `true` that the user never wrote, and honouring it
+reproduces exactly the behaviour the user reported.
+
+The only input that can enable automatic updating is a GoTavern-owned key, `gotavern.autoUpdateExtensions`,
+defaulting to false, resolved strictly (boolean true, or the string `"true"` after lower/trim; everything else —
+`null`, `"yes"`, `"on"`, `"1"`, `"0"`, numbers, sequences, mappings, junk — is false). `settings/get` reports the
+GoTavern value, so the frontend's control reflects the decision that actually governs behaviour. Manual update
+paths remain available; only the automatic decision is removed. This is a deliberate divergence from upstream and
+it is recorded as one: the pinned config bytes stay byte-identical (hard rules 3/4), and any comparison of config
+bytes carries a named exemption for those two keys rather than a re-recorded expectation.
+
+- `extensions.autoUpdatePlugins` and `enableExtensionsAutoUpdate` (the legacy name) follow the same rule: legacy
+  values are migrated for reporting, and never enable anything.
 - "Check for updates" and "apply updates" are separate decisions with separate flags.
 - Boot performs zero updater egress and zero mutation of `extensions/**` or plugins/**`: a recursive hash and a
   `git status` per repository, taken before and after boot, must match, and an egress recorder must show no
