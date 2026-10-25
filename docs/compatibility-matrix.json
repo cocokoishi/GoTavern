@@ -396,7 +396,9 @@
         ],
         "tests": [
           "TestChatCompletionAimlapiTransportFailureAnswers200",
-          "TestOpenRouterOutboundTargetIsPinned"
+          "TestOpenRouterOutboundTargetIsPinned",
+          "TestDeepSeekGenerateEndToEndThroughTheProductionTransport",
+          "TestDeepSeekEndToEndRefusesTheWireExactSeam"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -405,8 +407,8 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": null,
-        "explanation": "no gate exists: every provider differential runs against our own peer, so nothing would go red if the real-internet transport were broken. The gate that must land is a local TLS peer with a real trust chain plus a refusing proxy and a hanging socket, asserted through the shipped artifact."
+        "test": "TestDeepSeekGenerateEndToEndThroughTheProductionTransport",
+        "explanation": "this row stays FAIL, but it is no longer true that nothing observes the client carrying user traffic: the subprocess test boots the shipped binary and asserts at the recording peer that the provider request arrived with the production client's own fingerprint (accept-encoding exactly `gzip`, no Connection header, canonical header names) and that the captured provider body arrived byte-identically. If the wire-exact client were on the user path, every one of those three assertions goes red."
       },
       "absentGate": {
         "owner": "lane A (network / provider transport)",
@@ -416,7 +418,9 @@
         "every provider differential runs against our own recording peer: AGENTS.md 22 makes that `unverified` for production",
         "docs/network-egress.md §2 records eight places where the production transport does not meet the contract (system roots, proxy awareness, bounded timeouts, decompression, redirect policy, cancellation)",
         "the byte-exact client and the production client are the same client, which AGENTS.md 30 forbids and which is the mechanism behind P0-A",
-        "no test asserts the causal error text of a DNS, connect, TLS or timeout failure without printing a secret (AGENTS.md 35)"
+        "no test asserts the causal error text of a DNS, connect, TLS or timeout failure without printing a secret (AGENTS.md 35)",
+        "DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body (docs/network-egress.md §4)",
+        "the live canary that does reach api.deepseek.com runs only where DEEPSEEK_API_KEY is configured, and prints one SKIPPED line where it is not"
       ],
       "blockedBy": [],
       "notes": "P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it."
@@ -435,7 +439,8 @@
         ],
         "tests": [
           "TestChatCompletionGenerateMatchesProviderWireCapture",
-          "TestEveryClaimedSourceHasAProviderWireCapture"
+          "TestEveryClaimedSourceHasAProviderWireCapture",
+          "TestDeepSeekGenerateEndToEndThroughTheProductionTransport"
         ],
         "browserArtifacts": [
           "tests/browser/generation-comparison.json",
@@ -1078,8 +1083,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 542,
-      "citedByMatrix": 56
+      "inTree": 544,
+      "citedByMatrix": 58
     },
     "workflows": {
       "inTree": 8,

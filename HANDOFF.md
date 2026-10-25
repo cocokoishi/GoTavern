@@ -31,6 +31,26 @@ mock; that reproducer is the first deliverable, not the fix.
 **Unproven assumption to state plainly:** the oracle only ever recorded plain-HTTP, complete, uncompressed,
 non-redirecting, non-proxied replies. Every one of those properties is now a required test.
 
+**What now has a gate, and what it still cannot reach (added after the transport merge).** Two gates carry this
+P0's evidence; the details are `docs/network-egress.md` §4.
+
+- `go test ./tests/e2e` boots the REAL binary as a subprocess (the `internal/server` test binary pins the
+  wire-exact client process-wide, so nothing in that package can observe user traffic), stores the key through
+  `POST /api/secrets/write`, drives `POST /api/backends/chat-completions/generate`, and asserts at the peer that
+  the captured provider body arrived byte-identically **and** that the request carried the production client's
+  fingerprint (`accept-encoding: gzip`, no `Connection`, canonical header casing). Four legs: non-stream content,
+  stream ending in `data: [DONE]`, provider error answering as a provider error, and an unreachable provider
+  answering as a transport failure.
+- `scripts/deepseek-canary.mjs`, run by the lane workflow, is the ONLY gate that touches the real provider. It
+  skips with one named line when `DEEPSEEK_API_KEY` is absent, so a reader can always distinguish a pass from a
+  non-run.
+- **Its limits, which a reader of a green lane must apply:** it exercises one source, one model and one
+  non-streamed completion; it cannot say WHICH stage failed when the request never arrives, because DEEPSEEK's
+  pinned catch (`response.send({error:true})`, chat-completions.js:1168-1174) discards the cause — so AGENTS.md
+  rule 35 is materially unmet on this route, and fixing it means a recorded, named divergence from pinned's body
+  rather than a quiet improvement; it proves nothing about streaming, cancellation, presets or tokenization; it
+  has no pinned subject, so it is not a parity claim; and it says nothing at all on runs without the credential.
+
 ### P0-B — stock-directory startup hangs
 
 **Reported:** copying the release binary into a working `node server.js` tree and running it hangs in

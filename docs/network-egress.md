@@ -79,3 +79,55 @@ recorded bytes.
    `P0-B`.
 5. **No secret ever reaches a log**: API keys, bearer tokens, proxy credentials and `secrets.json` content are
    redacted at the transport boundary, not by callers remembering to do it.
+
+## 4. The two gates that carry P0-A's evidence (added 2026-10-25)
+
+Everything above measures what the transport CAN do. Neither of the gates below existed, and that is why the
+suite could be green while a real key reached nothing: the transport matrix drives `Send`/`SendStreaming`
+directly, and the provider-wire replay pins the wire-exact client for the whole `internal/server` test binary, so
+neither of them observes the client that carries user traffic through the shipped route.
+
+**`tests/e2e` — the deterministic subprocess gate.** `go test ./tests/e2e` boots the binary built from this tree
+(in CI, the lane's own `lane-binaries/gotavern-linux-amd64` via `GOTAVERN_BINARY`, so no second compile and the
+binary under test is the binary under review), waits on `GET /version` with a hard deadline, takes the CSRF token
+and cookie from `GET /csrf-token` (accounts are off in the default config, so a fresh install has no login step),
+stores a synthetic key through `POST /api/secrets/write` — the route the frontend uses, not a hand-written
+`secrets.json` — and then drives `POST /api/backends/chat-completions/generate` four times:
+
+| Leg | The observable it pins | What would make it fail |
+|---|---|---|
+| non-stream | the peer receives the capture's provider body **byte for byte** (`bodySha256`), `Authorization` carries the stored key, and the route returns the capture's recorded assistant content | any change to the plan, the message merge, the stored key or the response mapping |
+| stream | the route's body is exactly the capture's recorded frames and ends in a clean `data: [DONE]` | a frame dropped, reordered, re-encoded or a stream that stops without the provider's sentinel |
+| provider error | a provider that ANSWERS with 429 produces the capture's 500 + the provider's own message | the transport-failure shape (`200 {"error":true}`) being returned for an answered request |
+| unreachable provider | a closed peer produces `200 {"error":true}` and the peer records nothing further | a kept-alive socket being reused, or the two failure shapes collapsing into one |
+
+The leg that makes "the production transport carried this" measurable is asserted at the peer, on headers that
+neither client chooses freely: `accept-encoding` arrives as exactly `gzip` (the production client drops the
+planner's `gzip, deflate, br` so net/http can decode), there is **no** `Connection` header (the plans' `close` is
+the wire-exact client's value), and header names arrive canonicalised (`Content-Type`, not `content-type`). Any one
+of these failing means the request was not on the production transport, so the test cannot pass for the wrong
+reason. The harness also refuses to run at all when `GOTAVERN_OUTBOUND_WIRE_EXACT=1` is in its environment.
+
+The provider peer is **plain HTTP, deliberately**. The claim being made is about the route, the stored key, the
+plan, the response mapping and the client that carries them; TLS, proxy CONNECT, redirect and timeout bounds are
+one layer below and are measured against a TLS server in `internal/outbound/transport_matrix_test.go`. A peer that
+terminated TLS would add a certificate to this harness without adding a single new observable.
+
+**`scripts/deepseek-canary.mjs` — the live gate, run by the lane workflow.** It boots the same binary (seam
+unset), stores the key through the same route, and calls the real `https://api.deepseek.com/beta`. It **proves**:
+the shipped binary's production transport completes a real TLS request to DeepSeek and the route returns a
+non-empty completion with the user's key as stored by the frontend. It **cannot prove**: which stage failed when a
+request does not arrive (see the gap below), streaming/cancellation/preset equivalence, parity with pinned Node
+(there is no pinned subject in the run), or anything at all on a run where the credential is absent — in that case
+it prints one `SKIPPED:` line naming `DEEPSEEK_API_KEY` and exits 0, so a reader can always tell "passed" from
+"did not run".
+
+**The gap the canary exposes and this change does NOT fix.** The DEEPSEEK source answers a fetch that threw with
+`response.send({ error: true })` and no status and no message (`upstream` chat-completions.js:1168-1174), which
+GoTavern reproduces because it is pinned behaviour. So a real transport failure on this source is still a user
+seeing `{"error":true}` with no DNS/connect/TLS/proxy/timeout distinction — contract item 3 above and AGENTS.md
+rule 35 are **not** met on this route. The deterministic leg 4 pins that shape on purpose (parity), the canary
+reports it as `transport, cause discarded` and adds its own diagnostic fetch to say what the runner's network did,
+and the divergence is a product decision to take explicitly: a causal message for this source means departing from
+pinned's body, which needs its own recorded divergence and not a quiet edit.
+

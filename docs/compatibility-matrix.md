@@ -50,8 +50,8 @@ A row is `PASS` only when every one of these holds:
 | 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 2 oracle fixture(s), Go implementation, 2 named test(s), CI job(s) | 2 item(s) |
 | 8 | World info: books, entries, activation, positions | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
 | 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
-| 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **FAIL** | Go implementation, 2 named test(s), CI job(s) | 4 item(s) |
-| 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 2 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
+| 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **FAIL** | Go implementation, 4 named test(s), CI job(s) | 6 item(s) |
+| 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 2 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
@@ -253,7 +253,7 @@ Row id: `providers-transport`
 - Oracle fixtures: _none_
 - Upstream assets: _none_
 - Go implementation: `internal/outbound`
-- Named tests: `TestChatCompletionAimlapiTransportFailureAnswers200`, `TestOpenRouterOutboundTargetIsPinned`
+- Named tests: `TestChatCompletionAimlapiTransportFailureAnswers200`, `TestOpenRouterOutboundTargetIsPinned`, `TestDeepSeekGenerateEndToEndThroughTheProductionTransport`, `TestDeepSeekEndToEndRefusesTheWireExactSeam`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`
 - Release artifact: _none_
@@ -264,6 +264,8 @@ Row id: `providers-transport`
 - docs/network-egress.md §2 records eight places where the production transport does not meet the contract (system roots, proxy awareness, bounded timeouts, decompression, redirect policy, cancellation)
 - the byte-exact client and the production client are the same client, which AGENTS.md 30 forbids and which is the mechanism behind P0-A
 - no test asserts the causal error text of a DNS, connect, TLS or timeout failure without printing a secret (AGENTS.md 35)
+- DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body (docs/network-egress.md §4)
+- the live canary that does reach api.deepseek.com runs only where DEEPSEEK_API_KEY is configured, and prints one SKIPPED line where it is not
 
 P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it.
 
@@ -274,7 +276,7 @@ Row id: `providers-per-source-wire`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-provider-wire.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestChatCompletionGenerateMatchesProviderWireCapture`, `TestEveryClaimedSourceHasAProviderWireCapture`
+- Named tests: `TestChatCompletionGenerateMatchesProviderWireCapture`, `TestEveryClaimedSourceHasAProviderWireCapture`, `TestDeepSeekGenerateEndToEndThroughTheProductionTransport`
 - Browser artefacts: `tests/browser/generation-comparison.json`, `tests/browser/generation-ai21-comparison.json`, `tests/browser/generation-groq-comparison.json`
 - CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`
 - Release artifact: _none_
@@ -561,7 +563,7 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 |---|---|---|
 | Oracle fixtures | 118 | 66 |
 | Browser artefacts | 35 | 11 |
-| Go test functions | 542 | 56 |
+| Go test functions | 544 | 58 |
 | Workflow jobs | 26 in 8 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 17, FAIL 4, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
