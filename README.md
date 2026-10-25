@@ -122,11 +122,19 @@ What is still NOT claimed, and why this README still does not call it a daily dr
 - **no live completion has been produced with a real provider key.** The canary's reachability half runs on every
   push; the completion half needs a credential this project does not have, so streaming, cancellation and preset
   equivalence against a real provider remain unmeasured;
-- the **Windows archive and `Start.cmd` have never been executed** — the drop-in gate covers the Linux archive only;
+- the Windows binary and `Start.cmd` **are** executed — the `qualify-windows-amd64` job runs them on a Windows
+  runner, refuses an install over a running `gotavern.exe` and asserts the refusal contract — but only into an
+  **empty install prefix**. They have never been dropped over a real stock SillyTavern tree, which is what the
+  Linux drop-in gate does; that Windows layout is the remaining gap;
 - one adversarial violation is open and named: the pinned ten-second legacy migration stage is now announced but
   not shortened;
 - the tokenizer fallback reproduces an **inherited weakness** (an inexact count is indistinguishable from an exact
   one, as it is upstream) and says so in the compatibility matrix rather than pretending otherwise.
+
+The release pipeline was last qualified end to end at tag **`v0.1.0-alpha.3`** (2026-10-25): six archives plus
+`checksums.txt` published, `qualify-linux-amd64`, `qualify-upgrade-rollback`, `qualify-windows-amd64` and
+`qualify-dropin-linux` all green on that commit, including a tampered archive being refused and a rollback
+preserving `config.yaml` byte for byte.
 
 The contract and the measurements are in [`docs/network-egress.md`](docs/network-egress.md),
 [`docs/startup-state-machine.md`](docs/startup-state-machine.md),
