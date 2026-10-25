@@ -506,3 +506,125 @@ jobs:
             fi
           done
           echo "::endgroup::"
+
+  qualify-dropin-linux:
+    # THE USER'S OWN PATH, EXECUTED: a stock SillyTavern tree, the packaged archive, and the binary
+    # started inside it.
+    #
+    # WHY THIS JOB EXISTS. A user took a published release, put the binary into a working SillyTavern
+    # directory and it hung (P0-B). Every other job in this workflow unpacks an archive into a directory
+    # IT created -- no config.yaml, no data/, no public/, no extensions -- so none of them reproduced the
+    # state the user was in. `docs/startup-state-machine.md` section 1 records why that hang was invisible: the
+    # binary prints nothing between `main()` and "listener ready".
+    #
+    # WHAT IT RUNS, and it is one script so the two layouts cannot drift:
+    #   scripts/build-stock-tree.sh  a stock tree assembled from THIS repository's vendored pinned
+    #                                baseline (real public/, default/, src/tokenizers, the pinned
+    #                                default config.yaml, seeded data/, an extension that is a real git
+    #                                repository). Header lists what it contains and what was removed.
+    #   scripts/qualify-dropin.sh    unpacks the archive over that tree, boots with a hard 30 s POLLING
+    #                                readiness bound, runs the API smoke, asserts boot did not mutate
+    #                                extensions/** or the seeded data, stops it gracefully, restarts it
+    #                                and re-reads the chat.
+    #
+    # THE ARTIFACT IS THE PACKAGED ARCHIVE, and which one it is gets PRINTED: the published
+    # `gotavern-linux-amd64.tar.gz` for the tag when that release already exists (a rerun, a dispatch
+    # after publish, or the weekly leg), otherwise an archive packaged in this run with release.yml's
+    # exact staging. A release qualification runs BEFORE the release exists, so the shipped bytes cannot
+    # always be the input here; `release-install-smoke.yml` is the job that always has them.
+    #
+    # WHAT IS NOT COVERED, so a green is not read as more: the Windows archive and `Start.cmd` (needs a
+    # Windows runner and a PowerShell twin of the same harness), and updater egress is SAMPLED rather
+    # than proven absent -- the mutation half of P0-C is proven exactly.
+    runs-on: ubuntu-latest
+    # Two layouts, each building a ~600 MB stock tree and booting twice.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # ONLY the in-run packaging fallback compiles anything; the published path does not. It is
+          # declared unconditionally so the job's behaviour does not depend on which branch it takes.
+          go-version-file: go.mod
+          cache: true
+
+      - name: Obtain the packaged artifact and say which one it is
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p dist
+          if printf '%s' "${VERSION}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' \
+             && gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release download "${VERSION}" --repo "${GITHUB_REPOSITORY}" \
+              --pattern 'gotavern-linux-amd64.tar.gz' --dir dist
+            echo "ARTIFACT SOURCE: the PUBLISHED release ${VERSION} (the shipped bytes)"
+          else
+            echo "ARTIFACT SOURCE: packaged in THIS RUN with release.yml's exact staging"
+            echo "  (no published release for '${VERSION}' could be read; qualification runs before the"
+            echo "   release exists, and release-install-smoke.yml is the job that always has the shipped bytes)"
+            # `stage/` does not exist yet. `go build -o stage/gotavern` fails when its parent directory
+            # is absent, and it fails AFTER paying for the compile.
+            mkdir -p stage
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+              go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o stage/gotavern ./cmd/gotavern
+            cp LICENSE THIRD_PARTY_NOTICES.txt start.sh stage/
+            mkdir -p stage/src
+            cp -R upstream/tokenizers stage/src/tokenizers
+            {
+              echo "GoTavern release ${VERSION}"
+              echo "target linux"
+              echo
+              ./stage/gotavern version || true
+            } > stage/BUILD-INFO.txt
+            test ! -e stage/config.yaml
+            test ! -e stage/data
+            ( cd stage && chmod +x gotavern start.sh && tar -czf ../dist/gotavern-linux-amd64.tar.gz . )
+          fi
+          test -s dist/gotavern-linux-amd64.tar.gz
+          ls -l dist/gotavern-linux-amd64.tar.gz
+          sha256sum dist/gotavern-linux-amd64.tar.gz
+          echo "path=${PWD}/dist/gotavern-linux-amd64.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Drop-in qualification, CWD = the SillyTavern root
+        # The documented "put the binary in your SillyTavern directory" path: config.yaml and data/ come
+        # from the tree, so the user's characters, chats and settings are what the API must return.
+        run: sh scripts/qualify-dropin.sh --archive "${{ steps.artifact.outputs.path }}" --layout cwd-root --port 8797
+
+      - name: Drop-in qualification, foreign CWD with the binary in the root
+        # The same tree, launched from somewhere else. Pinned resolution is CWD-relative, so this layout
+        # is expected to start a fresh runtime -- and must still become ready and must NOT write into the
+        # tree it was not pointed at.
+        run: sh scripts/qualify-dropin.sh --archive "${{ steps.artifact.outputs.path }}" --layout foreign-cwd --port 8798
+
+      - name: Report failure context
+        # The harness prints its own log and goroutine dump; what it cannot show is the tree it built,
+        # which is what a reader needs when the fixture itself is the suspect.
+        if: failure()
+        run: |
+          echo "::group::drop-in work trees"
+          if [ -d .dropin-work ]; then
+            find .dropin-work -maxdepth 3 -mindepth 1 -printf '%y %p\n' | LC_ALL=C sort | head -150
+          else
+            echo "(no .dropin-work directory: the harness failed before it created one)"
+          fi
+          echo "::endgroup::"
+          echo "::group::any server logs"
+          for log in .dropin-work/*/server.log; do
+            if [ -f "$log" ]; then echo "--- $log ---"; tail -150 "$log"; fi
+          done
+          echo "::endgroup::"
+
+      - name: Upload the stock tree evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropin-failure-logs
+          path: |
+            .dropin-work/*/server.log
+            .dropin-work/*/*.diff
+          if-no-files-found: warn
+          retention-days: 7

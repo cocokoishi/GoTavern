@@ -132,3 +132,51 @@ jobs:
           fi
 
 
+      # ==========================================================================================
+      # TEMPORARY LANE EVIDENCE STEP -- REMOVED BEFORE THIS LANE IS MERGED.
+      #
+      # `release-qualification.yml` only fires on a tag or a dispatch, and a branch-only workflow
+      # cannot be dispatched (measured; see smoke-metrics.yml's header). Without this step the drop-in
+      # harness would first execute AFTER the merge, which is the shape of change this project has been
+      # burned by. It runs here, on the lane commit, and the numbers in the lane report come from it.
+      # The final commit of lane/release-dropin deletes this block.
+      # ==========================================================================================
+      - name: TEMPORARY -- drop-in qualification against a stock SillyTavern tree
+        run: |
+          set -eu
+          # Package the artifact exactly as release.yml does, so what the harness unpacks is the
+          # ARCHIVE (with its layout, launchers and src/tokenizers), not a loose source-built binary.
+          VERSION="lane-${GITHUB_SHA::12}"
+          rm -rf /tmp/dist /tmp/stage
+          mkdir -p /tmp/dist /tmp/stage
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /tmp/stage/gotavern ./cmd/gotavern
+          cp LICENSE THIRD_PARTY_NOTICES.txt start.sh /tmp/stage/
+          mkdir -p /tmp/stage/src
+          cp -R upstream/tokenizers /tmp/stage/src/tokenizers
+          {
+            echo "GoTavern release ${VERSION}"
+            echo "target linux"
+            echo
+            /tmp/stage/gotavern version || true
+          } > /tmp/stage/BUILD-INFO.txt
+          ( cd /tmp/stage && chmod +x gotavern start.sh && tar -czf /tmp/dist/gotavern-linux-amd64.tar.gz . )
+          ls -l /tmp/dist/gotavern-linux-amd64.tar.gz
+
+          echo "=== layout cwd-root ==="
+          sh scripts/qualify-dropin.sh --archive /tmp/dist/gotavern-linux-amd64.tar.gz --layout cwd-root --port 8797
+          echo "=== layout foreign-cwd ==="
+          sh scripts/qualify-dropin.sh --archive /tmp/dist/gotavern-linux-amd64.tar.gz --layout foreign-cwd --port 8798
+
+      - name: TEMPORARY -- keep the drop-in evidence when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropin-lane-logs
+          path: |
+            .dropin-work/*/server.log
+            .dropin-work/*/*.diff
+            .dropin-work/*/*.before
+            .dropin-work/*/*.after
+          if-no-files-found: warn
+          retention-days: 5
