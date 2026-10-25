@@ -480,4 +480,48 @@ func TestLongLivedTreeBootsAndServesItsAssets(t *testing.T) {
 	if served != 12 {
 		t.Errorf("POST /api/chats/get returned %d of the 12 planted messages, so the user's history does not open: %.300q", served, body)
 	}
+
+	// (8) the visual surfaces a long-lived tree carries (GOAL.md Q3/Q4). These routes are what the
+	// frontend builds for backgrounds, persona avatars and background thumbnails; a landing-page green
+	// with any of them missing is the exact defect that shipped once already (AGENTS.md 42-46).
+	status, _, body = client.postJSON(t, "/api/backgrounds/all", "{}")
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/backgrounds/all = %d: %.200q", status, body)
+	}
+	for _, expected := range []string{"Longlived_Background.png", "__transparent.png"} {
+		if !strings.Contains(body, expected) {
+			t.Errorf("POST /api/backgrounds/all did not list %s, so the background picker is empty", expected)
+		}
+	}
+	status, header, body = client.get(t, "/backgrounds/Longlived_Background.png")
+	if status != http.StatusOK {
+		t.Fatalf("GET /backgrounds/Longlived_Background.png = %d, so the user's background cannot be shown: %.160q", status, body)
+	}
+	if !strings.HasPrefix(header.Get("Content-Type"), "image/") {
+		t.Errorf("GET /backgrounds/... answered Content-Type %q", header.Get("Content-Type"))
+	}
+	status, header, body = client.get(t, "/thumbnail?type=bg&file=Longlived_Background.png")
+	if status != http.StatusOK {
+		t.Fatalf("GET /thumbnail?type=bg&file=Longlived_Background.png = %d, so the background gallery has no tiles: %.160q", status, body)
+	}
+	if !strings.HasPrefix(header.Get("Content-Type"), "image/") {
+		t.Errorf("/thumbnail?type=bg answered Content-Type %q", header.Get("Content-Type"))
+	}
+
+	// The persona avatar: the mount is spelled with the escape the pinned frontend uses, so a server that
+	// registers the unescaped spelling 404s here (rule 54 -- a declaration comparison cannot see this).
+	status, _, body = client.postJSON(t, "/api/avatars/get", "{}")
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/avatars/get = %d: %.200q", status, body)
+	}
+	if !strings.Contains(body, "user-default.png") {
+		t.Errorf("POST /api/avatars/get did not list the planted persona, so the persona picker is empty: %.300q", body)
+	}
+	status, header, body = client.get(t, "/User%20Avatars/user-default.png")
+	if status != http.StatusOK {
+		t.Fatalf("GET /User%%20Avatars/user-default.png = %d, so the persona avatar is a broken image: %.160q", status, body)
+	}
+	if !strings.HasPrefix(header.Get("Content-Type"), "image/") {
+		t.Errorf("GET /User%%20Avatars/... answered Content-Type %q", header.Get("Content-Type"))
+	}
 }
