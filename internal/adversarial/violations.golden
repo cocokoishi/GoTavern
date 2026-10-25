@@ -14,12 +14,8 @@
 # internal/server/settings_get.go:70 then reports it, and the frontend's
 # autoUpdateExtensions() (upstream/public/scripts/extensions.js:1988-2010)
 # drives POST /api/extensions/update from it.
-config.autoupdate-inherited-true
-config.autoupdate-fresh-install
-extensions.gotavern-key-strict
 
 # rule 26: an unparseable value is an OFF input; jsBoolean("maybe") is true.
-config.autoupdate-unparsed-value
 
 # rule 27: a parseable config is rewritten on boot by mergeDefaults.
 config.parseable-config-rewritten
@@ -44,11 +40,9 @@ boot.missing-tokenizers
 
 # rule 29/30: the wire client advertises accept-encoding gzip/deflate/br and
 # never decompresses (internal/outbound/raw.go has no compress/* import).
-transport.gzip-response-unreadable
 
 # rule 29: 3xx is returned to the caller as the provider's answer; no Location
 # handling exists in internal/outbound/raw.go.
-transport.redirect-not-followed
 
 # rule 29: HTTPS_PROXY is never read (no ProxyFromEnvironment anywhere) even
 # though the pinned config carries requestProxy.enabled/url/bypass, which
@@ -57,4 +51,3 @@ transport.proxy-connect-ignored
 
 # rule 35/12: a credential containing CR/LF is written verbatim by
 # internal/outbound/raw.go:149-151, so it forges a request header.
-transport.header-value-injection

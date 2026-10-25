@@ -337,20 +337,33 @@ func startupCases(t *testing.T) []caseSpec {
 				case blockingErr := <-blocked:
 					_ = held.Close()
 					return violation("the second boot returned (%v) while the content lock was held, so the case did not contend and proves nothing", blockingErr)
-				case <-time.After(3 * time.Second):
-					_ = held.Close()
 				}
-				// It only came back because THIS case released the lock. A bounded
-				// acquisition would have failed with a named error inside the bound;
-				// waiting for the holder to finish is the unbounded wait of rule 24.
+				// THE BOUND IS THE PRODUCT'S, NOT THIS CASE'S. The contract (ARCHITECTURE 34.2, rule 24) is that a
+				// blocked boot gives up with a NAMED error inside the documented boot budget -- lockacquire's default
+				// is 30s. An earlier version of this case used a 3s window, which a correctly bounded 30s wait cannot
+				// meet, so it reported a violation for contract-compliant behaviour. 45s is that budget plus slack for
+				// CI scheduling, and the case still releases nothing before the bound: releasing early would let an
+				// unbounded implementation look bounded, which is the whole defect.
+				const budgetWithSlack = 45 * time.Second
+				started := time.Now()
+				var blockingErr error
 				select {
-				case <-blocked:
-					return violation("the second boot blocked on the held content lock for the whole 3s window and only " +
-						"completed when this case released it: flock.Lock() has no bounded acquisition, so with a live " +
-						"first process the second one waits forever")
-				case <-time.After(60 * time.Second):
-					return violation("the second boot was still blocked 60s after the lock was released")
+				case blockingErr = <-blocked:
+				case <-time.After(budgetWithSlack):
+					_ = held.Close()
+					<-blocked
+					return violation("the second boot was still waiting %s after the content lock was taken, longer than the documented boot budget, so the acquisition is not bounded", budgetWithSlack)
 				}
+				_ = held.Close()
+				elapsed := time.Since(started)
+				if blockingErr == nil {
+					return violation("the second boot reported success after %s while this case held the content lock, so it never contended", elapsed)
+				}
+				message := strings.ToLower(blockingErr.Error())
+				if !strings.Contains(message, "locked by another") && !strings.Contains(message, "busy") {
+					return violation("the second boot failed after %s without naming the lock, so a user cannot tell a race from a crash: %v", elapsed, blockingErr)
+				}
+				return okResult("gave up after %s with a named lock error", elapsed)
 			},
 		},
 		{
