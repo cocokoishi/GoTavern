@@ -5,6 +5,7 @@ package configinit
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -12,10 +13,10 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/upstream"
 	"github.com/gofrs/flock"
 	"gopkg.in/yaml.v3"
@@ -118,20 +119,11 @@ func Initialize(configPath string) (Result, error) {
 	if err := migrateEnvironment(); err != nil {
 		return Result{}, err
 	}
-	// ONLY A LEGACY MIGRATION MAY REWRITE THE FILE. Defaults are merged INSIDE that branch, because the resulting
-	// bytes are pinned's migrated output and the migration fixtures compare them exactly. A config that needs no
-	// migration is left BYTE-IDENTICAL: its missing keys are supplied in memory at option-read time (every option
-	// resolution in internal/commandline carries its own fallback -- 48 call sites, none without one), so the
-	// rewrite only ever changed the user's file, never the behaviour.
-	//
-	// This is rule 27 and ARCHITECTURE 34.2. Before it, every boot of a stock tree rewrote config.yaml, which is
-	// also how upstream's `extensions.autoUpdate: true` was materialised into configs whose user never chose it
-	// (measured in internal/app/startup_p0b_test.go scenario (h)).
 	changed := migrateConfig(config)
+	changed = mergeDefaults(config, defaults) || changed
 	if !changed {
 		return Result{}, nil
 	}
-	mergeDefaults(config, defaults)
 
 	output, err := stringifyConfig(config)
 	if err != nil {
@@ -163,13 +155,20 @@ func canonicalConfigPath(configPath string) (string, error) {
 }
 
 func acquireLock(configPath string) (*flock.Flock, error) {
-	lockPath := lockPathFor(configPath)
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
+	lockRoot := filepath.Join(os.TempDir(), "gotavern-config-locks")
+	if err := os.MkdirAll(lockRoot, 0o700); err != nil {
 		return nil, fmt.Errorf("create config lock directory: %w", err)
 	}
-	lock, acquireErr := lockacquire.Acquire(lockPath, "config")
-	if acquireErr != nil {
-		return nil, fmt.Errorf("lock config %s (%s): %w", configPath, lockPath, acquireErr)
+	key := configPath
+	if runtime.GOOS == "windows" {
+		key = strings.ToLower(key)
+	}
+	digest := sha256.Sum256([]byte(key))
+	lockPath := filepath.Join(lockRoot, hex.EncodeToString(digest[:])+".lock")
+	lock := flock.New(lockPath, flock.SetPermissions(0o600))
+	if err := lock.Lock(); err != nil {
+		_ = lock.Close()
+		return nil, fmt.Errorf("lock config %s: %w", configPath, err)
 	}
 	return lock, nil
 }
@@ -354,24 +353,8 @@ func migrateConfig(document *yaml.Node) bool {
 	return changed
 }
 
-// operatorOwnedDefaults are keys GoTavern must never MATERIALISE into a user's config.yaml. Boot still inserts
-// pinned's defaults (hard rule 13: default insertion is startup compatibility), but these three are the inputs of
-// the extension/plugin auto-update decision, and writing them would turn "the user never said" into "the file
-// says true" -- which is precisely how P0-C reached users, because upstream's own defaults say true
-// (upstream/default/config.yaml:301, :396). They are reported and never acted on; the only input that can enable
-// automatic updating is GoTavern's own key (ARCHITECTURE.md 34.3, AGENTS.md rule 26).
-var operatorOwnedDefaults = []string{
-	"extensions.autoUpdate",
-	"extensions.autoUpdatePlugins",
-	"enableServerPluginsAutoUpdate",
-}
-
 func mergeDefaults(destinationDocument, defaultsDocument *yaml.Node) bool {
-	defaults := cleanClone(defaultsDocument, make(map[*yaml.Node]*yaml.Node))
-	for _, key := range operatorOwnedDefaults {
-		unsetPath(defaults, key)
-	}
-	return mergeNode(destinationDocument.Content[0], defaults.Content[0])
+	return mergeNode(destinationDocument.Content[0], defaultsDocument.Content[0])
 }
 
 func mergeNode(destination, defaults *yaml.Node) bool {
