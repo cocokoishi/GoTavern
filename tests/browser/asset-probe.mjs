@@ -468,6 +468,29 @@ try {
     // for the record, and `characterList` becomes the POST-render list -- which is the one a user sees and
     // the one the comparator must assert on.
     report.dom.characterListBeforeRender = report.dom.characterList;
+    // WAIT FOR THE PICTURES BEFORE ASKING WHETHER THEY DECODED. Run 40206135746 recorded `complete: false,
+    // naturalWidth: 0` on avatars whose own requests had answered 200 with bytes, because the descriptor was
+    // read while the image was still loading -- a race that reads as "avatars are broken" (the same class as
+    // `sleep` masking a readiness race, AGENTS.md 33). A user sees the avatar once it has loaded, so the probe
+    // waits for every `<img>` to settle (load or error) with a bound, and records what each one did.
+    report.dom.imagesSettled = await page.evaluate(async () => {
+        const block = document.querySelector('#rm_print_characters_block');
+        if (!block) return { settled: 0, broken: 0, timedOut: 0, outcomes: [] };
+        const images = [...block.querySelectorAll('.avatar img')];
+        const outcomes = await Promise.all(images.map(image => new Promise(resolve => {
+            if (image.complete && image.naturalWidth > 0) return resolve('loaded');
+            if (image.complete && image.naturalWidth === 0) return resolve('broken');
+            const timer = setTimeout(() => resolve('timeout'), 20000);
+            image.addEventListener('load', () => { clearTimeout(timer); resolve('loaded'); }, { once: true });
+            image.addEventListener('error', () => { clearTimeout(timer); resolve('broken'); }, { once: true });
+        })));
+        return {
+            settled: outcomes.filter(outcome => outcome === 'loaded').length,
+            broken: outcomes.filter(outcome => outcome === 'broken').length,
+            timedOut: outcomes.filter(outcome => outcome === 'timeout').length,
+            outcomes,
+        };
+    });
     report.dom.characterList = await page.evaluate(() => {
         const block = document.querySelector('#rm_print_characters_block');
         if (!block) return [];
