@@ -1313,3 +1313,94 @@ The boundary that both rules can hold, and that the code implements:
 
 The adversarial case `config.parseable-config-rewritten` asserts 1-3 and names 4's real home, so the invariant is
 measured rather than asserted in prose.
+
+---
+
+## 35. Real-user parity contract (2026-10-25, second pass: P0-D, P0-E, P0-F)
+
+`GOAL.md` is the normative statement of what this project is for. This section records the contracts that
+follow from taking it literally, because three of them were recorded as *closed* and were not.
+
+### 35.1 A server that answers only what a fixture asked for is not a drop-in
+
+Pinned mounts seven user-data static trees at `src/users.js:1213-1219`; GoTavern served three of them
+(`internal/server/frontend_assets.go`). `/characters/*` is the URL behind a character's full-size avatar,
+its sprite set and its live2d models; `/User%20Avatars/*` is a persona/user avatar; `/assets/*` is the
+bgm/ambient/blip/live2d/vrm tree. All three answered 404 while the directories existed. Nothing failed,
+because every probe exercised only the paths its own scenario needed and no gate compared the *sets*.
+
+The contract is therefore set-based, not path-based: the pinned route inventory is enumerated from the
+oracle (every `router.use` mount, every `endpoints/*.js` router mounted by `src/server-startup.js`, every
+URL a pinned frontend module builds) and diffed against the Go registrations. A missing row is a test
+failure. `AGENTS.md` rules 42-44.
+
+### 35.2 The visual asset surface is a compatibility surface
+
+An asset is compatible when a browser displays it, not when a file exists. The observable chain is:
+
+```
+disk file -> data-root resolution -> parse/identify -> URL the frontend builds -> route -> path decode
+-> file open -> response bytes -> MIME -> browser decode -> naturalWidth > 0 -> visible
+```
+
+Consequences:
+
+- **`/thumbnail` must exist.** Pinned `src/endpoints/thumbnails.js` serves `/thumbnail?type=<bg|avatar|persona>
+  &file=<name>`, and the pinned frontend calls it for *every* avatar it renders: `buildAvatarList` in
+  `public/script.js` (the character list), `group-chats.js`, `bookmarks.js`, `personas.js`, and
+  `backgrounds.js` for background thumbnails. There is no fallback, so an unimplemented `/thumbnail` is not
+  "thumbnails missing" — it is "all of those images are broken".
+- **This reverses architecture boundary 3 for `/thumbnail`.** That boundary said a Jimp-compatible codec
+  decision was required before the route could be claimed, and treated the resulting 404 as closed. The
+  correct reading of the boundary is narrower: Go cannot reproduce Jimp's *bytes*, but a thumbnail is not
+  judged by its bytes. The product decision recorded here is: serve a real thumbnail produced by a pure-Go
+  codec at the configured dimensions, MIME and quality, cached at the same on-disk locations pinned uses
+  (`<user>/thumbnails/{bg,avatar,persona}/...`), invalidated by the same triggers, and declare the
+  divergence explicitly — `bytes differ (Jimp vs pure-Go codec), observable equal`. The gate asserts the
+  observable: status, MIME from `thumbnails.format`, image decodes, rendered dimensions equal the configured
+  thumbnail dimensions, cache hit does not re-encode, and the deleted/changed original invalidates.
+  `/api/avatars/upload`'s pixel path keeps the original boundary until a user requirement reaches it, because
+  there the thumbnail argument does not apply: the *stored file* is the Jimp output.
+- **Thumbnail absence is FAIL, never PARTIAL** (`AGENTS.md` rule 46). A startup differential whose expected
+  value for a browser-required asset is a 404 is a bug report.
+- **Assets and generation are one gate, not two** (`AGENTS.md` rule: combination). One data-root or path bug
+  can break an avatar, an extension asset and a preset read simultaneously, so the highest-level browser
+  scenario must render avatars/persona/background while a helper-driven generation runs.
+
+### 35.3 Preset semantics: the final request is the contract
+
+A preset is compatible when, for a given character, chat, world book, helper state, variable state and user
+input, the request that reaches the model backend is equal to pinned's. Loading the JSON is a parse test.
+The harness must hold both halves at once:
+
+- `Node(X) == Go(X)` for every preset X (including real presets with `prompt_order` groups, custom
+  `injection_*` entries, `squash_system_messages`, `wrap_in_quotes`, sampler and tool fields, and
+  `extensions.tavern_helper` / `extensions.regex_scripts`);
+- `X != Y` within one implementation — a harness whose captures do not differ when the preset differs is
+  `HARNESS NON-DISCRIMINATING` and fails itself (`AGENTS.md` rule 50).
+
+Runtime `'in_use'` state is distinct from the file on disk: a helper that edits the in-use preset and
+generates immediately must see the edit in the provider request, and a reload must not silently replace the
+runtime state with the file (or must, if pinned does — the pinned observation decides, not intuition).
+
+Provenance is required for reporting: a divergence names the message index, its source (preset prompt id,
+world-info entry, character field, helper injection id, Author's Note), its depth/role, and the lifecycle
+event state of both sides. "Bodies differ" is not a report.
+
+### 35.4 酒馆助手 / JS-Slash-Runner is a browser-level probe
+
+Its value comes from running user code in a sandboxed iframe and driving the host page's generation,
+presets, variables, world info, messages and streaming. An in-process import proves nothing about that
+architecture, so the probe loads the *pinned extension version* into the *unmodified pinned frontend* in a
+real browser against both servers, and asserts on the provider request and the persisted state the helper
+produced. The extension tree is read-only: the probe copies it, hashes it before and after, and any mutation
+without `gotavern.autoUpdateExtensions=true` is `UNAUTHORIZED EXTENSION MUTATION` (§34.3).
+
+### 35.5 Deterministic simulated model backend
+
+Compatibility work of this kind needs a model backend whose *context* can be inspected, not just a mock that
+answers "pong". The simulator records the complete request (target, headers, raw body and digest, member
+structure, model, stream flag, messages and roles, system instructions, samplers, stops, tools,
+`tool_choice`, response format, reasoning, provider-specific members) and replies by rule (`MARKER_A` present
+→ `ACK_A`), including controlled SSE framing, errors, mid-stream closes and delays. It captures and answers;
+it never defines correctness — expected context comes from pinned captures (`AGENTS.md` rule 49).

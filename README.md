@@ -6,10 +6,12 @@ production needs no Node.js, npm or compiler.
 
 Baseline: `SillyTavern 1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
-> **Status: `v0.1.0-alpha.1` — an ALPHA.** The server is usable for real chats and the compatibility gates below
-> are enforced in CI, but this is not yet a "throw away your SillyTavern" release. Read
-> [What is measured](#what-is-measured-and-what-is-not) before you migrate anything you care about, and keep a
-> backup of your data directory.
+> **Status: `v0.1.0-alpha.4` — an ALPHA, and NOT yet a daily driver.** Three defects found in real use are
+> fixed and gated, but three more are open: **core visual assets (avatars, backgrounds, personas, thumbnails)
+> do not display**, **酒馆助手 / JS-Slash-Runner does not work**, and **no test proves a real complex preset
+> changes the model context the way pinned does**. If you migrate today, expect a page whose images are missing.
+> Read [Open defects](#open-defects-2026-10-25-second-pass) before you touch data you care about, and keep a
+> backup of your data directory. The goal and its acceptance questions are in [`GOAL.md`](GOAL.md).
 
 ## Install
 
@@ -18,14 +20,14 @@ Every install path downloads a **prebuilt archive**; nothing is compiled on the 
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.1/install.sh | bash -s -- --version v0.1.0-alpha.1
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.4/install.sh | bash -s -- --version v0.1.0-alpha.4
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.1/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0-alpha.1
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.4/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.4
 ```
 
 **An explicit `--version` / `-Version` IS REQUIRED WHILE THE NEWEST RELEASE IS A PRERELEASE.** Without it the
@@ -39,7 +41,7 @@ release page, verify it against `checksums.txt`, unpack it anywhere writable, an
 `src/tokenizers/` are immutable release files and are replaced, while `config.yaml`, `data/`, `extensions/`
 and `certs/` are never touched.
 
-**Container**: `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.1`. `:latest` deliberately lags — it only
+**Container**: `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.4`. `:latest` deliberately lags — it only
 moves when a **stable** tag is published, so an operator's `docker pull ...:latest` cannot silently upgrade a
 deployment onto an alpha.
 
@@ -106,7 +108,22 @@ the hard way, including the ones about mutations that cannot fail, fixtures that
 
 ## Compatibility target
 
-### Current status (2026-10-25): the three reported defects are fixed and gated; not yet a daily driver
+### Open defects (2026-10-25, second pass)
+
+A second round of real use produced three defects that no existing gate could express, because nothing in the
+suite ever loaded a page and looked at a picture, and nothing compared the *set* of routes the frontend needs
+against the set the server mounts. They are open until their gates run in CI on the packaged artifact.
+
+| # | What a user hits | Cause, measured | State |
+|---|---|---|---|
+| P0-E | **avatars, backgrounds, personas, sprites and thumbnails do not display** | pinned `src/users.js:1213-1219` mounts seven user-data static trees; GoTavern mounted three — `/characters/*`, `/User%20Avatars/*` and `/assets/*` were absent. Separately `/thumbnail` has **no implementation**, and the pinned frontend builds *every* avatar URL through `getThumbnailUrl` (`buildAvatarList`, `group-chats`, `bookmarks`, `personas`, `backgrounds`) with no fallback | **open** |
+| P0-D | **酒馆助手 / JS-Slash-Runner does not work** | it runs user code in a sandboxed iframe and drives generation, presets, variables and world info through the host page; what it needs from the server has never been enumerated or gated | **open** |
+| P0-F | **a real complex preset cannot be shown to change the model context** | there is no deterministic simulated backend whose captures are diffed both `Node(preset) == Go(preset)` **and** `preset A != preset B`; the supplied real presets (105 and 119 prompts, one carrying 6 helper scripts and 1.11 MB of `extensions.tavern_helper`) were never executed | **open** |
+
+The contract these produce is [`GOAL.md`](GOAL.md), `AGENTS.md` rules 42-53 and
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §35; the audit is the top of [`HANDOFF.md`](HANDOFF.md).
+
+### The three defects of the first pass, fixed and gated
 
 Three defects were found in real use — exactly the kind a route-by-route ledger cannot show. All three are now
 fixed, each with a gate that runs on every push, and each gate has been shown to fail:
@@ -143,10 +160,11 @@ What is still NOT claimed, and why this README still does not call it a daily dr
   root, so the stray `config.yaml`/`data/` that used to appear beside the caller no longer does; an explicit
   `--configPath`/`--dataRoot` still wins.
 
-The release pipeline was last qualified end to end at tag **`v0.1.0-alpha.3`** (2026-10-25): six archives plus
-`checksums.txt` published, `qualify-linux-amd64`, `qualify-upgrade-rollback`, `qualify-windows-amd64` and
-`qualify-dropin-linux` all green on that commit, including a tampered archive being refused and a rollback
-preserving `config.yaml` byte for byte.
+The release pipeline was last qualified end to end at tag **`v0.1.0-alpha.4`** (2026-10-25): seven assets
+(six archives plus `checksums.txt`), with `qualify-linux-amd64`, `qualify-upgrade-rollback`,
+`qualify-windows-amd64` and `qualify-dropin-linux` all green on that commit, including a tampered archive being
+refused and a rollback preserving `config.yaml` byte for byte. That qualification covers the three defects
+above; it does **not** cover the three open ones, which is why the version is still an alpha.
 
 The contract and the measurements are in [`docs/network-egress.md`](docs/network-egress.md),
 [`docs/startup-state-machine.md`](docs/startup-state-machine.md),

@@ -7,7 +7,79 @@ most to learn.
 Baseline: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Oracle checkout lives beside
 this repository at `../SillyTavern` and is READ-ONLY.
 
-## P0 — the user's three reports, and what this checkpoint does about them (2026-10-25)
+## P0 — second pass: the product a user actually sees (2026-10-25, `main` `ec16bda`)
+
+The first pass below closed three defects and gated them. This pass starts from a harder report: after real
+use, the product is still not usable — the page opens and the images are missing, 酒馆助手 does not work, and
+no test can prove that a real preset changes the model context the way pinned does.
+
+`GOAL.md` is now the locked goal, `AGENTS.md` rules 42-53 are the process contract, `ARCHITECTURE.md` §35 is
+the design contract. The three defects below are recorded as **OPEN** until their gates run in CI on the
+packaged artifact.
+
+### P0-E — core visual assets are missing (root cause found, in source)
+
+Measured against the oracle, not guessed:
+
+- `SillyTavern/src/users.js:1213-1219` mounts **seven** user-data static trees. GoTavern
+  (`internal/server/frontend_assets.go:65-73`) registered **three** — `/user/images/*`, `/user/files/*`,
+  `/backgrounds/*` — plus `/css/user.css`. Missing: **`/characters/*`**, **`/User%20Avatars/*`**,
+  **`/assets/*`**. `/characters/<file>.png` is the URL behind a character's full-size avatar, its sprites and
+  its live2d, and it answered 404.
+- **`/thumbnail` has no implementation at all.** Pinned serves it from `src/endpoints/thumbnails.js`, mounted
+  as `thumbnailRouter` at `src/server-startup.js:21`. The pinned frontend builds *every* avatar URL through
+  `getThumbnailUrl` (`public/script.js`: `` `/thumbnail?type=${type}&file=${encodeURIComponent(file)}` ``),
+  and the callers include `buildAvatarList` — the character list itself — plus `group-chats.js`,
+  `bookmarks.js`, `personas.js` and `backgrounds.js`. There is no `onerror` fallback, so this single missing
+  route is why the character list, chat avatars, persona images and background thumbnails are all broken.
+
+Why no gate saw it: the three mounts that *are* implemented were each added because some E2E happened to need
+them (`frontend_assets.go`'s own header records the extension E2E finding `/user/files/*`), and `/thumbnail`
+was recorded as a *codec boundary* (`AGENTS.md` architecture boundary 3, and the startup differential's two
+`/thumbnail` 404 differences) — so the 404 was a documented, accepted value. Nothing in the suite ever loaded
+a page and looked at a picture, and no gate compared the mount sets. `AGENTS.md` rules 42-46 are the result.
+
+### P0-D — 酒馆助手 / JS-Slash-Runner does not work
+
+The extension is pinned at `N0VI028/JS-Slash-Runner@837a6288…` in `AGENTS.md`, but the audit of what it
+actually calls through the host page, against what GoTavern provides, is the deliverable that must precede any
+fix. It is a browser-architecture probe (iframe execution, exported functions, events, preset mutation,
+variables, injections, generation/cancellation), not a load test: `AGENTS.md` rule 47, `ARCHITECTURE.md` §35.4.
+
+### P0-F — a real complex preset cannot be shown to change the model context
+
+Two real presets supplied by the user are now the qualification inputs (read-only, hashed, never committed
+verbatim):
+
+| File | Size | Shape |
+|---|---|---|
+| `[REDACTED_PRESET_A].json` | 99,740 B | 45 top-level keys, 105 `prompts`, `prompt_order` with two `character_id` groups (100000: 11 entries / 10 enabled; 100001: 98 / 56), no `tavern_helper` |
+| `[REDACTED_PRESET_B].json` | 1,428,750 B | 47 keys, 119 `prompts`, one order group (100001: 115 / 39 enabled), `extensions.regex_scripts`, and `extensions.tavern_helper` carrying **6 scripts + a variables object, 1.11 MB of subtree** |
+
+And two real character cards, both genuine V2/V3 PNG cards with `chara` **and** `ccv3` chunks:
+
+| File | Size | Embedded card |
+|---|---|---|
+| `[REDACTED_CARD][REDACTED_CARD].png` | 19,093,535 B | `chara` 9,251,658 B base64 |
+| `[REDACTED_CARD_B].png` | 3,069,511 B | `chara` 1,164,314 B |
+
+The second preset is the exact combination the user described — a complex preset that carries 酒馆助手 scripts
+and variables — so "preset works" and "helper works" are provably not enough on their own
+(`AGENTS.md` rules 48-50, `ARCHITECTURE.md` §35.3).
+
+### Lanes for this pass
+
+| Lane | Area | First deliverable |
+|---|---|---|
+| A | docs, goal, oracle doctrine, audit | this section + `GOAL.md` + rules 42-53 (done) |
+| B | visual asset surface | the mount-set gate, then `/characters/*`, `/User%20Avatars/*`, `/assets/*`, then `/thumbnail` |
+| C | 酒馆助手 | pinned-version clone, dependency map, browser-driveable helper scenario |
+| D | preset semantic differential | deterministic simulated backend + Preset A/B/C + real-preset capture |
+| E | real character / world info / Author's Note / token budget | semantic skeleton fixtures that keep structure |
+| F | long-lived tree, startup, extension immutability | copy-boot qualification on the packaged artifact |
+| G | performance | only after B-F hold |
+
+
 
 Recorded at `main` `10314c8`. These outrank every other line in this file: a release that cannot talk to a
 provider, cannot boot in a stock directory, and updates extensions unasked is not a replacement product, whatever

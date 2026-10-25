@@ -536,3 +536,81 @@ failure mode they replace is "the suite was green, therefore it works". The meas
     Therefore: do not read a green lane run as "boot is fine", and any claim about startup latency must cite a
     packaged-artifact run. The inverse also holds: when a boot defect is reported, the first question is which
     gate could have seen it, and if the answer is "none", the missing gate is part of the fix (rule 40).
+
+## Product contract (2026-10-25, second pass: a green CI and a page a user cannot look at)
+
+`GOAL.md` is the locked goal: a real user's long-lived SillyTavern directory, with their real cards,
+avatars, backgrounds, presets, variables and 酒馆助手, must work after swapping the backend, and the
+final request that reaches the model must equal pinned Node's. The rules below exist because the
+suite was green while the product was visibly broken. They extend rules 21-41 and apply to every
+lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejected.
+
+42. **A route the browser always requests is part of the contract even when no test touches it.**
+    Enumerated on 2026-10-25: pinned `src/users.js:1213-1219` mounts SEVEN user-data static trees
+    (`/backgrounds/*`, `/characters/*`, `/User%20Avatars/*`, `/assets/*`, `/user/images/*`,
+    `/user/files/*`, `/scripts/extensions/third-party/*`), and `internal/server/frontend_assets.go`
+    served **three** of them. `/characters/<file>.png` — the URL behind a character's full-size
+    avatar, its sprites and its live2d — answered 404 while `/characters/*` existed as a directory
+    nobody could fetch. No fixture covered it, so nothing failed. The obligation is therefore not
+    "implement the routes a fixture exercises" but "implement the routes the pinned frontend builds",
+    and the inventory must be derived from the oracle: see rule 43.
+43. **Coverage is enumerated from the oracle's own lists, never accumulated from whatever the last
+    E2E happened to touch.** Every `router.use(...)` mount, every `endpoints/*.js` router mounted in
+    `src/server-startup.js`, and every URL a pinned *frontend* module builds is a row in an
+    inventory, and a test diffs that inventory against the Go registrations so a missing row is a
+    failure. Per-route discovery is how three mounts stayed missing through a year of green runs: each
+    probe covered only the paths its scenario needed, and no gate compared the sets.
+44. **The frontend's URL helpers are the server's requirements document.** `public/script.js`'s
+    `getThumbnailUrl` builds `/thumbnail?type=<bg|avatar|persona>&file=<name>` and is called by
+    `buildAvatarList` for the character list, by `group-chats.js`, `bookmarks.js` and `personas.js`
+    for every avatar they render, and by `backgrounds.js` for background thumbnails. Reading those
+    call sites is cheaper than discovering each one from a user report, and it is the reason
+    "/thumbnail is unimplemented" is a P0 rather than a gap: the browser has no fallback, so every
+    one of those images is a broken image.
+45. **"Decided boundary" may not be used to justify an absence a user can see.** The architecture
+    boundary list records `/thumbnail` as a Jimp codec decision, and the startup differential records
+    two of its four known differences as `/thumbnail` 404s. Both statements were true and both were
+    treated as *closed*. The user-visible consequence was not recorded anywhere: avatars, persona
+    images and background thumbnails do not render. A boundary is legitimate only if the surface still
+    works without it (an alternative codec that renders the same picture), otherwise it is a P0 with a
+    product decision attached. When a boundary is recorded, the SAME change must record what the user
+    sees because of it.
+46. **A test asserting the absence of a browser-required asset is a bug report, not a gate.** If a
+    fixture's expected value for a core asset is 404, one of the two is wrong and the fixture does not
+    get to decide. Core-asset absence is `FAIL`, never `PARTIAL`.
+47. **Extension compatibility is not "the files load".** 酒馆助手 / JS-Slash-Runner runs user code in
+    an iframe and drives generation, presets, variables, world info, messages and streaming through
+    the host page. A feature it implements purely in the frontend is not our burden; every capability
+    it reaches through a user file or an API route is. Therefore a helper test must drive a real
+    browser against the unmodified frontend and must assert on the provider request and the persisted
+    state that the helper produced, not on the presence of a script element.
+48. **A preset is compatible only if it changes the final model context.** Loading a 100-prompt
+    preset is a parse test. The compatibility statement is: for a given character, chat, world book,
+    helper state, variable state and user input, the request that reaches the model backend equals
+    pinned Node's — fields, ordering, roles, depths, flags, samplers, stops, tools, reasoning. Two
+    halves must hold simultaneously: `Node(X) == Go(X)` for every preset X, and `X != Y` within one
+    implementation. The second half is not decoration: an implementation that ignores preset
+    selection entirely can satisfy the first half against a weak comparator.
+49. **A simulated provider may capture and answer; it may never define correctness.** Expected context
+    comes from a pinned Node capture. Writing the expected JSON by hand and making both sides match it
+    tests the mock's author, not the product (rule 4 in the differential doctrine).
+50. **A harness whose captures do not differ when its inputs differ must fail itself.** If three
+    presets produce identical captures, or helper-off and helper-on produce identical captures where
+    they must differ, the verdict is `HARNESS NON-DISCRIMINATING` and the test is red. This is rule 15
+    applied to a whole harness rather than to one encoding assertion.
+51. **Real user artifacts are read-only inputs to qualification.** A long-lived SillyTavern tree, a
+    real complex preset and a real character card are read, hashed and copied; the originals are never
+    written, never `git pull`ed, never reformatted. A desensitised fixture must preserve every field,
+    ordering, enabled flag, depth, role, extension subtree and size class, because the structure is the
+    oracle — a 1.1 MB `extensions.tavern_helper` subtree replaced by three prompts is a different
+    product. Missing credentials are not a reason to skip: reachability is provable without one
+    (`scripts/deepseek-canary.mjs` records the provider's own rejection), and a real completion is
+    provable through a provider's anonymous mode (`scripts/live-canary.mjs`).
+52. **A user saying "the page is obviously broken" outranks every green run in this repository.**
+    When that happens the first question is never "which test failed" but "which measurement could
+    have expressed this complaint, and why does it not exist". The answer is the deliverable, in the
+    same change as the fix (rule 40). On 2026-10-25 the answer was: nothing in the suite ever loaded a
+    page and looked at a picture.
+53. **Every lane, commit and report answers the goal question.** "Does this move us closer to
+    `GOAL.md`?" A change that adds coverage of a behaviour no user can observe, or that raises a number
+    without changing an answer to the scorecard in `GOAL.md` §7, is not progress.
