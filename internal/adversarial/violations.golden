@@ -43,10 +43,6 @@ boot.missing-tokenizers
 # rule 29: 3xx is returned to the caller as the provider's answer; no Location
 # handling exists in internal/outbound/raw.go.
 
-# rule 29: HTTPS_PROXY is never read (no ProxyFromEnvironment anywhere) even
-# though the pinned config carries requestProxy.enabled/url/bypass, which
-# internal/commandline/options.go:231-233 parses and nothing consumes.
-transport.proxy-connect-ignored
 
 # rule 35/12: a credential containing CR/LF is written verbatim by
 # internal/outbound/raw.go:149-151, so it forges a request header.

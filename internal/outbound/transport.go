@@ -42,6 +42,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -124,8 +125,15 @@ func transportFor(config *tls.Config) *http.Client {
 
 func buildProductionClient(config *tls.Config) *http.Client {
 	transport := &http.Transport{
-		// Environment proxies, including NO_PROXY. This is the whole of D3.
-		Proxy: http.ProxyFromEnvironment,
+		// THE USER'S CONFIGURED PROXY FIRST, THEN THE ENVIRONMENT.
+		//
+		// D3 was "no proxy support anywhere", and it had two halves. The environment half is net/http's
+		// job; the other half is pinned's own requestProxy.enabled/url/bypass, which
+		// internal/commandline/options.go:231-233 parses into ServerOptions and, until now, NOTHING read
+		// -- so the documented way for a user behind a proxy to reach a provider did nothing at all.
+		// providerProxy decides per request from the value ConfigureRequestProxy stored, so a setting
+		// applied late still takes effect instead of being baked into a cached client.
+		Proxy: providerProxy,
 		DialContext: (&net.Dialer{
 			Timeout:   productionConnectTimeout,
 			KeepAlive: 30 * time.Second,
@@ -333,4 +341,78 @@ func responseReason(status string) string {
 		return status[index+1:]
 	}
 	return status
+}
+
+// ---------------------------------------------------------------- the user's configured proxy (D3, second half)
+
+// requestProxyConfig is what ConfigureRequestProxy stores. It is read on every request rather than captured
+// when a client is built, because the client cache is keyed by TLS config and a proxy configured after a
+// client exists would otherwise be invisible (the "capability that never reaches the behaviour" failure).
+type requestProxyConfig struct {
+	enabled bool
+	url     *url.URL
+	bypass  []string
+}
+
+var requestProxy atomic.Value // requestProxyConfig
+
+// ConfigureRequestProxy applies pinned's requestProxy setting to provider traffic.
+//
+// RULE 1: an explicit setting in the user's config wins over the environment, and the two are never merged --
+// a shell export somebody forgot about must not silently override what the config says. When it is disabled
+// the environment (including NO_PROXY) applies exactly as before, so a user who never configured this keeps
+// working.
+//
+// RULE 2: enabling a proxy without a usable URL is an ERROR, not a silent fallback to a direct dial. That
+// typo is the difference between "my provider is unreachable" and a message naming the setting.
+func ConfigureRequestProxy(enabled bool, rawURL string, bypass []string) error {
+	config := requestProxyConfig{enabled: enabled, bypass: bypass}
+	if enabled {
+		trimmed := strings.TrimSpace(rawURL)
+		if trimmed == "" {
+			return fmt.Errorf("request proxy is enabled but no proxy URL is configured (requestProxy.url is empty); set it to an absolute URL such as http://proxy.example:3128, or disable requestProxy")
+		}
+		parsed, err := url.Parse(trimmed)
+		if err != nil || !parsed.IsAbs() || parsed.Host == "" {
+			return fmt.Errorf("request proxy is enabled with an unusable proxy URL %q: it must be absolute and carry a host, such as http://proxy.example:3128", trimmed)
+		}
+		config.url = parsed
+	}
+	requestProxy.Store(config)
+	return nil
+}
+
+// providerProxy is what http.Transport calls for each request.
+func providerProxy(request *http.Request) (*url.URL, error) {
+	stored, _ := requestProxy.Load().(requestProxyConfig)
+	if !stored.enabled {
+		return http.ProxyFromEnvironment(request)
+	}
+	if request != nil && request.URL != nil && matchesProxyBypass(request.URL.Hostname(), stored.bypass) {
+		return nil, nil
+	}
+	return stored.url, nil
+}
+
+// matchesProxyBypass reports whether host is excluded from the configured proxy. Accepted forms are the
+// exact host ("example.com"), a leading-dot suffix (".example.com") and the wildcard spellings pinned's
+// config documents ("*.example.com"), all case-insensitive. A bare suffix without a dot is NOT accepted as a
+// suffix, because "ample.com" must not match "example.com".
+func matchesProxyBypass(host string, bypass []string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
+	for _, raw := range bypass {
+		candidate := strings.ToLower(strings.TrimSpace(raw))
+		candidate = strings.TrimPrefix(candidate, "*.")
+		candidate = strings.TrimPrefix(candidate, ".")
+		if candidate == "" {
+			continue
+		}
+		if host == candidate || strings.HasSuffix(host, "."+candidate) {
+			return true
+		}
+	}
+	return false
 }

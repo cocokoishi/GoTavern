@@ -119,6 +119,18 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve pinned command-line configuration: %w", err)
 	}
+	// APPLY THE USER'S CONFIGURED PROXY BEFORE ANY PROVIDER CAN BE CALLED.
+	//
+	// pinned parses requestProxy.enabled/url/bypass into its command-line options
+	// (internal/commandline/options.go:231-233); until this call existed, nothing in GoTavern read them, so a
+	// user whose only route to their provider is a proxy was unreachable no matter what their config said --
+	// measured as transport.proxy-connect-ignored in internal/adversarial/violations.golden. A misconfigured
+	// proxy fails the boot here, with a message naming the setting, rather than degrading later into
+	// "cannot connect to server".
+	if proxyErr := configureProviderProxy(parsed.Options); proxyErr != nil {
+		return nil, proxyErr
+	}
+
 	whitelistPage, _ := os.ReadFile(filepath.Join(parsed.Paths.RuntimeDataRoot, "_errors", "forbidden-by-whitelist.html"))
 
 	dataStartup, err := startup.InitializeDataStartupFromCommandLine(
