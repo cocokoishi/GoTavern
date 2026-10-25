@@ -11,11 +11,14 @@ package e2e
 //
 // WHAT THIS PROVES AND WHAT IT DOES NOT, stated so a reader does not over-read a green:
 //   - PROVES the boot does not damage the tree (every pre-existing byte is compared after boot) and that
-//     the character card, its full-size image, its thumbnail, the world book and the settings -- including
-//     the extension state a helper script lives in -- are reachable through the routes the frontend uses.
-//   - DOES NOT prove chat history is served: the chat file is planted and its BYTES are asserted intact,
-//     but the chat route's file-naming rules are not exercised here, and a chat the product cannot open
-//     would still pass this test. That gap is named rather than dressed up (AGENTS.md rule 4).
+//     the character card, its full-size image, its thumbnail, the chat history, the world book and the
+//     settings -- including the extension state a helper script lives in -- are reachable through the
+//     routes the frontend uses.
+//   - chat history IS asserted since the second pass: the file is planted at the path pinned builds
+//     (chats/<avatar without .png>/<file_name>.jsonl, src/endpoints/chats.js:592-614) and /api/chats/get
+//     must return all twelve messages. The first version planted it FLAT and asserted only the bytes,
+//     which is how "the tree boots" passed while no chat could be opened -- the product would have
+//     created an empty chats/<avatar>/ directory and answered {}.
 //   - DOES NOT prove preset semantics: loading a preset is not the same as the preset changing the model
 //     context (rule 48). The preset here exists so that the SETTINGS that name it survive the boot.
 
@@ -192,7 +195,10 @@ func buildLongLivedTree(t *testing.T, dataRoot string) longLivedTree {
 		chat.WriteString("\n")
 	}
 	tree.chatBytes = []byte(chat.String())
-	tree.chatFile = "chats/" + longLivedCharacterName + " - 2026-10-24.jsonl"
+	// WHERE THE PRODUCT LOOKS, read from pinned src/endpoints/chats.js:592-614: the directory is
+	// chats/<avatar_url with '.png' removed> and the file is <file_name>.jsonl. Planting a chat at a
+	// path the route never reads is how "the tree boots" passed while no chat could be opened.
+	tree.chatFile = "chats/Longlived_Card/Longlived_Card - 2026-10-24.jsonl"
 	write(tree.chatFile, tree.chatBytes)
 
 	bookEntries := map[string]any{}
@@ -448,5 +454,30 @@ func TestLongLivedTreeBootsAndServesItsAssets(t *testing.T) {
 		if !strings.Contains(body, expected) {
 			t.Errorf("POST /api/settings/get did not carry %q, so the frontend cannot load what the user had", expected)
 		}
+	}
+
+	// (7) the user's EXISTING chat history opens. Pinned builds this path as
+	// chats/<avatar_url without '.png'>/<file_name>.jsonl (src/endpoints/chats.js:592-614), so the file
+	// planted above is the one this route must read; a green here means the history a user already has is
+	// served, not merely preserved on disk.
+	chatRequest, err := marshalJSON(map[string]any{
+		"avatar_url": longLivedAvatar,
+		"file_name":  "Longlived_Card - 2026-10-24",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, _, body = client.postJSON(t, "/api/chats/get", chatRequest)
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/chats/get = %d: %.200q", status, body)
+	}
+	served := 0
+	for turn := 0; turn < 12; turn++ {
+		if strings.Contains(body, "LONG_HISTORY_"+itoa(turn)) {
+			served++
+		}
+	}
+	if served != 12 {
+		t.Errorf("POST /api/chats/get returned %d of the 12 planted messages, so the user's history does not open: %.300q", served, body)
 	}
 }
