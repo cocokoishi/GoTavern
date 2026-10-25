@@ -12,15 +12,6 @@
 # violations, which makes a reader believe three invariants are still broken when they are being
 # measured as held. If an invariant is not listed below, it is not violated.
 
-# rule 24/27: a config that parses is not a licence to resolve a relative
-# dataRoot against two different roots (internal/commandline/paths.go uses the
-# working directory to create it and the server directory to use it, so a fresh
-# tree booted from elsewhere dies with ENOENT in the cookie-secret writer).
-# The fix is pinned-grounded (server.js:11 chdir, src/command-line.js:293) but
-# changes a value the command-line parser fixture compares, so it needs a NAMED
-# exemption in that fixture before it can land.
-boot.foreign-cwd-relative-data-root
-
 # rule 24/33: the pinned ten-second legacy warning is spent in silence before any
 # output, and main prints nothing until app.Start returns
 # (internal/startup/user_data_migration.go:40).
