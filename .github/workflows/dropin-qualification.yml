@@ -211,6 +211,32 @@ jobs:
           echo "tokenizer files: ${archived} (equal to upstream/tokenizers)"
           rm -rf "$layout"
 
+      - name: 'Smoke 0/4 -- the ARCHIVE binary against a LONG-LIVED user directory'
+        # THE SMOKE TEST A USER ACTUALLY RUNS, done by this job instead of by a person at a keyboard.
+        # Every scenario below starts from a freshly seeded tree, so none of them can answer "does my
+        # existing SillyTavern directory still work after I swap the backend". This step extracts the
+        # SAME archive the four scenarios use, points the long-lived-tree test at the binary INSIDE it,
+        # and lets that test build a tree shaped like a used install -- a V3 card with a real chara
+        # chunk, a chat history under chats/<avatar>/ with twelve turns, a 30-entry world book, a
+        # 40-prompt preset in use, extension state, persona, backgrounds with metadata, a backup and two
+        # files the product has no opinion about -- then asserts, through the routes the pinned frontend
+        # builds: the card's own bytes, its thumbnail, the character list, every planted chat message,
+        # every world entry, the settings that carry the preset and the extension state, the background
+        # list and body, the background thumbnail, the persona list and the persona avatar; and that
+        # EVERY planted file is byte-identical after the boot.
+        #
+        # -count=1 because Go answers `ok (cached)` for a test whose inputs did not change, and a cached
+        # pass is not evidence that the archive booted (AGENTS.md verification rule 1).
+        run: |
+          set -eu
+          smoke="$(mktemp -d)"
+          tar -xzf "${{ steps.package.outputs.archive }}" -C "$smoke"
+          test -x "$smoke/gotavern" || { echo "the archive's gotavern is not executable" >&2; exit 1; }
+          echo "smoking the archive's own binary: $smoke/gotavern"
+          GOTAVERN_BINARY="$smoke/gotavern" go test ./tests/e2e \
+            -run '^TestLongLivedTreeBootsAndServesItsAssets$' -count=1 -v
+          rm -rf "$smoke"
+
       - name: 'Drop-in qualification 1/4 -- cwd-root, pristine pinned config'
         # The documented path: the binary sits in the SillyTavern directory, CWD is that directory, and
         # the API must return the USER'S OWN seeded character, chat and settings.
