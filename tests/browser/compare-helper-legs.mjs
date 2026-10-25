@@ -101,6 +101,12 @@ for (const subject of subjects) {
         // Q10's evidence, carried into the artefact: what the host hands the page, what the drive called,
         // and where the chat file would have been (flat or per-character).
         saveFunctionsReachable: leg?.saveFunctionsReachable ?? null,
+        // Q10's measured mechanism, carried into the artefact so the finding is not left in a leg file:
+        // what saveChat reads (chatLength/chatId/characterChatName), which /api/chats requests the browser
+        // actually made, and the console warnings the frontend emitted while refusing to save.
+        saveDiagnostics: leg?.saveDiagnostics ?? null,
+        saveRequests: leg?.saveRequests ?? null,
+        consoleSaveWarnings: (leg?.console ?? []).filter(item => /chat_name|Error saving chat/i.test(item.text ?? '')).map(item => item.text),
         saveAttempt: leg?.saveAttempt ?? null,
         chatFile: leg?.variableState?.chatFile ?? null,
         steps: (leg?.steps ?? []).map(item => ({ name: item.name, ok: item.ok, detail: item.detail })),

@@ -379,7 +379,7 @@ try {
     // reader inherits the fact rather than the guess.
     report.saveFunctionsReachable = await page.evaluate(() => {
         const context = window.SillyTavern?.getContext?.();
-        return ['saveMetadata', 'saveMetadataDebounced', 'saveChatConditional', 'saveChat', 'saveSettingsDebounced', 'saveItemizedPrompts']
+        return ['saveMetadata', 'saveMetadataDebounced', 'saveChatConditional', 'saveChat', 'saveSettingsDebounced', 'saveItemizedPrompts', 'openCharacterChat', 'getCurrentChatId', 'getChat', 'renameChat', 'setCharacterId', 'selectCharacterById']
             .filter(name => typeof context?.[name] === 'function');
     });
     step('save-functions-probed', true, JSON.stringify(report.saveFunctionsReachable));
@@ -560,6 +560,25 @@ try {
                 catch (error) { return { via: 'saveChat{named}', ok: false, error: String(error?.message ?? error) }; }
             }, 'gotavern-helper-probe'));
             file = await waitForFile(15000);
+        }
+        if (!file) {
+            // THE ONLY REMAINING PATH A USER HAS. Run 40239156336 measured why the function calls cannot
+            // work on a fresh tree: saveDiagnostics={chatLength:3, chatId:null, characterChatName:null}
+            // and saveRequests=[POST /api/chats/recent 200] -- no /api/chats/save was issued at all, while
+            // the console repeated "saveChat called without chat_name and no chat file found". A chat's NAME
+            // is what saveChat needs, and only the frontend's own send flow creates one. The pinned frontend
+            // saves before it contacts the provider, so an offline provider does not prevent the save; whether
+            // a provider request was attempted is recorded separately from whether a chat file appeared.
+            attempts.push(await page.evaluate(async () => {
+                const textarea = document.querySelector('#send_textarea');
+                const button = document.querySelector('#send_but');
+                if (!textarea || !button) return { via: 'send', ok: false, error: 'send controls missing' };
+                textarea.value = 'HELPER_PROBE_SEND';
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                button.click();
+                return { via: 'send', ok: true };
+            }));
+            file = await waitForFile(20000);
         }
         report.saveAttempt = { attempts, fileAfter: file };
         observation('save-attempted', Boolean(file) || attempts.some(item => item.ok), JSON.stringify(report.saveAttempt));
