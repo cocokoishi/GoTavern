@@ -464,6 +464,28 @@ try {
     report.dom.rowsAfterLoad = rowsAfterLoad;
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => null);
 
+    // THE AVATARS THAT ACTUALLY EXIST NOW. The pre-render capture is kept as `characterListBeforeRender`
+    // for the record, and `characterList` becomes the POST-render list -- which is the one a user sees and
+    // the one the comparator must assert on.
+    report.dom.characterListBeforeRender = report.dom.characterList;
+    report.dom.characterList = await page.evaluate(() => {
+        const block = document.querySelector('#rm_print_characters_block');
+        if (!block) return [];
+        return [...block.querySelectorAll('.avatar')].map(node => {
+            const image = node.querySelector('img');
+            return {
+                src: image ? image.getAttribute('src') : null,
+                resolvedSrc: image ? (image.currentSrc || image.src || null) : null,
+                complete: image ? image.complete : null,
+                naturalWidth: image ? image.naturalWidth : null,
+                naturalHeight: image ? image.naturalHeight : null,
+                alt: image ? image.getAttribute('alt') : null,
+                dataType: node.getAttribute('data-type'),
+            };
+        });
+    });
+    report.dom.characterListCount = report.dom.characterList.length;
+
     // OPEN THE CHAT: a user clicks the card, and the greeting renders, which is what puts a chat-message
     // avatar in the DOM (`#message_template .mesAvatarWrapper .avatar img`).
     report.dom.clickTarget = await page.evaluate(() => {
@@ -546,6 +568,12 @@ try {
         };
     }, BACKGROUND_FILE).catch(error => ({ status: 'not-driven', reason: `the background drive threw: ${String(error?.message ?? error).slice(0, 160)}` }));
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => null);
+    // DID THE STAGED BACKGROUND ITSELF REACH #bg1? A fresh tree applies /backgrounds/__transparent.png, so an
+    // "applied background" observation that accepts any URL would pass while the staged image never rendered.
+    report.dom.stagedBackgroundDriven = Boolean(
+        report.dom.backgroundDriven &&
+        String(report.dom.backgroundDriven.appliedBackgroundImage ?? '').includes(BACKGROUND_FILE),
+    );
 
     // THE PERSONA SURFACE, ASKED OF THE SERVER THROUGH THE FRONTEND'S OWN HELPER. The persona PICKER is
     // not driven here (it needs a persona to exist and a panel interaction this probe does not own), so

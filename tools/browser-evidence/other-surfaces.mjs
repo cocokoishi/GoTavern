@@ -30,7 +30,7 @@ export function assetSurface(ctx, assetComparison) {
         'bothLegsOpenedAChat', 'sameFixture',
         // the user's own questions
         'noImageRequestFailedOnEitherLeg', 'everyCharacterListAvatarDecoded', 'everyMessageAvatarDecoded',
-        'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs',
+        'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs', 'stagedBackgroundDrivenOnBothLegs',
         // cross-leg
         'sameImageUrlSet', 'perUrlStatusEqual', 'perUrlContentTypeEqual', 'nonThumbnailBytesEqual',
         'thumbnailResponsesAreImages', 'thumbnailDivergenceIsBytesOnly',

@@ -99,6 +99,10 @@ export function compare({ gotavern, pinned }) {
     };
     const backgrounds = { gotavern: backgroundOf(gotavern), pinned: backgroundOf(pinned) };
     guards.backgroundAppliedOnBothLegs = Boolean(backgrounds.gotavern.url) && Boolean(backgrounds.pinned.url);
+    // AND THAT IT IS THE STAGED BACKGROUND, not the fresh tree's `/backgrounds/__transparent.png`. A guard of
+    // its own, because "something is applied" must never stand in for the user's own image (gate-blindspots §1:
+    // a weaker observation replacing the claim is how a broken surface reads as a pass).
+    guards.stagedBackgroundDrivenOnBothLegs = dom(gotavern)?.stagedBackgroundDriven === true && dom(pinned)?.stagedBackgroundDriven === true;
     guards.backgroundServedWithBytesOnBothLegs = Boolean(backgrounds.gotavern.served && backgrounds.gotavern.served.status === 200 && (backgrounds.gotavern.served.byteLength ?? 0) > 0)
         && Boolean(backgrounds.pinned.served && backgrounds.pinned.served.status === 200 && (backgrounds.pinned.served.byteLength ?? 0) > 0);
     if (!guards.backgroundAppliedOnBothLegs) {
