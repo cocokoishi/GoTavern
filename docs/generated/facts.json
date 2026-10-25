@@ -28,10 +28,11 @@
   },
   "schemaVersion": 1,
   "scm": {
-    "commitsSinceCrossBaseline": 230,
+    "commitsSinceCrossBaseline": 345,
     "crossBaselineCommit": "d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef",
     "versionTags": [
-      "v0.1.0-alpha.1"
+      "v0.1.0-alpha.1",
+      "v0.1.0-alpha.2"
     ]
   },
   "sdGenerate": {
