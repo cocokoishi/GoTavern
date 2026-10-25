@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/upstream"
 	"github.com/gofrs/flock"
 	"gopkg.in/yaml.v3"
@@ -157,10 +158,9 @@ func acquireLock(configPath string) (*flock.Flock, error) {
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
 		return nil, fmt.Errorf("create config lock directory: %w", err)
 	}
-	lock := flock.New(lockPath, flock.SetPermissions(0o600))
-	if err := lock.Lock(); err != nil {
-		_ = lock.Close()
-		return nil, fmt.Errorf("lock config %s (%s): %w", configPath, lockPath, err)
+	lock, acquireErr := lockacquire.Acquire(lockPath, "config")
+	if acquireErr != nil {
+		return nil, fmt.Errorf("lock config %s (%s): %w", configPath, lockPath, acquireErr)
 	}
 	return lock, nil
 }

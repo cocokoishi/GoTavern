@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cocokoishi/gotavern/internal/commandline"
+	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/internal/server"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -87,6 +88,10 @@ type RunningServer struct {
 // Start follows the pre-listener data startup before constructing the HTTP
 // handler and binding IPv6 then IPv4 listeners, in the pinned order.
 func Start(options StartOptions) (*RunningServer, error) {
+	// ONE budget for the whole boot, because the boot-path locks NEST (config -> storage -> content). Four
+	// per-lock bounds are not a boot bound: two 10s waits inside a 20s budget still blow the budget.
+	endBoot := lockacquire.BeginBoot(lockacquire.DefaultBootBudget)
+	defer endBoot()
 	if options.InstallRoot == "" {
 		return nil, errors.New("server startup requires an install root")
 	}
