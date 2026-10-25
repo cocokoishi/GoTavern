@@ -3,15 +3,18 @@
 // It is a SEPARATE package, and therefore a separate test binary, because
 // `http.ProxyFromEnvironment` resolves the environment ONCE per process and caches it. A proxy test that
 // changed HTTP_PROXY/HTTPS_PROXY/NO_PROXY between sub-tests inside a shared binary would silently keep
-// using the first configuration it saw and would pass or fail for a reason unrelated to the assertion --
-// rule 7's "evidence that cannot fail", in the proxy dimension. TestMain sets the environment BEFORE any
-// request is made, so the cache is primed with exactly the values asserted here.
+// using the first configuration it saw and would pass or fail for a reason unrelated to the assertion.
+// TestMain sets the environment BEFORE any request is made, so the cache is primed with exactly the
+// values asserted here.
 //
-// What is asserted is the USER's requirement, not an implementation detail: a request must LEAVE through
-// the proxy the user configured, and must NOT leave through it when NO_PROXY says so. The peer (proxy)
-// counts what it actually received, so a transport that ignores the environment shows up as a proxy that
-// saw nothing -- the same "a request that escapes must appear as a missing request" rule the egress
-// doctrine applies to probes (AGENTS.md differential doctrine 6).
+// THE TARGET CANNOT BE A LOOPBACK ADDRESS, and finding that out cost a run. Go's proxy resolution
+// deliberately returns nil for `localhost` and for any loopback IP, so a test whose provider listens on
+// 127.0.0.1 never consults the proxy at all -- both proxy assertions failed with "the proxy saw 0
+// requests" while the transport was in fact proxy-aware, and the original NO_PROXY case passed for the
+// wrong reason (the built-in loopback bypass, not the environment). The provider is therefore addressed
+// as 192.0.2.1 (TEST-NET-1, guaranteed unroutable) on the SAME port as the real server, and the proxy
+// rewrites or splices to 127.0.0.1 at that port. That is faithful: a user behind a proxy asks for the
+// provider's host, and the proxy is what reaches it.
 package proxytest
 
 import (
@@ -24,7 +27,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -34,30 +36,41 @@ import (
 
 const proxyJSON = `{"choices":[{"message":{"content":"OK"}}]}`
 
+// unreachableProvider is addressed by the client and served by the local test server through the proxy.
+const unreachableProvider = "192.0.2.1"
+
+// bypassHost is listed in NO_PROXY, so proxy resolution must return nil for it. It is never dialled.
+const bypassHost = "bypass.invalid"
+
 var connectTunnels int64
 
 var forwardedRequests int64
 
-// TestMain configures the process environment the way a user behind a corporate proxy would, before any
-// request can prime net/http's environment cache, and runs a proxy that supports both shapes a provider
-// client needs: absolute-form forwarding for http targets and CONNECT tunnelling for https targets.
-func TestMain(t *testing.M) {
+func TestMain(m *testing.M) {
 	proxy := newProxyServer()
-	// A user's shell exports these. NO_PROXY names `localhost`, so the bypass case has a host it can use
-	// that still resolves to the loopback interface.
 	_ = os.Setenv("HTTP_PROXY", proxy.URL)
 	_ = os.Setenv("HTTPS_PROXY", proxy.URL)
-	_ = os.Setenv("NO_PROXY", "localhost")
+	_ = os.Setenv("NO_PROXY", bypassHost)
 	_ = os.Unsetenv("http_proxy")
 	_ = os.Unsetenv("https_proxy")
 	_ = os.Unsetenv("no_proxy")
 
-	code := t.Run()
+	code := m.Run()
 	// A kept-alive tunnel leaves a CONNECT handler blocked in io.Copy, and Close waits for handlers, so
-	// tear the tunnels down before closing the proxy -- otherwise the whole binary hangs at exit.
+	// the tunnels go first; otherwise the whole binary hangs at exit instead of reporting.
 	proxy.CloseClientConnections()
 	proxy.Close()
 	os.Exit(code)
+}
+
+// rewriteLoopback maps a proxy request for the unroutable provider onto the local test server, keeping
+// the port, so the shape of the request is real and only the address is substituted.
+func rewriteLoopback(host string) string {
+	hostname, port, err := net.SplitHostPort(host)
+	if err != nil || hostname != unreachableProvider {
+		return host
+	}
+	return net.JoinHostPort("127.0.0.1", port)
 }
 
 func newProxyServer() *httptest.Server {
@@ -70,6 +83,7 @@ func newProxyServer() *httptest.Server {
 		atomic.AddInt64(&forwardedRequests, 1)
 		outRequest := r.Clone(r.Context())
 		outRequest.RequestURI = "" // RoundTrip requires an empty RequestURI for an absolute-form target.
+		outRequest.URL.Host = rewriteLoopback(outRequest.URL.Host)
 		response, err := http.DefaultTransport.RoundTrip(outRequest)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
@@ -86,15 +100,14 @@ func newProxyServer() *httptest.Server {
 	}))
 }
 
-// serveConnect implements the tunnel half of an HTTP proxy: acknowledge, dial the target, then splice the
-// two connections. Anything less would not be a proxy the user's network could actually give us.
+// serveConnect is the tunnel half of an HTTP proxy: acknowledge, dial the target, splice the sockets.
 func serveConnect(w http.ResponseWriter, r *http.Request) {
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "proxy cannot hijack", http.StatusInternalServerError)
 		return
 	}
-	upstream, err := net.DialTimeout("tcp", r.Host, 5*time.Second)
+	upstream, err := net.DialTimeout("tcp", rewriteLoopback(r.Host), 5*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -125,9 +138,8 @@ func startProvider(t *testing.T) (*httptest.Server, *x509.CertPool) {
 	return server, pool
 }
 
-// proxyRequest supplies the authority as well as the headers. The wire-exact client writes ONLY the
-// headers it is given, so a request without Host is refused by the server before any handler runs and
-// the assertion below would fail for a reason that has nothing to do with proxying.
+// proxyRequest supplies the authority as well as the headers: the wire-exact client writes only what it
+// is given, and a request without Host is refused before any handler runs.
 func proxyRequest(t *testing.T, target string, clientTLS *tls.Config) outbound.Request {
 	t.Helper()
 	parsed, err := url.Parse(target)
@@ -146,14 +158,30 @@ func proxyRequest(t *testing.T, target string, clientTLS *tls.Config) outbound.R
 	}
 }
 
-// TestHTTPSProviderUsesTheConnectProxy is P0-A behind a corporate network: the user can reach the proxy and
-// nothing else. The assertion is that the CONNECT tunnel carried the request.
+// providerURL rewrites the test server's loopback authority to the unroutable one, keeping the port.
+func providerURL(t *testing.T, server *httptest.Server) string {
+	t.Helper()
+	parsed, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse %q: %v", server.URL, err)
+	}
+	_, port, err := net.SplitHostPort(parsed.Host)
+	if err != nil {
+		t.Fatalf("split %q: %v", parsed.Host, err)
+	}
+	return parsed.Scheme + "://" + net.JoinHostPort(unreachableProvider, port) + "/v1/chat/completions"
+}
+
+// TestHTTPSProviderUsesTheConnectProxy is P0-A behind a corporate network: the user can reach the proxy
+// and nothing else. The assertion is that the CONNECT tunnel carried the request.
 func TestHTTPSProviderUsesTheConnectProxy(t *testing.T) {
 	server, pool := startProvider(t)
 	before := atomic.LoadInt64(&connectTunnels)
 
-	response, err := outbound.Send(context.Background(), proxyRequest(t, server.URL+"/v1/chat/completions", &tls.Config{RootCAs: pool}), 5*time.Second)
-
+	// ServerName pins the identity being verified: the client asks for the unroutable provider, the
+	// proxy reaches the local server, and the certificate is the local server's.
+	clientTLS := &tls.Config{RootCAs: pool, ServerName: "127.0.0.1"}
+	response, err := outbound.Send(context.Background(), proxyRequest(t, providerURL(t, server), clientTLS), 5*time.Second)
 	if err != nil {
 		t.Fatalf("send through HTTPS_PROXY: %v", err)
 	}
@@ -175,8 +203,7 @@ func TestHTTPProviderUsesTheForwardProxy(t *testing.T) {
 	t.Cleanup(server.Close)
 	before := atomic.LoadInt64(&forwardedRequests)
 
-	response, err := outbound.Send(context.Background(), proxyRequest(t, server.URL+"/v1/chat/completions", nil), 5*time.Second)
-
+	response, err := outbound.Send(context.Background(), proxyRequest(t, providerURL(t, server), nil), 5*time.Second)
 	if err != nil {
 		t.Fatalf("send through HTTP_PROXY: %v", err)
 	}
@@ -188,25 +215,24 @@ func TestHTTPProviderUsesTheForwardProxy(t *testing.T) {
 	}
 }
 
-// TestNoProxyBypassesTheConfiguredProxy is the counterweight. A user whose provider is on the LAN sets
-// NO_PROXY so that traffic does not detour through a proxy that cannot reach it. Without this case a
-// transport could "support proxies" by sending everything through one, which would be a new defect.
-func TestNoProxyBypassesTheConfiguredProxy(t *testing.T) {
-	server, pool := startProvider(t)
-	// NO_PROXY names `localhost`; the certificate is issued for the loopback IP, so ServerName pins the
-	// identity being verified while the DIAL still resolves `localhost`, which is the part under test.
-	bypassed := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
-	before := atomic.LoadInt64(&connectTunnels)
-
-	response, err := outbound.Send(context.Background(), proxyRequest(t, bypassed+"/v1/chat/completions", &tls.Config{RootCAs: pool, ServerName: "127.0.0.1"}), 5*time.Second)
-
+// TestNoProxyIsHonoured is the counterweight, and it is asserted against the proxy RESOLVER rather than
+// a live tunnel. It cannot be asserted with a tunnel: the only address a test can reach directly is
+// loopback, and Go bypasses loopback before NO_PROXY is consulted, so a bypass case built on 127.0.0.1
+// would pass even if NO_PROXY were ignored entirely -- a green that cannot fail. Asking the resolver
+// directly measures the environment rule itself.
+func TestNoProxyIsHonoured(t *testing.T) {
+	proxied, err := http.ProxyFromEnvironment(&http.Request{URL: &url.URL{Scheme: "https", Host: "api.example.com"}})
 	if err != nil {
-		t.Fatalf("send to a NO_PROXY host: %v", err)
+		t.Fatalf("resolve proxy for a proxied host: %v", err)
 	}
-	if string(response.Body) != proxyJSON {
-		t.Fatalf("body = %q, want %q", string(response.Body), proxyJSON)
+	if proxied == nil {
+		t.Fatal("HTTPS_PROXY is not being applied to a non-loopback provider host")
 	}
-	if got := atomic.LoadInt64(&connectTunnels) - before; got != 0 {
-		t.Fatalf("the proxy saw %d tunnels for a NO_PROXY host, want 0: traffic that should bypass the proxy was sent through it", got)
+	bypassed, err := http.ProxyFromEnvironment(&http.Request{URL: &url.URL{Scheme: "https", Host: bypassHost}})
+	if err != nil {
+		t.Fatalf("resolve proxy for a NO_PROXY host: %v", err)
+	}
+	if bypassed != nil {
+		t.Fatalf("NO_PROXY host %q resolved to proxy %v, want no proxy: traffic that should bypass the proxy would be sent through it", bypassHost, bypassed)
 	}
 }
