@@ -300,9 +300,18 @@ func TestProductionTransportSurfacesAMidStreamCloseCausally(t *testing.T) {
 // bound, a provider that accepts TCP and then stalls holds the request forever; with one, the error must
 // say it was a timeout while waiting for headers from THAT host, not a generic failure.
 func TestProductionTransportAttributesATimeoutToTheHeaderStage(t *testing.T) {
+	// The handler stalls, but it must still RETURN: httptest.Server.Close waits for outstanding
+	// handlers, and a handler blocked forever on r.Context() never learns the client went away (it is
+	// not reading the connection), so the test would hang instead of failing. The released channel is closed by a
+	// cleanup registered AFTER the server's own, so it runs BEFORE Close (cleanups are LIFO).
+	released := make(chan struct{})
+	t.Cleanup(func() { close(released) })
 	server, clientTLS := startProductionAuditServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Accept the request and never answer: the shape of a provider that is up but wedged.
-		<-r.Context().Done()
+		select {
+		case <-r.Context().Done():
+		case <-released:
+		}
 	}))
 
 	// The caller's own deadline is what ends the test; the assertion is about what the error SAYS.
@@ -327,7 +336,7 @@ func TestProductionTransportAttributesATimeoutToTheHeaderStage(t *testing.T) {
 // multi-byte character must not corrupt the bytes handed to the caller; it holds for the current client
 // and must keep holding for the replacement, because SSE frames carry user text.
 func TestProductionTransportPreservesUTF8AcrossAChunkSplit(t *testing.T) {
-	// "é" is 0xC3 0xA9: the split lands between the two bytes.
+	// The e-acute is 0xC3 0xA9 in UTF-8: the split lands between those two bytes.
 	const before, after = "data: {\"text\":\"caf", "\u00e9\"}\n\n"
 	server, clientTLS := startProductionAuditServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")

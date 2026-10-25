@@ -53,6 +53,9 @@ func TestMain(t *testing.M) {
 	_ = os.Unsetenv("no_proxy")
 
 	code := t.Run()
+	// A kept-alive tunnel leaves a CONNECT handler blocked in io.Copy, and Close waits for handlers, so
+	// tear the tunnels down before closing the proxy -- otherwise the whole binary hangs at exit.
+	proxy.CloseClientConnections()
 	proxy.Close()
 	os.Exit(code)
 }
