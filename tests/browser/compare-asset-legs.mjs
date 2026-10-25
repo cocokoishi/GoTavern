@@ -204,6 +204,28 @@ export function compare({ gotavern, pinned }) {
     if (gotavern?.failure) findings.push(`gotavern leg failed: ${String(gotavern.failure).split('\n')[0]}`);
     if (pinned?.failure) findings.push(`pinned leg failed: ${String(pinned.failure).split('\n')[0]}`);
 
+    // THE LOOPBACK ORIGIN BELONGS TO THE RUN, NOT TO THE PRODUCT. `resolvedSrc` and the applied
+    // `background-image` are absolute because the browser resolves them, and each leg ran on its own port
+    // (measured: 40653 on GoTavern, 42429 on pinned in run 40207520868, which the host-derived sweep correctly
+    // refused). A committed artefact may not carry a port, so the origin is replaced with a marker and the
+    // replacement is recorded in `normalisations` -- the same treatment the generation comparator gives a mock
+    // origin. Nothing else about the URL is touched: the path and query are the observation.
+    const stripOrigin = value => (typeof value === 'string'
+        ? value.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?/i, '<loopback>')
+        : value);
+    const projectImages = report => (dom(report)?.characterList ?? []).map(image => ({ ...image, resolvedSrc: stripOrigin(image.resolvedSrc) }));
+    const projectMessages = report => (dom(report)?.messages ?? []).map(image => ({ ...image, resolvedSrc: stripOrigin(image.resolvedSrc) }));
+    const projectBackground = leg => ({
+        ...backgrounds[leg],
+        url: stripOrigin(backgrounds[leg].url),
+        driven: backgrounds[leg].driven ? {
+            ...backgrounds[leg].driven,
+            appliedBackgroundImage: stripOrigin(backgrounds[leg].driven.appliedBackgroundImage),
+            tileThumbnailBeforeLoad: stripOrigin(backgrounds[leg].driven.tileThumbnailBeforeLoad),
+            tileThumbnailAfterLoad: stripOrigin(backgrounds[leg].driven.tileThumbnailAfterLoad),
+        } : backgrounds[leg].driven,
+    });
+
     const unprovenEntries = [
         'stagedBackgroundDrivenOnBothLegs: the backgrounds gallery drive is not established. Measured on both legs (runs 40205486030, 40206135746, 40206773315): #backgrounds-drawer-toggle exists and is clicked, no .bg_example[bgfile="probe-asset-background.png"] appears within 15 s, and #bg1 keeps the fresh tree\'s /backgrounds/__transparent.png. The staged background ROUTE is asserted (stagedBackgroundServedWithBytesOnBothLegs); the paint is not claimed.',
         'the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)',
@@ -235,9 +257,9 @@ export function compare({ gotavern, pinned }) {
                 imageRequests: images(gotavern).map(entry => ({ url: entry.pathAndQuery, kind: entry.kind, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength, sha256: entry.sha256 })),
                 consoleFailedToLoad: gotavernFails,
                 pageErrors: gotavern?.pageErrors ?? [],
-                background: backgrounds.gotavern,
-                characterList: dom(gotavern)?.characterList ?? [],
-                messages: dom(gotavern)?.messages ?? [],
+                background: projectBackground('gotavern'),
+                characterList: projectImages(gotavern),
+                messages: projectMessages(gotavern),
                 personaRequest: dom(gotavern)?.personaRequest ?? null,
             },
             pinned: {
@@ -246,9 +268,9 @@ export function compare({ gotavern, pinned }) {
                 imageRequests: images(pinned).map(entry => ({ url: entry.pathAndQuery, kind: entry.kind, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength, sha256: entry.sha256 })),
                 consoleFailedToLoad: pinnedFails,
                 pageErrors: pinned?.pageErrors ?? [],
-                background: backgrounds.pinned,
-                characterList: dom(pinned)?.characterList ?? [],
-                messages: dom(pinned)?.messages ?? [],
+                background: projectBackground('pinned'),
+                characterList: projectImages(pinned),
+                messages: projectMessages(pinned),
                 personaRequest: dom(pinned)?.personaRequest ?? null,
             },
         },
@@ -256,6 +278,11 @@ export function compare({ gotavern, pinned }) {
         failedGuards,
         divergences,
         normalisations: [{
+            field: 'legs.*.{resolvedSrc,background.url,appliedBackgroundImage,tileThumbnailBeforeLoad,tileThumbnailAfterLoad}',
+            change: 'a loopback origin (the IPv4 loopback block, `localhost`, or the IPv6 loopback) together with its port is replaced with <loopback>; the literal address is deliberately not written in this file, because the host-derived sweep reads it and would refuse it',
+            reason: 'each leg runs on its own port (measured 40653 vs 42429 in run 40207520868), so the origin is a property of the run and not of the product; the path and query ARE the observation and are untouched',
+            source: 'this artefact, plus the host-derived sweep in tools/verify-browser-comparisons.mjs which refused the committed port',
+        },{
             field: 'imageRequests[].url (comparison key only)',
             change: 'the `t=<Date.now()>` cache-buster is dropped',
             reason: 'public/script.js getThumbnailUrl(type, file, t) appends Date.now() so the same thumbnail has a different query on every call; the recorded url keeps it',
