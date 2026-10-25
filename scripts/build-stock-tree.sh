@@ -253,6 +253,16 @@ printf '# Stock Example Extension\n\nA fixture extension used only by the drop-i
     git init --quiet
     git config user.name "GoTavern fixture"
     git config user.email "fixture@example.invalid"
+    # NO BACKGROUND OR AUTO MAINTENANCE IN THIS REPOSITORY, and the reason is a measured flake rather than
+    # tidiness. `git commit` schedules `git maintenance run --auto --detach`, which creates and deletes
+    # `.git/objects/maintenance.lock` while the qualification harness is walking the tree -- and run
+    # 40181821141 died inside `hash_tree` with
+    #   sha256sum: ./third-party/stock-example-extension/.git/objects/maintenance.lock: No such file or directory
+    # (exit 123 from xargs), i.e. a transient GIT file appeared between `find` and `sha256sum`. Disabling it
+    # HERE removes the cause for every harness that hashes this fixture, rather than teaching each one to
+    # tolerate a race. `gc.auto 0` covers the foreground auto-gc that `git commit` would otherwise run.
+    git config maintenance.auto false
+    git config gc.auto 0
     git add -A
     git -c commit.gpgsign=false commit --quiet -m "fixture extension: initial commit"
 )

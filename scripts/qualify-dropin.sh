@@ -36,8 +36,12 @@
 #                 "it still becomes ready, and it does NOT write into the tree it was not pointed at".
 #
 # WHAT THIS DOES NOT COVER, stated here so a green is not read as more:
-#   - the Windows archive and `Start.cmd`: a Windows runner and a PowerShell twin are required; this
-#     script and its CI job are Linux-only and say so.
+#   - the Windows archive and `Start.cmd`: THIS script and its step stay Linux-only, and the Windows half
+#     lives in `scripts/qualify-dropin.ps1` with its own runner (jobs `windows-inputs` and `dropin-windows`
+#     in `.github/workflows/dropin-qualification.yml`). The twin deliberately does NOT build its own stock
+#     tree: it consumes the tree `scripts/build-stock-tree.sh` produced for the same commit and asserts, by
+#     file count, per-file digest and manifest digest, that the tree that arrived on Windows IS that tree --
+#     a PowerShell port of the builder would be a second source of truth and could drift into a false gate.
 #   - updater EGRESS is observed, not proven absent: two socket samples are taken (at ready and 2 s
 #     later) and any non-loopback socket owned by the process fails the run, but a request that
 #     completed between samples cannot be seen. The MUTATION half of the same requirement is proven
@@ -142,7 +146,30 @@ fi
 # --- 2. baseline, before anything executes -------------------------------------------------
 hash_tree() {
     # Path + content digest of every file, sorted: one line per file, so a diff names the file.
-    ( cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum )
+    #
+    # FIND AND HASH ARE NOT ATOMIC, and the tree being hashed contains a LIVE GIT REPOSITORY, so git can
+    # create and delete a transient file between the two: `.git/index.lock` (a status refresh) and
+    # `.git/objects/maintenance.lock` (a background `git maintenance run --auto`). Run 40181821141 died on
+    # exactly that, with `sha256sum: .../.git/objects/maintenance.lock: No such file or directory` and
+    # `xargs` exit 123 -- a red run that said nothing about GoTavern. The fixture no longer schedules
+    # background maintenance (`scripts/build-stock-tree.sh`), and this function re-takes the WHOLE listing
+    # if a file vanished under it, up to three times. Nothing is excluded and no file is skipped: a retry
+    # re-measures everything, and a file that keeps vanishing still fails the run.
+    attempt=0
+    while [ "$attempt" -lt 3 ]; do
+        if ( cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum ) > "$WORK/hash.tmp" 2> "$WORK/hash.err"; then
+            cat "$WORK/hash.tmp"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        # THE ERROR TEXT IS KEPT. It is what identified the maintenance lock as git's rather than
+        # GoTavern's, so swallowing it would trade this flake for an unreadable red.
+        echo "hash_tree($1): attempt ${attempt} of 3 failed:" >&2
+        sed 's/^/  /' "$WORK/hash.err" >&2 || true
+        sleep 1
+    done
+    echo "FAIL: could not hash '$1' after 3 attempts: a file kept vanishing or could not be read under the listing" >&2
+    return 1
 }
 ext_git_status() {
     find "$TREE" -name .git -maxdepth 6 -type d 2>/dev/null | LC_ALL=C sort | while read -r gitdir; do

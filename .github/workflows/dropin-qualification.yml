@@ -30,23 +30,57 @@ name: GoTavern drop-in qualification
 #      runs the API smoke through the real CSRF handshake, asserts boot mutated no extension repository
 #      and no pre-existing user file, stops gracefully, RESTARTS, and re-reads the chat;
 #   5. on any failure the server log, the diffs and the built tree are uploaded, so a red run names its
-#      own cause instead of reporting an exit status.
+#      own cause instead of reporting an exit status;
+#   6. and jobs `windows-inputs` + `dropin-windows` do the same for the WINDOWS asset, through the
+#      archive's own `Start.cmd`, with a PowerShell twin of the shell harness. See "WHAT THE SECOND JOB
+#      ADDS" below.
+#
+# WHAT THE SECOND JOB ADDS: THE WINDOWS ARCHIVE, WHICH HAD NEVER BEEN EXECUTED.
+#   release.yml publishes two Windows assets and a `Start.cmd`, and until job `dropin-windows` existed no
+#   gate in this repository had opened one. The Linux harness's own "what this does NOT cover" block named
+#   the missing piece as "a Windows runner and a PowerShell twin". Both now exist:
+#     windows-inputs  (ubuntu)  builds the WINDOWS archive with release.yml's own staging and packer, and
+#                               builds the stock tree with scripts/build-stock-tree.sh ONCE, recording a
+#                               path+sha256 manifest and its digest;
+#     dropin-windows  (windows) downloads both, VERIFIES the tree it extracted is the tree the Linux job
+#                               measured (file count, every per-file digest, the manifest's digest), lays the
+#                               archive over it, and boots it with the ARCHIVE'S OWN `Start.cmd` under a hard
+#                               30 s readiness bound that polls GET /version.
+#   Three scenarios run: start-cmd/full, start-cmd/minimal (the only input that exercises the boot-time
+#   config rewrite, i.e. P0-C's mechanism, now measured on NTFS) and foreign-cwd/full (the binary run from a
+#   directory that is not the tree, which `Start.cmd` cannot do because it cds).
+#
+# WHY THE WINDOWS JOBS LIVE IN THIS FILE RATHER THAN IN THEIR OWN. The Windows job consumes two artifacts
+# that must be built from THE SAME COMMIT as the Linux scenarios: the archive (this commit's binary) and the
+# stock tree (this commit's pinned baseline). `needs:` inside one workflow makes that a graph GitHub
+# enforces; two workflows would make it a convention, and a convention is what silently tests a different
+# tree. The header's separate-workflow argument (a distinct concurrency group and a distinct timeout) still
+# holds for the Windows job: it carries its own `timeout-minutes` sized from a measured run.
 #
 # WHAT THIS DOES NOT COVER, stated so a green is not read as more (the same list is in
 # docs/dropin-qualification.md):
 #   - PACKAGING FIDELITY. The archive is assembled from release.yml's staging steps, but it is NOT the
 #     release workflow's artifact: no `checksums.txt`, no upload, no publish, no tag-derived version
 #     string (`-X main.version` names the COMMIT, so BUILD-INFO and `gotavern version` name the tree the
-#     gate measured rather than a tag that may never be cut), and only the linux/amd64 asset of the six
-#     canonical ones. `release.yml` remains the only producer of shipped bytes and
+#     gate measured rather than a tag that may never be cut), and only the linux/amd64 and windows/amd64
+#     assets of the six canonical ones. `release.yml` remains the only producer of shipped bytes and
 #     `release-install-smoke.yml` remains the gate that always has them. A green here is evidence about
 #     the ARCHIVE LAYOUT plus the BINARY, not about the release pipeline.
-#   - The Windows archive and `Start.cmd`: only the Linux archive is opened, because the harness is a
-#     POSIX shell script and a Windows twin has not been written. Named, not implied.
+#   - The windows/ARM64 asset. The Windows runner is x64, and that asset's arch is a one-line matrix row.
+#   - GRACEFUL SHUTDOWN ON WINDOWS. SIGTERM has no Windows equivalent that reaches a console application,
+#     so `scripts/qualify-dropin.ps1` stops the server with `taskkill /T /F` and SAYS SO: the restart it
+#     then measures is a crash-recovery restart (a stronger persistence claim, and the stale-lock state
+#     docs/startup-state-machine.md lists as untested), but the `signal.Notify` -> `running.Close` path is
+#     not exercised there. Named, not implied.
+#   - A GOROUTINE DUMP ON WINDOWS. Windows has no SIGQUIT and Go maps CTRL_C_EVENT/CTRL_BREAK_EVENT to
+#     `os.Interrupt`, so a hung Windows boot can only be diagnosed from the log and the binary's own stage
+#     trace. The ps1 prints how many stage lines the boot produced on every run and says so when it is 0.
 #   - Updater EGRESS is sampled (two socket samples), not proven absent; the MUTATION half of P0-C is
 #     proven exactly by recursive hashes and a `git status` per extension repository.
 #   - `install.sh` is not executed here: `release-qualification.yml` runs the installer against a
 #     loopback mirror, and duplicating it in a per-push gate would pay for the same claim twice.
+#   - `install.ps1` is not executed here: `scripts/qualify-install-windows.ps1` runs it on a Windows runner
+#     in `release-install-smoke.yml`, for the installer's own Windows-only behaviour.
 #
 # WHY A SEPARATE WORKFLOW RATHER THAN A JOB IN ci.yml. Two reasons, both about the gate being useful:
 #   * ci.yml triggers on `main` only (AGENTS.md "Working mode" removed the pull_request trigger, and no
@@ -255,5 +289,297 @@ jobs:
             .dropin-work/*/*.diff
             .dropin-work/*/*.before
             .dropin-work/*/*.after
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------------------------
+  # THE WINDOWS HALF. See "WHAT THE SECOND JOB ADDS" and "WHY THE WINDOWS JOBS LIVE IN THIS FILE" above.
+  # ---------------------------------------------------------------------------------------------------
+  windows-inputs:
+    # EVERYTHING PLATFORM-DEPENDENT IS BUILT HERE, ON LINUX, EXACTLY AS release.yml BUILDS IT. The shipped
+    # Windows asset is a `GOOS=windows` cross-compile produced on an ubuntu runner and zipped with `zip -qr`;
+    # compiling it on the Windows runner instead would gate a build that is not the one users download.
+    runs-on: ubuntu-latest
+    # MEASURED on the runs recorded in docs/dropin-qualification.md: 1-2 min for the cross-compile, the
+    # archive assembly, one stock-tree build (a ~1000-file copy) and the manifest. Fifteen minutes is ~8x,
+    # and the variance a bound must absorb is a COLD module cache, not a slow step.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Assemble the release-shaped WINDOWS archive from THIS commit
+        id: package
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          set -eu
+          commit="$(git rev-parse HEAD)"
+          short="$(printf '%s' "$commit" | cut -c1-12)"
+          rm -rf stage-win dist-dropin-win windows-inputs
+          mkdir -p stage-win dist-dropin-win windows-inputs
+          # release.yml's `Build the release binary`, windows row: the same `suffix` rule and ldflags, with a
+          # COMMIT-derived version string so `gotavern version` and BUILD-INFO.txt name the tree measured.
+          go build -trimpath -ldflags="-s -w -X main.version=dropin-${short}" \
+            -o stage-win/gotavern.exe ./cmd/gotavern
+          # release.yml's `Assemble the archive contents`, windows row -- LAUNCHER=Start.cmd is what makes
+          # the launcher part of the artifact this job opens.
+          cp LICENSE THIRD_PARTY_NOTICES.txt Start.cmd stage-win/
+          mkdir -p stage-win/src
+          cp -R upstream/tokenizers stage-win/src/tokenizers
+          # release.yml also appends `./stage/gotavern* version || true` here. On ubuntu that cannot
+          # execute a .exe, so it writes a bash error into the file; this archive describes itself instead.
+          # Nothing in this gate reads BUILD-INFO.txt, and the difference is named rather than hidden.
+          {
+            printf 'GoTavern drop-in qualification archive (windows/amd64)\n'
+            printf 'commit %s\n' "$commit"
+            printf 'target windows/amd64\n'
+            printf '\n'
+            printf 'This is NOT a published release asset. It is assembled in this run, from the commit\n'
+            printf 'above, with release.yml build-job staging and release.yml own packer (zip -qr).\n'
+          } > stage-win/BUILD-INFO.txt
+          # release.yml asserts these too, and a drop-in tree is precisely where such a file does damage.
+          test ! -e stage-win/config.yaml
+          test ! -e stage-win/data
+          test ! -e stage-win/extensions
+          # release.yml's `Create the canonical archive`, windows branch: same invocation, different output
+          # name so this artifact cannot be mistaken for the shipped one.
+          ( cd stage-win && zip -qr ../dist-dropin-win/gotavern-windows-amd64-dropin.zip . )
+          test -s dist-dropin-win/gotavern-windows-amd64-dropin.zip
+          ls -l dist-dropin-win/gotavern-windows-amd64-dropin.zip
+          sha256sum dist-dropin-win/gotavern-windows-amd64-dropin.zip
+
+      - name: Assert the WINDOWS archive's layout, bytes and launcher before anything boots
+        # THE ARCHIVE IS THE INPUT TO EVERY CLAIM THE WINDOWS JOB MAKES, so its shape is asserted HERE, on
+        # the runner that builds it, before a Windows runner spends time on it. The expected member list is
+        # a TRANSCRIPTION of release.yml's windows matrix row, which is the one drift surface this step
+        # has: if release.yml stages something else for windows, this gate is opening a layout that no
+        # longer ships, and the failure names both lists.
+        run: |
+          set -eu
+          layout="$(mktemp -d)"
+          unzip -q dist-dropin-win/gotavern-windows-amd64-dropin.zip -d "$layout"
+          actual="$( cd "$layout" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort | tr '\n' ' ' )"
+          expected="BUILD-INFO.txt LICENSE Start.cmd THIRD_PARTY_NOTICES.txt gotavern.exe src "
+          # SORTED BY LC_ALL=C, i.e. BYTE order: `Start.cmd` comes before `THIRD_PARTY_NOTICES.txt`
+          # ('S' < 'T') and `gotavern.exe` after both (lowercase sorts after uppercase). Do not "tidy" this
+          # into human alphabetical order: run 40179957841 went red on exactly that mis-transcription.
+          if [ "$actual" != "$expected" ]; then
+            echo "the WINDOWS archive top level is not release.yml's staging:" >&2
+            echo "  expected: ${expected}" >&2
+            echo "  actual:   ${actual}" >&2
+            echo "The expected list is transcribed from release.yml's windows matrix row (gotavern.exe," >&2
+            echo "LICENSE, THIRD_PARTY_NOTICES.txt, Start.cmd, BUILD-INFO.txt, src/tokenizers). If" >&2
+            echo "release.yml changed, this gate is measuring a layout that does not ship: update the" >&2
+            echo "staging AND this list." >&2
+            exit 1
+          fi
+          # A PE HEADER, NOT A FILE NAME. A mis-labelled ELF would pass every name-based check here and
+          # then fail on the Windows runner with "is not a valid Win32 application", which reads as a
+          # harness defect instead of the packaging defect it is.
+          if [ "$(head -c 2 "$layout/gotavern.exe")" != "MZ" ]; then
+            echo "the archive's gotavern.exe does not begin with the PE magic 'MZ'" >&2
+            exit 1
+          fi
+          # THE LAUNCHER IS THE USER PATH, so its bytes are asserted here as well as at boot: cmd.exe is
+          # known to misparse some LF-only batch files, and the member paths must be what `zip -qr` wrote on
+          # a Linux runner (they become the tree's paths on Windows).
+          if ! grep -q $'\r' "$layout/Start.cmd"; then
+            echo "the archived Start.cmd has no CR bytes: it would reach a Windows user LF-only" >&2
+            exit 1
+          fi
+          grep -q 'cd /d "%~dp0"' "$layout/Start.cmd" || { echo "Start.cmd does not cd to its own directory" >&2; exit 1; }
+          grep -qF '"%~dp0gotavern.exe" %*' "$layout/Start.cmd" || { echo "Start.cmd does not run %~dp0gotavern.exe with %*" >&2; exit 1; }
+          if unzip -l dist-dropin-win/gotavern-windows-amd64-dropin.zip | grep -q '\\'; then
+            echo "the zip carries a backslash-separated member path; release.yml's zip -qr writes '/'" >&2
+            exit 1
+          fi
+          archived="$( cd "$layout/src/tokenizers" && find . -type f | wc -l )"
+          baseline="$( cd upstream/tokenizers && find . -type f | wc -l )"
+          if [ "$archived" -ne "$baseline" ]; then
+            echo "the archive carries ${archived} tokenizer file(s); the vendored baseline has ${baseline}" >&2
+            exit 1
+          fi
+          echo "windows archive layout: ${actual}"
+          echo "windows archive tokenizer files: ${archived} (equal to upstream/tokenizers)"
+          rm -rf "$layout"
+
+      - name: Build the stock SillyTavern tree ONCE, and record what its bytes are
+        # THE TREE IS BUILT HERE AND ONLY HERE. A PowerShell twin of scripts/build-stock-tree.sh would be a
+        # SECOND source of truth for the pinned-placement derivation, and a twin that drifts from the Linux
+        # tree would make the Windows gate measure a different fixture -- a false gate. So the same script
+        # runs once, and the Windows job RECEIVES the result and ASSERTS it: the file count, every
+        # per-file digest, and the digest of the manifest itself. `scripts/qualify-dropin.ps1` refuses
+        # rather than boots if any of the three disagree, so a truncated or filtered transfer cannot pass
+        # as "the stock tree" (AGENTS.md verification rule 11).
+        run: |
+          set -eu
+          rm -rf work-win
+          mkdir -p work-win
+          sh scripts/build-stock-tree.sh work-win/tree | sed 's/^/  /'
+          # NORMALISE the fixture extension's git stat cache BEFORE the manifest is taken: `git status`
+          # refreshes .git/index the first time it runs in a freshly built repository, so a manifest taken
+          # before that would record bytes the Windows-side extraction can only reproduce by luck.
+          git -C work-win/tree/public/scripts/extensions/third-party/stock-example-extension status --porcelain > work-win/extstatus.normalized
+          # ASCII-ONLY PATHS. The Windows side compares a manifest sorted by ORDINAL, which equals the byte
+          # order of `LC_ALL=C sort` only for ASCII. If a baseline bump ever adds a non-ASCII name, that
+          # comparison needs revisiting, and this refuses instead of comparing two different orderings.
+          if ( cd work-win/tree && find . -type f -printf '%P\n' | LC_ALL=C grep -q '[^ -~]' ); then
+            echo "the stock tree contains a non-ASCII path; the cross-host manifest comparison assumes ASCII" >&2
+            exit 1
+          fi
+          ( cd work-win/tree && find . -type f -printf '%P\n' | LC_ALL=C sort | while IFS= read -r p; do
+              printf '%s  %s\n' "$(sha256sum -- "$p" | cut -d' ' -f1)" "$p"
+            done ) > work-win/stock-tree.manifest
+          echo "stock tree files: $(wc -l < work-win/stock-tree.manifest)"
+          ( cd work-win && sha256sum stock-tree.manifest > stock-tree.manifest.sha256 && cat stock-tree.manifest.sha256 )
+          tar -czf work-win/stock-tree.tar.gz -C work-win tree
+          ls -l work-win/stock-tree.tar.gz
+          # A FLAT input directory, so the artifact's restore path cannot depend on upload-artifact's
+          # least-common-ancestor rule being one thing rather than another.
+          cp dist-dropin-win/gotavern-windows-amd64-dropin.zip windows-inputs/
+          cp work-win/stock-tree.tar.gz work-win/stock-tree.manifest work-win/stock-tree.manifest.sha256 windows-inputs/
+          ls -l windows-inputs
+
+      - name: Upload the Windows archive and the stock tree for the Windows job
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropin-windows-inputs
+          path: windows-inputs/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report failure context
+        if: failure()
+        run: |
+          set -u
+          echo "::group::what this job produced before it failed"
+          ls -l windows-inputs dist-dropin-win work-win 2>/dev/null || true
+          echo "::endgroup::"
+
+  dropin-windows:
+    needs: windows-inputs
+    runs-on: windows-latest
+    # SIZED FROM MEASURED REALITY, not from hope. The job extracts three ~45 MB stock trees, hashes ~1000
+    # files per scenario, and boots a server twice per scenario. The readiness bound is the harness's own
+    # 30 s poll and is never widened (rule 33), so the only variance a job bound has to absorb is a slow
+    # Windows runner disk and a cold PowerShell start -- not a slow boot. A wedged step fails here instead
+    # of holding a runner for GitHub's 6-hour default.
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dropin-windows-inputs
+          path: windows-inputs
+
+      - name: Report the inputs this job is about to execute
+        # PRINTED, so a green is attached to specific bytes: the archive's digest, the stock tree's file
+        # count and its manifest digest are what the three scenarios below actually ran against.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($required in 'gotavern-windows-amd64-dropin.zip', 'stock-tree.tar.gz', 'stock-tree.manifest', 'stock-tree.manifest.sha256') {
+            $path = Join-Path 'windows-inputs' $required
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "missing input: $path" }
+            "{0,-40} {1,12} bytes" -f $required, (Get-Item -LiteralPath $path).Length
+          }
+          "archive sha256: $((Get-FileHash -Algorithm SHA256 -LiteralPath 'windows-inputs/gotavern-windows-amd64-dropin.zip').Hash.ToLowerInvariant())"
+          "stock tree file count (recorded on Linux): $((Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest').Count)"
+          "stock tree manifest digest (recorded on Linux): $(Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest.sha256' -Raw)"
+
+      - name: 'Windows drop-in 1/3 -- Start.cmd, pristine pinned config'
+        # THE DOCUMENTED WINDOWS USER PATH: the archive's own Start.cmd, whose `cd /d "%~dp0"` is what gives
+        # a user the tree as their CWD. The API must return the USER'S OWN seeded character, chat and
+        # settings, and boot must not rewrite a config.yaml that already parses.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = Get-Date
+          pwsh -NoProfile -File scripts/qualify-dropin.ps1 `
+            -Archive windows-inputs/gotavern-windows-amd64-dropin.zip `
+            -StockTreeTar windows-inputs/stock-tree.tar.gz `
+            -StockTreeManifest windows-inputs/stock-tree.manifest `
+            -Layout start-cmd -Config full -Port 8797
+          $status = $LASTEXITCODE
+          if ($status -ne 0) { throw "scenario start-cmd/full FAILED with exit $status" }
+          "scenario start-cmd/full passed in $([int]((Get-Date) - $start).TotalSeconds)s"
+
+      - name: 'Windows drop-in 2/3 -- Start.cmd, a USED (trimmed) config.yaml'
+        # The tree a user has after running SillyTavern once. This is the only input that makes startup
+        # merge the pinned defaults back in, which is P0-C's mechanism: the rewrite must keep the user's
+        # `extensions.autoUpdate: false`, not adopt the pinned `true` -- measured on NTFS for the first
+        # time, where the atomic rewrite is a rename on a different filesystem than the Linux gate's.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = Get-Date
+          pwsh -NoProfile -File scripts/qualify-dropin.ps1 `
+            -Archive windows-inputs/gotavern-windows-amd64-dropin.zip `
+            -StockTreeTar windows-inputs/stock-tree.tar.gz `
+            -StockTreeManifest windows-inputs/stock-tree.manifest `
+            -Layout start-cmd -Config minimal -Port 8798
+          $status = $LASTEXITCODE
+          if ($status -ne 0) { throw "scenario start-cmd/minimal FAILED with exit $status" }
+          "scenario start-cmd/minimal passed in $([int]((Get-Date) - $start).TotalSeconds)s"
+
+      - name: 'Windows drop-in 3/3 -- a foreign CWD, pristine pinned config'
+        # NOT REACHABLE THROUGH Start.cmd (it cds), so this is the one scenario that runs gotavern.exe
+        # directly. It exists to re-measure on NTFS the behaviour the Linux gate measured: the runtime root
+        # follows the INSTALL root, not the CWD, so a user who launches from elsewhere still gets their own
+        # config/data -- and no pre-existing file may be modified or deleted while doing it.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = Get-Date
+          pwsh -NoProfile -File scripts/qualify-dropin.ps1 `
+            -Archive windows-inputs/gotavern-windows-amd64-dropin.zip `
+            -StockTreeTar windows-inputs/stock-tree.tar.gz `
+            -StockTreeManifest windows-inputs/stock-tree.manifest `
+            -Layout foreign-cwd -Config full -Port 8799
+          $status = $LASTEXITCODE
+          if ($status -ne 0) { throw "scenario foreign-cwd/full FAILED with exit $status" }
+          "scenario foreign-cwd/full passed in $([int]((Get-Date) - $start).TotalSeconds)s"
+
+      - name: Report failure context
+        # The harness prints its own server log and the stage lines the boot managed; what it cannot show is
+        # which scenario left what behind, which is what a reader needs when the FIXTURE is the suspect.
+        # NOTHING HERE IS TRUNCATED SILENTLY: the file counts are stated next to the listing.
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          if (-not (Test-Path -LiteralPath '.dropin-work-win')) { "no .dropin-work-win was created"; exit 0 }
+          foreach ($work in @(Get-ChildItem -LiteralPath '.dropin-work-win' -Directory)) {
+            "::group::$($work.Name)"
+            $files = @(Get-ChildItem -LiteralPath $work.FullName -Recurse -File -Force -ErrorAction SilentlyContinue)
+            "files under this work directory: $($files.Count)"
+            foreach ($log in @($files | Where-Object { $_.Name -like 'server.*.log' })) {
+              "--- $($log.FullName) ---"
+              Get-Content -LiteralPath $log.FullName -Tail 200 | ForEach-Object { $_ }
+            }
+            foreach ($diff in @($files | Where-Object { $_.Name -like '*.before' -or $_.Name -like '*.after' -or $_.Name -like '*.manifest.recomputed' -or $_.Name -like '*.stability' })) {
+              "--- $($diff.FullName) ($((Get-Content -LiteralPath $diff.FullName).Count) lines) ---"
+            }
+            "::endgroup::"
+          }
+
+      - name: Upload the evidence of a failing Windows run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropin-windows-failure-evidence
+          path: |
+            .dropin-work-win/*/server.out.log
+            .dropin-work-win/*/server.err.log
+            .dropin-work-win/*/*.before
+            .dropin-work-win/*/*.after
+            .dropin-work-win/*/version.json
           if-no-files-found: warn
           retention-days: 7
