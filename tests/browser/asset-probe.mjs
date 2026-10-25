@@ -423,6 +423,32 @@ try {
         };
     });
 
+    // THE FRONTEND'S OWN RENDERER, AND WHAT IT CHANGED. Recorded as two numbers so the artefact cannot
+    // claim a plain page load rendered a list that an explicit call rendered.
+    const rowsAfterLoad = (report.dom.containerShape?.avatars ?? 0);
+    report.dom.render = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        if (typeof script.printCharacters !== 'function') {
+            return { invoked: false, reason: 'script.js exports no printCharacters' };
+        }
+        await script.printCharacters(true);
+        const deadline = performance.now() + 20000;
+        let block = document.querySelector('#rm_print_characters_block');
+        while (performance.now() < deadline) {
+            block = document.querySelector('#rm_print_characters_block');
+            if (block && block.querySelectorAll('.avatar').length > 0) break;
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        return {
+            invoked: true,
+            rowsAfterRender: block ? block.querySelectorAll('.avatar').length : null,
+            imgsAfterRender: block ? block.querySelectorAll('img').length : null,
+            htmlPrefix: block ? String(block.innerHTML ?? '').slice(0, 300) : null,
+        };
+    }).catch(error => ({ invoked: false, reason: String(error?.message ?? error).slice(0, 200) }));
+    report.dom.rowsAfterLoad = rowsAfterLoad;
+    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => null);
+
     // OPEN THE CHAT: a user clicks the card, and the greeting renders, which is what puts a chat-message
     // avatar in the DOM (`#message_template .mesAvatarWrapper .avatar img`).
     report.dom.clickTarget = await page.evaluate(() => {
