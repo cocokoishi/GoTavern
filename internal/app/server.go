@@ -113,6 +113,22 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if options.WaitBeforeLegacyDataMove == nil {
 		options.WaitBeforeLegacyDataMove = time.Sleep
 	}
+	// PINNED CHDIRS TO THE SERVER DIRECTORY, SO ITS WORKING DIRECTORY IS NEVER THE CALLER'S.
+	//
+	// server.js:11 is `process.chdir(serverDirectory)`, and every relative path pinned resolves afterwards --
+	// `./config.yaml`, `data/`, the tokenizer tree -- is therefore relative to the INSTALL ROOT, wherever the user
+	// launched it from. GoTavern accepts being started from anywhere, and it used to forward the caller's CWD to the
+	// path resolver, which produced a user-visible divergence measured on Linux and Windows: starting the binary
+	// from the wrong folder left a fresh `config.yaml` AND a `data/` directory in that folder, while the server
+	// served the install tree's data. Pinned cannot do that, because by the time it resolves anything the CWD *is*
+	// the install tree.
+	//
+	// So the app boundary reproduces the chdir, in the only way that does not mutate process-global state: when the
+	// caller passed no explicit path option, everything resolves as if the working directory were the install root.
+	// An explicit `--configPath` or `--dataRoot` still wins, because a user who names a path means it.
+	if options.InstallRoot != "" && !hasExplicitPathOption(options.Args) {
+		options.WorkingDirectory = options.InstallRoot
+	}
 	// THE TRACE IS SET UP BEFORE ANY STAGE CAN BE SLOW, and the legacy wait is wrapped so its duration is
 	// announced BEFORE it is spent: the pinned legacy path sits in a silent ten-second warning, and printing the
 	// intention first is what turns "hung" into "waiting" for a user staring at a terminal.

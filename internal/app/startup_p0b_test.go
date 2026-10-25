@@ -208,6 +208,22 @@ func TestP0BForeignWorkingDirectoryStartsOnAFreshTree(t *testing.T) {
 		t.Fatalf("the runtime data root %s is outside the install root %s, so the tree served and the tree "+
 			"written are not the same", runtimeRoot, installRoot)
 	}
+	// AND NOTHING MAY BE LEFT IN THE LAUNCH DIRECTORY. pinned chdirs to the server directory before it resolves
+	// anything (server.js:11), so it can never scatter files beside the caller; GoTavern used to create
+	// <CWD>/config.yaml and <CWD>/data and then serve the install tree -- measured on Linux and Windows, and a
+	// user who starts the binary from the wrong folder sees exactly that. The app boundary now reproduces the
+	// chdir when no explicit path option is given, and this is the assertion that holds it there.
+	for _, stray := range []string{"config.yaml", "data"} {
+		if _, statErr := os.Stat(filepath.Join(foreignWorkingDirectory, stray)); statErr == nil {
+			t.Fatalf("the boot created %q in the LAUNCH directory (%s) instead of the install root (%s): pinned "+
+				"never does this, because it chdirs to the server directory first",
+				stray, foreignWorkingDirectory, installRoot)
+		}
+	}
+	// The user's own tree, however, must have been prepared there.
+	if _, statErr := os.Stat(filepath.Join(installRoot, "config.yaml")); statErr != nil {
+		t.Fatalf("the boot did not create config.yaml in the install root, so it resolved somewhere else: %v", statErr)
+	}
 }
 
 func TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError(t *testing.T) {
