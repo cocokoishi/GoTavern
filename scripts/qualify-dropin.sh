@@ -433,13 +433,36 @@ PYEOF
     fi
     ok "no pre-existing user file was modified or deleted by two boots and a restart; every file the boot created is listed above"
 else
-    if diff -q "$WORK/data.before" "$WORK/data.after" >/dev/null 2>&1; then
-        ok "the tree's data root was NOT touched, because this layout ran under a foreign CWD"
+    # THE FIRST VERSION OF THIS BRANCH ASSERTED THE WRONG THING, and the measurement is the reason it
+    # was wrong: it required the tree's data root to be untouched, on the derived expectation that pinned
+    # resolution is CWD-relative (`docs/startup-state-machine.md` §4 claims CWD selects the config/data
+    # tree). The run showed the opposite -- the API smoke under a foreign CWD returned the tree's seeded
+    # character and its 3-line chat, and the boot wrote `_storage/<hash>`, `content.log`,
+    # `cookie-secret.txt` and a settings backup INTO THE TREE. So the runtime root followed the tree (the
+    # install root), not the CWD.
+    #
+    # That behaviour is good for a drop-in user -- launching from elsewhere still finds their data -- but
+    # it means the claim this layout can make is "it uses the tree whatever the CWD", not "it leaves the
+    # tree alone". The assertions are therefore the same three the cwd-root layout makes, plus a printed
+    # listing of the foreign directory so the other half (did it ALSO create a second root?) is visible
+    # rather than assumed.
+    echo "--- foreign CWD contents after the run ---"
+    find "$RUN_DIR" -maxdepth 2 -mindepth 1 -printf '  %y %p\n' | LC_ALL=C sort | head -40
+
+    echo "user data under the tree: $(wc -l < "$WORK/data.before") files before, $(wc -l < "$WORK/data.after") after"
+    if diff -u "$WORK/data.before" "$WORK/data.after" > "$WORK/data.diff"; then
+        ok "the tree's data root is byte-identical: this runtime root was NOT the one used"
     else
+        # A `-` line (other than the `---` header) is a pre-existing file that changed or vanished; an
+        # `+` line alone is a creation, which the diff above lists by name.
+        removed_lines=$(grep -c '^-[^-]' "$WORK/data.diff" || true)
         echo "::group::data diff"
-        diff -u "$WORK/data.before" "$WORK/data.after" || true
+        cat "$WORK/data.diff"
         echo "::endgroup::"
-        fail "under a foreign CWD the binary wrote into the stock tree's data root"
+        if [ "${removed_lines:-0}" -gt 0 ]; then
+            fail "under a foreign CWD the boot changed or removed ${removed_lines} pre-existing file(s) in the tree's data root"
+        fi
+        ok "under a foreign CWD the runtime used the TREE as its root (the API returned the tree's character and chat) and only CREATED runtime files there, listed above"
     fi
 fi
 
