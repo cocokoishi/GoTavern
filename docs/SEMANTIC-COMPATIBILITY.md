@@ -520,7 +520,7 @@ Capture the request arriving at `/api/backends/chat-completions/generate` and, m
 
 ### Route coverage
 
-Maintain `docs/extension-route-coverage.md` from both static scans and dynamic browser capture. A route observed from the pinned extension but missing from the Go inventory is a release failure. **NOT YET MAINTAINED (2026-10-23):** `docs/extension-route-coverage.md:23` records that the document is still “based on static inspection”; the dynamic-capture half has not been added. The extension E2E artifacts under `tests/browser/extension-*-comparison.json` cover the canaries' runtime surface, not a route-by-route dynamic inventory.
+Maintain `docs/extension-route-coverage.md` from both static scans and dynamic browser capture. A route observed from the pinned extension but missing from the Go inventory is a release failure. **NOT YET MAINTAINED (2026-10-23):** `docs/extension-route-coverage.md:25` records that the document is still “based on static inspection”; the dynamic-capture half has not been added. The extension E2E artifacts under `tests/browser/extension-*-comparison.json` cover the canaries' runtime surface, not a route-by-route dynamic inventory.
 
 ---
 
