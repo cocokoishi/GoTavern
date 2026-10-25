@@ -21,7 +21,6 @@ import (
 
 	"github.com/cocokoishi/gotavern/internal/commandline"
 	"github.com/cocokoishi/gotavern/internal/lockacquire"
-	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/server"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
