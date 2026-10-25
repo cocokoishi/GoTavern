@@ -27,7 +27,6 @@ boot.foreign-cwd-relative-data-root
 
 # rule 24: flock.Lock() has no bounded acquisition (internal/configinit/config.go:169,
 # internal/startup/*.go lock helpers), so a held lock blocks the second process.
-boot.data-startup-lock-held
 
 # rule 24/33: the pinned ten-second legacy warning is spent in silence before any
 # output, and main prints nothing until app.Start returns
