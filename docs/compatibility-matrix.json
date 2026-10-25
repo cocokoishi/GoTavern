@@ -1078,12 +1078,12 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 509,
+      "inTree": 535,
       "citedByMatrix": 56
     },
     "workflows": {
       "inTree": 8,
-      "jobsInTree": 25
+      "jobsInTree": 26
     },
     "rows": {
       "total": 22,

@@ -561,7 +561,7 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 |---|---|---|
 | Oracle fixtures | 118 | 66 |
 | Browser artefacts | 35 | 11 |
-| Go test functions | 509 | 56 |
-| Workflow jobs | 25 in 8 workflow(s) | _n/a_ |
+| Go test functions | 535 | 56 |
+| Workflow jobs | 26 in 8 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 17, FAIL 4, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
