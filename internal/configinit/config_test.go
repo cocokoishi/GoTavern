@@ -60,7 +60,7 @@ func verifyScenarioBytes(t *testing.T, path string, expected oracleScenario) []b
 	return actual
 }
 
-// verifyScenarioBytesExcludingOperatorOwnedDefaults compares our migrated output against pin''s recorded bytes,
+// verifyScenarioBytesExcludingOperatorOwnedDefaults compares our migrated output against the pinned recorded bytes,
 // minus the keys GoTavern deliberately never materialises (operatorOwnedDefaults). The exemption is by EXACT
 // dotted path, it is computed from the pinned expectation itself, everything else is still compared byte for byte,
 // and the three keys are then asserted ABSENT from our file so the exemption cannot hide them reappearing.
@@ -102,7 +102,8 @@ func verifyScenarioBytesExcludingOperatorOwnedDefaults(t *testing.T, path string
 	return actual
 }
 
-func TestInitializeCreatesPinnedFreshConfig(t *testing.T) {	fixture := readOracleFixture(t)
+func TestInitializeCreatesPinnedFreshConfig(t *testing.T) {
+	fixture := readOracleFixture(t)
 	expected := fixture.Scenarios["fresh"]
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 
