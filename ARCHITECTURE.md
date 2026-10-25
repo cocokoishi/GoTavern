@@ -1251,8 +1251,10 @@ broken again. Measurements: `docs/network-egress.md`, `docs/startup-state-machin
 - Every lock acquisition carries a bound and reports `config is locked by another GoTavern process (waited Ns)`.
 - Startup emits named stages (`startup.begin` … `startup.ready`) with duration; a hang therefore names itself
   instead of looking like a silent initialisation.
-- A `config.yaml` that parses is not rewritten on boot. Missing values are resolved in memory and reported; a
-  write is an explicit migration, logged, backed up and idempotent.
+- A `config.yaml` that parses is not rewritten for GoTavern's own convenience — but pinned's default insertion
+  IS reproduced, because hard rule 13 makes startup behaviour compatibility behaviour and the pinned fixtures
+  record the insertion. The exact boundary is §34.4; the invariant that survives is that the user's keys and
+  unknown sections survive it and a second boot is byte-identical.
 - Readiness is observable (stdout marker plus health endpoint); no test may `sleep` and assume.
 - The release artifact must boot from a stock SillyTavern tree in four layouts: CWD = root, foreign CWD,
   Windows archive, Linux archive. Each with a hard timeout that dumps goroutines and the stage trace.
@@ -1281,3 +1283,33 @@ bytes carries a named exemption for those two keys rather than a re-recorded exp
   `git status` per repository, taken before and after boot, must match, and an egress recorder must show no
   updater-originated request.
 - A dirty repository is refused by any manual update path; no forced reset exists by default.
+
+### 34.4 What boot may and may not write (adjudicated 2026-10-25)
+
+Two rules collided and the collision was left in the tree as a red test, which is why it is written down here.
+
+- **Hard rule 13** says startup behaviour is compatibility behaviour and names *config creation, key migration and
+  default insertion* explicitly. Pinned inserts its defaults at startup, the pinned fixtures record that
+  insertion byte-for-byte, and a replacement that silently stopped doing it would be "safer but different" — the
+  failure mode this project forbids as loudly as "different and worse".
+- **Rule 27** said a parseable config is not rewritten on boot. As written it is unachievable and, applied to the
+  bytes, it was tried and REVERTED: pruning the three auto-update keys out of the merge turned six
+  pinned-derived fixtures red (the migration bytes, and — through the merged config — the CORS headers the
+  basic-auth and host-whitelist fixtures compare). A fix that requires editing a recorded expectation is not a
+  fix; it is a divergence that has to be declared.
+
+The boundary that both rules can hold, and that the code implements:
+
+1. **Pinned's default insertion happens.** A first boot of a parseable config may add the keys pinned would add.
+2. **Nothing the user wrote is lost.** Their own keys and any unknown section survive, byte-for-byte.
+3. **A second boot is byte-identical.** No re-serialisation drift, no reordering, no "rewrite on every start".
+4. **GoTavern never writes an operator-owned decision into the file to make its own behaviour convenient.** The
+   auto-update keys are the case that matters, and they are neutralised one layer up (§34.3): they are
+   reporting-only, and the only input is `gotavern.autoUpdateExtensions`. Asserting this on the FILE would
+   measure the wrong layer, and it is measured on the decision layer instead
+   (`config.autoupdate-inherited-true`, `config.autoupdate-fresh-install`, `extensions.gotavern-key-strict`).
+5. **Any write that is not pinned's insertion** is an explicit, logged, backed-up migration with an idempotence
+   test — rule 27's surviving core.
+
+The adversarial case `config.parseable-config-rewritten` asserts 1-3 and names 4's real home, so the invariant is
+measured rather than asserted in prose.
