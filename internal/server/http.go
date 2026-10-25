@@ -342,7 +342,6 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/moving-ui/save", accounts.serveMovingUISave)
 	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("POST /api/avatars/delete", accounts.serveAvatarsDelete)
-	mux.HandleFunc("POST /api/avatars/upload", accounts.serveAvatarsUpload)
 	mux.HandleFunc("POST /api/files/sanitize-filename", accounts.serveFileSanitizeFilename)
 	mux.HandleFunc("POST /api/files/upload", accounts.serveFilesUpload)
 	mux.HandleFunc("POST /api/files/delete", accounts.serveFilesDelete)
