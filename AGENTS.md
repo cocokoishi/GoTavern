@@ -529,3 +529,10 @@ failure mode they replace is "the suite was green, therefore it works". The meas
 40. **A hang, a crash or a silent mutation discovered in production is a defect in the process too.** Record what
     the process was missing — a gate, a fixture, a timeout, a document — in the same change that fixes the bug.
 
+41. **A source-tree suite cannot see boot latency; only the packaged gates can.** Measured on 2026-10-25: a
+    commit whose binary slept 45 s before `app.Start` passed Lane CI and the whole Go test suite, while BOTH
+    packaged drop-in gates (Linux and Windows) failed on it inside the 30 s readiness bound. The reason is
+    structural -- the suite calls `Start` directly, so anything in front of it is invisible to the suite.
+    Therefore: do not read a green lane run as "boot is fine", and any claim about startup latency must cite a
+    packaged-artifact run. The inverse also holds: when a boot defect is reported, the first question is which
+    gate could have seen it, and if the answer is "none", the missing gate is part of the fix (rule 40).

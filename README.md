@@ -122,10 +122,17 @@ What is still NOT claimed, and why this README still does not call it a daily dr
 - **no live completion has been produced with a real provider key.** The canary's reachability half runs on every
   push; the completion half needs a credential this project does not have, so streaming, cancellation and preset
   equivalence against a real provider remain unmeasured;
-- the Windows binary and `Start.cmd` **are** executed — the `qualify-windows-amd64` job runs them on a Windows
-  runner, refuses an install over a running `gotavern.exe` and asserts the refusal contract — but only into an
-  **empty install prefix**. They have never been dropped over a real stock SillyTavern tree, which is what the
-  Linux drop-in gate does; that Windows layout is the remaining gap;
+- the Windows path **PASSES** and is gated: `dropin-windows` lays the Windows archive over a stock SillyTavern tree
+  on a `windows-latest` runner and boots it through the archive's own `Start.cmd`, 17/17/16 checks across three
+  scenarios, in 0.7 s, with the tree's seeded character and chat served through the real CSRF handshake and the
+  chat surviving a crash-recovery restart. See "The Windows gate" in
+  [`docs/dropin-qualification.md`](docs/dropin-qualification.md). Not covered there: the arm64 asset, graceful
+  shutdown on Windows (the restart is deliberately the harder, crash-recovery direction), and goroutine dumps,
+  which the platform does not have;
+- **starting the binary from a directory other than the install root leaves a fresh `config.yaml` and a `data/`
+  entry in that launch directory**, while the server serves the install tree. Measured on Linux and Windows,
+  pre-existing and user-facing: start it from the wrong folder and you get config files there. The fix is a
+  product decision, not a tidy-up;
 - one adversarial violation is open and named: the pinned ten-second legacy migration stage is now announced but
   not shortened;
 - the tokenizer fallback reproduces an **inherited weakness** (an inexact count is indistinguishable from an exact
