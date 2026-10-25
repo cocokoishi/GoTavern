@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -37,6 +38,9 @@ type StartOptions struct {
 	Now                      time.Time
 	WaitBeforeLegacyDataMove func(time.Duration)
 	InterfaceAddresses       []net.Addr
+	// StartupTrace receives the named startup stages (see startup_trace.go). Nil means os.Stderr, which is what
+	// the shipped binary uses; tests substitute a buffer so they can assert what a user would actually see.
+	StartupTrace io.Writer
 }
 
 // ListenerFailure records a selected address family whose listener failed
@@ -109,7 +113,21 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if options.WaitBeforeLegacyDataMove == nil {
 		options.WaitBeforeLegacyDataMove = time.Sleep
 	}
+	// THE TRACE IS SET UP BEFORE ANY STAGE CAN BE SLOW, and the legacy wait is wrapped so its duration is
+	// announced BEFORE it is spent: the pinned legacy path sits in a silent ten-second warning, and printing the
+	// intention first is what turns "hung" into "waiting" for a user staring at a terminal.
+	traceWriter := options.StartupTrace
+	if traceWriter == nil {
+		traceWriter = os.Stderr
+	}
+	trace := newStartupTracer(traceWriter)
+	announceWait := options.WaitBeforeLegacyDataMove
+	options.WaitBeforeLegacyDataMove = func(duration time.Duration) {
+		trace.waitBeforeLegacyDataMove(duration)
+		announceWait(duration)
+	}
 
+	trace.begin("command-line")
 	parsed, err := commandline.ResolveCommandLine(commandline.ResolveOptions{
 		Args:                options.Args,
 		WorkingDirectory:    options.WorkingDirectory,
@@ -117,6 +135,7 @@ func Start(options StartOptions) (*RunningServer, error) {
 		ForceGlobalMode:     options.ForceGlobalMode,
 		GlobalDataDirectory: options.GlobalDataDirectory,
 	})
+	trace.end()
 	if err != nil {
 		return nil, fmt.Errorf("resolve pinned command-line configuration: %w", err)
 	}
@@ -159,6 +178,7 @@ func Start(options StartOptions) (*RunningServer, error) {
 
 	whitelistPage, _ := os.ReadFile(filepath.Join(parsed.Paths.RuntimeDataRoot, "_errors", "forbidden-by-whitelist.html"))
 
+	trace.begin("data-startup")
 	dataStartup, err := startup.InitializeDataStartupFromCommandLine(
 		options.InstallRoot,
 		parsed,
@@ -177,10 +197,12 @@ func Start(options StartOptions) (*RunningServer, error) {
 		}
 		return nil, fmt.Errorf("initialize pinned server data: %w", err)
 	}
+	trace.end()
 	addresses := options.InterfaceAddresses
 	if addresses == nil {
 		addresses = systemInterfaceAddresses()
 	}
+	trace.begin("listeners")
 	protocols, err := server.ResolveProtocolSelection(parsed.Options, addresses)
 	if err != nil {
 		return nil, &StartupError{Code: 1, Message: err.Error(), Cause: err}
@@ -194,6 +216,8 @@ func Start(options StartOptions) (*RunningServer, error) {
 		}
 	}
 
+	trace.end()
+	trace.begin("routes")
 	handlerOptions := server.HTTPHandlerOptionsFromCommandLine(parsed)
 	handlerOptions.InstallRoot = options.InstallRoot
 	handlerOptions.Whitelist = loadWhitelistPatterns(handlerOptions.Whitelist, options.InstallRoot)
@@ -207,6 +231,7 @@ func Start(options StartOptions) (*RunningServer, error) {
 		}
 	}
 	handler := server.NewHTTPHandlerWithOptions(handlerOptions)
+	trace.end()
 	running := &RunningServer{
 		CommandLine: parsed,
 		DataStartup: dataStartup,
@@ -230,8 +255,13 @@ func Start(options StartOptions) (*RunningServer, error) {
 	}
 
 	if len(running.listeners) == 0 {
+		// Closed here so a failed listen is reported as the LAST STAGE THAT RAN rather than as a boot that
+		// silently stopped: a failure path is exactly where a user needs to know how far it got.
+		trace.end()
 		return nil, running.listenerStartupError(protocols)
 	}
+	trace.begin("ready")
+	trace.end()
 	if interval := parsedHeartbeatInterval(parsed.Options.HeartbeatInterval); interval > 0 {
 		running.heartbeat = startHeartbeat(parsed.Paths.RuntimeDataRoot, interval)
 	}
