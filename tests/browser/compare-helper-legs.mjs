@@ -53,6 +53,7 @@ const legs = {
     pinnedOn: await readLeg('pinned-on', argumentValue('--pinned-on')),
     pinnedOff: await readLeg('pinned-off', argumentValue('--pinned-off')),
 };
+const mutated = await readLeg('gotavern-mutated', argumentValue('--gotavern-mutated'));
 const artefactPath = argumentValue('--out');
 
 const guards = [];
@@ -181,6 +182,16 @@ field('url.sha256', 'the pinned frontend builds /thumbnail from the same source;
 field('iframe.id / iframe.srcdocLength', 'the iframe id embeds a UUID generated per run and the srcdoc embeds blob URLs, so both are per-run values; their PRESENCE is compared through the bridge guard.');
 field('request.order / request.count', 'the drive waits for network quiet and then judges URL statuses as a set; arrival order is a timing property, not a contract (AGENTS.md 18).');
 field('console / pageErrors', 'recorded in each leg and reported, not compared: the unmodified frontend emits the same console noise on both servers and a global ignore rule is forbidden (differential doctrine 2).');
+// THE NEGATIVE CONTROL. A leg that is helper-on with the variable write removed must leave the
+// persistence guard RED while the bridge stays GREEN. If it stays green, the persistence guard cannot
+// fail and every green it produces is decoration (rule 7). This is the guard that makes the chat-saved
+// precondition worth having.
+const controlCounter = Number(mutated.leg?.variableState?.after?.helper_probe_counter ?? 0);
+const controlBridgeOk = mutated.leg?.iframe?.done?.marker === 'HELPER_PROBE_SCRIPT_DONE';
+guard('negative-control-bites', mutated.present && controlCounter === 0 && controlBridgeOk,
+    mutated.present
+        ? `counter=${controlCounter} (must be 0) bridge-completed=${controlBridgeOk} (must be true); chatFile=${mutated.leg?.variableState?.chatFile ?? '(none)'}`
+        : 'the no-variable-write control leg was not recorded');
 guard('node-equals-go', mismatches.length === 0, mismatches.map(item => item.field).join(', ') || null);
 
 // 9. Rule 50: on and off must differ, per subject.
@@ -237,6 +248,9 @@ const artefact = {
         reason: 'blocking <script> tags with no onerror in every iframe head; a slow resolve turns the page-load budget into a timing test and a silent failure leaves Vue undefined. The probe script uses only TavernHelper.',
         urlsBlocked: on.gotavern?.provenance?.blockedExternal?.length ?? 0,
     },
+    negativeControl: mutated.present
+        ? { leg: 'helper-gotavern-mutated', mutation: mutated.leg?.mutation ?? null, counter: controlCounter, bridgeCompleted: controlBridgeOk, chatFile: mutated.leg?.variableState?.chatFile ?? null }
+        : null,
     notCompared,
     unproven,
     legs: Object.fromEntries(Object.entries(legs).map(([key, value]) => [key, { present: value.present, subject: value.leg?.subject ?? null, variant: value.leg?.variant ?? null, failure: value.leg?.failure ?? null }])),

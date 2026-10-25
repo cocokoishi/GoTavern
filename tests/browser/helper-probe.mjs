@@ -124,6 +124,7 @@ const HOST_MODULES = [
 // The script that runs INSIDE the extension's iframe. Written as concatenated lines because it is
 // embedded in a module the extension generates, and a nested template literal or a literal
 // `</script>` would end that module early.
+const writesVariable = !process.argv.includes('no-variable-write');
 const PROBE_SCRIPT = [
     "const bridge = {",
     "  isIframe: window !== window.parent,",
@@ -138,7 +139,9 @@ const PROBE_SCRIPT = [
     "try {",
     "  const before = TavernHelper.getVariables({ type: 'chat' });",
     "  const counter = (Number(before.helper_probe_counter) || 0) + 1;",
-    "  TavernHelper.insertOrAssignVariables({ helper_probe_counter: counter, helper_probe_marker: 'HELPER_PROBE_WROTE_VARIABLE' }, { type: 'chat' });",
+    writesVariable
+        ? "  TavernHelper.insertOrAssignVariables({ helper_probe_counter: counter, helper_probe_marker: 'HELPER_PROBE_WROTE_VARIABLE' }, { type: 'chat' });"
+        : "  window.__helperProbeSkippedWrite = true;",
     "  const urls = window.__helperProbeRenderedUrls || {};",
     "  const lines = ['```html', '<body>', '<div id=\"helper-probe-rendered\">HELPER_PROBE_RENDERED</div>'];",
     "  if (urls.character) lines.push('<img id=\"helper-probe-character\" src=\"' + urls.character + '\">');",
@@ -156,6 +159,10 @@ const extension = pinnedExtension(extensionKey);
 const external = Boolean(process.env.PROBE_BASE_URL);
 const variant = argumentValue('--variant', 'on');
 const mutation = argumentValue('--mutation', 'none');
+// `no-variable-write` is the NEGATIVE CONTROL for the persistence guard: with the chat saved and the
+// bridge green, a script that reads a variable and writes nothing must leave `variable-persisted` red.
+// A guard that stays green through this is decoration (rule 7 / change-detection). The flag itself is
+// derived above, before the probe script is built, and only its report label lives here.
 const dataRoot = path.resolve(argumentValue('--data-root') ?? await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-helper-probe-')));
 const reportPath = path.resolve(argumentValue('--report', path.join(here, `helper-${variant}-leg.json`)));
 
@@ -374,6 +381,28 @@ try {
     step('character-opened', clicked || messageArrived, `click=${clicked} chatAlreadyOpen=${messageArrived}`);
     step('chat-has-message', messageArrived);
 
+    // A CHAT THAT EXISTS ON DISK IS THE PRECONDITION FOR THE PERSISTENCE GUARD. The first executed run
+    // (Browser differential 40212834808) recorded `no chat file` on BOTH subjects: the frontend had a chat
+    // open in memory that had never been written, so the variable guard could not fail. The save is driven
+    // through the frontend's own path (`saveChat`, upstream/public/script.js:7395), not by writing a file.
+    const chatSave = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        try {
+            await script.saveChat();
+            const context = script.getContext();
+            return { ok: true, chatId: context?.chatId ?? null };
+        } catch (error) {
+            return { ok: false, error: String(error?.message ?? error) };
+        }
+    });
+    report.chatSave = chatSave;
+    const saveStarted = Date.now();
+    while (Date.now() - saveStarted < 30000) {
+        if ((await readChatVariables()).chatFile) break;
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    const chatFileAfterSave = await readChatVariables();
+    step('chat-saved', Boolean(chatFileAfterSave.chatFile), `${chatSave.ok ? '' : `saveChat: ${chatSave.error}; `}chatFile=${chatFileAfterSave.chatFile ?? '(none)'}`);
     const beforeVariables = await readChatVariables();
     report.variableState = { before: beforeVariables.variables, after: null, changed: false };
 
@@ -497,6 +526,19 @@ try {
             if (render?.renderedText) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
+        // WHAT THE MESSAGE DOM ACTUALLY CONTAINS, so a red render guard names its cause instead of
+        // leaving the next reader to guess whether the message, the code block or the renderer was missing.
+        report.renderDiagnostics = await page.evaluate(() => {
+            const message = document.querySelector('#chat .mes[mesid="0"]');
+            const text = message?.querySelector('.mes_text') ?? null;
+            return {
+                messagePresent: message !== null,
+                messageText: text ? text.textContent.slice(0, 240) : null,
+                preCount: message ? message.querySelectorAll('pre').length : 0,
+                firstPreText: message?.querySelector('pre')?.textContent?.slice(0, 160) ?? null,
+                thRenderCount: document.querySelectorAll('div.TH-render').length,
+            };
+        });
         report.render = render;
         step('render-path', render?.renderedText === 'HELPER_PROBE_RENDERED', JSON.stringify(render));
     }
