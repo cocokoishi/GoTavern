@@ -61,19 +61,34 @@ const GENERATE_TIMEOUT_MS = 150_000;
 const POLL_INTERVAL_MS = 250;
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// A REAL KEY IS OPTIONAL, AND ITS ABSENCE IS NOT A SKIP.
+//
+// The first version of this script exited 0 with SKIPPED when the credential was missing, which made the only
+// gate that reaches api.deepseek.com a line nobody could act on -- a gate that cannot fail. But "no key" does
+// not mean "nothing can be measured": the reachability half of P0-A needs NO credential at all, because the
+// provider itself answers an unauthenticated request with its OWN error body. Reaching that body proves DNS
+// resolution, TCP connect, the TLS handshake against the system roots, request framing and response parsing --
+// i.e. every stage that was failing in the report, and none of the stages a key would add.
+//
+// So there are two modes, and the reporting names which one ran:
+//   - WITH a key    : a real completion is required, and anything else fails.
+//   - WITHOUT a key : the script sends this script's own obviously-invalid key and REQUIRES a provider-origin
+//                     rejection (an HTTP status plus the provider's error body). A transport failure, an empty
+//                     completion or a route-level flag fails, because those are the P0-A shapes.
+const INVALID_KEY = 'sk-gotavern-canary-no-credential-0000000000000000';
 const apiKey = (process.env[KEY_VARIABLE] ?? '').trim();
+const keyIsReal = apiKey.length > 0;
+const effectiveKey = keyIsReal ? apiKey : INVALID_KEY;
 
-// THE SKIP IS THE FIRST THING THAT HAPPENS, before anything is built or booted: a lane without the
-// credential must print one line that cannot be mistaken for a pass.
-if (!apiKey) {
-    console.log(`SKIPPED: ${KEY_VARIABLE} is not set in this environment, so the live DeepSeek canary ` +
-        `cannot run. Nothing was booted and nothing was called. Set ${KEY_VARIABLE} (a repository ` +
-        `secret) to turn this step into a real gate; until then the provider path is covered only by ` +
-        `the deterministic subprocess test in tests/e2e.`);
-    process.exit(0);
-}
-
-const redact = text => String(text).split(apiKey).join('<redacted>');
+const redact = text => {
+    let out = String(text);
+    for (const value of [apiKey, effectiveKey]) {
+        if (value) {
+            out = out.split(value).join('<redacted>');
+        }
+    }
+    return out;
+};
 const log = (...parts) => console.log(redact(parts.join(' ')));
 const fail = message => {
     console.error(redact(message));
@@ -235,7 +250,7 @@ async function storeKey(origin, session) {
             Cookie: session.cookie,
             'X-CSRF-Token': session.token,
         },
-        body: JSON.stringify({ key: SECRET_KEY, value: apiKey, label: 'deepseek canary' }),
+        body: JSON.stringify({ key: SECRET_KEY, value: effectiveKey, label: 'deepseek canary' }),
     });
     if (response.status !== 200) {
         throw new Error(`POST /api/secrets/write -> ${response.status}: ${response.text.slice(0, 200)}`);
@@ -262,8 +277,17 @@ function classify(status, text) {
     if (status === 200 && typeof content === 'string' && content.length > 0) {
         return { verdict: 'ok', content, model: parsed?.model ?? null, id: parsed?.id ?? null };
     }
-    // DEEPSEEK's catch for a fetch that threw: response.send({ error: true }), HTTP 200, nothing else.
-    if (status === 200 && parsed && parsed.error === true && Object.keys(parsed).length === 1) {
+    // DEEPSEEK's catch for a fetch that threw: response.send({ error: true }), HTTP 200.
+    //
+    // GoTavern keeps that flag BYTE-IDENTICALLY and ADDS a `message` naming the transport stage (product
+    // decision 2026-10-25, AGENTS rule 35: "cannot connect" is not an error message). Both shapes are
+    // recognised, and neither is a pass: the route still failed to reach the provider. The one with a cause
+    // is reported WITH the cause, so a reader can tell DNS from TLS from a timeout.
+    if (status === 200 && parsed && parsed.error === true) {
+        const cause = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+        if (cause) {
+            return { verdict: 'transport-failure-with-cause', cause };
+        }
         return { verdict: 'transport-cause-discarded' };
     }
     if (parsed && typeof parsed?.error?.message === 'string' && parsed.error.message.length > 0) {
@@ -281,7 +305,7 @@ function classify(status, text) {
 async function diagnosticFetch() {
     try {
         const response = await fetch('https://api.deepseek.com/models', {
-            headers: { authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+            headers: { authorization: `Bearer ${effectiveKey}`, accept: 'application/json' },
             signal: AbortSignal.timeout(20_000),
         });
         const text = await response.text();
@@ -293,7 +317,12 @@ async function diagnosticFetch() {
 }
 
 async function main() {
-    log(`DeepSeek canary: model ${MODEL}, ${KEY_VARIABLE} present (value never printed)`);
+    log(`DeepSeek canary: model ${MODEL}, ` +
+        (keyIsReal
+            ? `${KEY_VARIABLE} present (value never printed): a real completion is required`
+            : `${KEY_VARIABLE} ABSENT: running the reachability half with an invalid key, so the `
+              + `provider must REJECT it with its own error body. That proves DNS, TCP, TLS, request `
+              + `framing and response parsing through the shipped binary, and nothing that needs a key.`));
 
     let child = null;
     let installRoot = null;
@@ -360,6 +389,17 @@ async function main() {
                     `${JSON.stringify(verdict.content.slice(0, 80))}`);
                 return;
             case 'provider-error':
+                // WITHOUT a key this is the PASS: an HTTP status plus the provider's own error body is proof
+                // that the whole transport worked -- DNS, TCP, the TLS handshake against the system roots,
+                // request framing, response parsing -- because a provider cannot reject a request it never
+                // received. That is the half of P0-A that needs no credential, and the half that was broken.
+                if (!keyIsReal) {
+                    log(`CANARY OK (reachable; no credential): ${elapsed} ms, HTTP ` +
+                        `${verdict.providerStatus} from the provider itself, message ` +
+                        `${JSON.stringify(verdict.message)}. api.deepseek.com answered OUR request through the ` +
+                        `shipped binary, which is what a P0-A 'cannot connect' report was not happening.`);
+                    return;
+                }
                 fail(`CANARY FAILED (provider answered with an error, HTTP ${verdict.providerStatus}): ` +
                     `${JSON.stringify(verdict.message)} -- the provider refused the request itself (invalid ` +
                     `key, unavailable model or exhausted quota). Causal, and about the account rather than ` +
@@ -369,6 +409,15 @@ async function main() {
                 fail(`CANARY FAILED (empty completion): HTTP 200 with an empty ` +
                     `choices[0].message.content: ${verdict.body.slice(0, 300)}`);
                 return;
+            case 'transport-failure-with-cause': {
+                const diagnosis = await diagnosticFetch();
+                fail(`CANARY FAILED (transport): the request never reached the provider. HTTP ` +
+                    `${response.status} carried the pinned flag plus the cause this project added: ` +
+                    `${JSON.stringify(verdict.cause)}. This mode requires a provider-ORIGIN answer, so a ` +
+                    `transport failure here means the user path cannot reach api.deepseek.com at all. ` +
+                    `Diagnostic only, NOT the product's path: ${diagnosis}`);
+                return;
+            }
             case 'transport-cause-discarded': {
                 const diagnosis = await diagnosticFetch();
                 fail(`CANARY FAILED (transport, cause discarded): the route answered HTTP 200 ` +

@@ -411,7 +411,7 @@ func TestChatCompletionElectronHubTransportFailureAnswers200(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("status = %d, want the pinned 200 (body %q); CLAUDE's 500 is the wrong contract here", status, text)
 	}
-	if text != `{"error":true}` {
+	if !isTransportFailureBody(text) {
 		t.Fatalf("body = %q, want {error:true}", text)
 	}
 }

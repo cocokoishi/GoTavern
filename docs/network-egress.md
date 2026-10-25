@@ -114,20 +114,42 @@ one layer below and are measured against a TLS server in `internal/outbound/tran
 terminated TLS would add a certificate to this harness without adding a single new observable.
 
 **`scripts/deepseek-canary.mjs` — the live gate, run by the lane workflow.** It boots the same binary (seam
-unset), stores the key through the same route, and calls the real `https://api.deepseek.com/beta`. It **proves**:
-the shipped binary's production transport completes a real TLS request to DeepSeek and the route returns a
-non-empty completion with the user's key as stored by the frontend. It **cannot prove**: which stage failed when a
-request does not arrive (see the gap below), streaming/cancellation/preset equivalence, parity with pinned Node
-(there is no pinned subject in the run), or anything at all on a run where the credential is absent — in that case
-it prints one `SKIPPED:` line naming `DEEPSEEK_API_KEY` and exits 0, so a reader can always tell "passed" from
-"did not run".
+unset), stores the key through the same route, and calls the real `https://api.deepseek.com/beta`.
 
-**The gap the canary exposes and this change does NOT fix.** The DEEPSEEK source answers a fetch that threw with
-`response.send({ error: true })` and no status and no message (`upstream` chat-completions.js:1168-1174), which
-GoTavern reproduces because it is pinned behaviour. So a real transport failure on this source is still a user
-seeing `{"error":true}` with no DNS/connect/TLS/proxy/timeout distinction — contract item 3 above and AGENTS.md
-rule 35 are **not** met on this route. The deterministic leg 4 pins that shape on purpose (parity), the canary
-reports it as `transport, cause discarded` and adds its own diagnostic fetch to say what the runner's network did,
-and the divergence is a product decision to take explicitly: a causal message for this source means departing from
-pinned's body, which needs its own recorded divergence and not a quiet edit.
+It runs in **two modes**, and the log names which one ran:
+
+- **with `DEEPSEEK_API_KEY`**: the shipped binary's production transport must complete a real TLS request to
+  DeepSeek and the route must return a non-empty completion using the key the frontend stored.
+- **without it (the reachability half, and it needs no credential)**: the script stores its own obviously-invalid
+  key and **requires a provider-origin rejection** — an HTTP status plus api.deepseek.com's own error body. A
+  provider cannot reject a request it never received, so that answer proves DNS resolution, TCP connect, the TLS
+  handshake against the system roots, request framing and response parsing all happened through the shipped
+  binary. A transport failure, an empty completion, or the route's own `{"error":true}` flag **fails the step**.
+
+The earlier version exited 0 with a `SKIPPED:` line when the credential was absent, which made the only gate that
+reaches the provider a line nobody could act on. A gate that cannot fail is worse than no gate, and "no key" never
+meant "nothing measurable".
+
+It **cannot prove**: which stage failed when the request does not arrive at all, streaming/cancellation/preset
+equivalence, or parity with pinned Node (the run has no pinned subject).
+
+**The cause the pinned body discarded, and the DECLARED divergence that fixes it (2026-10-25).** The DEEPSEEK
+source answers a fetch that threw with `response.send({ error: true })` — no status, no message (`upstream`
+chat-completions.js:1168-1174) — and eight other sources share that catch. GoTavern reproduced it for parity, which
+meant a real transport failure reached the user as `{"error":true}` with no DNS/connect/TLS/proxy/timeout
+distinction: contract item 3 above and AGENTS.md rule 35 were **not** met on this route, and it is the exact shape
+P0-A was reported as.
+
+The body is now a **superset** of pinned's, never a replacement:
+
+| member | value | why |
+|---|---|---|
+| `error` | `true` | byte-identical to pinned; this is what the frontend reads, so every existing reader is unaffected |
+| `message` | the transport's own stage: `dns`, `connect`, `tls handshake`, `proxy CONNECT`, `timeout`, cancellation, mid-stream close, or an HTTP status | the cause a user can act on, and the one pinned threw away |
+
+The value is composed from the request's host and the failure stage and never from headers, so no credential can
+appear in it (the canary checks the body for the key independently). The divergence is recorded here rather than
+absorbed: a comparison of this body carries a named exemption for the added member with both values, and
+`tests/e2e` leg 4 asserts *both* halves — the pinned flag and a cause that names a real stage — so neither the flag
+nor the diagnosis can be dropped silently.
 

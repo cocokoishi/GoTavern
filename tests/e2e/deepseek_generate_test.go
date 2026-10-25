@@ -365,17 +365,33 @@ func TestDeepSeekGenerateEndToEndThroughTheProductionTransport(t *testing.T) {
 				"is not the flag would mean this leg was answered by something other than the "+
 				"transport failure it is testing.", compactForLog(body))
 		}
+		// THE CAUSE MUST BE THERE (product decision 2026-10-25, AGENTS rule 35). Pinned sends only
+		// {"error":true}, so the user learns nothing about DNS, TLS, proxy or a timeout -- which is the
+		// symptom P0-A was reported as. GoTavern keeps the pinned flag and ADDS a `message` naming the
+		// stage: the frontend reads the flag and is unaffected, while a human (and the canary) can tell the
+		// failures apart. The added member is a DECLARED divergence, so it is asserted rather than tolerated.
+		cause := errorFlagCause(t, body)
+		if cause == "" {
+			t.Fatalf("the transport failure carries no cause, so the user cannot tell DNS from TLS from a "+
+				"timeout (rule 35): %s", compactForLog(body))
+		}
+		if !namesATransportStage(cause) {
+			t.Fatalf("the cause %q names no transport stage (dns, connect, tls, proxy, timeout, cancelled, "+
+				"closed, refused, status): a message a user cannot act on is the pinned behaviour this "+
+				"project deliberately does not reproduce", cause)
+		}
 		if recorded := recorder.Recording().Requests; len(recorded) != 3 {
 			t.Fatalf("the closed peer recorded %d requests, want 3: a pooled keep-alive connection "+
 				"survived the close, so this leg did not fail to connect at all", len(recorded))
 		}
 	})
 
-	// The last leg is RED on purpose in one respect: DEEPSEEK's catch discards the transport error
-	// (`response.send({ error: true })` with no status and no message), so this route cannot tell the
-	// user whether the failure was DNS, connect, TLS, proxy or a timeout -- AGENTS.md rule 35 is not met
-	// on this source, and the canary records the same limit. The assertion above pins the shape that
-	// parity requires; the gap is reported in docs/network-egress.md rather than papered over here.
+	// WHAT USED TO BE A RECORDED GAP IS NOW A CLOSED ONE. Pinned's catch discards the transport error
+	// (`response.send({ error: true })`, no status, no message), so this route could not tell the user whether
+	// the failure was DNS, connect, TLS, proxy or a timeout -- AGENTS.md rule 35 was unmet on this source and
+	// this comment said so. The product decision of 2026-10-25 keeps pinned's `error` flag byte-identically and
+	// ADDS a `message` naming the stage, so the flag stays compatible and the cause becomes actionable; the leg
+	// above asserts both halves, and the addition is a declared divergence rather than a quiet edit.
 }
 
 // deepSeekSeam returns the environment variable the capture declares for this source's hardcoded
@@ -489,15 +505,22 @@ func recordedBodyText(recorded mockprovider.Request) string {
 	return *recorded.BodyText
 }
 
-// isErrorFlag reports whether the route answered the bare `{"error": true}` flag.
+// isErrorFlag reports whether the route answered pinned's `{"error": true}` flag, with the ONE declared
+// addition this project makes to it.
+//
+// The members are constrained by NAME, not by count-anything: `error` must be exactly boolean true (that is
+// what the frontend reads), an optional `message` may carry the cause, and any OTHER member is a surprise that
+// fails the leg. "At most one extra key" would let a future body grow a field nobody decided on.
 func isErrorFlag(t *testing.T, body string) bool {
 	t.Helper()
 	var decoded map[string]any
 	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
 		return false
 	}
-	if len(decoded) != 1 {
-		return false
+	for member := range decoded {
+		if member != "error" && member != "message" {
+			return false
+		}
 	}
 	value, present := decoded["error"]
 	if !present {
@@ -505,6 +528,37 @@ func isErrorFlag(t *testing.T, body string) bool {
 	}
 	flag, ok := value.(bool)
 	return ok && flag
+}
+
+// errorFlagCause returns the causal `message` of a transport-failure body, or "" when it is absent or empty.
+func errorFlagCause(t *testing.T, body string) string {
+	t.Helper()
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
+		return ""
+	}
+	message, ok := decoded["message"].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(message)
+}
+
+// namesATransportStage reports whether a cause names a stage a user can act on. The vocabulary is the
+// transport's own taxonomy (docs/network-egress.md 3); matching is case-insensitive because the message is
+// composed from wrapped errors whose casing is not contract.
+func namesATransportStage(cause string) bool {
+	lowered := strings.ToLower(cause)
+	for _, stage := range []string{
+		"dns", "no such host", "connect", "dial", "tls", "certificate", "handshake",
+		"proxy", "timeout", "deadline", "cancel", "closed", "refused", "reset", "eof",
+		"status", "http ",
+	} {
+		if strings.Contains(lowered, stage) {
+			return true
+		}
+	}
+	return false
 }
 
 // providerErrorMessage reads error.message out of a recorded provider error body.

@@ -254,7 +254,7 @@ func TestChatCompletionClaudeTransportFailureAnswers500(t *testing.T) {
 	if status != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want the pinned 500 (body %q)", status, text)
 	}
-	if text != `{"error":true}` {
+	if !isTransportFailureBody(text) {
 		t.Fatalf("body = %q, want {error:true}; the generic path's {error:{message}} envelope is the wrong branch", text)
 	}
 }

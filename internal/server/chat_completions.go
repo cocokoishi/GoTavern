@@ -141,16 +141,23 @@ func pinnedChatCompletionTransportBadGateway(err error) *pinnedChatCompletionFai
 
 // pinnedChatCompletionTransportErrorFlagOK is the catch of the EIGHT sources whose pinned branch calls
 // `response.send({error:true})` with NO status argument, so a fetch that throws answers 200 {"error":true}
-// rather than the shared 502. The error is deliberately discarded: the body never mentions it (the pinned
-// code drops it before building the body), and inventing a message here would be a different contract.
-func pinnedChatCompletionTransportErrorFlagOK(_ error) *pinnedChatCompletionFailure {
-	return pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlag())
+// rather than the shared 502.
+//
+// THE CAUSE IS NOW ATTACHED, AND THAT IS A DELIBERATE, DECLARED DIVERGENCE (product decision 2026-10-25).
+// Pinned drops the thrown error before building the body, so a real DNS/TLS/proxy/timeout failure reaches the
+// user as "cannot connect" with nothing else -- which is exactly the report P0-A started from, and exactly
+// what AGENTS.md rule 35 forbids. The frontend reads `error === true`; adding a `message` member keeps every
+// reader of that flag working while making the stage visible in the payload and in the server log. The body is
+// a SUPERSET, never a replacement: `error` stays exactly what pinned sends, and any comparison of this body
+// carries a named exemption for the added member, with both values recorded beside it.
+func pinnedChatCompletionTransportErrorFlagOK(err error) *pinnedChatCompletionFailure {
+	return pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlagWithCause(err))
 }
 
 // pinnedChatCompletionTransportErrorFlagServerError is the catch of GOOGLE and CLAUDE: 500 {"error":true}
-// while the headers are unsent (:787-791 and :441-446), not the shared 502.
-func pinnedChatCompletionTransportErrorFlagServerError(_ error) *pinnedChatCompletionFailure {
-	return pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlag())
+// while the headers are unsent (:787-791 and :441-446), not the shared 502. Same superset rule as above.
+func pinnedChatCompletionTransportErrorFlagServerError(err error) *pinnedChatCompletionFailure {
+	return pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlagWithCause(err))
 }
 
 func pinnedChatCompletionTransportMessage(err error) string {
@@ -170,6 +177,17 @@ func pinnedChatCompletionTransportMessage(err error) string {
 func pinnedChatCompletionErrorFlag() orderedNodeJSON {
 	payload := nodeObject()
 	payload.setMember("error", nodeBool(true))
+	return payload
+}
+
+// pinnedChatCompletionErrorFlagWithCause is that body plus a causal `message`, and it exists because the
+// pinned body deliberately throws the error away. The member's VALUE comes from the transport's own taxonomy,
+// so it names the stage a user needs -- dns, connect, tls handshake, proxy CONNECT, timeout, cancellation,
+// mid-stream close, HTTP status -- and it never carries a credential: the taxonomy is built from the request's
+// host and the failure stage, never from headers (see docs/network-egress.md 3 and the outbound error tests).
+func pinnedChatCompletionErrorFlagWithCause(err error) orderedNodeJSON {
+	payload := pinnedChatCompletionErrorFlag()
+	payload.setMember("message", nodeString(pinnedChatCompletionTransportMessage(err)))
 	return payload
 }
 
