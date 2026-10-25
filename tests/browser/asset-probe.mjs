@@ -431,6 +431,20 @@ try {
         if (typeof script.printCharacters !== 'function') {
             return { invoked: false, reason: 'script.js exports no printCharacters' };
         }
+        // THE LOADER FIRST. Without it the renderer faithfully draws an empty array -- measured in run
+        // 40204846563, where both legs rendered pinned's own "There are no items to display" while the
+        // catalogue answered 2 entries. Both functions are the frontend's own exported entry points.
+        let loader = null;
+        try {
+            if (typeof script.getCharacters === 'function') {
+                await script.getCharacters();
+                loader = { invoked: true };
+            } else {
+                loader = { invoked: false, reason: 'script.js exports no getCharacters' };
+            }
+        } catch (error) {
+            loader = { invoked: false, reason: String(error?.message ?? error).slice(0, 200) };
+        }
         await script.printCharacters(true);
         const deadline = performance.now() + 20000;
         let block = document.querySelector('#rm_print_characters_block');
@@ -441,6 +455,7 @@ try {
         }
         return {
             invoked: true,
+            loader,
             rowsAfterRender: block ? block.querySelectorAll('.avatar').length : null,
             imgsAfterRender: block ? block.querySelectorAll('img').length : null,
             htmlPrefix: block ? String(block.innerHTML ?? '').slice(0, 300) : null,
