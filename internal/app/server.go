@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -118,6 +119,31 @@ func Start(options StartOptions) (*RunningServer, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve pinned command-line configuration: %w", err)
+	}
+	// THE TREE THE RUNTIME USES MUST EXIST, AND IT IS NOT ALWAYS THE ONE THE PARSER CREATED.
+	//
+	// pinned resolves every relative path after its own process.chdir(serverDirectory) (server.js:11), so for
+	// pinned the directory it CREATES the data root in and the one it USES are the same. GoTavern accepts being
+	// started from anywhere, and then the parser's creation path (rendered against the caller's working
+	// directory, as the pinned probe recorded) and the runtime path (rendered against the install root) are two
+	// different directories. The consequence was measured: on a fresh tree booted from a foreign CWD the
+	// cookie-secret writer was the first thing to touch a directory nobody had made, and boot died with
+	// "open <installRoot>/data/...tmp: no such file or directory" -- a boot that fails with no lock involved at
+	// all (internal/adversarial violation boot.foreign-cwd-relative-data-root).
+	//
+	// Creating it HERE rather than inside the parser keeps every pinned-derived path expectation exact: the
+	// parser's own fields, including its warnings, stay byte-identical. The error is causal and names both
+	// directories, because "cannot create the data directory" without them is the message a user cannot act on.
+	if runtimeRoot := parsed.Paths.RuntimeDataRoot; runtimeRoot != "" {
+		if _, statErr := os.Stat(runtimeRoot); errors.Is(statErr, fs.ErrNotExist) {
+			if mkdirErr := os.MkdirAll(runtimeRoot, 0o777); mkdirErr != nil {
+				return nil, fmt.Errorf(
+					"create the data directory the server will use (%s, resolved from dataRoot %q against the install root %s): %w",
+					runtimeRoot, parsed.Paths.DataRoot, options.InstallRoot, mkdirErr)
+			}
+		} else if statErr != nil {
+			return nil, fmt.Errorf("inspect the data directory the server will use (%s): %w", runtimeRoot, statErr)
+		}
 	}
 	// APPLY THE USER'S CONFIGURED PROXY BEFORE ANY PROVIDER CAN BE CALLED.
 	//

@@ -169,18 +169,46 @@ func TestP0BStockTreeInWorkingDirectoryStarts(t *testing.T) {
 
 // (b) The binary lives in the server root but the process starts somewhere else. Pinned resolves the config
 // and data root against the CWD, so this is a DIFFERENT tree; it must still boot, not hang.
-// (b) FOREIGN CWD ON A FRESH TREE IS A KNOWN OPEN DEFECT, not a passing case.
+// (b) The user's other layout: the binary lives in the tree, the process starts somewhere else.
 //
-// Measured: with CWD != install root the data root is CREATED relative to the CWD (the pinned probe recorded
-// it that way) but USED relative to the install root, so the cookie-secret writer is the first thing to touch a
-// directory nobody made and boot dies with "open <installRoot>/data/.gotavern-content-log-*.tmp: no such file
-// or directory".
+// This used to be a recorded OPEN DEFECT and the comment above it said so. What was measured: with CWD !=
+// install root the data root is CREATED relative to the CWD (the pinned probe records it that way, because
+// pinned chdirs to the server directory first and the two bases then coincide) but USED relative to the install
+// root, so the cookie-secret writer was the first thing to touch a directory nobody had made and boot died with
+// "open <installRoot>/data/...tmp: no such file or directory" -- with no lock involved at all.
 //
-// The fix is pinned-grounded: pinned creates the data root during path resolution (src/command-line.js:293),
-// after its own process.chdir(serverDirectory) at server.js:11, so the two bases coincide for pinned. Doing the
-// same in GoTavern changes a field the command-line parser fixture compares, so it needs a NAMED exemption in
-// that fixture rather than a silent edit -- and until that exists this scenario would be red for a reason the
-// lane cannot land. Tracked in HANDOFF.md as OPEN.
+// The fix lives in app.Start, not in the path resolver: the resolver's fields stay byte-identical to the pinned
+// fixture (which is why the first attempt, changing the CREATION base, was reverted -- it turned six pinned
+// fixtures red), and the boot creates the directory it is actually going to use. This scenario is what keeps
+// that honest, and it fails if the creation is ever removed.
+func TestP0BForeignWorkingDirectoryStartsOnAFreshTree(t *testing.T) {
+	installRoot := t.TempDir()
+	foreignWorkingDirectory := t.TempDir()
+	running, err := startBounded(t, "foreign cwd", installRoot, scenarioOptions(t, foreignWorkingDirectory, installRoot))
+	if err != nil {
+		t.Fatalf("a boot from a foreign working directory failed on a fresh tree: %v", err)
+	}
+	if running == nil {
+		t.Fatal("the boot reported no running server and no error")
+	}
+	runtimeRoot := running.CommandLine.Paths.RuntimeDataRoot
+	if runtimeRoot == "" {
+		t.Fatal("the resolved runtime data root is empty, so this scenario cannot say which directory to check")
+	}
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	_ = running.Close(closeCtx)
+	closeCancel()
+	if _, statErr := os.Stat(runtimeRoot); statErr != nil {
+		t.Fatalf("the boot SUCCEEDED but the data directory it uses does not exist (%s): the next writer "+
+			"will fail with ENOENT, which is exactly the defect this scenario exists for: %v", runtimeRoot, statErr)
+	}
+	// And it must be the tree the runtime uses, not one invented beside the caller: a data directory created
+	// under the foreign CWD would make the two-roots split invisible while the server served the other tree.
+	if relative, relErr := filepath.Rel(installRoot, runtimeRoot); relErr == nil && strings.HasPrefix(relative, "..") {
+		t.Fatalf("the runtime data root %s is outside the install root %s, so the tree served and the tree "+
+			"written are not the same", runtimeRoot, installRoot)
+	}
+}
 
 func TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError(t *testing.T) {
 	root := t.TempDir()
