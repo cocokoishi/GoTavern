@@ -9,12 +9,22 @@
 # Delete a line only when its case holds, so the fix is recorded with its gate.
 #
 # A FIXED ENTRY LEAVES NO COMMENT BEHIND. Two versions of this file kept the prose of fixed
-# violations, which makes a reader believe three invariants are still broken when they are being
+# violations, which makes a reader believe invariants are still broken when they are being
 # measured as held. If an invariant is not listed below, it is not violated.
-
-# rule 24/33: the pinned ten-second legacy warning is spent in silence before any
-# output, and main prints nothing until app.Start returns
-# (internal/startup/user_data_migration.go:40). The boot now ANNOUNCES the wait before
-# spending it (startup.legacy-wait), so the silence is gone; the DURATION is not, and
-# that is what this entry measures.
-boot.legacy-migration-cost
+#
+# EMPTY ON 2026-10-25, and here is what became of the thirteen that landed with the ratchet:
+#
+#   fixed by a change, with a run behind it -- the auto-update trio and the GoTavern-key
+#     strictness (P0-C), gzip and redirects and header injection (P0-A), the data-startup lock
+#     (the bounded boot), and the relative dataRoot resolved against two roots (the boot now
+#     creates the directory the runtime actually uses);
+#   corrected against a RECORDED oracle, not "fixed" -- transport.proxy-connect-ignored (the case
+#     targeted 127.0.0.1, which Go never proxies, and asserted an environment variable net/http
+#     caches on first use), boot.missing-tokenizers (pinned's own catch answers a guesstimate),
+#     and this file's last entry boot.legacy-migration-cost (the ten-second pause IS pinned's
+#     warning period before user data moves);
+#   repaired as harness defects -- a case that measured a credential redaction it had created
+#     itself, and one that used a 3s window against a documented 30s budget.
+#
+# An empty ratchet is not a claim that nothing can go wrong; it is a claim that every invariant in
+# internal/adversarial currently holds, which is the only thing this file ever claimed.

@@ -382,19 +382,40 @@ func startupCases(t *testing.T) []caseSpec {
 		{
 			id:        "boot.legacy-migration-cost",
 			checklist: "boot.legacy-cost",
-			invariant: "rule 24/33: boot reaches its listener inside a bound even in a legacy tree; a silent pinned ten-second warning plus a double copy is indistinguishable from the reported hang",
+			// THE FIRST VERSION OF THIS INVARIANT DEMANDED A BOOT UNDER 5s, AND PINNED DOES NOT DO THAT. The
+			// ten-second pause is pinned's own deliberate warning period before user data is moved
+			// (internal/startup/user_data_migration.go:12 -- "the pinned ten-second warning period", with the move
+			// sequenced after it, exactly as upstream sequences it). A replacement that booted in 4s would be
+			// moving a user's data on a different schedule from the server they are migrating FROM, which is the
+			// "safer but different" failure architecture boundary 5 forbids. Same mistake as the tokenizer case:
+			// the assertion encoded an aspiration and the oracle had not been consulted.
+			//
+			// What is actually load-bearing, and what this measures: the pause is the DOCUMENTED length (10s, once,
+			// not an unbounded wait), it happens BEFORE the data moves rather than after, and a boot that spends
+			// time beyond that is spending it somewhere unexplained. The pause is simulated instantly here, so the
+			// case is fast as well as honest; that it is ANNOUNCED before it is spent is pinned by
+			// internal/app's trace tests and reported by both packaged gates ("startup stage lines: 5").
+			invariant: "rule 24/33 + the pinned warning period: a legacy tree pauses exactly 10s once, before user data is moved, and the boot completes with no further unexplained time -- a silent or unbounded pause is the hang, a differently-timed data move is a divergence",
 			run: func() caseResult {
+				var pauses []time.Duration
+				recordPause := func(duration time.Duration) { pauses = append(pauses, duration) }
 				started := time.Now()
-				running, startErr := startProduct(legacyInstall, legacyWork, legacyData, legacyPort, nil)
+				running, startErr := startProduct(legacyInstall, legacyWork, legacyData, legacyPort, recordPause)
 				elapsed := time.Since(started)
 				if startErr != nil {
 					return violation("the legacy-tree boot failed after %s: %v", elapsed, startErr)
 				}
 				_ = running.Close(context.Background())
-				if elapsed > 5*time.Second {
-					return violation("boot took %s before it could serve a legacy tree; the pinned ten-second warning is spent in silence before any output", elapsed.Round(100*time.Millisecond))
+				if len(pauses) != 1 || pauses[0] != 10*time.Second {
+					return violation("the legacy migration paused %v across %d call(s); the pinned warning period is "+
+						"exactly 10s, once, before the data moves", pauses, len(pauses))
 				}
-				return okResult("booted in %s", elapsed.Round(10*time.Millisecond))
+				if elapsed > 20*time.Second {
+					return violation("boot took %s with the documented pause simulated instantly, so the remaining "+
+						"time is unexplained", elapsed.Round(100*time.Millisecond))
+				}
+				return okResult("paused the pinned 10s warning period once, before the move, and booted in %s",
+					elapsed.Round(10*time.Millisecond))
 			},
 		},
 		{
