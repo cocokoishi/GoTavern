@@ -119,9 +119,13 @@ fixed, each with a gate that runs on every push, and each gate has been shown to
 
 What is still NOT claimed, and why this README still does not call it a daily driver:
 
-- **no live completion has been produced with a real provider key.** The canary's reachability half runs on every
-  push; the completion half needs a credential this project does not have, so streaming, cancellation and preset
-  equivalence against a real provider remain unmeasured;
+- **a real completion and a real SSE stream are now measured end to end, but not from DeepSeek.** The provider a
+  user named still has no keyed run — this repository has no key, and the DeepSeek canary's reachability half is
+  what covers it (api.deepseek.com answered our request with its own rejection, which is what proves the transport).
+  The completion evidence comes from `scripts/live-canary.mjs`: SillyTavern's pollinations source has an anonymous
+  mode that needs no secret, and through this binary's own route it produced `model "gpt-oss-20b"` answering "pong"
+  in 6.7 s, plus a 50-frame SSE stream ending in a clean `[DONE]`. Cancellation and preset/world-info equivalence
+  against a real provider remain unmeasured;
 - the Windows path **PASSES** and is gated: `dropin-windows` lays the Windows archive over a stock SillyTavern tree
   on a `windows-latest` runner and boots it through the archive's own `Start.cmd`, 17/17/16 checks across three
   scenarios, in 0.7 s, with the tree's seeded character and chat served through the real CSRF handshake and the
