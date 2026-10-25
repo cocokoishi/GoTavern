@@ -1,0 +1,29 @@
+Reproduce /thumbnail as RED: the route the stock frontend renders every avatar through
+
+Pinned public/script.js builds /thumbnail with type=bg|avatar|persona and file=NAME in
+getThumbnailUrl. buildAvatarList calls it for the character list, and group-chats.js,
+bookmarks.js, personas.js and backgrounds.js call it for every avatar and background tile
+they render. This server registers no /thumbnail route at all, so on a real user's page
+every one of those images is a broken image and the browser has no fallback (AGENTS.md 44/45).
+
+This commit is the REPRODUCER ONLY and is deliberately RED. It asserts the OBSERVABLE and
+never bytes -- the codec decision is ARCHITECTURE.md 35.2 -- so: status, MIME, decodability
+and dimensions. Source-derived from pinned src/endpoints/thumbnails.js and labelled as such
+(rule 4); no capture exists because the route needs a session and a data root.
+
+Cases, each naming the pinned behaviour it reproduces:
+  - avatar: 200, image/png (MIME from the ORIGINAL filename), decodes to exactly 96x144 (cover)
+  - the trailing-slash spelling /thumbnail/: 200 (publicRouter.get('/') under app.use('/thumbnail'))
+  - bg: 200, decodes to 139x104 (configured 160x90 area fitted to a 4:3 source)
+  - persona: 200 from the user's User Avatars directory, 96x144
+  - repeated type key: 400, for pinned's reason (Express yields an array, so typeof is not string)
+  - type=bogus: 400; missing file: 400
+  - file=../hero.png: 403, because sanitize-filename changes it (an identity check, not a traversal check)
+  - missing original: 404
+  - .gif: 200 and byte-identical (it is short-circuited before any re-encode)
+
+Not reachable until the implementation commit: thumbnails.enabled=false serves the original,
+and the cache-regeneration pair (originalStat.mtimeMs vs cachedStat.ctimeMs).
+
+Dimension defaults cited from internal/commandline/options.go:262-265 (avatar/persona [96,144],
+bg [160,90]). Harness: newFrontendAssetHarness (frontend_assets_test.go:35).
