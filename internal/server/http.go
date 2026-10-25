@@ -96,6 +96,10 @@ type HTTPHandlerOptions struct {
 	CorsCredentials                  *bool
 	CorsMaxAge                       any
 	ImageMetadataThumbnailDimensions map[string]any
+
+	// Thumbnails is the /thumbnail codec decision (ARCHITECTURE.md 35.2): enabled, encoded format and
+	// jpeg quality, parsed from thumbnails.* with pinned's predicates and defaults. SEE thumbnails.go.
+	Thumbnails ThumbnailSettings
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
@@ -152,6 +156,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 			options.CorsCredentials = &credentials
 		}
 	}
+	options.Thumbnails = thumbnailSettingsFromStartup(settings.ThumbnailsEnabled, settings.ThumbnailsFormat, settings.ThumbnailsQuality)
 	if settings.ThumbnailDimensionsSet || settings.ThumbnailDimensionsBG != nil || settings.ThumbnailDimensionsAvatar != nil || settings.ThumbnailDimensionsPersona != nil {
 		options.ImageMetadataThumbnailDimensions = map[string]any{
 			"bg":      settings.ThumbnailDimensionsBG,
