@@ -55,6 +55,11 @@ on:
       - 'tests/browser/compare-asset-legs.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
       - 'tools/verify-browser-comparisons.mjs'
+      # THE FILE THAT SERVES THE BROWSER'S IMAGES MUST RE-PROVE THE BROWSER'S IMAGES. Without this entry, a
+      # change to the thumbnail handler -- the handler that answered 404 for every avatar while every gate
+      # stayed green -- would not run the one gate that can see it. It is also what makes the mutation in the
+      # companion commit observable at all, instead of a local edit no CI run could see.
+      - 'internal/server/thumbnails.go'
       # THE WORKFLOW ITSELF. Measured: commit 555cbdc fixed the asset step's missing directory and started
       # NO browser run, because only the four files above were listed -- so the fix to this gate went
       # unverified by this gate, which is the same defect as a fix travelling with its gate. The
