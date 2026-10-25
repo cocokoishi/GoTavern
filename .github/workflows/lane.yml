@@ -145,9 +145,14 @@ jobs:
         # the shipped binary, stores the key through POST /api/secrets/write -- the route the frontend
         # uses -- and calls the real api.deepseek.com.
         #
-        # WHEN THE SECRET IS ABSENT the script prints ONE `SKIPPED:` line naming DEEPSEEK_API_KEY and
-        # exits 0. That is deliberate and it is visible in this log: a silent skip would be a gate that
-        # cannot fail, and a reader must be able to tell `ran and passed` from `did not run`.
+        # NO SECRET IS REQUIRED FOR THE REACHABILITY HALF. The first version printed SKIPPED and exited 0
+        # when DEEPSEEK_API_KEY was absent, which made the only gate that reaches the provider a line
+        # nobody could act on. Without a key the script now sends its own obviously-invalid key and
+        # REQUIRES a provider-origin rejection: an HTTP status plus the provider's own error body proves
+        # DNS, TCP, the TLS handshake against the system roots, request framing and response parsing went
+        # through the shipped binary. With a key it requires a real completion. Either way a transport
+        # failure, an empty completion or the route's own error flag FAILS the step, and the log names
+        # which mode ran.
         #
         # It writes nothing into the repository: the install root, the config, the data directory and
         # the secrets.json holding the key all live in a throwaway temp directory.
