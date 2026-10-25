@@ -161,4 +161,21 @@ jobs:
           GOTAVERN_BINARY: ${{ github.workspace }}/lane-binaries/gotavern-linux-amd64
         run: node scripts/deepseek-canary.mjs
 
+      - name: Live completion canary (a REAL completion, with no credential)
+        # The DeepSeek step above can only prove reachability without a key. This step proves the COMPLETION half --
+        # a real answer, over real TLS, from a real third-party host, through the shipped binary -- because
+        # SillyTavern's pollinations source has an ANONYMOUS endpoint mode in which pinned sends the literal string
+        # "anonymous" and never reads a secret (internal/server/pollinations_chat.go:12-13, :45, :52-59). No
+        # credential exists in this repository, and none is needed for this.
+        #
+        # A third party can be down, so the taxonomy is explicit and printed: `ok` is a completion; PROVIDER-REFUSED
+        # means the provider ANSWERED with its own error (the transport worked end to end, and the line says no
+        # completion was produced); a transport failure, an empty response, or a server that never becomes ready
+        # FAILS. Both the non-stream and the stream paths run, because they are different code in this product.
+        env:
+          GOTAVERN_BINARY: ${{ github.workspace }}/lane-binaries/gotavern-linux-amd64
+        run: |
+          node scripts/live-canary.mjs
+          node scripts/live-canary.mjs --stream
+
 
