@@ -298,9 +298,27 @@ func buildLongLivedTree(t *testing.T, dataRoot string) longLivedTree {
 	write("backups/settings_2026-09-01.json", []byte(`{"backup":"older settings"}`))
 	write("chats/Long_Legacy - 2025-01-01.jsonl", []byte(`{"user_name":"default-user","mes":"LONG_LEGACY"}`+"\n"))
 
-	// The builder refuses a tree it cannot describe.
-	if len(tree.files) < len(directories) {
-		t.Fatalf("the long-lived tree is too simple to be evidence: %d files", len(tree.files))
+	// The builder refuses a tree it cannot describe: every surface a real user has must be present, by
+	// name, because a fixture that silently loses one of them is a fixture that proves less than it says.
+	for _, required := range []string{
+		"characters/" + longLivedAvatar,
+		tree.chatFile,
+		"worlds/" + tree.worldName + ".json",
+		"OpenAI Settings/" + tree.presetName + ".json",
+		"backgrounds/Longlived_Background.png",
+		"backgrounds/backgrounds.json",
+		"User Avatars/user-default.png",
+		"settings.json",
+		"QuickReplies/longlived.json",
+		"themes/longlived.json",
+		"movingUI/longlived.json",
+		"user/files/LONG_FILE.txt",
+		"backups/settings_2026-09-01.json",
+		"chats/Long_Legacy - 2025-01-01.jsonl",
+	} {
+		if _, present := tree.files[required]; !present {
+			t.Fatalf("the long-lived tree is missing %s, so what it proves is not what it claims", required)
+		}
 	}
 	if len(tree.cardBytes) < 1024 {
 		t.Fatalf("the planted card is %d bytes, which cannot be a card", len(tree.cardBytes))
