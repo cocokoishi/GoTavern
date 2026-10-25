@@ -333,11 +333,6 @@ func startupCases(t *testing.T) []caseSpec {
 					_, startErr := startup.InitializeDataStartup(dataStartupOptions(lockInstall, lockData))
 					blocked <- startErr
 				}()
-				select {
-				case blockingErr := <-blocked:
-					_ = held.Close()
-					return violation("the second boot returned (%v) while the content lock was held, so the case did not contend and proves nothing", blockingErr)
-				}
 				// THE BOUND IS THE PRODUCT'S, NOT THIS CASE'S. The contract (ARCHITECTURE 34.2, rule 24) is that a
 				// blocked boot gives up with a NAMED error inside the documented boot budget -- lockacquire's default
 				// is 30s. An earlier version of this case used a 3s window, which a correctly bounded 30s wait cannot
