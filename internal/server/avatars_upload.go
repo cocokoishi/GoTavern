@@ -201,5 +201,5 @@ func invalidatePersonaThumbnail(dataRoot, handle, filename string) {
 	if err != nil {
 		return
 	}
-	_ = os.Remove(filepath.Join(directories["thumbnailsPersona"], filename+"-mutation")) // MUTATION (temporary): the thumbnail is left in place
+	_ = os.Remove(filepath.Join(directories["thumbnailsPersona"], filename))
 }

@@ -576,7 +576,11 @@
           "TestPinnedNodeSpritesUpload",
           "TestImagesRoutesMatchPinnedOracle",
           "TestPinnedFrontendAssetContractMountsServeMarkedBytes",
-          "TestPinnedThumbnailServesTheObservableContract"
+          "TestPinnedThumbnailServesTheObservableContract",
+          "TestPersonaAvatarUploadCreatesTheFile",
+          "TestPersonaAvatarUploadAppliesCrop",
+          "TestPersonaAvatarUploadRejectsAForbiddenName",
+          "TestPersonaAvatarUploadInvalidatesThePersonaThumbnail"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -589,7 +593,7 @@
         "explanation": "the row's claims about files, avatars, backgrounds, images, sprites, image metadata rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). Avatar crop/resize on /api/avatars/upload keeps the boundary until a user requirement reaches it",
+        "thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). POST /api/avatars/upload also serves a real re-encoded avatar from the same pure-Go codec (same divergence, observable asserted: status, the pinned `{path}` body, the stored dimensions that prove a crop ran, and the persona-thumbnail invalidation); pinned imposes NO file-size cap and leaves multer's staging file behind on a refusal, both recorded here rather than silently hardened",
         "no multi-part upload test through a real browser; every upload fixture posts a hand-built body"
       ],
       "blockedBy": [],
@@ -1087,8 +1091,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 553,
-      "citedByMatrix": 60
+      "inTree": 559,
+      "citedByMatrix": 64
     },
     "workflows": {
       "inTree": 9,
