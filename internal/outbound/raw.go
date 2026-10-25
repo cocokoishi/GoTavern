@@ -74,9 +74,12 @@ func (response *Response) Header(name string) string {
 	return ""
 }
 
-// Send writes the request verbatim and reads the whole response body.
-func Send(ctx context.Context, request Request, timeout time.Duration) (*Response, error) {
-	response, err := SendStreaming(ctx, request, timeout)
+// sendWireExact writes the request verbatim and reads the whole response body. ORACLE ONLY: this is the
+// client that reproduces pinned's request bytes, and it deliberately has no proxy support, no redirects,
+// no connection reuse, no response decoding and no bound on a stalled provider. User traffic goes
+// through Send in transport.go; see the comment there for why the roles are separate.
+func sendWireExact(ctx context.Context, request Request, timeout time.Duration) (*Response, error) {
+	response, err := sendWireExactStreaming(ctx, request, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +92,9 @@ func Send(ctx context.Context, request Request, timeout time.Duration) (*Respons
 	return response, nil
 }
 
-// SendStreaming writes the request verbatim and returns the response with its
-// body still streaming, so a caller can forward frames as they arrive.
-func SendStreaming(ctx context.Context, request Request, timeout time.Duration) (*Response, error) {
+// sendWireExactStreaming writes the request verbatim and returns the response with its body still
+// streaming, so the oracle observes the exact bytes as they arrive.
+func sendWireExactStreaming(ctx context.Context, request Request, timeout time.Duration) (*Response, error) {
 	parsed, err := url.Parse(request.URL)
 	if err != nil {
 		return nil, fmt.Errorf("parse provider url: %w", err)

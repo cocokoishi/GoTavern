@@ -104,7 +104,7 @@ func TestSendReproducesTheCapturedWireForm(t *testing.T) {
 		headers = append(headers, Header{Name: header.Name, Value: value})
 	}
 
-	response, err := Send(context.Background(), Request{
+	response, err := sendWireExact(context.Background(), Request{
 		URL:     "http://" + address.String() + captured.RawTarget,
 		Method:  captured.Method,
 		Headers: headers,
@@ -165,7 +165,7 @@ func TestSendStreamsChunkedResponses(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = recorder.Close() })
 
-	response, err := SendStreaming(context.Background(), Request{
+	response, err := sendWireExactStreaming(context.Background(), Request{
 		URL:    "http://" + address.String() + "/v1/chat/completions",
 		Method: "POST",
 		Headers: []Header{
@@ -234,7 +234,7 @@ func TestSendDistinguishesATruncatedBodyFromAFinishedOne(t *testing.T) {
 		{name: "terminal chunk", url: "http://" + finishedAddress.String() + "/v1/chat/completions", want: false, expect: "data: [DONE]"},
 		{name: "provider died mid-stream", url: "http://" + abandonedAddress.String() + "/v1/chat/completions", want: true, expect: "data: {\"delta\":\"one\"}"},
 	} {
-		response, err := SendStreaming(context.Background(), Request{
+		response, err := sendWireExactStreaming(context.Background(), Request{
 			URL:     scenario.url,
 			Method:  "POST",
 			Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
@@ -295,7 +295,7 @@ func TestSendReportsAShortDeclaredBody(t *testing.T) {
 		_, _ = io.Copy(io.Discard, reader)
 	}()
 
-	response, err := Send(context.Background(), Request{
+	response, err := sendWireExact(context.Background(), Request{
 		URL:     "http://" + listener.Addr().String() + "/v1/chat/completions",
 		Method:  "POST",
 		Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
@@ -327,7 +327,7 @@ func TestSendReportsTruncatedStreams(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = recorder.Close() })
 
-	response, err := SendStreaming(context.Background(), Request{
+	response, err := sendWireExactStreaming(context.Background(), Request{
 		URL:     "http://" + address.String() + "/v1/chat/completions",
 		Method:  "POST",
 		Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
