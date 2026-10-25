@@ -53,6 +53,12 @@ on:
     paths:
       - 'tests/browser/asset-probe.mjs'
       - 'tests/browser/compare-asset-legs.mjs'
+      # THE HELPER HARNESS PROVES ITSELF ON A PUSH THAT TOUCHES IT (AGENTS.md 7/47): the same reasoning as
+      # the asset entries above, one surface over -- a lane that adds a gate it cannot run is a gate nobody
+      # has seen execute.
+      - 'tests/browser/helper-probe.mjs'
+      - 'tests/browser/compare-helper-legs.mjs'
+      - 'tests/browser/url-recorder.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
       - 'tools/verify-browser-comparisons.mjs'
       # THE FILE THAT SERVES THE BROWSER'S IMAGES MUST RE-PROVE THE BROWSER'S IMAGES. Without this entry, a
@@ -78,6 +84,9 @@ on:
       - 'tests/browser/compare-*-legs.mjs'
       - 'tests/browser/preset-kit.mjs'
       - 'tests/browser/capture-preset.mjs'
+      - 'tests/browser/helper-probe.mjs'
+      - 'tests/browser/compare-helper-legs.mjs'
+      - 'tests/browser/url-recorder.mjs'
       - 'tests/browser/preset-gate-selftest.mjs'
       - 'tests/browser/run-against-pinned.mjs'
       - 'tests/browser/catalog.test.mjs'
@@ -87,11 +96,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Which surface to re-record: generation | stream | cancel | preset | assets | all'
+        description: 'Which surface to re-record: generation | stream | cancel | preset | assets | helper | all'
         required: true
         default: 'all'
         type: choice
-        options: [generation, stream, cancel, preset, assets, all]
+        options: [generation, stream, cancel, preset, assets, helper, all]
       sources:
         description: 'Comma-separated source ids (custom, groq, mistralai, ...), or empty for every source with a committed artefact'
         required: false
@@ -269,13 +278,18 @@ jobs:
         # A `preset`-only run must NOT fall into this step's "everything that is not generation is
         # streaming" branch and pay for fifteen sources' streaming drives. The preset lane has its own
         # steps below, and `all` still runs both. An `assets`-only run has its own step for the same reason.
-        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'preset' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'assets' }}
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'preset' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'assets' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'helper' }}
         env:
           # A SCHEDULED RUN HAS NO INPUTS, so an empty mode means "everything": the nightly job is the
           # one that must compare every surface, and a `|| 'all'` here is what makes that true without a
           # second code path. A PUSH RUN is the asset gate proving itself (see `on.push`), so it narrows to
           # `assets` rather than paying an hour for fifteen sources it did not touch.
           MODE: ${{ inputs.mode || (github.event_name == 'push' && 'assets' || 'all') }}
+          # THE HELPER SURFACE NARROWS ITSELF THE SAME WAY. On a push it runs only when the pushed commits
+          # touch the helper harness (or this workflow, which the commit payload also contains); the
+          # comparison is a substring over the commit JSON, so a commit MESSAGE that says helper runs it too
+          # -- that costs minutes and can never make a wrong verdict right.
+          MODE_HELPER: ${{ inputs.mode || (github.event_name == 'push' && (contains(toJSON(github.event.commits), 'tests/browser/helper-') && 'helper' || 'none') || 'all') }}
           SOURCES_CSV: ${{ inputs.sources }}
           # The committed artefacts were paced at 14 frames; keep the pace identical so a freshness
           # difference is about behaviour rather than about how many chunks the peer wrote.
@@ -467,6 +481,85 @@ jobs:
             "$work/legs/asset-gotavern-leg.json" "$work/legs/asset-pinned-leg.json" \
             > tests/browser/asset-comparison.json
 
+      # THE 酒馆助手 DIFFERENTIAL (AGENTS.md 47 and 50; GOAL.md Q8-Q12).
+      #
+      # WHAT WAS MISSING UNTIL NOW. extension-tavern-helper-comparison.json installs the pinned extension,
+      # reaches user state, counts 32 extension containers and compares the requests the page makes -- and
+      # never executes one line of helper script. The extension's architecture is user code in an
+      # UNSANDBOXED same-origin srcdoc iframe whose bridge is property injection at document start
+      # (src/iframe/predefine.js), with 25 static ../../../../../ imports of the host's own modules. This leg
+      # installs the same pinned revision, opens a real chat, enables one probe script through the helper's
+      # own API, and asserts the four things that make it effectively run: the iframe is present and not
+      # sandboxed with window.parent.TavernHelper reachable inside it; the chat variable the script wrote
+      # reached the CHAT FILE; the helper's own renderer produced the message DOM; and every URL those
+      # iframes put into the DOM answered 200 with bytes.
+      #
+      # FOUR LEGS, NOT TWO. helper-on and helper-off for each subject: a comparison whose on and off runs are
+      # identical is HARNESS NON-DISCRIMINATING and must fail itself (AGENTS.md 50), so the pair is recorded
+      # together rather than trusted.
+      - name: Record the helper legs (both subjects, helper on and off)
+        id: helper
+        if: ${{ env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs" "$work/committed"
+          # Staged so the freshness report can compare the committed artefact with the fresh one.
+          if git cat-file -e "HEAD:tests/browser/helper-comparison.json" 2>/dev/null; then
+            git show "HEAD:tests/browser/helper-comparison.json" > "$work/committed/helper-comparison.json"
+          else
+            : > "$work/committed/helper-comparison.json.absent"
+          fi
+          failures=0
+          # ONE DATA ROOT PER LEG, and the same --data-root is passed to the wrapper (which boots the server
+          # on it) and through -- to the probe (which installs the extension into it). The asset lane paid for
+          # this lesson in run 40202885055: two roots meant the pinned leg read an empty tree.
+          for variant in on off; do
+            for subject in gotavern pinned; do
+              tree="$work/helper-tree-$subject-$variant"
+              rm -rf "$tree"
+              mkdir -p "$tree"
+              report="$work/legs/helper-$subject-$variant.json"
+              if [ "$subject" = "gotavern" ]; then
+                if node tests/browser/helper-probe.mjs --data-root "$tree" --variant "$variant" --report "$report"; then
+                  echo "recorded the $subject/$variant helper leg"
+                else
+                  echo "::error::the $subject/$variant helper leg failed to drive"
+                  failures=$((failures + 1))
+                fi
+              else
+                if node tests/browser/run-against-pinned.mjs helper-probe.mjs -- --data-root "$tree" --variant "$variant" --report "$report"; then
+                  echo "recorded the $subject/$variant helper leg"
+                else
+                  echo "::error::the $subject/$variant helper leg failed to drive"
+                  failures=$((failures + 1))
+                fi
+              fi
+            done
+          done
+          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+          # A drive failure is reported above and judged below; this step does not mask it.
+          exit 0
+
+      - name: Compare the helper legs
+        id: helper-compare
+        if: ${{ env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          if [ "${{ steps.helper.outputs.failures }}" != "0" ]; then
+            echo "::error::a helper leg failed to drive, so there is no comparison to judge"
+            exit 1
+          fi
+          node tests/browser/compare-helper-legs.mjs \
+            --gotavern-on "$work/legs/helper-gotavern-on.json" \
+            --gotavern-off "$work/legs/helper-gotavern-off.json" \
+            --pinned-on "$work/legs/helper-pinned-on.json" \
+            --pinned-off "$work/legs/helper-pinned-off.json" \
+            --out tests/browser/helper-comparison.json \
+            > /dev/null
+          echo "helper comparison written to tests/browser/helper-comparison.json"
+
       # -------------------------------------------------------------------------------------------------
       # THE COMPLEX-PRESET DIFFERENTIAL (AGENTS.md rule 8 and rule 9).
       #
@@ -622,7 +715,7 @@ jobs:
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
       # or in the harness, not a stale document.
       - name: Verify the FRESH artefacts support their claims
-        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') }}
+        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
       # FRESHNESS: does the fresh artefact still say what the committed one says? Report-only, with the
@@ -686,7 +779,7 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
