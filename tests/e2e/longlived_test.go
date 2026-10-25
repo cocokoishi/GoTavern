@@ -391,8 +391,9 @@ func TestLongLivedTreeBootsAndServesItsAssets(t *testing.T) {
 	if !strings.HasPrefix(header.Get("Content-Type"), "image/") {
 		t.Errorf("/thumbnail answered Content-Type %q", header.Get("Content-Type"))
 	}
-	if !bytes.HasPrefix(body, []byte("\x89PNG\r\n\x1a\n")) && !bytes.HasPrefix(body, []byte{0xff, 0xd8}) {
-		t.Errorf("/thumbnail answered %d bytes that are neither PNG nor JPEG: %.40q", len(body), body)
+	thumbnailBytes := []byte(body)
+	if !bytes.HasPrefix(thumbnailBytes, []byte("\x89PNG\r\n\x1a\n")) && !bytes.HasPrefix(thumbnailBytes, []byte{0xff, 0xd8}) {
+		t.Errorf("/thumbnail answered %d bytes that are neither PNG nor JPEG: %.40q", len(thumbnailBytes), thumbnailBytes)
 	}
 
 	// (4) the character list, through the route the frontend reads it from.
