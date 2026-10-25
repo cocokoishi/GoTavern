@@ -61,10 +61,7 @@ func init() {
 // thumbnailTypeDirs is getThumbnailFolder/getOriginalFolder (thumbnails.js:35-75) expressed as
 // startup.DirectoriesForUser keys.
 var thumbnailTypeDirs = map[string]struct{ original, cache string }{
-	// MUTATION (lane/asset-browser, temporary; reverted in the next commit): the avatar type is removed, so
-	// /thumbnail?type=avatar takes the pinned 400 path. The asset gate must go RED on
-	// noImageRequestFailedOnEitherLeg and on every character-list avatar failing to decode; if it stays green
-	// then it cannot see the defect it was built for (AGENTS.md 31/32, differential doctrine 4).
+	"avatar":  {"characters", "thumbnailsAvatar"},
 	"persona": {"avatars", "thumbnailsPersona"},
 	"bg":      {"backgrounds", "thumbnailsBg"},
 }
