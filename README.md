@@ -106,19 +106,31 @@ the hard way, including the ones about mutations that cannot fail, fixtures that
 
 ## Compatibility target
 
-### Current status (2026-10-25): not yet a daily driver
+### Current status (2026-10-25): the three reported defects are fixed and gated; not yet a daily driver
 
-Three defects found in real use are **open**, and they are exactly the kind a route-by-route ledger cannot show:
+Three defects were found in real use — exactly the kind a route-by-route ledger cannot show. All three are now
+fixed, each with a gate that runs on every push, and each gate has been shown to fail:
 
-| # | What a user hits | State |
+| # | What a user hit | State, and the gate that holds it |
 |---|---|---|
-| P0-A | a real OpenAI-compatible provider (DeepSeek) cannot be reached: the shared transport has no response timeout, no decompression for the `accept-encoding` it advertises, no proxy support and no redirect handling | **open** — HTTPS/proxy reproducer in progress |
-| P0-B | the release binary placed in a working SillyTavern directory hangs in initialisation; every boot lock is unbounded and boot prints no stage | **open** — bounded locks and staged diagnostics in progress |
-| P0-C | extensions/plugins can be updated without being asked, because `extensions.autoUpdate` defaults to true and a stock config can be rewritten with that default on first boot | **open** — default must resolve to OFF and boot must not rewrite a parseable config |
+| P0-A | a real provider (DeepSeek) could not be reached: the shared transport had no response timeout, no decompression for the `accept-encoding` it advertised, no proxy support and no redirect handling | **fixed** — user traffic moved to `net/http` (bounded connect/TLS/header waits, env proxies, keep-alive, redirects, gzip/deflate, cancellation) while the byte-exact client is retained behind a test-only seam for the wire oracle. `tests/e2e` drives the shipped binary through the route; `scripts/deepseek-canary.mjs` reaches the real api.deepseek.com with **no credential** (the provider's own rejection proves DNS/TCP/TLS/framing/parsing) |
+| P0-B | the release binary placed in a working SillyTavern directory hung in initialisation; every boot lock was unbounded and boot printed no stage | **fixed** — every boot-path lock is bounded with a named error inside one 30 s budget, a slow boot now names its stage (`startup.<stage>`), and the data directory the runtime uses is created even when the working directory differs from the install root. `.github/workflows/dropin-qualification.yml` boots an archive of every push in a stock tree, in four combinations |
+| P0-C | extensions/plugins could be updated without being asked, because `extensions.autoUpdate` defaults to true and a stock config can be rewritten with that default on first boot | **fixed** — the inherited keys are reporting-only; the only input is `gotavern.autoUpdateExtensions`, resolved strictly, so missing/null/unparsed/legacy all mean OFF, and `settings/get` reports that value |
 
-Until all three are closed by a gate that runs on the packaged artifact, this README does not claim that GoTavern
-replaces SillyTavern for daily use. The contract and the measurements are in
-[`docs/network-egress.md`](docs/network-egress.md), [`docs/startup-state-machine.md`](docs/startup-state-machine.md),
+What is still NOT claimed, and why this README still does not call it a daily driver:
+
+- **no live completion has been produced with a real provider key.** The canary's reachability half runs on every
+  push; the completion half needs a credential this project does not have, so streaming, cancellation and preset
+  equivalence against a real provider remain unmeasured;
+- the **Windows archive and `Start.cmd` have never been executed** — the drop-in gate covers the Linux archive only;
+- one adversarial violation is open and named: the pinned ten-second legacy migration stage is now announced but
+  not shortened;
+- the tokenizer fallback reproduces an **inherited weakness** (an inexact count is indistinguishable from an exact
+  one, as it is upstream) and says so in the compatibility matrix rather than pretending otherwise.
+
+The contract and the measurements are in [`docs/network-egress.md`](docs/network-egress.md),
+[`docs/startup-state-machine.md`](docs/startup-state-machine.md),
+[`docs/dropin-qualification.md`](docs/dropin-qualification.md), [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md),
 [`AGENTS.md`](AGENTS.md) rules 21-40 and [`ARCHITECTURE.md`](ARCHITECTURE.md) §34.
 
 GoTavern keeps SillyTavern's frontend and data model rather than designing substitutes:
