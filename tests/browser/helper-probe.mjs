@@ -488,14 +488,16 @@ try {
     if (variant === 'on') {
         await page.evaluate(script => {
             window.__helperProbeRenderedUrls = script.urls;
-            window.TavernHelper.replaceScriptTrees([{
+            window.__gtProbeTrees = [{
+            
                 type: 'script',
                 enabled: true,
                 name: 'gotavern-probe-script',
                 id: 'gotavern-probe-script',
                 content: script.content,
                 button: { enabled: true, buttons: [{ name: 'probe', visible: true }] },
-            }], { type: 'global' });
+            }];
+            window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' });
         }, { content: PROBE_SCRIPT, urls: renderedUrls });
         step('script-enabled', true);
     } else {
@@ -629,6 +631,29 @@ try {
                 return { via: 'send', ok: true };
             }));
             file = await waitForFile(20000);
+        }
+        // ORDERING, measured in run 40242762392 and fixed here. The script writes its variable into the
+        // in-memory chat BEFORE any chat identity exists, so the write has no chat_metadata to attach to
+        // and the file that finally appears carries counter=0 (the send path created the chat AFTER the
+        // write). Running the same script again once the chat exists is not a new capability: it is the
+        // order a user has (open a chat, then let the script work), and the frontend's own save persists it.
+        if (file && variant === 'on') {
+            await page.evaluate(async () => {
+                try { await window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' }); return true; }
+                catch { return false; }
+            });
+            await page.waitForTimeout(6000);
+            attempts.push(await page.evaluate(async () => {
+                try {
+                    const context = window.SillyTavern.getContext();
+                    const save = context.saveMetadata ?? context.saveChatConditional;
+                    if (typeof save !== 'function') return { via: 'rerun-after-chat', ok: false, error: 'no save function' };
+                    await save();
+                    return { via: 'rerun-after-chat', ok: true };
+                } catch (error) { return { via: 'rerun-after-chat', ok: false, error: String(error?.message ?? error) }; }
+            }));
+            const rewrote = await waitForFile(15000);
+            if (rewrote) file = rewrote;
         }
         report.saveAttempt = { attempts, fileAfter: file };
         observation('save-attempted', Boolean(file) || attempts.some(item => item.ok), JSON.stringify(report.saveAttempt));
