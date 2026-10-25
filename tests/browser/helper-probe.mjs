@@ -259,6 +259,13 @@ const report = {
     failure: null,
 };
 
+// A guard's result is recorded, not thrown: the comparator names it. Only a precondition that makes the
+// rest of the drive meaningless (page, settings, host modules, script iframe, module completion) is a drive
+// failure, because everything after it cannot be attributed (rule 10).
+function observation(name, ok, detail = null) {
+    report.steps.push({ name, ok, detail });
+}
+
 function step(name, ok, detail = null) {
     report.steps.push({ name, ok, detail });
     if (!ok && !report.failure) report.failure = `${name}: ${detail ?? 'failed'}`;
@@ -524,7 +531,7 @@ try {
             };
         });
         report.render = render;
-        step('render-path', render?.renderedText === 'HELPER_PROBE_RENDERED', JSON.stringify(render));
+        observation('render-path', render?.renderedText === 'HELPER_PROBE_RENDERED', JSON.stringify(render));
     }
 
     // The persisted half: the chat file's variables, after the helper's own write.
@@ -538,11 +545,11 @@ try {
             after = await readChatVariables();
         }
         report.chatFileObserved = after.chatFile ?? null;
-        step('chat-file', Boolean(after.chatFile), `chatFile=${after.chatFile ?? '(none)'} counter=${Number(after.variables?.helper_probe_counter ?? NaN)}`);
+        observation('chat-file', Boolean(after.chatFile), `chatFile=${after.chatFile ?? '(none)'} counter=${Number(after.variables?.helper_probe_counter ?? NaN)}`);
         report.variableState.after = after.variables;
         report.variableState.chatFile = after.chatFile;
         report.variableState.changed = JSON.stringify(after.variables) !== JSON.stringify(report.variableState.before);
-        step('variable-persisted', Number(report.variableState.after?.helper_probe_counter ?? 0) >= 1, `counter=${report.variableState.after?.helper_probe_counter ?? '(absent)'} in ${after.chatFile ?? '(no chat file)'}`);
+        observation('variable-persisted', Number(report.variableState.after?.helper_probe_counter ?? 0) >= 1, `counter=${report.variableState.after?.helper_probe_counter ?? '(absent)'} in ${after.chatFile ?? '(no chat file)'}`);
     }
 
     // EVERY URL THE TWO IFRAMES PUT INTO THE DOM MUST ANSWER 200 WITH BYTES. The bespoke URLs are judged
@@ -563,7 +570,7 @@ try {
         .filter(item => item.response === null || item.response?.status !== 200 || !(item.response?.byteLength > 0))
         .map(item => `${item.purpose}=${item.response === null ? 'not-requested' : `${item.response.status}/${item.response.byteLength}`}`));
     if (variant === 'on') {
-        step('dom-urls', failedUrls.length === 0, failedUrls.join(', ') || null);
+        observation('dom-urls', failedUrls.length === 0, failedUrls.join(', ') || null);
     } else {
         report.steps.push({ name: 'dom-urls', ok: null, detail: 'variant off: the rendered message is not produced, so there are no rendered URLs to judge' });
     }

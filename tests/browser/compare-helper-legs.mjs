@@ -76,14 +76,21 @@ function unprovenItem(capability, reason) {
 
 // 1. Every leg that was asked for must be present, must have driven, and must be a subject/variant pair.
 const required = ['gotavernOn', 'gotavernOff', 'pinnedOn', 'pinnedOff'];
+// WHICH STEPS ARE DRIVE, NOT GUARD. A red assertion is the comparator's business; a drive step that did
+// not happen makes everything after it unattributable. 40217283368 read `legs-drove: render-path: null`,
+// which named the guard as if it were a drive failure.
+const DRIVE_STEPS = new Set(['page-loaded', 'settings-ready', 'host-modules', 'character-opened', 'chat-has-message', 'chat-open', 'script-enabled', 'script-iframe', 'script-ran', 'script-completed']);
 const missing = required.filter(key => !legs[key].present);
 const driveFailures = required
     .filter(key => legs[key].present)
     .map(key => ({ key, failure: legs[key].leg?.failure, steps: (legs[key].leg?.steps ?? []).filter(step => step.ok === false) }))
     .filter(item => item.failure);
 guard('legs-present', missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : null);
-guard('legs-drove', driveFailures.length === 0, driveFailures.length
-    ? driveFailures.map(item => `${item.key}: ${item.failure}`).join(' | ')
+const driveStepFailures = required
+    .filter(key => legs[key].present)
+    .flatMap(key => (legs[key].leg?.steps ?? []).filter(item => item.ok === false && DRIVE_STEPS.has(item.name)).map(item => `${key}: ${item.name}: ${item.detail ?? 'failed'}`));
+guard('legs-drove', driveFailures.length === 0 && driveStepFailures.length === 0, (driveFailures.length || driveStepFailures.length)
+    ? driveFailures.map(item => `${item.key}: ${item.failure}`).concat(driveStepFailures).join(' | ')
     : null);
 
 const on = { gotavern: legs.gotavernOn.leg, pinned: legs.pinnedOn.leg };

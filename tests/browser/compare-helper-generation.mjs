@@ -62,11 +62,17 @@ const off = { gotavern: legs.gotavernOff.leg, pinned: legs.pinnedOff.leg };
 
 // The connection the drive established must be the captured one, on both subjects.
 const connectionProblems = [];
+// JUDGED FROM THE PEER'S OWN CAPTURE, because that is the observable: 40217283368 had observedSource=null
+// (script.js does not export the settings object under the name the probe guessed) while the peer received
+// two requests carrying the model this probe set. A guard that reads a page object cannot outrank the
+// request that actually arrived (rule 10: derive the precondition from the subject's own gate).
 for (const subject of ['gotavern', 'pinned']) {
-    const connection = on[subject]?.connection ?? null;
-    if (connection?.observedSource !== 'custom') connectionProblems.push(`${subject}: chat_completion_source=${connection?.observedSource}`);
-    if (!String(connection?.observedUrl ?? '').startsWith('http://127.0.0.1:')) connectionProblems.push(`${subject}: custom_url=${connection?.observedUrl}`);
-    if (connection?.observedModel !== 'probe-model') connectionProblems.push(`${subject}: custom_model=${connection?.observedModel}`);
+    const controls = on[subject]?.connection ?? null;
+    const model = on[subject]?.assertions?.rawRequest?.model ?? null;
+    if (model !== 'probe-model') connectionProblems.push(`${subject}: the captured request carried model=${model}`);
+    const applied = Array.isArray(controls?.applied) ? controls.applied : [];
+    const notFound = applied.filter(item => item?.found === false).map(item => item.selector);
+    if (notFound.length > 0) connectionProblems.push(`${subject}: control(s) missing: ${notFound.join(', ')}`);
 }
 guard('connection-configured', connectionProblems.length === 0, connectionProblems.join(' | ') || null);
 

@@ -248,6 +248,10 @@ const report = {
     failure: null,
 };
 
+function observation(name, ok, detail = null) {
+    report.steps.push({ name, ok, detail });
+}
+
 function step(name, ok, detail = null) {
     report.steps.push({ name, ok, detail });
     if (!ok && !report.failure) report.failure = `${name}: ${detail ?? 'failed'}`;
@@ -324,7 +328,10 @@ try {
     const connectionOk = report.connection?.observedSource === 'custom'
         && report.connection?.observedUrl === peerBase
         && report.connection?.observedModel === 'probe-model';
-    step('connection-configured', connectionOk, JSON.stringify(report.connection));
+    // The page's settings object is NOT the oracle: script.js does not export it under the name this
+    // harness guessed, which is why 40217283368 read observedSource=null while the peer DID receive the
+    // request. The controls and their accepted values are recorded here; the comparator judges the peer.
+    observation('connection-controls-applied', connectionOk, JSON.stringify(report.connection));
 
     await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 60000 }).catch(() => null);
     const clicked = await page.click('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 30000 }).then(() => true, () => false);
