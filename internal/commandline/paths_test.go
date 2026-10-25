@@ -81,13 +81,18 @@ type commandlinePathWarnings struct {
 // normalisation that provider-wire discipline forbids.
 var pinnedDivergences = map[string]struct {
 	gotavern any
-	pinned   any
-	reason   string
+	// pinned is the SET of values the pinned fixture is allowed to hold for this field. A set rather than a single
+	// value because pinned's parser genuinely yields both: it follows whatever the config says, so a scenario whose
+	// config asks for false records false. Ours is the constant in gotavern, in every scenario. Every value observed
+	// must be declared, and every declared value must be observed at least once -- otherwise the entry has stopped
+	// describing a real divergence and is reported instead of kept as permission.
+	pinned map[string]any
+	reason string
 }{
 	"extensionsAutoUpdate": {
 		gotavern: false,
-		pinned:   true,
-		reason:   "ARCHITECTURE 34.3 / rule 26: GoTavern never enables extension auto-update from an inherited key; the pinned default is true (upstream/default/config.yaml:301) and is deliberately not honoured",
+		pinned:   map[string]any{"true": true, "false": false},
+		reason:   "ARCHITECTURE 34.3 / rule 26: GoTavern never enables extension auto-update from an inherited key; pinned follows the config and its own default is true (upstream/default/config.yaml:301), and that default is deliberately not honoured",
 	},
 }
 
@@ -282,8 +287,15 @@ func dropPinnedDivergences(t *testing.T, surface string, actual, pinned map[stri
 		if !reflect.DeepEqual(gotValue, divergence.gotavern) {
 			t.Errorf("%s: %s = %#v, declared GoTavern value is %#v (%s)", surface, field, gotValue, divergence.gotavern, divergence.reason)
 		}
-		if !reflect.DeepEqual(pinnedValue, divergence.pinned) {
-			t.Errorf("%s: %s is %#v in the pinned fixture, the declaration says %#v; re-read the declaration before changing it (%s)", surface, field, pinnedValue, divergence.pinned, divergence.reason)
+		declared := false
+		for _, allowed := range divergence.pinned {
+			if reflect.DeepEqual(pinnedValue, allowed) {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			t.Errorf("%s: %s is %#v in the pinned fixture, which is not one of the declared pinned values %#v; re-read the declaration before changing it (%s)", surface, field, pinnedValue, divergence.pinned, divergence.reason)
 		}
 		used[field] = true
 		delete(remainingActual, field)
