@@ -521,6 +521,17 @@ jobs:
           else
             : > "$work/committed/helper-comparison.json.absent"
           fi
+          # THE HARNESS FILES MUST EXIST IN THIS CHECKOUT BEFORE A LEG IS SPENT ON THEM. The merge that
+          # brought main (9e60f48 reverted this surface, so it DELETED url-recorder.mjs) into this branch
+          # silently dropped that import; Browser differential 40221275271 spent five legs whose only output
+          # was ERR_MODULE_NOT_FOUND, and the comparator then refused to judge because no leg drove. A
+          # preflight turns a five-leg waste into a named failure in one second.
+          for harness in helper-probe.mjs helper-generation-probe.mjs compare-helper-legs.mjs compare-helper-generation.mjs url-recorder.mjs; do
+            if [ ! -f "tests/browser/$harness" ]; then
+              echo "::error::tests/browser/$harness is missing from this checkout; the helper surface cannot run"
+              exit 1
+            fi
+          done
           failures=0
           # ONE DATA ROOT PER LEG, and the same --data-root is passed to the wrapper (which boots the server
           # on it) and through -- to the probe (which installs the extension into it). The asset lane paid for
