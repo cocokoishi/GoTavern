@@ -105,6 +105,8 @@ for (const subject of subjects) {
         // what saveChat reads (chatLength/chatId/characterChatName), which /api/chats requests the browser
         // actually made, and the console warnings the frontend emitted while refusing to save.
         saveDiagnostics: leg?.saveDiagnostics ?? null,
+        chatIdentity: leg?.chatIdentity ?? null,
+        seededChat: leg?.seededChat ?? null,
         saveRequests: leg?.saveRequests ?? null,
         consoleSaveWarnings: (leg?.console ?? []).filter(item => /chat_name|Error saving chat/i.test(item.text ?? '')).map(item => item.text),
         saveAttempt: leg?.saveAttempt ?? null,
@@ -118,7 +120,10 @@ for (const subject of subjects) {
 function fixtureOk(leg) {
     return leg?.provenance?.extension?.installedRevision === '837a6288135cde61522a9279173b98020f08807e'
         && Boolean(leg?.provenance?.configFile?.matchesSource)
-        && (leg?.provenance?.startingState?.characterFilesAfterBoot ?? 0) > 0;
+        && (leg?.provenance?.startingState?.characterFilesAfterBoot ?? 0) > 0
+        // THE LONG-LIVED FIXTURE IS PART OF THE FIXTURE: both subjects must have been driven against a tree
+        // that already contained chats, or the pair is not comparing the scenario GOAL.md is about.
+        && leg?.seededChat?.planted === true
 }
 for (const subject of subjects) observed[subject].sameFixture = fixtureOk(on[subject]);
 const configHashes = subjects.map(subject => on[subject]?.provenance?.configFile?.sha256 ?? null);

@@ -311,9 +311,45 @@ async function readChatVariables() {
     return { chatFile, variables, scope: chatFile.includes('/') ? 'per-character subdirectory' : 'flat' };
 }
 
+// A REAL USER'S TREE HAS CHATS. A fresh root has none, so clicking a card can only preview the greeting and
+// there is no chat identity to save under -- measured symmetrically in Browser differential 40239156336
+// (chatId, characterChatName and chat_metadata.integrity all null on BOTH subjects, and no /api/chats/save
+// ever issued). GOAL.md is about a long-lived directory, so the leg plants ONE chat per seeded card in the
+// shape pinned reads (chats/<avatar without .png>/<name>.jsonl, src/endpoints/chats.js:592-614).
+// This is a FIXTURE INPUT (rule 51), not a fake of the product's output: nothing about the assertions is
+// relaxed because of it -- the variable still has to reach THIS file, and a missing identity after the click
+// is still a finding. `chat_metadata` is left empty on purpose: script.js:7665 assigns an integrity uuid
+// when absent, so an empty object is a legitimate user file rather than a hand-computed checksum.
+async function seedExistingChats(root) {
+    const charactersDirectory = path.join(root, 'default-user', 'characters');
+    const cards = (await fs.readdir(charactersDirectory).catch(() => [])).filter(name => name.endsWith('.png')).sort();
+    if (cards.length === 0) return { planted: false, reason: 'no character card in the seeded tree', files: [] };
+    const files = [];
+    for (const card of cards) {
+        const avatar = card.replace(/\.png$/, '');
+        const directory = path.join(root, 'default-user', 'chats', avatar);
+        await fs.mkdir(directory, { recursive: true });
+        const fileName = `${avatar} - 2026-10-24.jsonl`;
+        const message = (name, is_user, mes) => JSON.stringify({ name, is_user, mes, send_date: 'October 24, 2026 10:00am', extra: {} });
+        const lines = [
+            JSON.stringify({ user_name: 'unused', character_name: avatar, chat_metadata: {} }),
+            message('Probe User', true, 'HELPER_PROBE_SEED_USER_1'),
+            message(avatar, false, 'HELPER_PROBE_SEED_ASSISTANT_1'),
+            message('Probe User', true, 'HELPER_PROBE_SEED_USER_2'),
+        ];
+        await fs.writeFile(path.join(directory, fileName), `${lines.join('\n')}\n`);
+        files.push(`default-user/chats/${avatar}/${fileName}`);
+    }
+    return { planted: true, cards: cards.length, files, shape: 'header + 3 messages ({name,is_user,mes,send_date,extra})' };
+}
+
 let browser;
 try {
     await waitForServer(`${baseURL}/version`);
+    // After boot, because the SERVER seeds default/content/characters at startup; before the page loads, so
+    // the frontend never sees a chatless tree.
+    report.seededChat = await seedExistingChats(dataRoot);
+    step('chat-fixture-planted', report.seededChat.planted === true, JSON.stringify(report.seededChat));
     browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
@@ -416,6 +452,20 @@ try {
     // the driver being stricter than the subject's own state (rule 10, inverse error).
     step('character-opened', clicked || messageArrived, `click=${clicked} chatAlreadyOpen=${messageArrived}`);
     step('chat-has-message', messageArrived);
+
+    // DID THE CLICK OPEN THE PLANTED CHAT? A user clicking their own character must get their chat; if this
+    // is null with a chat file present, that is a product finding and it outranks the rest of the lane.
+    report.chatIdentity = await page.evaluate(() => {
+        const context = window.SillyTavern.getContext();
+        const index = context.characterId;
+        return {
+            chatLength: context.chat?.length ?? null,
+            chatId: context.chatId ?? null,
+            characterChatName: index === undefined ? null : (context.characters?.[index]?.chat ?? null),
+            chatMetadataIntegrity: context.chatMetadata?.integrity ?? null,
+        };
+    });
+    observation('chat-identity', (report.chatIdentity?.chatLength ?? 0) > 0 && report.chatIdentity?.characterChatName !== null, JSON.stringify(report.chatIdentity));
 
     // THE PRECONDITION FOR THE PERSISTENCE GUARD is a chat that exists on disk. It is created by the probe
     // script through the helper's own createChatMessages, so this drive never writes user data itself and
@@ -589,7 +639,9 @@ try {
         report.saveRequests = recorder.requests
             .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
             .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
-        observation('save-requests-recorded', report.saveRequests.length > 0, JSON.stringify(report.saveRequests));
+        const chatPaths = report.saveRequests.map(entry => `${entry.method} ${entry.path} ${entry.status}`);
+        observation('chat-get-issued', report.saveRequests.some(entry => /\/api\/chats\/get$/.test(entry.path ?? '')), JSON.stringify(chatPaths));
+        observation('chat-save-issued', report.saveRequests.some(entry => /\/api\/chats\/save$/.test(entry.path ?? '')), JSON.stringify(chatPaths));
     }
 
 
