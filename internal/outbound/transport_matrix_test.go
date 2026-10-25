@@ -165,12 +165,11 @@ func TestProductionTransportDoesNotAdvertiseAnEncodingItCannotDecode(t *testing.
 		_, _ = w.Write([]byte(auditJSON))
 	}))
 
-	if _, err := Send(context.Background(), Request{
-		URL:     server.URL + "/v1/chat/completions",
-		Method:  http.MethodPost,
-		Headers: []Header{{Name: "Content-Type", Value: "application/json"}},
-		Body:    []byte("{}"), TLSConfig: clientTLS,
-	}, 5*time.Second); err != nil {
+	// The planners advertise all three encodings (deepseek_chat.go:323 and eleven siblings), so the
+	// request supplies exactly that. What the server must then see is a list the client can DECODE.
+	request := providerRequest(server.URL+"/v1/chat/completions", []byte("{}"), clientTLS)
+	request.Headers = append(request.Headers, Header{Name: "Accept-Encoding", Value: "gzip, deflate, br"})
+	if _, err := Send(context.Background(), request, 5*time.Second); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 	advertised := strings.ToLower(strings.TrimSpace(seen.Load().(string)))
