@@ -14,8 +14,10 @@ use, the product is still not usable — the page opens and the images are missi
 no test can prove that a real preset changes the model context the way pinned does.
 
 `GOAL.md` is now the locked goal, `AGENTS.md` rules 42-53 are the process contract, `ARCHITECTURE.md` §35 is
-the design contract. The three defects below are recorded as **OPEN** until their gates run in CI on the
-packaged artifact.
+the design contract, and `docs/gate-blindspots.md` is the analysis of why the gates could not see any of it
+(the short version: a `knownReason` allowlist reported the `/thumbnail` 404 as `differenceCount: 0` while the
+same artifact recorded GoTavern's two console 404s beside pinned's empty list). The three defects below are
+recorded as **OPEN** until their gates run in CI on the packaged artifact.
 
 ### P0-E — core visual assets are missing (root cause found, in source)
 

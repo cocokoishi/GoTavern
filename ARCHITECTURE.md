@@ -1383,6 +1383,28 @@ Runtime `'in_use'` state is distinct from the file on disk: a helper that edits 
 generates immediately must see the edit in the provider request, and a reload must not silently replace the
 runtime state with the file (or must, if pinned does — the pinned observation decides, not intuition).
 
+**Where preset semantics actually live (measured 2026-10-25).** None of the preset vocabulary appears in the
+pinned server's provider code: a grep for `prompt_order`, `promptOrder`, `PromptManager`, `squash_system`,
+`names_behavior` and `wrap_in_quotes` across `src/endpoints/backends/*.js` returns **zero** matches, while the
+same file reads `request.body.messages`, `stop`, `max_tokens`, `temperature`, `top_p`, `top_k`, `tools`,
+`tool_choice`, `json_schema`, `reasoning_effort`, `middleout`, `reverse_proxy` and the rest directly. The
+preset is compiled into `messages` by the **browser** (`public/scripts/openai.js` and its `PromptManager`), and
+the server's job starts at `request.body.messages`.
+
+Three consequences that decide what a preset harness must be:
+
+- GoTavern does not need — and must not grow — a server-side prompt builder. A Go `prompt_order`
+  implementation would be a second engine that can never match the frontend's.
+- A preset divergence can still be GoTavern's fault, through the *inputs*: the frontend builds the prompt from
+  `/api/presets/*`, `/api/settings/get`, `/api/worldinfo/get`, `/api/characters/*`, extension settings in
+  `settings.json`, and the chat file. Any difference in those payloads — a dropped field, a reordered list, a
+  normalised name — changes the request without a line of prompt code being wrong.
+- Therefore the preset differential is **browser-driven**: the same frontend, the same preset file and the
+  same character produce the request, and the two servers are compared at the simulated backend. Server-side
+  transforms that DO exist (`middleout`, `convertClaudeMessages`, the Gemini/Google conversion, the
+  system-message and prefilling handling) are compared on the same capture, because they happen between
+  `request.body` and the provider.
+
 Provenance is required for reporting: a divergence names the message index, its source (preset prompt id,
 world-info entry, character field, helper injection id, Author's Note), its depth/role, and the lifecycle
 event state of both sides. "Bodies differ" is not a report.
