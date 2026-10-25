@@ -83,9 +83,9 @@ type StartupSettings struct {
 	ThumbnailDimensionsAvatar  any  `json:"thumbnailDimensionsAvatar"`
 	ThumbnailDimensionsPersona any  `json:"thumbnailDimensionsPersona"`
 	ThumbnailDimensionsSet     bool `json:"-"`
-	ThumbnailsEnabled          any  `json:"thumbnailsEnabled"`
-	ThumbnailsFormat           any  `json:"thumbnailsFormat"`
-	ThumbnailsQuality          any  `json:"thumbnailsQuality"`
+	ThumbnailsEnabled          any  `json:"-"`
+	ThumbnailsFormat           any  `json:"-"`
+	ThumbnailsQuality          any  `json:"-"`
 	ForwardedXRealIP           any  `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any  `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any  `json:"forwardedXForwardedFor"`
