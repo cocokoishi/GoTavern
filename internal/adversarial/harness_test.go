@@ -181,6 +181,10 @@ func TestAdversarialInvariants(t *testing.T) {
 	notApplicableCount := 0
 	for _, spec := range specs {
 		known[spec.id] = true
+		// The start/end markers are what makes a truncated CI log diagnosable: the
+		// runner's own `tail -60` plus `head -20` once hid every verdict after the
+		// twentieth case, so a red run could not name the case that failed.
+		t.Logf("start    %-42s", spec.id)
 		result := runBounded(spec)
 		switch result.verdict {
 		case verdictHolds:
@@ -195,14 +199,13 @@ func TestAdversarialInvariants(t *testing.T) {
 		}
 	}
 	golden := readGolden(t)
-	if problems := compareGolden(golden, observed, known); len(problems) > 0 {
-		t.Fatalf("the adversarial ratchet failed:\n  %s\n\n"+
-			"Move exactly these lines in internal/adversarial/violations.golden: a fixed invariant loses its line, "+
-			"a new violation gains one, and the invariant text above is the acceptance criterion.",
-			strings.Join(problems, "\n  "))
+	// One Errorf per problem, so each problem is its own log line and cannot be
+	// swallowed by a bounded `head` in the workflow.
+	for _, problem := range compareGolden(golden, observed, known) {
+		t.Errorf("%s", problem)
 	}
-	t.Logf("%d cases: %d held, %d violated (all recorded in violations.golden), %d not applicable on this host",
-		len(specs), len(specs)-len(observed)-notApplicableCount, len(observed), notApplicableCount)
+	t.Logf("ratchet: %d cases, %d held, %d violated, %d not applicable, %d golden entries",
+		len(specs), len(specs)-len(observed)-notApplicableCount, len(observed), notApplicableCount, len(golden))
 }
 
 func firstLine(text string) string {

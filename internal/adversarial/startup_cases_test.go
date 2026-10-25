@@ -340,9 +340,14 @@ func startupCases(t *testing.T) []caseSpec {
 				case <-time.After(3 * time.Second):
 					_ = held.Close()
 				}
+				// It only came back because THIS case released the lock. A bounded
+				// acquisition would have failed with a named error inside the bound;
+				// waiting for the holder to finish is the unbounded wait of rule 24.
 				select {
 				case <-blocked:
-					return okResult("the second boot waited on the held content lock and completed after it was released")
+					return violation("the second boot blocked on the held content lock for the whole 3s window and only " +
+						"completed when this case released it: flock.Lock() has no bounded acquisition, so with a live " +
+						"first process the second one waits forever")
 				case <-time.After(60 * time.Second):
 					return violation("the second boot was still blocked 60s after the lock was released")
 				}
