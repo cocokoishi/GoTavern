@@ -63,6 +63,8 @@ concurrency:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    # Sized from the measured runs: build, verify, smoke, push and a pull-back verify.
+    timeout-minutes: 45
     env:
       # ghcr.io/<owner>/<repo> -- lowercased because a registry reference may not carry capitals.
       IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}

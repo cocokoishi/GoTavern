@@ -188,31 +188,41 @@ func TestChatCompletionGenerateMatchesProviderWireCapture(t *testing.T) {
 				t.Errorf("response status = %d, capture has %d", status, expected.ProviderResponse.Status)
 			}
 
-			recording := waitForProviderRecording(t, recorder, expected.Provider.Requests[0].ClientDisconnected)
+			expectedRequests := expected.Provider.Requests
+			recording := waitForProviderRecordingCount(t, recorder, expectedRequests[0].ClientDisconnected, len(expectedRequests))
 			if len(recording.Requests) == 0 {
 				t.Fatal("the Go route sent no provider request; an absent capture must never pass")
 			}
-			recorded := recording.Requests[0]
-			normalized := normalizeRecordedProviderRequest(recorded)
-			want := expected.Provider.Requests[0]
-			if normalized.RawTarget != want.RawTarget {
-				t.Errorf("provider target = %q, capture has %q", normalized.RawTarget, want.RawTarget)
+			// EVERY recorded request is compared and the COUNT is asserted. Comparing Requests[0] alone let
+			// a capture that recorded two requests pass on the first one: azure-openai-status-ok records a
+			// 0-byte `GET /openai/models` and then a 95-byte `POST /openai/deployments/.../chat/completions`,
+			// and the only other consumer skips any route that does not end in /generate -- so a status route
+			// that answered without the POST was green, and the captured body behind it was asserted nowhere.
+			if len(recording.Requests) != len(expectedRequests) {
+				t.Fatalf("provider request count = %d, capture has %d", len(recording.Requests), len(expectedRequests))
 			}
-			if normalized.Method != want.Method {
-				t.Errorf("provider method = %q, capture has %q", normalized.Method, want.Method)
-			}
-			if normalized.BodyLength != want.BodyLength || normalized.BodySHA256 != want.BodySHA256 {
-				t.Errorf("provider body digest = length %d sha %s, capture has length %d sha %s",
-					normalized.BodyLength, normalized.BodySHA256, want.BodyLength, want.BodySHA256)
-			}
-			if normalized.Chunked != want.Chunked {
-				t.Errorf("provider chunked framing = %t, capture has %t", normalized.Chunked, want.Chunked)
-			}
-			if got, wantHeaders := headerLines(normalized.Headers), headerLines(want.Headers); !reflect.DeepEqual(got, wantHeaders) {
-				t.Errorf("provider headers differ from the capture:\n got %v\nwant %v", got, wantHeaders)
-			}
-			if recorded.ClientDisconnected != want.ClientDisconnected {
-				t.Errorf("provider clientDisconnected = %t, capture has %t", recorded.ClientDisconnected, want.ClientDisconnected)
+			for index, want := range expectedRequests {
+				recorded := recording.Requests[index]
+				normalized := normalizeRecordedProviderRequest(recorded)
+				if normalized.RawTarget != want.RawTarget {
+					t.Errorf("provider request %d target = %q, capture has %q", index, normalized.RawTarget, want.RawTarget)
+				}
+				if normalized.Method != want.Method {
+					t.Errorf("provider request %d method = %q, capture has %q", index, normalized.Method, want.Method)
+				}
+				if normalized.BodyLength != want.BodyLength || normalized.BodySHA256 != want.BodySHA256 {
+					t.Errorf("provider request %d body digest = length %d sha %s, capture has length %d sha %s",
+						index, normalized.BodyLength, normalized.BodySHA256, want.BodyLength, want.BodySHA256)
+				}
+				if normalized.Chunked != want.Chunked {
+					t.Errorf("provider request %d chunked framing = %t, capture has %t", index, normalized.Chunked, want.Chunked)
+				}
+				if got, wantHeaders := headerLines(normalized.Headers), headerLines(want.Headers); !reflect.DeepEqual(got, wantHeaders) {
+					t.Errorf("provider request %d headers differ from the capture:\n got %v\nwant %v", index, got, wantHeaders)
+				}
+				if recorded.ClientDisconnected != want.ClientDisconnected {
+					t.Errorf("provider request %d clientDisconnected = %t, capture has %t", index, recorded.ClientDisconnected, want.ClientDisconnected)
+				}
 			}
 
 			// The secret-key assertion: a route that reads secrets with the wrong
@@ -267,15 +277,22 @@ func mustMarshalNodeJSON(t *testing.T, value orderedNodeJSON) []byte {
 	return encoded
 }
 
-// waitForProviderRecording polls until the recording shows the disconnect the
-// capture expects, because cancellation is observed at the provider and the
-// mock marks it when it notices the peer went away.
-func waitForProviderRecording(t *testing.T, recorder *mockprovider.Recorder, wantDisconnected bool) mockprovider.Recording {
+// waitForProviderRecordingCount polls until the recording shows BOTH the disconnect the capture expects and
+// the number of requests it recorded. The disconnect matters because cancellation is observed at the provider
+// and the mock marks it when it notices the peer went away; the count matters because a route that makes two
+// provider calls answers as soon as the first settles, so a shorter recording would be compared against a
+// longer capture and the difference would read as a product failure -- the arrival race the doctrine names.
+// The deadline is shared, and a short recording is returned as-is so the caller reports a count mismatch
+// rather than a bare timeout.
+func waitForProviderRecordingCount(t *testing.T, recorder *mockprovider.Recorder, wantDisconnected bool, wantCount int) mockprovider.Recording {
 	t.Helper()
+	if wantCount < 1 {
+		wantCount = 1
+	}
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		recording := recorder.Recording()
-		if len(recording.Requests) > 0 && recording.Requests[0].ClientDisconnected == wantDisconnected {
+		if len(recording.Requests) >= wantCount && recording.Requests[0].ClientDisconnected == wantDisconnected {
 			return recording
 		}
 		if time.Now().After(deadline) {

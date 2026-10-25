@@ -56,6 +56,8 @@ concurrency:
 jobs:
   qualify-linux-amd64:
     runs-on: ubuntu-latest
+    # Sized from the measured qualification runs (fresh install, update, migrate, boot).
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -318,6 +320,8 @@ jobs:
     # scripts/qualify-install-windows.ps1 -- including the negative ones, so "the installer registers
     # nothing" is measured rather than assumed.
     runs-on: windows-latest
+    # The Windows pass installs and replaces a running binary, which is the slow half.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -401,6 +405,8 @@ jobs:
     # asset-level difference that is not there. Override with the workflow_dispatch input once an older
     # RELEASE tag exists.
     runs-on: ubuntu-latest
+    # Baseline install, upgrade, rollback and the second boot.
+    timeout-minutes: 60
     env:
       BASELINE_REF: ${{ inputs.baseline_ref || 'd00d99b87fc2fbd1ffd218c5ce160d07f27c47ef' }}
     steps:

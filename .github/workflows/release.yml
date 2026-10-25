@@ -29,6 +29,8 @@ jobs:
   # derived from one matrix and never typed twice.
   build:
     runs-on: ubuntu-latest
+    # A build that cannot finish must fail as a job rather than hold a runner for GitHub's six-hour default.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -145,6 +147,8 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    # Publishing is a few API calls; anything longer is a wedged runner.
+    timeout-minutes: 15
     steps:
       # THE CHECKOUT IS LOAD-BEARING, and leaving it out broke the first real tag. This job only needs the
       # artefacts and the release API, so it looked checkout-free -- but the publish step asks
