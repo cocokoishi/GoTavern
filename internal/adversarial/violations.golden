@@ -14,9 +14,7 @@
 
 # rule 24/33: the pinned ten-second legacy warning is spent in silence before any
 # output, and main prints nothing until app.Start returns
-# (internal/startup/user_data_migration.go:40).
+# (internal/startup/user_data_migration.go:40). The boot now ANNOUNCES the wait before
+# spending it (startup.legacy-wait), so the silence is gone; the DURATION is not, and
+# that is what this entry measures.
 boot.legacy-migration-cost
-
-# rule 9/22: with no tokenizer tree the route answers 200 with a Guesstimate
-# count instead of failing loudly (internal/server/tokenizers.go:363-372).
-boot.missing-tokenizers

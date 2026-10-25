@@ -53,7 +53,7 @@ A row is `PASS` only when every one of these holds:
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **FAIL** | Go implementation, 4 named test(s), CI job(s) | 6 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
-| 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 2 item(s) |
+| 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **FAIL** | 3 oracle fixture(s), Go implementation, 4 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 1 named test(s), CI job(s) | _none_ |
@@ -328,6 +328,7 @@ Row id: `tokenization`
 
 - the context-boundary differential (AGENTS.md 9) has not produced a binding keep/drop pair on both legs in any run so far
 - tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree whose src/tokenizers sits beside a user's data root
+- INHERITED WEAKNESS, reproduced deliberately (architecture boundary 5): with no tokenizer tree pinned answers HTTP 200 with a guesstimate count and no ids (docs/tokenizer-parity-plan.md:141), so an inexact count is indistinguishable from an exact one -- GoTavern reproduces it for parity rather than refusing
 
 Blocked by: `whole-session-e2e`
 

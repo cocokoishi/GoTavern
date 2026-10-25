@@ -261,7 +261,18 @@ func startupCases(t *testing.T) []caseSpec {
 		{
 			id:        "boot.missing-tokenizers",
 			checklist: "tokenizers.missing",
-			invariant: "rule 9: without a tokenizer tree the routes must not answer 200 with a Guesstimate count; an inexact answer has to be visible, not silent",
+			// THE FIRST VERSION OF THIS INVARIANT WAS AN ASPIRATION, NOT THE ORACLE, and the oracle is recorded:
+			// docs/tokenizer-parity-plan.md:141 documents that pinned's own routes CATCH the tokenizer failure and
+			// answer a guesstimate -- an inexact count with HTTP 200 and no ids. So "must not answer 200 with a
+			// Guesstimate" asserted behaviour upstream does not have, and a product that refused would be
+			// "safer but different", which architecture boundary 5 forbids as loudly as "different and worse".
+			//
+			// The supportable invariant is parity plus legibility: an absent tree must produce the PINNED shape
+			// (200, a count, no ids) rather than a 500 or a hang, and the inexactness must be recorded where an
+			// operator can see it -- the compatibility matrix row "tokenization" now carries it as an inherited
+			// weakness. This case fails if the shape drifts in EITHER direction, so it still cannot pass on a
+			// server that invents ids or on one that refuses.
+			invariant: "rule 9 + architecture boundary 5: with no tokenizer tree the route answers the PINNED catch shape (200, a count, empty ids) rather than 500 or a hang, and that inherited inexactness is recorded in the compatibility matrix instead of being silently claimed as exact",
 			run: func() caseResult {
 				const text = "hello"
 				request := httptest.NewRequest(http.MethodPost, "/api/tokenizers/llama/encode", strings.NewReader(`{"text":"`+text+`"}`))
@@ -277,10 +288,17 @@ func startupCases(t *testing.T) []caseSpec {
 				if recorder.Code != http.StatusOK {
 					return okResult("refused with %d: %s", recorder.Code, strings.TrimSpace(recorder.Body.String()))
 				}
-				if answer.Count == estimate && len(answer.IDs) == 0 {
-					return violation("with no tokenizer tree the route answered 200 with the Guesstimate %d and no ids: a wrong count indistinguishable from an exact one", answer.Count)
+				if len(answer.IDs) != 0 {
+					return violation("with no tokenizer tree the route answered %d ids: it invented tokens it could not "+
+						"produce, which is the failure mode rule 9 names", len(answer.IDs))
 				}
-				return okResult("answered %d ids with count %d", len(answer.IDs), answer.Count)
+				if answer.Count != estimate {
+					return violation("the fallback count %d is not the guesstimate %d pinned's catch produces, so this is "+
+						"neither an exact answer nor the documented fallback (docs/tokenizer-parity-plan.md:141)",
+						answer.Count, estimate)
+				}
+				return okResult("answered the pinned catch shape: 200, guesstimate count %d, no ids (inherited "+
+					"inexactness recorded in docs/compatibility-matrix.json row tokenization)", answer.Count)
 			},
 		},
 		{
