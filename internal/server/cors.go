@@ -111,8 +111,8 @@ func servePinnedCORS(writer http.ResponseWriter, request *http.Request, settings
 // These Go handlers dispatch methods manually; the pinned Express routes retain their POST method metadata.
 func pinnedExpressMethodlessOptionsMethods() map[string][]string {
 	return map[string][]string{
-		"/api/avatars/upload":                        {http.MethodPost},
-		"/api/backgrounds/upload":                    {http.MethodPost},
+		"/api/avatars/upload":                    {http.MethodPost},
+	"/api/backgrounds/upload":                    {http.MethodPost},
 		"/api/backgrounds/folders":                   {http.MethodPost},
 		"/api/image-metadata":                        {http.MethodPost},
 		"/api/image-metadata/{$}":                    {http.MethodPost},
