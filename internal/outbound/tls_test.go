@@ -38,7 +38,7 @@ func startTLSServer(t *testing.T) (*httptest.Server, *x509.CertPool) {
 
 func TestSendCompletesHandshakeOverTLS(t *testing.T) {
 	server, pool := startTLSServer(t)
-	response, err := Send(context.Background(), Request{
+	response, err := sendWireExact(context.Background(), Request{
 		URL:    server.URL + "/v1/chat/completions",
 		Method: http.MethodPost,
 		Headers: []Header{
@@ -65,7 +65,7 @@ func TestSendCompletesHandshakeOverTLS(t *testing.T) {
 // server with no trusted root must fail, not quietly proceed in plaintext.
 func TestSendRejectsAnUntrustedCertificate(t *testing.T) {
 	server, _ := startTLSServer(t)
-	_, err := Send(context.Background(), Request{
+	_, err := sendWireExact(context.Background(), Request{
 		URL:    server.URL + "/v1/chat/completions",
 		Method: http.MethodPost,
 		Headers: []Header{

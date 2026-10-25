@@ -12,7 +12,7 @@ against a local mock, so the transport section below is deliberately blunt about
 
 | Caller | Destination type | Trigger | Startup? | User action? | Proxy aware? | Timeout? | Can retry? | Can mutate state? |
 |---|---|---|---|---|---|---|---|---|
-| `internal/outbound.Send` / `SendStreaming` (27 files, ~90 call sites) | any provider HTTPS/HTTP host | an API request the browser makes | **no** | yes | **no** | **no** (`timeout 0` from chat completions, see D1) | no | no |
+| `internal/outbound.Send` / `SendStreaming` (27 files, 48 call sites: `Send` 42, `SendStreaming` 6) | any provider HTTPS/HTTP host | an API request the browser makes | **no** | yes | **no** | **no** (`timeout 0` from chat completions, see D1) | no | no |
 | `internal/app/server.go:161` `net.LookupIP("host.docker.internal")` | DNS only | startup, and only when `whitelistDockerHosts` is on **and** `/.dockerenv` exists | **yes** | no | n/a | **no** | no | no |
 | `internal/server/extensions_git.go:59,80` `exec.CommandContext(ctx, "git", …)` | arbitrary git remote of an installed extension | `POST /api/extensions/…/{install,update,switch}` | **no** | yes | inherits git's own proxy env | yes, from the request context | no | **yes** — rewrites the extension directory |
 | `internal/server/tokenizers_remote.go` (via `outbound.Send`) | the pinned tokenizer host | first use of a remote tokenizer | **no** | yes | **no** | partial (see D1) | no | writes the tokenizer cache |
@@ -39,7 +39,7 @@ serviceable production client, and the following are measured gaps, not suspicio
 
 | # | Gap | Evidence | Consequence for a real provider |
 |---|---|---|---|
-| D1 | **No read/response timeout at all.** `SendStreaming` sets a deadline only when `timeout > 0`, and chat completions passes `0` | `raw.go:166-168`; `chat_completions.go:263` `outbound.SendStreaming(request.Context(), *plan, 0)` with the comment "no client-side timeout: the pinned fetch has none" | a provider that accepts TCP and then stalls holds the request (and the frontend) forever |
+| D1 | **No read/response timeout at all.** `SendStreaming` sets a deadline only when `timeout > 0`, and chat completions passes `0` | `raw.go:166-168`; `chat_completions.go:263` `outbound.SendStreaming(request.Context(), *plan, 0)` with the comment "no client-side timeout: the pinned fetch has none". The same `0` is passed to `net.Dialer{Timeout: timeout}` at `raw.go:107`, so the CONNECT is unbounded too, not only the read | a provider that accepts TCP and then stalls holds the request (and the frontend) forever |
 | D2 | **`accept-encoding: gzip, deflate, br` is sent and never decompressed** | every planner sets it (`chat_completions.go:670`, `ai21_chat.go:297`, `claude_chat.go:842`, …); `raw.go` imports no `compress/*` and `bodyReader` returns the bytes as they arrive | any provider that honours the header (DeepSeek sits behind a compressing CDN) returns gzip/brotli; the JSON parse then fails and the user sees a connection error |
 | D3 | **No proxy support at all** | `raw.go:107-111` dials the target host directly; nothing reads `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` (`grep` over `internal/**` finds no `ProxyFromEnvironment`) | every user behind a corporate proxy cannot reach any provider |
 | D4 | **No redirect following** | `readResponseHead` returns a 3xx as the response; there is no `Location` handling | a provider that redirects (region or CDN edge) answers a body that is not JSON |
@@ -56,6 +56,14 @@ which is itself now stale since TLS was added). A comment describing a previous 
 next one.
 
 ## 3. What the contract must become
+
+**Which client carries what (decided, implemented).** internal/outbound.Send / SendStreaming are the production
+client (	ransport.go, net/http). The hand-written HTTP/1.1 client is retained as sendWireExact /
+sendWireExactStreaming and is selected only when GOTAVERN_OUTBOUND_WIRE_EXACT=1 is present in the process
+environment; nothing in internal/** or cmd/** sets it. The provider-wire replay's test binary pins it in
+internal/server/transport_mode_test.go and asserts the mode actually took effect, because a seam that
+silently fails to apply would leave the replay green while measuring a client that cannot reproduce the
+recorded bytes.
 
 1. **Two transports, two jobs.** A production transport built on `net/http` (`Proxy: http.ProxyFromEnvironment`,
    explicit `DialContext`/`TLSHandshakeTimeout`/`ResponseHeaderTimeout`/idle limits, keep-alive, redirect policy,
