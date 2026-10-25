@@ -144,28 +144,44 @@ and variables — so "preset works" and "helper works" are provably not enough o
   and requires exactly those bytes back). Mutation evidence in Lane CI `40197036003` — one deleted row failed
   both, on `…ServeMarkedBytes/characters`. Restored green: `40197317477`.
 
-**The lane that continues the work is `lane/assets`, at `0cc29f2`, and it is RED on purpose.** It carries
-`internal/server/thumbnails_contract_test.go`, a source-derived observable contract for `/thumbnail`
-(`AGENTS.md` rule 4) which fails on eight named subtests because the route does not exist. Lane CI
-`40197908880` is that red. The handler is NOT written, and the reason is recorded rather than hidden: its whole
-difficulty is the branch order of a 312-line pinned handler, and it must be ported from
-`SillyTavern/src/endpoints/thumbnails.js` read in full — not from a summary.
+- **`/thumbnail` is served** (`internal/server/thumbnails.go`, ported from the full 312-line pinned file) with a
+  source-derived observable contract as its gate. Red before green: Lane CI `40197908880`. Green: Lane CI
+  `40199620820`, with the drop-in qualification for the same commit beside it. This route renders the character
+  list, every chat avatar, the persona list, the background gallery tiles and the zoomed persona; the served
+  MIME is the ORIGINAL filename's extension even when the bytes are jpeg, because pinned serves
+  `sendFile(file, {root: thumbnailFolder})`. The bytes are a declared divergence (`ARCHITECTURE.md` 35.2).
+- route accounting moved with the work, generated rather than edited: `10` reasoned exclusions, `329`
+  reachable (`tools/generate-doc-facts.mjs`). `main` is green at `c82a9a8` on `GoTavern CI` and
+  `GoTavern drop-in qualification` alike.
+
+**Two lanes are open right now.**
+
+- `lane/avatar-upload` (`wt-avatar`) — `POST /api/avatars/upload`, i.e. persona-avatar CREATION, which was not
+  registered at all. The gate is landed and RED for the right reason: Lane CI `40201211821` fails six
+  assertions, every one a 404, while the drop-in qualification for the same commit is green and meaningless
+  there (`AGENTS.md` 55 — second time this session the wrong workflow was the one that looked conclusive).
+  Pinned branches already read on that lane: `validateFileName` rejects only `/`, NUL and `\`, and does NOT
+  reject `..` (only the sanitizer stops that); multer is app-global with field name `avatar`,
+  `fieldSize: 500MB` and NO file-size cap; `applyAvatarCropResize` crops only when x/y/w/h are all numbers,
+  `want_resize` yields 512x768 and otherwise the crop's own dimensions, then `cover`; `cacheBuster` is off by
+  default, so `Clear-Site-Data` is unasserted while the disk-observable thumbnail invalidation is asserted.
+- `lane/asset-browser` (`wt-assets-browser`) — the browser asset differential: the same pinned frontend and the
+  same fixture on both legs, recording every image request and every `<img>`'s `complete`/`naturalWidth`, the
+  computed `background-image`, and failing on any console 404 GoTavern has that pinned does not. This is the
+  gate that answers "open the page and look at the pictures", which nothing in this repository could do.
+
+`lane/preset-real` (`wt-preset`) has committed nothing yet: the real preset/card fixture, where the
+packed-blob measurement for the 19 MB card is still the first thing to decide.
 
 **Next actions, in order:**
 
-1. Read `src/endpoints/thumbnails.js` end to end, then implement `internal/server/thumbnails.go` against the red
-   test. The contract is in `ARCHITECTURE.md` §35.2 and the branch order is: 400 non-string → 400 bad type →
-   403 sanitize mismatch → original when `thumbnails.enabled` is false → original when `animated=true` and the
-   extension is skipped → original for `.gif` → generate if the cache is missing → serve the cache
-   (`dotfiles: 'allow'`, MIME from the ORIGINAL filename) → 404, unexpected error 500. Plus the config plumbing
-   (`thumbnails.enabled`/`format`/`quality` with pinned's clamp and lowercased-trimmed `'png'` predicate), the
-   cache pair `originalStat.mtimeMs > cachedStat.ctimeMs`, the 200-byte `acTL`/`ANIM` animated scan, and the
-   Firefox `Cache-Control: must-understand, no-store` gate. Then the mutation for that gate.
-2. Then the three follow-ups the audit named: the returned-URL assertion (`/api/sprites/get` and
-   `/api/assets/*` hand out URLs this server must answer — the general form of the bug this pass fixes),
-   `POST /api/avatars/upload` (a persona avatar cannot be *created* at all; bring the pinned handler's contract
-   and a codec recommendation before writing), and the nine documentation corrections that currently call the
-   404 "cosmetic" or a "closed boundary".
+1. Finish `lane/avatar-upload` (implementation, mutation, matrix row) and `lane/asset-browser` (probe, CI
+   wiring, mutation). Merge each only when its OWN Lane CI is green, and quote the workflow name with the run id.
+2. Then the smaller follow-ups the audit named: the returned-URL assertion (`/api/sprites/get` and
+   `/api/assets/*` hand out URLs this server must answer — the general form of the bug this pass fixes), and the
+   documentation that still calls the thumbnail 404 "cosmetic" (`docs/frontend-startup-calls.md`;
+   `docs/surface-coverage.md` is GENERATED from the startup-comparison artefact, so its number moves when that
+   artefact is re-recorded against a server that now answers 200, not by editing the markdown).
 3. Then Lane C (酒馆助手) per `docs/real-user-input-audit.md` §6-§7: the first browser scenario is a render
    script whose pass condition includes every URL the iframe puts into the DOM answering 200.
 4. Then Lane D (real preset fixture), which is started but has committed nothing: `wt-preset` on
