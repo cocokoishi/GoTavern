@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/upstream"
 	"github.com/gofrs/flock"
 )
@@ -379,10 +380,9 @@ func acquireContentLock(dataRoot string) (*flock.Flock, error) {
 	}
 	digest := sha256.Sum256([]byte(key))
 	lockPath := filepath.Join(lockRoot, hex.EncodeToString(digest[:])+".lock")
-	lock := flock.New(lockPath, flock.SetPermissions(0o600))
-	if err := lock.Lock(); err != nil {
-		_ = lock.Close()
-		return nil, fmt.Errorf("lock content seeding for %s: %w", dataRoot, err)
+	lock, acquireErr := lockacquire.Acquire(lockPath, "content seeding")
+	if acquireErr != nil {
+		return nil, fmt.Errorf("lock content seeding for %s: %w", dataRoot, acquireErr)
 	}
 	return lock, nil
 }
