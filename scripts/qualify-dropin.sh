@@ -60,21 +60,27 @@ PORT="${PORT:-8797}"
 KEEP=0
 READINESS_BOUND=30
 SHUTDOWN_BOUND=20
+CONFIG_MODE="full"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --archive) [ "$#" -ge 2 ] || { echo "error: --archive needs a path" >&2; exit 2; }; ARCHIVE=$2; shift 2 ;;
         --layout)  [ "$#" -ge 2 ] || { echo "error: --layout needs a value" >&2; exit 2; }; LAYOUT=$2; shift 2 ;;
         --port)    [ "$#" -ge 2 ] || { echo "error: --port needs a value" >&2; exit 2; }; PORT=$2; shift 2 ;;
+        --config)  [ "$#" -ge 2 ] || { echo "error: --config needs full or minimal" >&2; exit 2; }; CONFIG_MODE=$2; shift 2 ;;
         --keep)    KEEP=1; shift ;;
         *) echo "error: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
 
 if [ -z "$ARCHIVE" ] || [ -z "$LAYOUT" ]; then
-    echo "usage: $0 --archive <path> --layout cwd-root|foreign-cwd [--port N] [--keep]" >&2
+    echo "usage: $0 --archive <path> --layout cwd-root|foreign-cwd [--config full|minimal] [--port N] [--keep]" >&2
     exit 2
 fi
+case "$CONFIG_MODE" in
+    full|minimal) ;;
+    *) echo "error: --config must be 'full' or 'minimal'" >&2; exit 2 ;;
+esac
 case "$LAYOUT" in
     cwd-root|foreign-cwd) ;;
     *) echo "error: unsupported layout '$LAYOUT' (this script runs cwd-root and foreign-cwd)" >&2; exit 2 ;;
@@ -103,6 +109,36 @@ mkdir -p "$WORK"
 TREE="$WORK/tree"
 sh "$SCRIPT_DIR/build-stock-tree.sh" "$TREE" | sed 's/^/  /'
 
+# --- 1b. the config VARIANT ----------------------------------------------------------------
+# `full` (default) is the pristine pinned default: every key present, which is what SillyTavern's
+# postinstall leaves and what a tree that has never been trimmed holds.
+#
+# `minimal` is the config a DIFFERENT and very common tree holds: one that has been run, so SillyTavern
+# rewrote it and kept only the keys a user cares about. The pinned source then merges its defaults back in
+# at startup (`configinit` mergeDefaults), which per docs/startup-state-machine.md section 3 triggers an
+# ATOMIC REWRITE of config.yaml -- and the defaults it merges carry `extensions.autoUpdate: true`. That
+# rewrite is the mechanism behind the third user report (P0-C), so this variant exists to MEASURE it in
+# the drop-in layout rather than to assume it from the source reading. The keys below are a labelled
+# DERIVATION of a used config, not a recording of one.
+if [ "$CONFIG_MODE" = "minimal" ]; then
+    cat > "$TREE/config.yaml" <<'MINIMAL_CONFIG'
+dataRoot: ./data
+port: 8000
+listen: false
+whitelistMode: true
+basicAuthMode: false
+enableUserAccounts: false
+securityOverride: false
+extensions:
+  enabled: true
+  autoUpdate: false
+enableServerPlugins: false
+MINIMAL_CONFIG
+    echo "config variant: minimal ($(wc -l < "$TREE/config.yaml") lines, extensions.autoUpdate: false)"
+else
+    echo "config variant: full (the pristine pinned default, $(wc -l < "$TREE/config.yaml") lines)"
+fi
+
 # --- 2. baseline, before anything executes -------------------------------------------------
 hash_tree() {
     # Path + content digest of every file, sorted: one line per file, so a diff names the file.
@@ -118,6 +154,7 @@ hash_tree "$TREE/public/scripts/extensions" > "$WORK/extensions.before"
 ext_git_status > "$WORK/extstatus.before"
 hash_tree "$TREE/data" > "$WORK/data.before"
 hash_tree "$TREE/src/tokenizers" > "$WORK/tokenizers.before"
+cp "$TREE/config.yaml" "$WORK/config.before"
 echo "baseline: $(wc -l < "$WORK/extensions.before") extension files, $(wc -l < "$WORK/data.before") data files, $(wc -l < "$WORK/tokenizers.before") tokenizer files"
 
 # --- 3. lay the PACKAGED archive over the tree ---------------------------------------------
@@ -333,28 +370,114 @@ while [ "$i" -lt $((SHUTDOWN_BOUND * 4)) ]; do kill -0 "$server_pid" 2>/dev/null
 kill -9 "$server_pid" 2>/dev/null || true
 
 # --- mutation of the SEEDED USER DATA -------------------------------------------------------
-# Only meaningful for cwd-root, where the runtime was pointed at the tree's own data root. Under
-# foreign-cwd the tree is deliberately NOT the runtime root, so it must be untouched rather than equal.
+# THE PRECISE CLAIM, because the first version of this check was wrong. It filtered a hand-written
+# list of "volatile" paths out of both sides and then diffed; the first CI run failed on six `+` lines
+# -- `_storage/<hash>`, `content.log`, `default-user/content.log`, `cookie-secret.txt`,
+# `default-user/stats.json`, `default-user/sysprompt/.migrated` -- every one of them a file the boot
+# CREATED, and not a single `-` line anywhere. Calling that "boot rewrote user data" was false: it
+# conflated creation with mutation, and the fix is to state each claim separately, since each fails for
+# its own reason (AGENTS verification rule 7).
+#
+#   MODIFIED  a file that existed before exists after with a different hash   -> FAIL (rule 27)
+#   DELETED   a file that existed before is gone                              -> FAIL (rule 28)
+#   CREATED   a file that did not exist before                                -> REPORTED, and split into
+#                                                                              declared/undeclared
+# The third is not a failure: docs/startup-state-machine.md §3 declares exactly which files a boot
+# writes. But it is not silence either -- the creations are printed, and one that §3 does not declare is
+# flagged, because an undeclared write is the shape of the side effect rule 27 forbids.
 hash_tree "$TREE/data" > "$WORK/data.after"
 if [ "$LAYOUT" = "cwd-root" ]; then
-    # A boot legitimately creates its own runtime files (heartbeat, statistics, a cookie secret, the
-    # settings backup). Those are the DECLARED volatile paths; everything else must be byte-identical,
-    # and the diff is printed rather than summarised so the claim can be checked.
-    grep -vE '/(heartbeat\.json|\.cookie-secret|_stats[^/]*\.json|backups/settings_)' "$WORK/data.before" > "$WORK/data.before.filtered"
-    grep -vE '/(heartbeat\.json|\.cookie-secret|_stats[^/]*\.json|backups/settings_)' "$WORK/data.after"  > "$WORK/data.after.filtered"
-    if diff -u "$WORK/data.before.filtered" "$WORK/data.after.filtered" > "$WORK/data.diff"; then
-        ok "seeded user data is byte-identical after two boots and a restart (volatile paths declared)"
-    else
-        echo "::group::data diff (declared volatile paths excluded)"
-        cat "$WORK/data.diff"
-        echo "::endgroup::"
-        fail "boot rewrote user data that was already on disk (rule 27)"
+    python3 - "$WORK/data.before" "$WORK/data.after" <<'PYEOF'
+import re, sys
+
+def load(path):
+    table = {}
+    for line in open(path, "r", encoding="utf-8", errors="surrogateescape"):
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        digest, name = line.split("  ", 1)
+        table[name] = digest
+    return table
+
+before, after = load(sys.argv[1]), load(sys.argv[2])
+modified = sorted(p for p in before if p in after and before[p] != after[p])
+deleted = sorted(p for p in before if p not in after)
+created = sorted(p for p in after if p not in before)
+
+# The startup writes docs/startup-state-machine.md §3 declares. Anything created outside this set is
+# named as UNDECLARED -- it does not fail the run (the run is about whether the tree still works), but it
+# is the line a reader has to be able to see.
+declared = re.compile(
+    r"/(heartbeat\.json|content\.log|cookie-secret\.txt|stats\.json|_stats[^/]*\.json"
+    r"|\.cookie-secret[^/]*|sysprompt/\.migrated|access\.log)$"
+    r"|/backups/settings_"
+    r"|/_storage/")
+undeclared = [p for p in created if not declared.search(p)]
+
+print(f"user data: {len(before)} files before, {len(after)} after "
+      f"({len(modified)} modified, {len(deleted)} deleted, {len(created)} created)")
+for path in created:
+    print(f"  created{'':<2} {'declared ' if declared.search(path) else 'UNDECLARED'} {path}")
+for path in modified:
+    print(f"  MODIFIED  {path}\n     before {before[path]}\n     after  {after[path]}")
+for path in deleted:
+    print(f"  DELETED   {path}")
+
+if modified or deleted:
+    sys.exit(1)
+PYEOF
+    data_status=$?
+    if [ "$data_status" -ne 0 ]; then
+        fail "boot MODIFIED or DELETED user data that was already on disk (rules 27 and 28); the list is above"
     fi
+    ok "no pre-existing user file was modified or deleted by two boots and a restart; every file the boot created is listed above"
 else
     if diff -q "$WORK/data.before" "$WORK/data.after" >/dev/null 2>&1; then
         ok "the tree's data root was NOT touched, because this layout ran under a foreign CWD"
     else
+        echo "::group::data diff"
+        diff -u "$WORK/data.before" "$WORK/data.after" || true
+        echo "::endgroup::"
         fail "under a foreign CWD the binary wrote into the stock tree's data root"
+    fi
+fi
+
+# --- config.yaml: the P0-C mechanism --------------------------------------------------------
+# docs/startup-state-machine.md §3 names this as the dangerous row for a drop-in user: a stock
+# `config.yaml` that lacks any key the pinned defaults contain is REWRITTEN on first boot, and the pinned
+# defaults carry `extensions.autoUpdate: true`, so the rewrite is what turns auto-update on without the
+# user asking. ARCHITECTURE.md §34.2 makes "a config that parses is not rewritten on boot" the contract.
+#
+# The tree's config is the pristine pinned default, which already holds every key, so here the assertion
+# has teeth only in one direction -- but it is exactly the direction a future `mergeDefaults` regression
+# would break, and the diff names every changed key rather than a count.
+if [ "$LAYOUT" = "cwd-root" ]; then
+    if diff -u "$WORK/config.before" "$TREE/config.yaml" > "$WORK/config.diff"; then
+        ok "config.yaml was NOT rewritten by two boots (ARCHITECTURE.md section 34.2)"
+        if [ "$CONFIG_MODE" = "minimal" ]; then
+            fail "the minimal config was NOT rewritten, so this scenario cannot be measuring the mergeDefaults path it exists for"
+        fi
+    else
+        echo "::group::config.yaml diff (before -> after boot)"
+        cat "$WORK/config.diff"
+        echo "::endgroup::"
+        echo "MEASURED: boot rewrote config.yaml: $(grep -c '^+' "$WORK/config.diff") lines added, $(grep -c '^-' "$WORK/config.diff") removed (diff headers included)."
+        # THE P0-C ASSERTION, and it is the reason the minimal variant exists. docs/startup-state-machine.md
+        # section 3: the rewrite merges the pinned defaults, and the pinned defaults carry
+        # extensions.autoUpdate: true. ARCHITECTURE.md section 34.3 makes OFF the contract even though it
+        # diverges from pinned. The user's config said false; if the rewrite says true, the user's
+        # "I never enabled auto-update" complaint reproduces HERE, on the shipped layout.
+        auto_update=$(awk '/^extensions:/{inside=1; next} inside && /^[^[:space:]]/{inside=0} inside && /autoUpdate:/{print $2; exit}' "$TREE/config.yaml")
+        echo "MEASURED: extensions.autoUpdate after boot = ${auto_update:-<absent>}"
+        if [ "${auto_update:-}" != "false" ]; then
+            fail "the config rewrite turned extensions.autoUpdate into '${auto_update:-<absent>}' although the user's config said false (rule 26: ambiguous and merge-written values resolve to OFF)"
+        fi
+        if [ "$CONFIG_MODE" = "minimal" ]; then
+            ok "a used config was rewritten by startup (section 3's declared behaviour) but kept extensions.autoUpdate: false"
+        else
+            fail "boot rewrote a config.yaml that already parsed (ARCHITECTURE.md section 34.2)"
+        fi
     fi
 fi
 hash_tree "$TREE/public/scripts/extensions" > "$WORK/extensions.after"

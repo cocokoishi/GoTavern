@@ -600,6 +600,14 @@ jobs:
         # tree it was not pointed at.
         run: sh scripts/qualify-dropin.sh --archive "${{ steps.artifact.outputs.path }}" --layout foreign-cwd --port 8798
 
+      - name: Drop-in qualification, a USED (trimmed) config.yaml
+        # The tree a user actually has after running SillyTavern once: its config holds only the keys they
+        # care about, so startup merges the pinned defaults back in. docs/startup-state-machine.md
+        # section 3 says that rewrite is a boot side effect, and the defaults carry
+        # extensions.autoUpdate: true -- so this scenario measures the P0-C mechanism on the drop-in
+        # layout instead of inferring it from the source, and fails if the rewrite turns auto-update ON.
+        run: sh scripts/qualify-dropin.sh --archive "${{ steps.artifact.outputs.path }}" --layout cwd-root --config minimal --port 8799
+
       - name: Report failure context
         # The harness prints its own log and goroutine dump; what it cannot show is the tree it built,
         # which is what a reader needs when the fixture itself is the suspect.

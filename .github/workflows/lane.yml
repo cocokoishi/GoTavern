@@ -167,6 +167,8 @@ jobs:
           sh scripts/qualify-dropin.sh --archive /tmp/dist/gotavern-linux-amd64.tar.gz --layout cwd-root --port 8797
           echo "=== layout foreign-cwd ==="
           sh scripts/qualify-dropin.sh --archive /tmp/dist/gotavern-linux-amd64.tar.gz --layout foreign-cwd --port 8798
+          echo "=== layout cwd-root with a USED (trimmed) config ==="
+          sh scripts/qualify-dropin.sh --archive /tmp/dist/gotavern-linux-amd64.tar.gz --layout cwd-root --config minimal --port 8799
 
       - name: TEMPORARY -- keep the drop-in evidence when it fails
         if: failure()
