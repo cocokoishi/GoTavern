@@ -121,8 +121,15 @@ measurement overturned three earlier conclusions:
 
 ## What CI checks about these artifacts
 
-The `browser-evidence` job runs `tools/verify-browser-comparisons.mjs` over the three committed
-comparison artifacts. It cannot recompute them from their legs and does not pretend to: the per-run legs
+The `browser-evidence` job runs `tools/verify-browser-comparisons.mjs`, whose scope is wider than a
+handful of files: the 30 catalogued chat-completion artifacts (15 sources x their `generation` and
+`streaming` records, read from `tests/browser/sources.mjs`; `cohere` has neither, which is why the
+catalogue has 16 sources and 30 artifacts), then the four non-chat artifacts the driver iterates by name
+-- `startup-comparison.json`, `data-domain-comparison.json`, `extension-tavern-helper-comparison.json`
+and `extension-littlewhitebox-comparison.json` (`tools/verify-browser-comparisons.mjs:186-191`) -- then
+a sweep of EVERY committed `*-comparison.json` (35 files today) for host-derived values and a check that
+every chat-completion artifact is claimed by a catalogued source (`:204-229`). It cannot recompute them from
+their legs and does not pretend to: the per-run legs
 are gitignored deliberately, and `tests/browser/.gitignore` says why -- "a committed leg invites someone
 to treat a known divergence as the expected value". A first version of this job did recompute and failed
 with `ENOENT`; it had passed when tried by hand only because the untracked legs were on that machine,
@@ -158,10 +165,24 @@ without that second half a false guard could be committed and CI would stay gree
 
 `tests/browser/extension-tavern-helper-comparison.json` is committed and gated. On a RELEASE-FAITHFUL
 install (no `public/` on disk, binary from the lane's own CI run, both legs given the same explicit
-config): 21 rows ALL equal, both drives ended on the page's own network-quiet signal (5,886 ms / 359
-requests on GoTavern against 6,791 ms / 359 on pinned), discovery identical (14 system names, same
-order, from the embedded tree), `/lib.js` byte-identical, and exactly one non-row path difference with
-a recorded reason (`/thumbnail`, the Jimp codec boundary).
+config): 21 compared rows ALL equal (`summary.equal: 21` over 17 `api` plus 4 `extension-asset` rows,
+`differenceCount: 0`, an empty `differences`), both drives ended on the page's own network-quiet signal
+(`captureQuiet` records `quiet: true` on both legs -- `waitedMs` 9,256 on GoTavern against 8,903 on
+pinned, and 359 requests on each; the 5,886/6,791 ms pair this section used to carry is not in the
+file), and exactly one non-row path difference with a recorded reason (`/thumbnail`: GoTavern 404
+against pinned 200, `knownReason` the Jimp codec boundary of `AGENTS.md` architecture boundary 3).
+
+WHAT THIS ARTEFACT DOES NOT ASSERT, stated because three claims in this section used to be attributed
+to it: discovery is ONE equal row -- `/api/extensions/discover`, 1 occurrence per leg, 200 on both,
+`body: "equal-shape"` -- not a name list, so neither the 14 system names nor their order is asserted
+here (the names are pinned as a sorted SET by `tests/oracle/sillytavern-1.19.0-extensions-discovery.json`
+`systemExtensions`, compared in `internal/server/extensions_discovery_test.go:298-334`, which sorts
+before comparing because the pinned route never sorts); no anonymous built-in-file request count and no
+cookie observation is recorded anywhere, so "108 requests ... zero cookies" is not asserted; and
+`/lib.js` is not a row at all, because the artifact's rows cover `/api/*` and the extension's own path
+(`tests/browser/compare-extension-legs.mjs:48-49`), so its byte identity rests on
+`TestPinnedNodeHTTPOracle` against `tests/oracle/sillytavern-1.19.0-fresh-start.json` (one 200,
+1,947,206 bytes, SHA-256 `2d5fb1e...`), not on this pair.
 
 LittleWhiteBox @9e71caef is COMMITTED AND GATED too: `tests/browser/extension-littlewhitebox-comparison.json`,
 452 rows ALL equal, same single non-row difference (`/thumbnail`, the Jimp boundary). It was withheld for

@@ -29,7 +29,7 @@ facts or a named fixture):
 7. **The complex-preset differential is MEASURED.** `tests/browser/fixtures/preset-complex-settings.json` and `tests/browser/preset-complex-comparison.json` (run `40096436669`) record `keepContext` 4260 / `dropContext` 4259, `measuredBy: 'pinned-leg'`, 24 vs 26 total messages, 12 vs 11 history turns, `providerRequestEqual: true`, empty `bodyDifferences` on both variants, verdict `match`. The measured contract does NOT assert instruct/context templates (they are set to ChatML, but the capture notes a chat-completion request must be identical with different templates), secondary WI keys, recursion/probability/outlets, or group chats; the token-budget suite's other boundaries remain unmeasured.
 8. **Placeholders, Claude cache and Mistral prefix are recorded; multimodal is recorded.** All four empty-message converters (`ai21`, `claude`, `cohere`, `deepseek`) carry `[Start a new chat]`, because pinned merges `default/config.yaml:324` into the runtime config at startup, not the module's `Let's get started.` fallback. Claude's `promptPlaceholder`, `enableSystemPromptCache`, `cachingAtDepth`, `extendedTTL` and Mistral's `enablePrefix` have fixtures (`claude-*`, `mistral-prefix-*`). Makersuite inline image, video-with-mediaResolution and audio-without-it are recorded by `makersuite-inline-{image,video-resolution,audio}`; every payload is a data URL because a remote media URL is silently dropped by the pinned converter.
 
-Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), the oracle execution core and planner landed, documentation counts moved to generated blocks, and the chat-completion dispatch moved to one registry row per source. The provider-wire fixture is 219 captured scenarios against 219 declared inputs. **Still open:** the preset features named above, the OpenRouter prompt-cache transform and the gemini `/models` cache probe, and cohere is catalogued but never recorded.
+Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), the oracle execution core and planner landed, documentation counts moved to generated blocks, and the chat-completion dispatch moved to one registry row per source. The provider-wire fixture is 219 captured scenarios against 219 declared inputs. **Still open:** the preset features named above, the OpenRouter prompt-cache transform and the gemini `/models` cache probe, and cohere's BROWSER leg is catalogued but never recorded (its ten `cohere-*` provider-wire scenarios ARE recorded, with captures, in `tests/oracle/sillytavern-1.19.0-provider-wire.json`; what is missing is `generation-cohere-comparison.json`/`streaming-cohere-comparison.json`, which `tests/browser/sources.mjs` records by setting both `evidence` fields to `null`).
 
 
 ## 1. Where the project stands
@@ -77,8 +77,12 @@ paragraph is silently overwritten and fails the zero-diff gate.
 - **The rollback direction, newly measured**: `tests/oracle/sillytavern-1.19.0-runtime-roundtrip.json`.
   Pinned boots over a GoTavern-written tree and changes NOTHING (0 added / 0 changed / 0 removed) and
   READS it back (characters, both chat messages, the world entry verbatim). A second boot of either
-  subject changes nothing. Two exclusions exist because two recordings disagreed, and the card exclusion
-  is decided from the BYTES so the seeded card is still compared byte for byte.
+  subject changes nothing. Exactly ONE comparison exclusion is recorded: `comparisonExclusions` has the
+  single key `data/_webpack/**`, because only pinned Node writes that cache, so the PATH SET legitimately
+  differs between subjects. The seeded card is not an exclusion at all -- it is a `normalization` entry
+  for `data/<handle>/characters/*.png`, whose reason is that the import route rewrites the stored card
+  with a generated `chat` name and an ISO `create_date`: the SIZE is recorded, the BYTES are not, and the
+  card content is compared by reading it back through pinned.
 
 ## 3. Release path: what is now executed, and what still is not
 
@@ -88,12 +92,22 @@ version-shaped (`-alpha.1`, `-beta.2`, `-rc.1`, `+build`) is a PRERELEASE; a nam
 refused rather than guessed. For `v0.1.0-alpha.1` that means `docker.yml` publishes
 `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.1` and leaves `:latest` untouched, and `release.yml` creates the GitHub
 Release with `--prerelease --latest=false`, so `releases/latest/download/...` -- the URL both installers fetch --
-keeps pointing at a stable release instead of an alpha. The rule is covered by
-`scripts/test-classify-version-tag.sh` in the `verify` job (commit `84648b2`, run 40056851570 step 6), and the
-docker decision was exercised in a real runner: dispatch run 40057381696 printed `channel: dispatch` and
-`it will NOT move ...:latest`. NOT yet measured: the prerelease branch itself, which only a real tag push reaches
--- so the first tag IS the confirmation, and it should be cut from `84648b2` or later, because the tag must
-contain the classifier script.
+is never moved onto an alpha. NO STABLE RELEASE EXISTS YET for it to point at: `docs/generated/facts.json`
+(`scm.versionTags`) lists exactly one tag, `v0.1.0-alpha.1`, and that tag classifies as a prerelease, so the claim
+this repository can actually make is the negative one -- a prerelease is never served as `latest` -- and that is
+the assertion `release-install-smoke.yml` makes on the bytes of `releases/latest/download/checksums.txt`.
+The rule is covered by `scripts/test-classify-version-tag.sh` in the `verify` job (commit `84648b2`,
+run 40056851570 step 6), and the docker decision was exercised in a real runner: dispatch run 40057381696
+printed `channel: dispatch` and `it will NOT move ...:latest`. THE PRERELEASE BRANCH HAS RUN SINCE, which this
+paragraph used to deny: the tag
+push that published `v0.1.0-alpha.1` (release run 40066449948) is a `v*` tag push, which is what `docker.yml`'s
+`tags: ['v*']` trigger matches, so the branch is reached by a real tag and no longer waits for a first tag to
+confirm it; that tag was cut at `2dde1fa`, which contains the classifier (`84648b2`). What is STILL UNMEASURED is
+the ASSERTION rather than the branch: nothing in `release.yml` or `docker.yml` re-reads `releases/latest` or
+`:latest` after publishing, and the only byte-level check of `releases/latest` lives in
+`release-install-smoke.yml`, which is `schedule` + `workflow_dispatch` only and is therefore NOT tag-triggered --
+its runs 40072321355 and 40072470162 are weekly/dispatch runs, not the release run -- and this host has no network,
+so the registry's own `:latest` tag cannot be inspected offline.
 
 `.github/workflows/release-qualification.yml` (tag or dispatch) builds TWO archives from the same source
 with different version strings, asserts their contents and modes, runs `assets verify` FROM THE EXTRACTED
@@ -227,8 +241,9 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
 7. **The tokenizer fixture cannot decide response BYTES, and that is measured, not suspected.** The
    fixture records parsed JSON, and `tests/oracle/sillytavern-1.19.0-tokenizers.json` has **26 of 1022**
    cases whose bodies carry **129 U+FFFD** characters: a byte-level BPE tokenizer answers with chunks that
-   are fragments of a multi-byte character, so six of the nine `gpt2/encode#cjk` chunks are replacement
-   characters that decode identically from DIFFERENT bytes. `chunks` is compared as text, so those cases
+   are fragments of a multi-byte character, so six of the ten `gpt2/encode#cjk` chunks (`chunks` carries 10
+   entries, `count: 10`, ten ids) are replacement characters that decode identically from DIFFERENT bytes.
+   `chunks` is compared as text, so those cases
    (gpt2 and the HuggingFace `openai` family, plus three `decode#roundtrip_emoji` cases) pass for the wrong
    reason -- a green that cannot fail, and the class rule 7 names. A second, independent byte difference is
    visible in the same file: **222 of 1022** bodies contain `<` or `>` (special tokens such as `<|endoftext|>`
