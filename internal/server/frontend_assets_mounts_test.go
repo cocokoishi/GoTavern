@@ -19,7 +19,6 @@ package server
 // whose registered pattern is not the decoded form of the pinned mount is a failure with the row named.
 
 import (
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,19 +51,28 @@ var pinnedUserDataMounts = []pinnedUserDataMount{
 	},
 }
 
-// decodedPattern converts a pinned mount (`/User%20Avatars/*`) into the pattern this mux registers
-// (`/User Avatars/{rest...}`). net/http decodes the request target before matching, so the literal in
-// the pattern is the DECODED path segment and the wildcard is the Go 1.22 spelling.
-func decodedPattern(pinnedMount string) (string, error) {
+// registeredPattern converts a pinned mount (`/User%20Avatars/*`) into the pattern this mux registers
+// (`/User%20Avatars/{rest...}`): the pinned literal kept BYTE FOR BYTE, with only the wildcard spelling
+// changed.
+//
+// An earlier version of this helper percent-DECODED the prefix first, producing
+// `/User Avatars/{rest...}`. That pattern cannot exist: parsePattern splits on the first space to
+// separate the method (src/net/http/pattern.go:96), so a literal space in a path is read as the
+// invalid method "/User" and mux.HandleFunc panics at registration. Measured on main: every
+// handler-constructing test failed inside net/http.(*ServeMux).HandleFunc and the packaged binary
+// exited 2 before answering GET /version. Keeping the escape is legal AND correct -- literal segments
+// are unescaped while the pattern is parsed (pattern.go:148) and matching compares unescaped path
+// segments, so `User%20Avatars` matches the request's `User Avatars` segment.
+//
+// THIS TEST COMPARED STRINGS AND NEVER REGISTERED THE PATTERN IT DEMANDED, so it stayed green while
+// the server panicked. AGENTS.md rule 54 records the lesson: a gate that compares two declarations
+// cannot see a failure that happens when the declaration is executed.
+func registeredPattern(pinnedMount string) (string, error) {
 	prefix, ok := strings.CutSuffix(pinnedMount, "*")
 	if !ok {
 		return "", errNotAWildcardMount(pinnedMount)
 	}
-	decoded, err := url.PathUnescape(prefix)
-	if err != nil {
-		return "", err
-	}
-	return decoded + "{rest...}", nil
+	return prefix + "{rest...}", nil
 }
 
 type errNotAWildcardMount string
@@ -121,7 +129,7 @@ func TestPinnedUserDataMountsAreAllServed(t *testing.T) {
 			}
 			continue
 		}
-		pattern, err := decodedPattern(row.pinnedMount)
+		pattern, err := registeredPattern(row.pinnedMount)
 		if err != nil {
 			t.Fatalf("%s: %v", row.pinnedLine, err)
 		}

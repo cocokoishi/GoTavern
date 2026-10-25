@@ -70,14 +70,20 @@ func init() {
 // package-level value so the inventory test diffs it against the pinned declarations instead of
 // trusting this comment.
 //
-// /User%20Avatars/*: net/http decodes the request target before matching, so the pattern carries the
-// DECODED literal (`/User Avatars/`). A request for /User%20Avatars/x.png has r.URL.Path
-// "/User Avatars/x.png" and matches it. The percent-encoded spelling is what the pinned frontend
-// builds; the space is what this mux matches.
+// /User%20Avatars/* is registered with the ESCAPED spelling, and that is not cosmetic. net/http's
+// pattern parser (src/net/http/pattern.go:96) splits a pattern on the FIRST space to separate an
+// optional method, so a pattern containing a literal space is read as method "/User", rejected as an
+// invalid method, and mux.HandleFunc PANICS at registration. Registering "/User Avatars/{rest...}"
+// therefore took the whole server down before it opened a port: measured on main, where every
+// handler-constructing test failed with net/http.(*ServeMux).HandleFunc in the trace and the packaged
+// binary exited 2 before answering GET /version. The escaped form is legal AND matches, because a
+// pattern's literal segments are unescaped while it is parsed (pattern.go:148 pathUnescape) and
+// matching compares unescaped path segments, so `User%20Avatars` and the request's `User Avatars`
+// segment are the same segment.
 var userDataMounts = []struct{ pattern, directoryKey string }{
 	{"/backgrounds/{rest...}", "backgrounds"},
 	{"/characters/{rest...}", "characters"},
-	{"/User Avatars/{rest...}", "avatars"},
+	{"/User%20Avatars/{rest...}", "avatars"},
 	{"/assets/{rest...}", "assets"},
 	{"/user/images/{rest...}", "userImages"},
 	{"/user/files/{rest...}", "files"},
