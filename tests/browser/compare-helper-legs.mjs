@@ -98,6 +98,11 @@ for (const subject of subjects) {
         bridge: leg?.bridge ?? null,
         iframe: leg ? { id: leg.iframe?.id ?? null, sandbox: leg.iframe?.hasSandboxAttribute ?? null, sameOriginReadable: leg.iframe?.sameOriginReadable ?? null, scriptError: leg.iframe?.scriptError ?? null } : null,
         renderDiagnostics: leg?.renderDiagnostics ?? null,
+        // Q10's evidence, carried into the artefact: what the host hands the page, what the drive called,
+        // and where the chat file would have been (flat or per-character).
+        saveFunctionsReachable: leg?.saveFunctionsReachable ?? null,
+        saveAttempt: leg?.saveAttempt ?? null,
+        chatFile: leg?.variableState?.chatFile ?? null,
         steps: (leg?.steps ?? []).map(item => ({ name: item.name, ok: item.ok, detail: item.detail })),
     };
 }
@@ -144,15 +149,22 @@ guards.negativeControlBites = mutated.present && controlCounter === 0 && control
 if (driveStepFailures.length > 0) guards.driveCompleted = false;
 
 const unprovenEntries = [
-    // The lead's sentence, kept nearly verbatim because it is the finding: not "we did not check" but "the
-    // drive could not produce the state this guard judges, on either subject".
-    'variablePersisted: the drive never produced a saved chat; createChatMessages and setChatMessage had no chat to write into, so variable-persisted, render-path and dom-urls are not falsifiable on either subject (Browser differential 40217283368 recorded chatFile=(none) with the module completion marker present on BOTH subjects).',
-    'renderPathProduced: same mechanism as variablePersisted - no chat, therefore no message, therefore no div.TH-render to judge on either subject.',
-    'domUrlsServed: same mechanism - the rendered message is what requests /characters/<avatar>.png, and no rendered message existed.',
-    'chatFileCreated: same mechanism; recorded so the chain is visible rather than inferred from the three guards above.',
     'a user script that loads Vue / Vue-Router inside the iframe: the probe blocks testingcf.jsdelivr.net (the iframe heads load Vue there with blocking tags and no onerror) and the probe script uses only TavernHelper.',
     'injection or generation through THIS surface: they are the generation surface (helper-generation-comparison.json).',
 ];
+// A FALSE GUARD IS DECLARED WITH ITS MEASURED MECHANISM, AND ONLY WHILE IT IS FALSE. A declaration that
+// stayed behind after the guard went green would hide a green guard from the required set (helperSurface
+// refuses that as stale), and a declaration written before the measurement would be another guess. The
+// mechanism is read from the legs, so it names what actually happened on this run.
+const guardMechanisms = {
+    chatFileCreated: () => `no chat file appeared after the drive's save attempt; saveFunctionsReachable=${JSON.stringify(subjects.map(subject => on[subject]?.saveFunctionsReachable ?? null))} saveAttempt=${JSON.stringify(subjects.map(subject => on[subject]?.saveAttempt ?? null))}; the scan covers chats/**/*.jsonl (flat and per-character)`,
+    variablePersisted: () => `the chat variable never reached a persisted chat file; counters=${JSON.stringify(subjects.map(subject => observed[subject].counters))}. See chatFileCreated for the save path that was tried.`,
+    renderPathProduced: () => 'the helper renderer produced no div.TH-render on either subject: the message the script wrote is judged only through the DOM, and no rendered message existed',
+    domUrlsServed: () => 'the rendered message is what requests /characters/<avatar>.png; no rendered message existed on either subject, so nothing was requested to judge',
+};
+for (const [name, mechanism] of Object.entries(guardMechanisms)) {
+    if (guards[name] !== true) unprovenEntries.push(`${name}: ${mechanism()}`);
+}
 const declaredUnproven = new Set(unprovenEntries.map(entry => String(entry).split(':')[0].trim()));
 
 const failedGuards = Object.entries(guards)

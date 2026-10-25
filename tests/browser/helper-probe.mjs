@@ -274,18 +274,33 @@ function step(name, ok, detail = null) {
 
 // The chat file's own record of the chat variables, read from disk. This is the persisted-state half
 // of the assertion: a variable that only exists in the page's memory is not saved.
+async function listChatFiles(directory, prefix = '') {
+    const found = [];
+    for (const entry of await fs.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+            found.push(...await listChatFiles(path.join(directory, entry.name), relative));
+        } else if (entry.name.endsWith('.jsonl')) {
+            found.push({ relative, absolute: path.join(directory, entry.name) });
+        }
+    }
+    return found;
+}
+
 async function readChatVariables() {
+    // THE FILE IS `chats/<avatar_url without .png>/<file_name>.jsonl` on pinned
+    // (src/endpoints/chats.js:592-614), and a long-lived-tree test on main already planted one FLAT and
+    // passed while no chat could be opened. Scan both shapes and record which one answered.
     const chatsDirectory = path.join(dataRoot, 'default-user', 'chats');
-    const entries = await fs.readdir(chatsDirectory).catch(() => []);
-    const chatFiles = entries.filter(name => name.endsWith('.jsonl'));
-    if (chatFiles.length === 0) return { chatFile: null, variables: null };
-    const withTimes = await Promise.all(chatFiles.map(async name => ({
-        name,
-        mtime: (await fs.stat(path.join(chatsDirectory, name))).mtimeMs,
+    const chatFiles = await listChatFiles(chatsDirectory);
+    if (chatFiles.length === 0) return { chatFile: null, variables: null, scope: 'chats/**/*.jsonl' };
+    const withTimes = await Promise.all(chatFiles.map(async entry => ({
+        ...entry,
+        mtime: (await fs.stat(entry.absolute)).mtimeMs,
     })));
     withTimes.sort((left, right) => right.mtime - left.mtime);
-    const chatFile = withTimes[0].name;
-    const body = await fs.readFile(path.join(chatsDirectory, chatFile), 'utf8');
+    const chatFile = withTimes[0].relative;
+    const body = await fs.readFile(withTimes[0].absolute, 'utf8');
     const firstLine = body.split('\n').find(line => line.trim() !== '');
     let variables = null;
     try {
@@ -293,7 +308,7 @@ async function readChatVariables() {
     } catch {
         variables = 'unparsable-first-line';
     }
-    return { chatFile, variables };
+    return { chatFile, variables, scope: chatFile.includes('/') ? 'per-character subdirectory' : 'flat' };
 }
 
 let browser;
@@ -357,6 +372,17 @@ try {
         return { settingsReady: false };
     });
     step('settings-ready', report.reachedUserState?.settingsReady === true, 'script.js settingsReady');
+
+    // WHAT THE FRONTEND OFFERS THE PAGE. `saveMetadata` and `saveChatConditional` are module exports of
+    // public/script.js (:9408, :9412) and therefore not on `window`; the reachable path is whatever the
+    // host's getContext() object carries. Measured, not assumed, and recorded even when empty so the next
+    // reader inherits the fact rather than the guess.
+    report.saveFunctionsReachable = await page.evaluate(() => {
+        const context = window.SillyTavern?.getContext?.();
+        return ['saveMetadata', 'saveMetadataDebounced', 'saveChatConditional', 'saveChat', 'saveSettingsDebounced', 'saveItemizedPrompts']
+            .filter(name => typeof context?.[name] === 'function');
+    });
+    step('save-functions-probed', true, JSON.stringify(report.saveFunctionsReachable));
 
     // The 25 host imports, judged as URLs: the extension is an ES module that imports the host's own
     // modules five levels up, so a single 404 makes the extension unable to load.
@@ -489,6 +515,64 @@ try {
         report.steps.push({ name: 'iframe-not-sandboxed', ok: null, detail: 'variant off' });
         report.steps.push({ name: 'script-ran', ok: null, detail: 'variant off' });
     }
+
+    if (variant === 'on') {
+        // WHY THE FIRST ATTEMPT COULD RESOLVE AND WRITE NOTHING (measured, pinned source):
+        //   saveMetadata() -> saveChatConditional() -> saveChat()          (public/script.js:9408, :9412)
+        //   saveChat(): const fileName = chatName ?? characters[this_chid]?.chat;   (:7407)
+        //   if (!fileName) { console.warn('saveChat called without chat_name and no chat file found'); return; } (:7414)
+        // A character that has just been clicked has `chat` undefined, so saveChat RETURNS BEFORE ANY REQUEST
+        // while saveMetadata still resolves. That is run 40236617770: reachable=[saveMetadata, ...], attempt
+        // ok:true, no file. A user's first save names the chat, so the drive names it too and lets the
+        // frontend write the bytes from its own state.
+        report.saveDiagnostics = await page.evaluate(() => {
+            const context = window.SillyTavern.getContext();
+            const index = context.characterId;
+            return {
+                chatLength: context.chat?.length ?? null,
+                chatId: context.chatId ?? null,
+                characterChatName: index === undefined ? null : (context.characters?.[index]?.chat ?? null),
+                chatMetadataIntegrity: context.chatMetadata?.integrity ?? null,
+            };
+        });
+        const reachable = report.saveFunctionsReachable ?? [];
+        const waitForFile = async (budgetMs) => {
+            const started = Date.now();
+            while (Date.now() - started < budgetMs) {
+                const found = await readChatVariables();
+                if (found.chatFile) return found.chatFile;
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            return null;
+        };
+        const attempts = [];
+        const preferred = ['saveMetadata', 'saveChatConditional'].find(name => reachable.includes(name));
+        if (preferred) {
+            attempts.push(await page.evaluate(async name => {
+                try { await window.SillyTavern.getContext()[name](); return { via: name, ok: true }; }
+                catch (error) { return { via: name, ok: false, error: String(error?.message ?? error) }; }
+            }, preferred));
+        }
+        let file = await waitForFile(8000);
+        if (!file && reachable.includes('saveChat')) {
+            attempts.push(await page.evaluate(async name => {
+                try { await window.SillyTavern.getContext().saveChat({ chatName: name }); return { via: 'saveChat{named}', ok: true }; }
+                catch (error) { return { via: 'saveChat{named}', ok: false, error: String(error?.message ?? error) }; }
+            }, 'gotavern-helper-probe'));
+            file = await waitForFile(15000);
+        }
+        report.saveAttempt = { attempts, fileAfter: file };
+        observation('save-attempted', Boolean(file) || attempts.some(item => item.ok), JSON.stringify(report.saveAttempt));
+        // THE REQUEST LIST, so a save that resolves without writing anything can be attributed: either the
+        // frontend issued POST /api/chats/save and the server answered, or it never asked. That is the
+        // difference between a product finding and a driver that never reached the state.
+        await recorder.settled();
+        report.saveRequests = recorder.requests
+            .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
+            .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
+        observation('save-requests-recorded', report.saveRequests.length > 0, JSON.stringify(report.saveRequests));
+    }
+
 
     // THE RENDER PATH: the extension wraps an HTML code block in div.TH-render and mounts an iframe.
     if (variant === 'on') {
