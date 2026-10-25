@@ -170,6 +170,21 @@ and variables — so "preset works" and "helper works" are provably not enough o
   computed `background-image`, and failing on any console 404 GoTavern has that pinned does not. This is the
   gate that answers "open the page and look at the pictures", which nothing in this repository could do.
 
+**酒馆助手 (P0-D) measured state, 2026-10-25, lane `lane/helper` @ `b1a1afa` (NOT merged; main reverted
+its first slice as `9e60f48` because it carried a red gate).** The architecture half of Q8 is PROVEN and
+EQUAL on both subjects: an unsandboxed script iframe, `window.parent.TavernHelper` with 157 members
+reachable inside it, the module's own completion marker, and all 25 static `../../../../../` host imports
+served with bytes — so "the files load" is no longer the claim. Q11 (a depth-0 injection reaches the
+model context) and Q9 (a `generateRaw({ordered_prompts})` request) are MEASURED: the peer received two
+requests per subject, the markers arrived in the asked order and roles, and the request bodies were
+byte-identical `Node == Go` (`bodySha256`, length, model, stream, messages). Q10 (variable persistence)
+is UNPROVEN with its mechanism named: the drive never produced a saved chat, so `variable-persisted`,
+`render-path` and `dom-urls` are red on BOTH subjects and are not evidence for either. Q12 is partial:
+`generate({preset_name:'in_use'})` produced an equal request, but no preset mutation was exercised.
+Two driver defects cost this lane two rounds and are worth remembering: `getContext` is NOT a
+`TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
+`iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
+`createChatMessages` had nothing to write into.
 `lane/preset-real` (`wt-preset`) has committed nothing yet: the real preset/card fixture, where the
 packed-blob measurement for the 19 MB card is still the first thing to decide.
 
